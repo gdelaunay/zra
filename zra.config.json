@@ -37,9 +37,24 @@
 
   // Backend d'injection (spec §6) :
   //   "acp"   le shim émet lui-même le session/prompt — défaut
+  //   "uia"   Zed émet le prompt : ZRA le tape au clavier (exige zedControl)
+  //   "auto"  "acp", repli clavier si l'agent refuse le prompt (risque 🔴1)
   //   "mock"  backend bouchon, pour valider la chaîne sans agent (spec §10.6)
-  //   "uia" / "auto"  UI Automation — lot C
   "injection": "acp",
+
+  // Pilotage de la fenêtre Zed au clavier : ouvrir une session depuis le « + »
+  // du mobile, rouvrir un thread fermé, backend "uia". Zed n'expose rien à UI
+  // Automation : ce sont des frappes réelles, envoyées à la fenêtre Zed et
+  // interrompues si elle perd le premier plan. Désactivé tant qu'on ne l'a pas
+  // voulu. Mise au point : `npm run zed -- probe | recipes | try <recette>`.
+  "zedControl": {
+    "enabled": false,
+    // "window": "zra",        // fenêtre Zed dont le titre contient ce texte
+    // "dryRun": true,         // tout résoudre, ne rien envoyer
+    // "recipes": {            // surcharge des recettes de zra-daemon/zed/driver.js
+    //   "openThread": [ { "keys": "ctrl+shift+p" }, { "wait": 400 }, … ]
+    // }
+  },
 
   // Comment lancer un agent, quand le registry de Zed ne suffit pas à le dire.
   // Sert au shim (quel binaire envelopper) comme au relecteur de threads fermés.

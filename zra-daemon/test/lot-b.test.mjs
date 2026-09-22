@@ -516,3 +516,40 @@ test('shim perdu : le thread redevient closed et la file perdue est annoncée', 
   assert.equal(dernier.turn, 'idle')
   assert.deepEqual(dernier.queue, [])
 })
+
+// ===========================================================================
+// Le shim tel que l'installe `npm run setup` (lot C)
+// ===========================================================================
+
+test('shim installé : journal dans un fichier, trames enregistrées, /status à jour', async (t) => {
+  const { mkdirSync, readFileSync, readdirSync, rmSync } = await import('node:fs')
+  const dir = join(HERE, 'fixtures', 'shim-state')
+  rmSync(dir, { recursive: true, force: true })
+  mkdirSync(dir, { recursive: true })
+  const logFile = join(dir, 'logs', 'shim.log')
+
+  await boot(t)
+  const { zed } = await startShim(t, {
+    env: { ZRA_LOG_LEVEL: 'info', ZRA_LOG_FILE: logFile, ZRA_RECORD: '1', ZRA_RECORD_DIR: join(dir, 'records') },
+  })
+  await zed.prompt('trace-moi')
+
+  // Le diagnostic local voit le shim et sa session, rattachée au bon thread.
+  const status = await (await fetch(`http://${HOST}:${PORT}/status`)).json()
+  assert.equal(status.injection, 'acp')
+  assert.equal(status.threads.live, 1)
+  assert.deepEqual(status.shims[0].sessions, [{ sessionId: SESSION_VIVANT, threadId: VIVANT }])
+  assert.equal(status.shims[0].loadSession, true)
+
+  await wait(150)
+  const log = readFileSync(logFile, 'utf8')
+  assert.match(log, /daemon connecté/)
+  assert.match(log, /initialize : .*loadSession=oui/)
+  assert.match(log, new RegExp(`session ouverte : ${SESSION_VIVANT}`))
+
+  const [record] = readdirSync(join(dir, 'records'))
+  const frames = readFileSync(join(dir, 'records', record), 'utf8').trim().split('\n').map((l) => JSON.parse(l))
+  const directions = new Set(frames.map((f) => f.direction))
+  assert.ok(directions.has('zed→agent') && directions.has('agent→zed'), [...directions].join(', '))
+  assert.ok(frames.some((f) => f.frame.includes('trace-moi')))
+})

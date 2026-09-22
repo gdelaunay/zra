@@ -416,3 +416,40 @@ test('sans ZRA_RECORD, l’enregistreur ne touche à rien', () => {
   recorder.write('zed→agent', Buffer.from('{}\n'))
   recorder.close()
 })
+
+// ---- confirmation d'un prompt injecté (mode auto, lot C) --------------------
+
+test('prompt confirmé : accepté au premier update, refusé sur erreur, muet au délai', async () => {
+  const { AcpBridge } = await import('../acp.js')
+  const sent = []
+  const bridge = new AcpBridge({ toAgent: (raw) => sent.push(JSON.parse(raw.toString())) })
+  // Une session ouverte par Zed, vue passer par le shim.
+  bridge.observeFromZed({ jsonrpc: '2.0', id: 1, method: 'session/new', params: { cwd: '/tmp' } })
+  bridge.observeFromAgent({ jsonrpc: '2.0', id: 1, result: { sessionId: 's1' } })
+  const failed = []
+  bridge.on('prompt_failed', (e) => failed.push(e))
+
+  // Accepté : le premier session/update tranche.
+  const ok = bridge.prompt('s1', 'un', 'queue', { confirmMs: 1000 })
+  await new Promise((r) => setImmediate(r))
+  bridge.observeFromAgent({ jsonrpc: '2.0', method: 'session/update', params: { sessionId: 's1', update: { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'ok' } } } })
+  assert.deepEqual(await ok, { queued: false, confirmed: true })
+  bridge.observeFromAgent({ jsonrpc: '2.0', id: sent.at(-1).id, result: { stopReason: 'end_turn' } })
+
+  // Refusé : l'erreur remonte à l'appelant, sans avis en double.
+  const ko = bridge.prompt('s1', 'deux', 'queue', { confirmMs: 1000 })
+  await new Promise((r) => setImmediate(r))
+  bridge.observeFromAgent({ jsonrpc: '2.0', id: sent.at(-1).id, error: { code: -32000, message: 'non' } })
+  await assert.rejects(ko, (e) => e.code === 'prompt_refused' && /non/.test(e.message))
+  assert.equal(failed.length, 0)
+
+  // Muet : envoyé, non confirmé — pas de repli qui doublerait le message.
+  const mute = bridge.prompt('s1', 'trois', 'queue', { confirmMs: 50 })
+  assert.deepEqual(await mute, { queued: false, confirmed: false })
+
+  // Sans confirmation demandée, un refus reste un avis, comme au lot B.
+  bridge.observeFromAgent({ jsonrpc: '2.0', id: sent.at(-1).id, result: {} })
+  await bridge.prompt('s1', 'quatre')
+  bridge.observeFromAgent({ jsonrpc: '2.0', id: sent.at(-1).id, error: { code: -32000, message: 'refus' } })
+  assert.equal(failed.length, 1)
+})

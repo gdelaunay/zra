@@ -63,8 +63,31 @@ export const DEFAULTS = {
   /** Ring buffer par thread live (spec §5.1). */
   ringSize: 2000,
 
-  /** Backend d'injection (spec §6). `acp` par défaut ; `uia`/`auto` en lot C. */
+  /**
+   * Backend d'injection (spec §6) : `acp` (défaut), `uia` (clavier), `auto`
+   * (`acp`, repli clavier sur refus de l'agent), `mock` (bouchon).
+   */
   injection: 'acp',
+  /** Délai d'attente du verdict de l'agent, ou de Zed, après un envoi (spec §6.2). */
+  injectConfirmMs: 5000,
+
+  /**
+   * Pilotage de la fenêtre Zed au clavier — ouvrir une session (spec §6.7),
+   * rouvrir un thread fermé (§6.3), backend `uia`. **Désactivé par défaut** :
+   * envoyer des touches au poste s'active en connaissance de cause.
+   */
+  zedControl: {
+    enabled: false,
+    /** Filtre sur le titre de la fenêtre Zed visée. `null` => la plus récente. */
+    window: null,
+    stepDelayMs: 120,
+    /** Surcharge des recettes de `zed/driver.js` (`newThread`, `openThread`, `submit`). */
+    recipes: {},
+    /** Tout résoudre sans envoyer une seule touche. */
+    dryRun: false,
+    /** Attente de la preuve venue du shim (session ouverte ou rechargée). */
+    timeoutMs: 30_000,
+  },
 
   /**
    * Comment lancer un agent, quand le registry de Zed ne suffit pas à le dire
@@ -119,6 +142,9 @@ export async function loadConfig({ file = process.env.ZRA_CONFIG || join(ROOT, '
   }
 
   const cfg = { ...DEFAULTS, ...fromFile, ...envOverrides(), ...overrides }
+  // Fusion d'un niveau : `"zedControl": { "enabled": true }` ne doit pas effacer le reste.
+  cfg.zedControl = { ...DEFAULTS.zedControl, ...fromFile.zedControl, ...overrides.zedControl }
+  if (process.env.ZRA_ZED_CONTROL) cfg.zedControl.enabled = process.env.ZRA_ZED_CONTROL !== '0'
 
   cfg.zedDb = abs(cfg.zedDb) || ZED.db
   cfg.zedSettings = abs(cfg.zedSettings) || ZED.settings
@@ -141,9 +167,7 @@ function validate(cfg) {
   if (!['mock', 'acp', 'uia', 'auto'].includes(cfg.injection)) {
     throw new Error(`injection inconnue : ${cfg.injection}`)
   }
-  if (cfg.injection === 'uia' || cfg.injection === 'auto') {
-    // Garde-fou honnête : l'UI Automation arrive en lot C. Mieux vaut le dire au
-    // démarrage que d'échouer au premier envoi.
-    throw new Error(`backend d'injection "${cfg.injection}" pas encore implémenté (lot C) — utiliser "acp"`)
+  if (cfg.zedControl?.recipes && typeof cfg.zedControl.recipes !== 'object') {
+    throw new Error('zedControl.recipes : objet attendu')
   }
 }

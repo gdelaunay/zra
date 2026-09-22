@@ -116,6 +116,18 @@ export class FakeZed {
     return session
   }
 
+  /** Réouverture d'un thread fermé, comme Zed depuis son sidebar : `initialize` puis `session/load`. */
+  async resume(sessionId, { cwd = process.cwd() } = {}) {
+    this.initialized = await this.request('initialize', {
+      protocolVersion: 1,
+      clientCapabilities: { fs: { readTextFile: true, writeTextFile: true }, terminal: true },
+      clientInfo: { name: 'fake-zed', version: '1' },
+    })
+    const loaded = await this.request('session/load', { sessionId, cwd, mcpServers: [] })
+    this.sessionId = sessionId
+    return loaded
+  }
+
   prompt(text) {
     return this.request('session/prompt', { sessionId: this.sessionId, prompt: [{ type: 'text', text }] })
   }

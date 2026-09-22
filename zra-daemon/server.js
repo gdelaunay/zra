@@ -59,7 +59,7 @@ export function selfOrigins({ addresses, port, tls }) {
   return [...hosts].map((h) => `${scheme}://${h}:${port}`)
 }
 
-export async function createServers({ config, addresses, onConnection, onShim }) {
+export async function createServers({ config, addresses, onConnection, onShim, status = null }) {
   const tlsOptions = config.tls
     ? { cert: await readFile(config.tls.cert), key: await readFile(config.tls.key) }
     : null
@@ -72,6 +72,13 @@ export async function createServers({ config, addresses, onConnection, onShim })
   const serveStatic = config.serveStatic ? createStaticHandler(config.staticDir) : null
 
   const handler = (req, res) => {
+    // Diagnostic du poste (`npm run setup`), en local uniquement : il liste les
+    // shims et les sessions, rien à exposer sur le tunnel.
+    if (status && req.url === '/status' && isLoopback(req.socket.remoteAddress)) {
+      res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' })
+      res.end(JSON.stringify(status()))
+      return
+    }
     if (!serveStatic) {
       // API pure : on répond quelque chose d'explicite plutôt qu'un 404 sec, le
       // premier réflexe de diagnostic étant d'ouvrir l'URL dans un navigateur.

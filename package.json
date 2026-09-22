@@ -14,6 +14,8 @@
     "test": "node --no-warnings --test \"zra-client/test/*.test.mjs\" \"zra-daemon/test/*.test.mjs\" \"zra-shim/test/*.test.mjs\"",
     "fixture": "node --no-warnings scripts/make-fixture.mjs",
     "probe:agent": "node --no-warnings scripts/probe-agent.mjs",
+    "setup": "node --no-warnings scripts/setup.mjs",
+    "zed": "node --no-warnings scripts/zed.mjs",
     "themes": "node scripts/gen-themes.mjs"
   },
   "devDependencies": {

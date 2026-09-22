@@ -5,8 +5,8 @@
 //   node zra-daemon/index.js --port 7777 --no-tunnel --no-static --injection mock
 //
 // Il lit l'index des threads de Zed, accueille les shims sur `/shim` et parle le
-// protocole ZRA à la PWA sur `/ws`. Le pilotage de Zed lui-même — ouvrir une
-// session, rouvrir un thread fermé — arrive au lot C.
+// protocole ZRA à la PWA sur `/ws`. Le pilotage de la fenêtre Zed — ouvrir une
+// session, rouvrir un thread fermé — s'active dans `zedControl` (lot C).
 
 import { loadConfig } from './config.js'
 import { startDaemon } from './daemon.js'
@@ -28,6 +28,8 @@ function parseArgs(argv) {
     else if (a === '--origin') (out.allowedOrigins ??= []).push(argv[++i])
     else if (a === '--zed-db') out.zedDb = argv[++i]
     else if (a === '--injection') out.injection = argv[++i]
+    else if (a === '--zed-control') out.zedControl = { enabled: true }
+    else if (a === '--zed-control-dry-run') out.zedControl = { enabled: true, dryRun: true }
     else if (a === '--verbose') setLevel('debug')
     else if (a === '--help' || a === '-h') { usage(); process.exit(0) }
     else { console.error(`option inconnue : ${a}`); usage(); process.exit(2) }
@@ -46,7 +48,10 @@ function usage() {
   --static-dir <chem>  dossier du client web (défaut zra-client/)
   --origin <url>       origine autorisée à ouvrir le WebSocket (répétable)
   --zed-db <chemin>    base sidebar_threads à lire
-  --injection <mode>   acp (défaut) ou mock (backend bouchon, spec §10.6)
+  --injection <mode>   acp (défaut), uia (clavier), auto (acp, repli clavier)
+                       ou mock (backend bouchon, spec §10.6)
+  --zed-control        active le pilotage clavier de Zed (zedControl.enabled)
+  --zed-control-dry-run  l'active en simulation : recettes résolues, aucune touche
   --verbose            journal détaillé
 `)
 }

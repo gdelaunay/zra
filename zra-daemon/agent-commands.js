@@ -31,6 +31,21 @@ export const REGISTRY_DIR = join(LOCALAPPDATA, 'Zed', 'external_agents', 'regist
 
 export class AgentCommandError extends Error {}
 
+/**
+ * Une entrée `agent_servers` qui lance `zra-shim` plutôt que l'agent lui-même
+ * (c'est ce que pose `scripts/setup.mjs`). Reconnue à son script, pas à son nom :
+ * l'utilisateur peut l'appeler comme il veut.
+ */
+export function isShimEntry(entry) {
+  const args = Array.isArray(entry?.args) ? entry.args : []
+  return args.some((a) => /(^|[\\/])zra-shim[\\/]index\.js$/i.test(String(a)))
+}
+
+/** L'agent qu'enveloppe une entrée shim, tel que Zed le nomme (`ZRA_AGENT_ID`). */
+export function wrappedAgentId(entry) {
+  return isShimEntry(entry) ? (entry?.env?.ZRA_AGENT_ID ?? null) : null
+}
+
 async function readJsonc(file) {
   try {
     return parseJsonc(await readFile(file, 'utf8'))
@@ -81,7 +96,7 @@ function platformKey() {
  * @param {{ settingsFile?:string|null, overrides?:object, registryDir?:string }} opts
  * @returns {Promise<{ command:string, args:string[], env:object, source:string }>}
  */
-export async function resolveAgentCommand(agentId, { settingsFile = null, overrides = {}, registryDir = REGISTRY_DIR } = {}) {
+export async function resolveAgentCommand(agentId, { settingsFile = null, overrides = {}, registryDir = REGISTRY_DIR, depth = 0 } = {}) {
   if (!agentId) throw new AgentCommandError('aucun agent demandé')
 
   const override = overrides?.[agentId]
@@ -91,6 +106,17 @@ export async function resolveAgentCommand(agentId, { settingsFile = null, overri
 
   const settings = settingsFile ? await readJsonc(settingsFile) : null
   const entry = settings?.agent_servers?.[agentId]
+  // Entrée ZRA : c'est l'agent enveloppé qu'on veut lancer, pas un shim de plus.
+  // Un shim lancé par le daemon se connecterait à lui et ferait passer `live`
+  // une session qu'il ne fait que relire.
+  if (isShimEntry(entry)) {
+    const inner = wrappedAgentId(entry)
+    if (!inner || inner === agentId || depth > 2) {
+      throw new AgentCommandError(`agent « ${agentId} » : entrée ZRA sans agent enveloppé valide (env.ZRA_AGENT_ID)`)
+    }
+    const resolved = await resolveAgentCommand(inner, { settingsFile, overrides, registryDir, depth: depth + 1 })
+    return { ...resolved, source: `zra→${resolved.source}`, wraps: inner }
+  }
   if (entry?.command) {
     return { command: entry.command, args: entry.args ?? [], env: entry.env ?? {}, source: 'settings' }
   }

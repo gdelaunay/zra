@@ -107,6 +107,8 @@ export class AcpBridge extends EventEmitter {
     this.injected = new Map()
     /** Demandes de permission en attente : `idKey` → `{ …, resolvedBy }`. */
     this.permissions = new Map()
+    /** Prompts injectés en attente de confirmation (mode `auto`) : `sessionId` → attente. */
+    this.confirming = new Map()
 
     this.protocolVersion = null
     this.agentCapabilities = null
@@ -284,6 +286,9 @@ export class AcpBridge extends EventEmitter {
 
     // Ce qu'on retient des options annoncées en cours de route ne sert qu'au
     // `thread_state` : l'`update` lui-même est republié verbatim.
+    // Premier signe de vie de l'agent après un prompt injecté : il l'a accepté.
+    this.confirm(sessionId, true)
+
     const st = this.sessions.get(sessionId)
     switch (update.sessionUpdate) {
       case 'current_mode_update':
@@ -396,9 +401,14 @@ export class AcpBridge extends EventEmitter {
    * Envoie un prompt. `queue` met en file si un tour est en cours ; `interrupt`
    * coupe le tour, attend l'acquittement, puis envoie (spec §6.4).
    *
-   * @returns {Promise<{ queued:boolean, queueId?:string }>}
+   * `confirmMs` (mode `auto`) : l'accusé attend le verdict de l'agent — premier
+   * `session/update` = accepté, réponse en erreur = refusé (`prompt_refused`),
+   * rien dans le délai = envoyé sans confirmation. Sans lui, l'accusé part dès
+   * l'écriture et un refus n'arrive qu'en avis (`prompt_failed`).
+   *
+   * @returns {Promise<{ queued:boolean, queueId?:string, confirmed?:boolean }>}
    */
-  async prompt(sessionId, text, mode = 'queue') {
+  async prompt(sessionId, text, mode = 'queue', { confirmMs = 0 } = {}) {
     const st = this.requireSession(sessionId)
 
     if (st.turn === 'busy') {
@@ -409,8 +419,8 @@ export class AcpBridge extends EventEmitter {
       await this.cancelAndWait(sessionId)
     }
 
-    await this.sendPrompt(sessionId, text)
-    return { queued: false }
+    const confirmed = await this.sendPrompt(sessionId, text, { confirmMs })
+    return confirmMs > 0 ? { queued: false, confirmed } : { queued: false }
   }
 
   /** Coupe le tour en cours, sans rien envoyer (protocole §3 `interrupt`). */
@@ -466,16 +476,26 @@ export class AcpBridge extends EventEmitter {
     })
   }
 
-  sendPrompt(sessionId, text) {
+  sendPrompt(sessionId, text, { confirmMs = 0 } = {}) {
     const id = `zra-${this.nextId++}`
     const k = idKey(id)
     const params = { sessionId, prompt: [{ type: 'text', text }] }
+
+    /** @type {Promise<boolean>|null} */
+    const verdict = confirmMs > 0 ? this.awaitVerdict(sessionId, confirmMs) : null
 
     this.injected.set(k, {
       method: M.sessionPrompt,
       params,
       settle: (msg) => {
-        if (msg.error) this.emit('prompt_failed', { sessionId, message: msg.error.message || 'prompt refusé' })
+        if (msg.error) {
+          const message = msg.error.message || 'prompt refusé'
+          // Qui attend un verdict en est informé directement : c'est lui qui
+          // décide de la suite (repli clavier), un avis serait redondant.
+          if (!this.confirm(sessionId, false, message)) this.emit('prompt_failed', { sessionId, message })
+        } else {
+          this.confirm(sessionId, true)
+        }
         this.settlePrompt(sessionId, k)
       },
     })
@@ -484,10 +504,34 @@ export class AcpBridge extends EventEmitter {
       this.write({ jsonrpc: '2.0', id, method: M.sessionPrompt, params })
     } catch (err) {
       this.injected.delete(k)
+      this.confirm(sessionId, false, err.message)
       this.settlePrompt(sessionId, k)
       throw new ShimError('inject_failed', `envoi impossible : ${err.message}`)
     }
-    return Promise.resolve()
+    return verdict ?? Promise.resolve()
+  }
+
+  /** @returns {Promise<boolean>} vrai = accepté, faux = sans nouvelles dans le délai ; rejet = refusé */
+  awaitVerdict(sessionId, timeoutMs) {
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.confirming.delete(sessionId)
+        resolve(false)
+      }, timeoutMs)
+      timer.unref?.()
+      this.confirming.set(sessionId, { resolve, reject, timer })
+    })
+  }
+
+  /** @returns {boolean} une attente a-t-elle été tranchée ? */
+  confirm(sessionId, ok, message = null) {
+    const waiter = this.confirming.get(sessionId)
+    if (!waiter) return false
+    this.confirming.delete(sessionId)
+    clearTimeout(waiter.timer)
+    if (ok) waiter.resolve(true)
+    else waiter.reject(new ShimError('prompt_refused', `l'agent a refusé le message : ${message}`))
+    return true
   }
 
   async sendQueued(sessionId, entry) {

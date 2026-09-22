@@ -50,8 +50,12 @@ export class AcpBackend {
     }
   }
 
-  send(threadId, text, mode = 'queue') {
-    return this.run(threadId, 'prompt', { text, mode })
+  /**
+   * `confirmMs` : attendre le verdict de l'agent plutôt que la seule écriture
+   * (mode `auto`) — un refus revient alors en `prompt_refused`.
+   */
+  send(threadId, text, mode = 'queue', { confirmMs = 0 } = {}) {
+    return this.run(threadId, 'prompt', confirmMs > 0 ? { text, mode, confirmMs } : { text, mode })
   }
 
   interrupt(threadId) {

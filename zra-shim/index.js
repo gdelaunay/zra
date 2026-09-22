@@ -110,7 +110,15 @@ export function createShim({
   bridge.on('permission_expired', (p) => push({ type: 'permission_expired', sessionId: p.sessionId, requestId: p.requestId }))
   // Les capacités n'existent qu'après la réponse à `initialize` : on se
   // ré-annonce pour que le daemon les connaisse sans attendre une reconnexion.
-  bridge.on('initialized', () => push({ type: 'shim_hello', shimId, ...describe() }))
+  bridge.on('initialized', () => {
+    const info = bridge.agentInfo
+    log.info(`initialize : ${info ? `${info.name} ${info.version ?? ''}`.trim() : 'agent'}, ` +
+      `protocole ${bridge.protocolVersion ?? '?'}, loadSession=${bridge.agentCapabilities?.loadSession ? 'oui' : 'non'}`)
+    push({ type: 'shim_hello', shimId, ...describe() })
+  })
+  // Journal de diagnostic : ce qu'on lit en premier au test réel.
+  bridge.on('session', (s) => log.info(`session ${s.source === 'load' ? 'rechargée' : 'ouverte'} : ${s.sessionId} (${s.cwd ?? 'cwd ?'})`))
+  bridge.on('prompt_failed', ({ sessionId, message }) => log.warn(`prompt injecté refusé sur ${sessionId} : ${message}`))
   bridge.on('prompt_failed', ({ sessionId, message }) => push({
     type: 'notice', sessionId, code: 'inject_failed', text: `l'agent a refusé le message : ${message}`, level: 'warn',
   }))
@@ -135,7 +143,7 @@ export function createShim({
 export async function runCommand(bridge, msg) {
   switch (msg.cmd) {
     case 'prompt':
-      return bridge.prompt(msg.sessionId, msg.text, msg.mode)
+      return bridge.prompt(msg.sessionId, msg.text, msg.mode, { confirmMs: Number(msg.confirmMs) || 0 })
     case 'cancel':
       return bridge.cancel(msg.sessionId)
     case 'set_option':
@@ -241,6 +249,7 @@ export async function main(argv = process.argv.slice(2)) {
     agentOut: child.stdout,
     agentId: agent.agentId,
     daemonUrl,
+    record,
   })
 
   // Zed coupe le shim comme il couperait l'agent : on transmet et on suit.

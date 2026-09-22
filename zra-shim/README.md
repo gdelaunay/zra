@@ -48,9 +48,15 @@ de Zed, même si elle utilise les mêmes entiers.
 
 ## Le brancher dans Zed
 
-Une entrée `custom` dans le `settings.json` de Zed, qui remplace l'agent par le
-shim. Le shim retrouve ensuite le vrai agent tout seul, à partir de son `id`
-dans le registry de Zed :
+```bash
+npm run setup -- install           # montre l'entrée, n'écrit rien
+npm run setup -- install --apply   # l'ajoute (sauvegarde dans .zra/backups/)
+npm run setup -- uninstall --apply # la retire, et elle seule
+```
+
+C'est une entrée `custom` **de plus** dans le `settings.json` de Zed : l'agent
+d'origine n'est pas touché. Le shim retrouve ensuite le vrai agent tout seul, à
+partir de son `id` dans le registry de Zed. Ce que `setup` pose, en substance :
 
 ```json
 "agent_servers": {
@@ -87,6 +93,7 @@ L'agent enveloppé se désigne, par ordre de priorité :
 | `ZRA_RECORD=1` | vide toutes les trames dans `%LOCALAPPDATA%\zra\records\*.jsonl` |
 | `ZRA_RECORD_DIR` | où écrire ces enregistrements |
 | `ZRA_LOG_LEVEL` | `debug` `info` `warn` `error` |
+| `ZRA_LOG_FILE` | double le journal dans ce fichier (`setup` : `.zra/logs/shim.log`) |
 
 `ZRA_RECORD=1` est **la première chose à activer au test réel** : une session
 enregistrée devient une fixture de non-régression, et c'est le seul moyen de

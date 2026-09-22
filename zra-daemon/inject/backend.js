@@ -6,11 +6,13 @@
 //     interrupt(thread)
 //   }
 //
-// Un seul point de commutation pour toute l'écriture. `acp` (lot B) et `uia`
-// (lot C) viendront s'enficher ici sans que le reste du daemon bouge.
+// Un seul point de commutation pour toute l'écriture : `acp` (lot B), `uia` et
+// `auto` (lot C) s'enfichent ici sans que le reste du daemon bouge.
 
 import { AcpBackend } from './acp.js'
+import { AutoBackend } from './auto.js'
 import { MockBackend } from './mock.js'
+import { UiaBackend } from './uia.js'
 
 /** Erreur d'injection portant un code du protocole (§4 `error`). */
 export class InjectionError extends Error {
@@ -22,8 +24,8 @@ export class InjectionError extends Error {
 }
 
 /**
- * @param {string} kind `acp` (défaut) · `mock` (spec §10.6) · `uia`/`auto` (lot C)
- * @param {{ states, emit, threads, host?, delayMs?:number }} ctx
+ * @param {string} kind `acp` (défaut) · `mock` (spec §10.6) · `uia` · `auto`
+ * @param {{ states, emit, threads, host?, control?, delayMs?:number, confirmMs?:number }} ctx
  */
 export function createBackend(kind, ctx) {
   switch (kind) {
@@ -32,8 +34,9 @@ export function createBackend(kind, ctx) {
     case 'mock':
       return new MockBackend(ctx)
     case 'uia':
+      return new UiaBackend(ctx)
     case 'auto':
-      throw new Error(`backend d'injection "${kind}" pas encore implémenté (lot C)`)
+      return new AutoBackend(ctx)
     default:
       throw new Error(`backend d'injection inconnu : ${kind}`)
   }

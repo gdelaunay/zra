@@ -16,11 +16,14 @@
 //   ZRA_FAKE_SLOW_MS=…           durée d'un tour long (défaut 400 ms)
 //   ZRA_FAKE_SESSION_ID=…        `session/new` renvoie cet id, pour le faire
 //                                correspondre à une ligne de `sidebar_threads`
+//   ZRA_FAKE_REFUSE_INJECTED=1   refuse tout `session/prompt` qui ne vient pas
+//                                du client (id `zra-N`) : le risque 🔴1 avéré
 
 import { createFramer, parseFrame } from '../framing.js'
 
 const NO_LOAD_SESSION = process.env.ZRA_FAKE_NO_LOAD_SESSION === '1'
 const SLOW_MS = Number(process.env.ZRA_FAKE_SLOW_MS || 400)
+const REFUSE_INJECTED = process.env.ZRA_FAKE_REFUSE_INJECTED === '1'
 
 const sessions = new Map()
 let nextSession = 1
@@ -199,6 +202,7 @@ async function handle(msg) {
     case 'session/prompt': {
       const session = sessions.get(params.sessionId)
       if (!session) return fail(id, 'session inconnue')
+      if (REFUSE_INJECTED && String(id).startsWith('zra-')) return fail(id, 'prompt non émis par le client')
       const text = (params.prompt ?? []).map((p) => p.text ?? '').join('')
       const result = await runPrompt(session, text)
       return reply(id, result)

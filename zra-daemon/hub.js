@@ -21,9 +21,11 @@ export class Hub {
    *   shims: import('./shim-registry.js').ShimRegistry,
    *   backend: object, machine: object, recordInjection?: (e:object)=>void,
    *   loader?: import('./session-loader.js').SessionLoader|null,
+   *   zed?: import('./zed/control.js').ZedControl|null,
    * }} deps
    */
-  constructor({ config, threads, states, rings, shims, backend, machine, recordInjection, loader = null }) {
+  constructor({ config, threads, states, rings, shims, backend, machine, recordInjection, loader = null, zed = null }) {
+    this.zed = zed
     this.config = config
     this.threads = threads
     this.states = states
@@ -118,9 +120,7 @@ export class Hub {
         return this.respondPermission(conn, msg)
 
       case 'new_thread':
-        // Ouvrir une session demande de piloter Zed par UI Automation : lot C.
-        return this.error(conn, 'new_thread_failed',
-          "ouverture de session indisponible : ce poste n'a pas encore le pilotage de Zed")
+        return this.newThread(conn, msg.agentId)
 
       case 'zra/trigger':
         // Marqueur explicite : un daemon réel n'a pas de scénarios à déclencher.
@@ -187,6 +187,17 @@ export class Hub {
     if (!thread) return
     const text = typeof msg.text === 'string' ? msg.text : ''
     if (!text) return
+
+    // Thread fermé : Zed le rouvre, un shim le recharge, puis injection normale
+    // — une seule session, aucune divergence (spec §6.3).
+    if (!this.shims.hasSession(thread.sessionId) && this.zed?.canReopen && this.backend.name !== 'mock') {
+      try {
+        await this.zed.reopen(thread)
+      } catch (err) {
+        log.warn(`réouverture de ${thread.threadId} impossible :`, err.message)
+        return this.error(conn, 'inject_failed', err.message, msg.threadId)
+      }
+    }
 
     const mode = msg.mode === 'interrupt' ? 'interrupt' : 'queue'
     const state = this.states.get(msg.threadId)
@@ -292,6 +303,29 @@ export class Hub {
       return null
     }
     return thread
+  }
+
+  /**
+   * Nouvelle session d'agent depuis le **+** (spec §6.7). `thread_created` part
+   * **après** un `threads` qui contient le thread : sans ça la PWA ouvrirait un
+   * écran sans titre (protocole §4).
+   */
+  async newThread(conn, agentId) {
+    if (!this.zed?.enabled) {
+      return this.error(conn, 'new_thread_failed',
+        'ouverture de session indisponible : pilotage de Zed désactivé sur ce poste (zedControl.enabled)')
+    }
+    if (typeof agentId !== 'string' || !agentId) {
+      return this.error(conn, 'new_thread_failed', 'agent non précisé')
+    }
+    try {
+      const thread = await this.zed.newThread(agentId)
+      conn.send({ type: 'threads', threads: this.threads.threads })
+      conn.send({ type: 'thread_created', threadId: thread.threadId, agentId: thread.agentId ?? agentId })
+    } catch (err) {
+      log.warn(`new_thread ${agentId} :`, err.message)
+      this.error(conn, 'new_thread_failed', err.message)
+    }
   }
 
   // ---- sortie --------------------------------------------------------------

@@ -6,6 +6,7 @@ import { hostname, platform, release, type as osType } from 'node:os'
 import { promisify } from 'node:util'
 
 import { parseJsonc } from './jsonc.js'
+import { wrappedAgentId } from './agent-commands.js'
 import { logger } from './log.js'
 
 const log = logger('agents')
@@ -50,13 +51,19 @@ export async function readAgents(file) {
   const servers = settings?.agent_servers
   if (!servers || typeof servers !== 'object') return []
 
-  return Object.entries(servers).map(([id, conf]) => ({
-    id,
-    name: agentLabel(id),
-    // `registry` = agent connu de Zed, `custom` = binaire déclaré à la main
-    // (c'est par là que passera `zra-shim`, lot B).
-    kind: conf?.type ?? null,
-  }))
+  return Object.entries(servers).map(([id, conf]) => {
+    // Une entrée qui passe par `zra-shim` est nommée d'après l'agent qu'elle
+    // enveloppe : « Claude (ZRA) » à côté de « Claude », pas deux « Claude ».
+    const wraps = wrappedAgentId(conf)
+    const agent = {
+      id,
+      name: wraps ? `${agentLabel(wraps)} (ZRA)` : agentLabel(id),
+      // `registry` = agent connu de Zed, `custom` = binaire déclaré à la main.
+      kind: conf?.type ?? null,
+    }
+    if (wraps) agent.wraps = wraps
+    return agent
+  })
 }
 
 /**

@@ -252,6 +252,12 @@ composer du panel agent, validation.
 
 Le mode `auto` tente `acp`, bascule sur `uia` après échec ou timeout de 5 s.
 
+*Précisé au lot C* : l'arbre UIA de Zed est vide (risque 🟠3 avéré), le backend
+`uia` est donc un pilotage **au clavier** par recettes de touches
+(`zra-daemon/zed/`), désactivé par défaut (`zedControl.enabled`). Et `auto` ne
+bascule que sur un **refus explicite** de l'agent : un silence de 5 s ne prouve
+pas que le message est perdu, et le renvoyer au clavier le doublerait.
+
 ### 6.3 Répondre à un thread fermé
 
 Le daemon demande à Zed d'ouvrir le thread (UIA : palette de commandes → sélection
@@ -555,7 +561,7 @@ logon (optionnelle, script d'install fourni). Le shim n'est jamais lancé à la 
 |---|---|---|---|
 | 🔴 1 | L'agent refuse un `session/prompt` qui ne vient pas de Zed | Log ACP au premier envoi mobile | Backend `uia` (déjà construit) |
 | ✅ 2 | `claude-agent-acp` ne déclare pas `loadSession` | Réponse à `initialize` | **Levé au lot B** : la version 0.80 installée déclare `loadSession: true`. Le repli `no_load_session` reste câblé et testé pour les autres agents |
-| 🟠 3 | L'arbre UIA de Zed n'expose pas le composer | Sonde UIA au démarrage | `SendKeys` sur la fenêtre focalisée |
+| 🟠 3 | L'arbre UIA de Zed n'expose pas le composer | Sonde UIA (`npm run zed -- probe`) | **Avéré au lot C** : arbre vide, 0 élément. Pilotage au clavier (`SendInput`) de la fenêtre Zed, par recettes |
 | 🟡 4 | Zed lance un agent par fenêtre, pas par thread | Observer les `session_id` d'un même shim | Le registre shim→sessions est déjà multi-sessions |
 | 🟡 5 | Schéma `sidebar_threads` modifié par une mise à jour de Zed | Vérification des colonnes au démarrage | Message d'erreur explicite, dégradation en « live seul » |
 | 🟡 6 | Message utilisateur invisible dans le panel Zed (§6.1) | Visuel | Passer en `uia`, ou accepter |

@@ -13,7 +13,7 @@ npm run daemon:dev      # loopback seule, sans exiger de tunnel
 npm test                # suite complète, sans Zed ni agent
 ```
 
-## État : lots A et B
+## État : lots A, B et C
 
 | | |
 |---|---|
@@ -26,12 +26,33 @@ npm test                # suite complète, sans Zed ni agent
 | ✓ | **injection ACP : envoi, file d'attente, interruption, options** |
 | ✓ | **permissions répondables depuis le mobile, course avec le poste** |
 | ✓ | **historique d'un thread fermé par `session/load`, cache 10 min** |
-| ✓ | backends d'injection `acp` (défaut) et `mock` |
-| ✗ | UI Automation, `new_thread`, ouverture de thread fermé → **lot C** |
+| ✓ | backends d'injection `acp` (défaut), `uia`, `auto` et `mock` |
+| ✓ | **pilotage de Zed au clavier : `new_thread`, réouverture d'un thread fermé** — désactivé par défaut |
+| … | recettes clavier à valider au test réel (`TESTING.md`, round 2) |
 
-Ce qui relève encore du lot C répond une `error` explicite plutôt que d'échouer
-en silence : `new_thread_failed`. Et écrire à un thread fermé — que personne
-n'a rouvert dans Zed — répond `inject_failed` avec la raison.
+Tant que le pilotage est désactivé, `new_thread` répond `new_thread_failed` et
+écrire à un thread fermé répond `inject_failed`, chacun avec sa raison.
+
+## Pilotage de Zed (lot C)
+
+Zed n'expose rien à UI Automation (arbre vide) : le daemon le pilote au
+clavier, par **recettes** — suites de touches, de textes et de pauses — que
+`zed/keyboard.ps1` exécute sur la fenêtre Zed. Le texte est saisi en Unicode
+(presse-papiers intact), et la recette s'arrête net si Zed perd le premier plan.
+
+```jsonc
+"zedControl": { "enabled": true, "recipes": { "openThread": [ … ] } }
+```
+
+La preuve que Zed a obéi ne vient jamais d'un délai mais du **shim** : une
+session neuve (`new_thread`), le rechargement du bon `session_id` (thread
+fermé), le tour qui passe `busy` (backend `uia`). Mise au point des recettes :
+`npm run zed -- probe | recipes | try <recette> [--apply]`.
+
+## Diagnostic
+
+`GET /status`, en loopback uniquement : backend, threads par état, shims et
+leurs sessions. C'est ce qu'affiche `npm run setup`.
 
 ## Le canal des shims
 
@@ -163,7 +184,9 @@ hors du tunnel.
 | `agent-commands.js` | comment lancer un agent : config, `settings.json`, registry de Zed |
 | `agents.js` | registry `agent_servers`, présence de Zed |
 | `jsonc.js` | parseur tolérant pour le `settings.json` de Zed |
-| `inject/` | interface d'injection + backends `acp` et `mock` |
+| `inject/` | interface d'injection + backends `acp`, `uia`, `auto`, `mock` |
+| `zed/` | pilotage clavier de Zed : `keyboard.ps1`, recettes, `new_thread`, réouverture |
+| `zed-settings.js` | édition chirurgicale du `settings.json` de Zed (`npm run setup`) |
 
 ## Tests
 

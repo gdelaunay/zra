@@ -8,7 +8,7 @@ suivant.
 |---|---|---|---|
 | **A** — daemon | rien | la fixture SQLite seule | ✅ **fait** |
 | **B** — plomberie ACP | un agent ACP | l'agent bouchon, sans Zed | ✅ **fait** |
-| **C** — pont vers Zed | Zed lancé | la machine cible uniquement | ⬜ à faire |
+| **C** — pont vers Zed | Zed lancé | la machine cible uniquement | 🟨 **code prêt, test réel à faire** |
 
 Si on coupait plutôt « lecture / écriture », l'UI Automation se retrouverait
 mêlée au reste et bloquerait tout un lot sur un risque non testable.
@@ -100,7 +100,7 @@ plutôt que d'échouer en silence :
 |---|---|---|---|
 | `load_history` | `history_unavailable` | lot B | ✅ levé |
 | `respond_permission` | `permission_expired` | lot B | ✅ levé |
-| `new_thread` | `new_thread_failed` | lot C | ⬜ |
+| `new_thread` | `new_thread_failed` | lot C | 🟨 câblé, recette clavier à valider |
 
 Et tout thread était `closed` ou `unknown` : sans shim, rien n'était `live`.
 
@@ -218,13 +218,69 @@ donc aussi le fail-open du shim.
 Le risque 🔴1 — un agent qui refuserait un `session/prompt` ne venant pas de Zed
 — ne se lève que face au vrai agent. Le repli est le backend `uia` du lot C.
 
-## Lot C — le pont vers Zed ⬜
+## Lot C — le pont vers Zed 🟨
 
 > *Critère de sortie : ouvrir une session et répondre à un thread fermé depuis le
 > mobile, sur la machine cible.*
 
 Isolé en dernier volontairement : seul lot fragile (fenêtre, langue, version de
 Zed) et seul lot qui ne se valide que sur la machine cible.
+
+**État** : tout ce qui ne dépend pas du test réel est écrit et testé
+(`npm test` → 208 verts, dont 19 pour le lot C). Reste le test réel, en deux
+rounds décrits dans `TESTING.md` : le premier valide les lots A et B sans une
+frappe clavier, le second met au point les recettes clavier.
+
+### Constat qui a changé le plan
+
+**L'arbre UI Automation de Zed est vide** : 0 élément sous sa fenêtre (Zed
+dessine lui-même son interface, GPUI). Le risque 🟠3 est avéré avant même le
+test : le backend `uia` est un pilotage **au clavier**, par recettes de touches.
+Les raccourcis viennent de la keymap Windows embarquée dans le binaire de Zed.
+
+### Fait
+
+| Fichier | Rôle |
+|---|---|
+| `scripts/setup.mjs` | `npm run setup` : état, `install`, `uninstall` — simulation sans `--apply`, sauvegarde avant écriture |
+| `zra-daemon/zed-settings.js` | édition chirurgicale du `settings.json` : une tranche insérée ou retirée, rien de re-sérialisé |
+| `zra-daemon/zed/keyboard.ps1` | frappes par `SendInput`, texte en Unicode (ni presse-papiers ni disposition), arrêt si Zed perd le premier plan |
+| `zra-daemon/zed/driver.js` | recettes (données, surchargeables), lanceur PowerShell sérialisé, désactivé par défaut |
+| `zra-daemon/zed/control.js` | `new_thread` et réouverture : la preuve vient du shim, pas d'un délai |
+| `zra-daemon/inject/uia.js` | backend clavier : Zed émet le prompt, le shim confirme par le tour `busy` |
+| `zra-daemon/inject/auto.js` | `acp`, repli clavier sur **refus explicite** de l'agent |
+| `scripts/zed.mjs` | `npm run zed` : sonde, recettes, essais — simulation sans `--apply` |
+| `TESTING.md` | les deux rounds du test réel |
+
+Et en appui : le shim journalise dans un fichier (`ZRA_LOG_FILE`), le daemon
+expose `GET /status` en loopback, une entrée ZRA se résout vers l'agent
+qu'elle enveloppe (jamais un shim relancé par le daemon), et `machine.agents`
+la nomme « Claude (ZRA) ». Corrigé au passage : l'enregistreur `ZRA_RECORD` du
+lot B n'était jamais branché sur le shim réel.
+
+### Décisions prises pendant ce lot
+
+1. **Une entrée de plus, pas une entrée modifiée.** `claude-zra` s'ajoute à
+   côté de `claude-acp`, qui reste intact : ZRA ne peut pas casser l'agent
+   d'origine, et le retirer rend le fichier à l'octet près.
+2. **Tout sous `.zra/`** dans le dépôt : journal du shim, trames, sauvegardes.
+3. **Pilotage clavier désactivé par défaut** (`zedControl.enabled`).
+4. **Pas de recette `openThread` par défaut.** Taper un titre au hasard dans
+   Zed pourrait écrire dans le mauvais champ ; tant que la voie n'est pas
+   éprouvée, répondre à un thread fermé échoue explicitement.
+5. **Le repli `auto` n'a lieu que sur un refus explicite**, pas sur un silence
+   de 5 s comme le disait la spec : un agent lent recevrait le message deux
+   fois. Le shim attend désormais le verdict de l'agent quand on le lui demande
+   (`confirmMs`).
+6. **Pas de file d'attente avec le backend `uia`** : la file du shim dépile par
+   ACP, mélanger les deux voies enverrait les messages par deux chemins.
+
+### Reste — dépend du test réel
+
+- les recettes `newThread`, `openThread`, `submit` ;
+- le moment où Zed écrit un thread neuf dans `sidebar_threads` (à la création,
+  ou au premier message ?) — `new_thread` en dépend ;
+- la tâche planifiée au logon, à faire une fois le fonctionnement validé.
 
 ### Fonctionnellement
 

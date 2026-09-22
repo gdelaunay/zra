@@ -56,10 +56,13 @@ export class DaemonLink {
       return this.retry()
     }
     this.ws = ws
+    let opened = false
 
     ws.addEventListener('open', () => {
+      opened = true
       this.backoff = BACKOFF_MIN
-      this.log?.debug('daemon connecté')
+      // Une fois par connexion effective : c'est l'étape 2 du test réel.
+      this.log?.info(`daemon connecté (${this.url})`)
       this.push({ type: 'shim_hello', shimId: this.shimId, ...this.describe() })
       this.flush()
     })
@@ -73,6 +76,7 @@ export class DaemonLink {
 
     const gone = () => {
       if (this.ws !== ws) return
+      if (opened) this.log?.info('lien daemon perdu, reconnexion en arrière-plan')
       this.ws = null
       this.retry()
     }
