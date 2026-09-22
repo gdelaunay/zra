@@ -24,7 +24,7 @@
 
   --radius: 4px;
   --radius-lg: 6px;
-  --header-h: 40px;
+  --bar-h: 40px;
 
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -138,7 +138,7 @@ button { cursor: pointer; }
 
 /* pastille d'état d'un thread */
 .dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
-.dot--live { background: var(--created); box-shadow: 0 0 0 3px color-mix(in srgb, var(--created) 22%, transparent); }
+.dot--live { background: var(--created); }
 .dot--closed { background: none; border: 1.5px solid var(--text-muted); }
 .dot--unknown { background: var(--text-disabled); opacity: .5; }
 .dot--busy { background: var(--warning); animation: pulse 1.2s ease-in-out infinite; }
@@ -147,29 +147,49 @@ button { cursor: pointer; }
 .spin { animation: spin 1s linear infinite; transform-origin: 50% 50%; }
 @keyframes spin { to { transform: rotate(360deg) } }
 
-/* ---------- entete ---------- */
+/* ---------- barres fixes ----------
+ * Les deux écrans partagent exactement la même ossature :
+ *   .header (haut, --bar-h)  ·  .scroll  ·  [composer]  ·  .bottombar (bas, --bar-h)
+ * Les hauteurs sont figées pour qu'aucun contenu ne fasse bouger le cadre. */
+
+/* La vue occupe ce que l'app lui laisse : la barre mock, quand elle existe,
+ * se pose dessous sans pousser le cadre hors de l'écran. */
+.view { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+
+.header, .bottombar {
+  display: flex; align-items: center; gap: var(--sp-3);
+  flex: none;
+  padding-left: var(--sp-4); padding-right: var(--sp-4);
+}
 
 .header {
-  display: flex; align-items: center; gap: var(--sp-3);
-  height: calc(var(--header-h) + var(--safe-top));
-  padding: var(--safe-top) var(--sp-4) 0;
+  height: calc(var(--bar-h) + var(--safe-top));
+  padding-top: var(--safe-top);
   background: var(--title-bar-background);
   border-bottom: 1px solid var(--border);
-  flex: none;
 }
 .header__title {
   font-size: var(--fs-md); font-weight: 600;
   display: flex; align-items: center; gap: var(--sp-3); min-width: 0;
+  flex: 0 1 auto;
 }
 .header__sub { font-size: var(--fs-xs); color: var(--text-muted); font-weight: 400; }
-
-.toolbar {
+.header__meta {
   display: flex; align-items: center; gap: var(--sp-3);
-  padding: var(--sp-3) var(--sp-4);
-  border-bottom: 1px solid var(--border-variant);
-  background: var(--toolbar-background);
-  flex: none;
+  font-size: var(--fs-xs); color: var(--text-disabled); font-weight: 400;
+  min-width: 0; flex: 1 1 auto; overflow: hidden;
 }
+.header__meta .path { font-family: var(--font-mono); }
+.header__agent { color: var(--icon-muted); flex: none; }
+
+.bottombar {
+  height: calc(var(--bar-h) + var(--safe-bottom));
+  padding-bottom: var(--safe-bottom);
+  background: var(--toolbar-background);
+  border-top: 1px solid var(--border);
+}
+.bottombar .input { height: 26px; }
+.bottombar > .grow { flex: 1 1 auto; min-width: 0; display: block; }
 
 .scroll {
   flex: 1 1 auto; overflow-y: auto; overflow-x: hidden;
@@ -208,6 +228,7 @@ button { cursor: pointer; }
   font-size: var(--fs-xs); color: var(--text-muted); margin-top: 2px;
 }
 .thread-row__path { font-family: var(--font-mono); font-size: var(--fs-xs); }
+.thread-row__agent { color: var(--icon-muted); flex: none; margin-top: 2px; }
 .thread-row__badge {
   font-size: var(--fs-xs); color: var(--text-muted);
   border: 1px solid var(--border-variant); border-radius: 3px;
@@ -222,7 +243,6 @@ button { cursor: pointer; }
 
 /* ---------- ecran 2 : thread ---------- */
 
-.thread { display: flex; flex-direction: column; height: 100%; min-height: 0; }
 .thread__scroll { padding: var(--sp-4) var(--sp-4) var(--sp-6); background: var(--editor-background); }
 
 .entry { margin-bottom: var(--sp-5); }
@@ -444,7 +464,7 @@ button { cursor: pointer; }
   flex: none;
   border-top: 1px solid var(--border);
   background: var(--panel-background);
-  padding: var(--sp-4) var(--sp-4) calc(var(--sp-4) + var(--safe-bottom));
+  padding: var(--sp-4);
 }
 .composer__queue { display: flex; flex-direction: column; gap: var(--sp-2); margin-bottom: var(--sp-3); }
 .queued {
@@ -493,7 +513,13 @@ button { cursor: pointer; }
 }
 .send-btn:hover { background: var(--element-active); }
 .send-btn[disabled] { color: var(--text-disabled); background: var(--element-disabled); pointer-events: none; }
-.send-btn--stop { color: var(--error); }
+/* Variante icône seule : même boîte, carrée. */
+.send-btn--icon { padding: 0; width: 28px; min-width: 28px; }
+.send-btn--stop {
+  color: var(--error); background: var(--element-background);
+  border: 1px solid var(--error-border);
+}
+.send-btn--stop:hover { background: var(--error-background); }
 
 /* bouton flottant "revenir en bas" */
 .jump {

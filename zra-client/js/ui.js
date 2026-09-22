@@ -2,7 +2,7 @@
 // Style Zed : menu flottant ancré au bouton, pas d'animation superflue.
 
 import { h, button, clear } from './dom.js'
-import { icon } from './icons.js'
+import { icon, agentIcon } from './icons.js'
 
 const layer = () => document.getElementById('overlays')
 
@@ -39,13 +39,16 @@ export function openMenu(anchor, opts) {
   if (opts.label) menu.append(h('div.menu__label.label', { text: opts.label }))
   for (const item of opts.items) {
     if (item.separator) { menu.append(h('div.menu__sep')); continue }
+    if (item.header) { menu.append(h('div.menu__label.label', { text: item.label })); continue }
     menu.append(button('menu__item', {
       class: item.on ? 'menu__item--on' : '',
       role: 'menuitem',
       style: item.danger ? { color: 'var(--error)' } : undefined,
       onclick: () => { closeOverlay(); item.onSelect?.() },
     },
-      item.icon ? icon(item.icon, 'icon--sm') : h('span', { style: { width: '14px' } }),
+      item.agentId ? agentIcon(item.agentId, 'icon--sm')
+        : item.icon ? icon(item.icon, 'icon--sm')
+          : h('span', { style: { width: '14px' } }),
       h('span.truncate', { text: item.label }),
       item.on ? icon('check', 'icon--sm') : null,
     ))

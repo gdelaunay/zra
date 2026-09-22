@@ -155,6 +155,16 @@ function handle(machine, msg) {
       break
     }
 
+    case 'thread_created': {
+      const k = key(machine.id, msg.threadId)
+      const st = ensureState(k)
+      st.state = 'live'
+      // L'historique d'un thread tout neuf est vide : inutile d'aller le chercher.
+      st.historyComplete = true
+      emit('thread_created', { key: k, machineId: machine.id, threadId: msg.threadId, agentId: msg.agentId })
+      break
+    }
+
     case 'permission_resolved': {
       const k = key(machine.id, msg.threadId)
       const tl = ensureTimeline(k)
@@ -318,6 +328,23 @@ export function respondPermission(k, requestId, option) {
     requestId,
     optionId: option.optionId,
   })
+}
+
+/** Interrompt le tour en cours sans rien envoyer (`session/cancel`). */
+export function interrupt(k) {
+  const m = machineOf(k)
+  if (!m) return
+  m.link.send({ type: 'interrupt', threadId: splitKey(k).threadId })
+}
+
+/**
+ * Ouvre une nouvelle session d'agent sur un poste. Le daemon répond
+ * `thread_created` : la navigation se fait à ce moment-là, pas avant.
+ */
+export function newThread(machineId, agentId) {
+  const m = state.machines.get(machineId)
+  if (!m) return
+  m.link.send({ type: 'new_thread', agentId })
 }
 
 export function cancelQueued(k, queueId) {

@@ -70,6 +70,11 @@ function boot() {
     toast(err.message || err.code || 'erreur daemon', { level: 'error' })
   })
 
+  // Nouvelle session créée dans Zed : on l'ouvre tout de suite.
+  store.on('thread_created', ({ machineId, threadId }) => {
+    navigate(`#/t/${machineId}/${threadId}`)
+  })
+
   window.addEventListener('hashchange', render)
   render()
 

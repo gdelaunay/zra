@@ -1,0 +1,455 @@
+# ZRA — contrat technique PWA ↔ daemon
+
+Ce document est **suffisant pour écrire `zra-daemon` sans lire le code de la PWA**.
+Il décrit le seul point de contact entre les deux : un WebSocket JSON sur `:7777`.
+
+- `SPEC.md` dit *pourquoi* et *comment* côté poste (shim, index SQLite, injection).
+- Ce document dit *quoi exactement* passe sur le fil, et ce que le front fait de
+  chaque message.
+- Implémentation de référence exécutable : `zra-client/tools/mock-server.mjs` +
+  `zra-client/js/mock/mock-link.js`. Ce qu'ils font est, par construction, ce que
+  la PWA attend — les tests de `zra-client/test/mock-daemon.test.mjs` verrouillent
+  ce comportement.
+
+Statut : **v1**. Tout changement ici doit être répercuté dans `SPEC.md` §7 et
+dans le bouchon.
+
+---
+
+## 1. Transport
+
+| | |
+|---|---|
+| Statiques | `GET http://<hôte>:7777/` sert `zra-client/` tel quel (ESM, pas de build) |
+| API | un seul WebSocket : `ws://<hôte>:7777/ws` |
+| Écoute | `127.0.0.1` + IP du tunnel WireGuard, **jamais** `0.0.0.0` (§9) |
+| Auth | aucune en v1 ; le middleware `authenticate()` existe et retourne `true` |
+| Encodage | JSON UTF-8, une trame WebSocket texte = un message |
+
+**Types MIME** à servir correctement, sinon les modules ne chargent pas :
+`.js → text/javascript`, `.css → text/css`, `.webmanifest → application/manifest+json`,
+`.svg → image/svg+xml`.
+
+### Cycle de vie de la connexion
+
+1. La PWA ouvre le WS et envoie `hello` immédiatement.
+2. Le daemon répond `machine`, puis `threads`, puis un `thread_state` par thread
+   connu. Ce trio est le **bootstrap** ; la PWA n'affiche rien tant qu'il n'est
+   pas arrivé.
+3. À toute coupure, la PWA reconnecte avec backoff (0,5 s → 15 s, jitter). À la
+   reconnexion elle renvoie `hello`, puis `list_threads`, puis un `subscribe`
+   pour chaque thread qu'elle avait ouvert.
+
+> **Le daemon ne conserve aucun état par client.** Un client qui revient doit
+> pouvoir tout reconstruire avec `hello` + `list_threads` + `subscribe`.
+
+Les messages envoyés alors que le socket est coupé sont **mis en file côté PWA**
+et rejoués à la reconnexion (sauf `hello`). Le daemon doit donc tolérer un
+`subscribe` ou un `send` qui arrive une seconde fois : voir §6 (idempotence).
+
+---
+
+## 2. Forme des messages
+
+```ts
+type Message = { type: string } & Record<string, unknown>
+```
+
+Règles :
+
+- `type` est le seul discriminant. Un message de type inconnu est **ignoré et
+  tracé** par la PWA, jamais fatal. Le daemon doit faire pareil : ajouter un
+  message au protocole ne doit jamais casser l'autre bout.
+- Champs inconnus : conservés, jamais rejetés.
+- `threadId` est **l'identifiant ZRA d'un thread** : l'hexadécimal du BLOB
+  `sidebar_threads.thread_id`. Il est stable dans le temps et sert de clé partout.
+  Le `session_id` ACP reste interne au daemon — la PWA ne le voit jamais.
+- Les dates sont des chaînes ISO 8601. La PWA tolère aussi le format SQLite
+  `YYYY-MM-DD HH:MM:SS` (interprété en UTC).
+
+---
+
+## 3. Mobile → daemon
+
+### `hello`
+```ts
+{ type: 'hello', clientId: string }
+```
+Premier message. `clientId` est un identifiant stable stocké en `localStorage`
+(utile pour les logs et, plus tard, Web Push). Aucune réponse obligatoire, mais
+le daemon en profite pour envoyer le bootstrap.
+
+### `list_threads`
+```ts
+{ type: 'list_threads' }
+```
+Demande un rafraîchissement complet. Le daemon répond `threads`. Envoyé au
+bootstrap, à la reconnexion, au retour au premier plan et sur le bouton
+« rafraîchir ».
+
+### `subscribe` / `unsubscribe`
+```ts
+{ type: 'subscribe', threadId: string }
+{ type: 'unsubscribe', threadId: string }
+```
+Abonnement au flux d'un thread. Après `subscribe`, le daemon envoie :
+
+1. le `thread_state` courant (obligatoire) ;
+2. le contenu du **ring buffer** de ce thread (2000 événements max), en
+   `acp_event`, dans l'ordre ;
+3. puis les événements en temps réel.
+
+`unsubscribe` est envoyé quand l'utilisateur quitte l'écran. Le daemon peut
+continuer à bufferiser, il ne doit plus pousser.
+
+### `load_history`
+```ts
+{ type: 'load_history', threadId: string }
+```
+Demande le replay complet (`session/load`, §5.2). Réponse : `history`, ou
+`error`. Opération coûteuse : la PWA ne l'appelle qu'à l'ouverture d'un thread
+et sur action explicite « recharger l'historique ».
+
+### `send`
+```ts
+{ type: 'send', threadId: string, text: string, mode: 'queue' | 'interrupt' }
+```
+- `queue` : si le tour est `busy`, mettre en file (→ `thread_state.queue`) ;
+  sinon envoyer tout de suite.
+- `interrupt` : `session/cancel`, attendre l'acquittement, **puis** envoyer.
+
+`text` est **toujours** traité comme un prompt d'agent. Jamais d'interpolation
+shell, jamais d'`eval` (§9).
+
+La PWA affiche le message immédiatement (écho local optimiste). Si l'agent le
+rejoue en `user_message_chunk`, l'écho est retiré pour éviter le doublon : le
+daemon n'a rien à faire pour ça, mais **ne doit pas réécrire le texte**.
+
+### `interrupt`
+```ts
+{ type: 'interrupt', threadId: string }
+```
+Couper le tour en cours **sans rien envoyer** (`session/cancel` seul). C'est ce
+que fait le bouton Stop quand la file est vide — le texte en cours de saisie côté
+mobile n'est jamais envoyé par Stop. Si le tour est déjà `idle`, ne rien faire.
+Émettre ensuite `thread_state` avec `turn: 'idle'` et, idéalement, un
+`zra/notice` « tour interrompu ».
+
+### `cancel_queued`
+```ts
+{ type: 'cancel_queued', threadId: string, queueId: string }
+```
+Retire une entrée de la file. Réponse : `thread_state` à jour. `queueId` inconnu
+⇒ ignorer silencieusement (la file a pu partir entre-temps).
+
+### `set_option`
+```ts
+{ type: 'set_option', threadId: string, key: 'mode' | 'model' | string, value: unknown }
+```
+Change une option de session ACP. Mêmes contraintes de file qu'un message : si le
+tour est en cours, appliquer à la fin. Réponse : `thread_state` à jour, et — si
+l'agent l'émet — l'`acp_event` correspondant (`current_mode_update`).
+
+### `respond_permission`
+```ts
+{ type: 'respond_permission', threadId: string, requestId: string, optionId: string }
+```
+Répond à une demande de permission (§6.6). `requestId` est celui transporté par
+l'`acp_event` de la demande ; `optionId` vient des `options` de l'agent, la PWA ne
+l'invente pas. Réponses possibles :
+
+- `permission_resolved` avec `by: 'mobile'` — la réponse a été transmise ;
+- `permission_resolved` avec `by: 'desktop'` — le poste avait déjà tranché ;
+- `error` `permission_expired` — requête inconnue ou trop tardive.
+
+### `new_thread`
+```ts
+{ type: 'new_thread', agentId: string }
+```
+Ouvre une nouvelle session d'agent sur ce poste (§6.7). Réponse : `thread_created`
+puis `threads` à jour, ou `error` `new_thread_failed` (timeout 30 s).
+
+### `zra/trigger` *(mode bouchon uniquement)*
+```ts
+{ type: 'zra/trigger', name: string, threadId?: string }
+```
+Déclencheur de scénario, utilisé par la barre mock de la PWA. **Un daemon réel
+doit répondre `error` `unknown_message`** — c'est justement ce qui distingue les
+deux, et la barre mock ne s'affiche que si `machine.version` se termine par
+`-mock`.
+
+---
+
+## 4. Daemon → mobile
+
+### `machine`
+```ts
+{
+  type: 'machine',
+  name: string,            // nom du poste, affiché en tête de groupe
+  os?: string,
+  zedRunning?: boolean,    // false => bandeau « Zed fermé »
+  version?: string,        // suffixe `-mock` => la PWA active sa barre de dev
+  agents?: Array<{ id: string, name?: string }>,  // registry agent_servers
+}
+```
+Envoyé au bootstrap, et à chaque changement notable (Zed lancé/fermé).
+`agents` alimente le menu du bouton **+**. Absent ⇒ la PWA déduit les agents des
+threads existants.
+
+### `threads`
+```ts
+{ type: 'threads', threads: ThreadSummary[] }
+
+type ThreadSummary = {
+  threadId: string          // hex du BLOB sidebar_threads.thread_id
+  sessionId: string | null
+  agentId: string | null    // "claude-acp", … — sert à choisir l'icône
+  title: string             // title_override ?? title
+  folderPaths: string[]     // UTF-8 décodé, séparateurs libres
+  updatedAt: string
+  archived: boolean
+  state: 'live' | 'closed' | 'unknown'
+}
+```
+**Liste complète à chaque fois**, pas un delta : la PWA remplace. À envoyer au
+bootstrap, sur `list_threads`, et spontanément quand l'index change (poll 2 s sur
+`updated_at`) ou qu'un shim apparaît/disparaît.
+
+`state` : `live` = un shim est connecté pour ce `session_id` ; `closed` = connu
+de l'index sans shim ; `unknown` = `session_id` NULL (thread avorté). La PWA
+affiche les `unknown` grisés et non cliquables — **ne pas les masquer**.
+
+### `thread_state`
+```ts
+{
+  type: 'thread_state',
+  threadId: string,
+  state: 'live' | 'closed' | 'unknown',
+  turn: 'idle' | 'busy',
+  queue: Array<{ queueId: string, text: string, at?: string }>,
+  modes?: Array<{ id: string, name?: string }>,
+  models?: Array<{ id: string, name?: string }>,
+  currentModeId?: string | null,
+  currentModelId?: string | null,
+}
+```
+L'état vivant d'un thread. À envoyer : au bootstrap, sur `subscribe`, et à
+**chaque** transition `idle ⇄ busy`, changement de file, d'option ou d'état.
+
+C'est ce message qui pilote l'UI : bouton Stop, entrées en file annulables,
+sélecteurs de mode/modèle. `modes`/`models` absents ⇒ sélecteurs grisés, ce n'est
+pas une erreur.
+
+### `acp_event`
+```ts
+{ type: 'acp_event', threadId: string, update: object, at?: string }
+```
+**Le cœur.** `update` est le payload `session/update` de l'agent, **verbatim** :
+le daemon ne le relit pas, ne le normalise pas, ne le complète pas. La PWA sait
+rendre :
+
+| `update.sessionUpdate` | rendu |
+|---|---|
+| `user_message_chunk` | bulle utilisateur, markdown streamé |
+| `agent_message_chunk` | réponse de l'agent, markdown streamé |
+| `agent_thought_chunk` | bloc « réflexion », masquable |
+| `tool_call` / `tool_call_update` | carte repliable, icône par `kind`, couleur par `status` |
+| `plan` | carte de plan, mise à jour en place |
+| `current_mode_update` | ligne système |
+| `available_commands_update` | mémorisé, pas affiché en v1 |
+| *(autre)* | **bloc brut repliable** — jamais une erreur |
+
+`ToolCallContent` géré : `{type:'content'}`, `{type:'diff', path, oldText, newText}`
+(le diff ligne à ligne est calculé côté PWA), `{type:'terminal', terminalId}`.
+
+**Demande de permission.** Elle n'est pas une notification ACP mais une requête.
+Le daemon la relaie dans un `acp_event` dont l'`update` porte au minimum :
+```ts
+{ requestId: string, toolCall: { toolCallId?, title, kind? }, options: Array<{ optionId, name, kind? }> }
+```
+La PWA la reconnaît à la présence simultanée de `toolCall` et `options`.
+
+### `history`
+```ts
+{ type: 'history', threadId: string, updates: object[], complete: boolean }
+```
+Réponse à `load_history` : le replay de `session/load`, dans l'ordre, au même
+format que `acp_event.update`. La PWA **remet la timeline à zéro** et rejoue tout,
+puis applique les événements live reçus entre-temps (elle les tamponne).
+`complete: false` = replay partiel (l'UI le signale).
+
+### `thread_created`
+```ts
+{ type: 'thread_created', threadId: string, agentId?: string }
+```
+Réponse à `new_thread`. À envoyer **après** le `threads` qui contient le nouveau
+thread, sinon la PWA ouvre un écran sans titre. Elle navigue dessus aussitôt.
+
+### `permission_resolved`
+```ts
+{
+  type: 'permission_resolved', threadId: string, requestId: string,
+  optionId: string, optionName?: string, by: 'mobile' | 'desktop',
+}
+```
+Verrouille l'encart. `optionName` est le libellé affiché (repris des `options`
+de l'agent) ; absent, la PWA retombe sur `optionId`.
+
+### `error`
+```ts
+{ type: 'error', code: string, message: string, threadId?: string }
+```
+`message` est affiché tel quel dans un toast — le rédiger pour un humain, en
+français. Codes attendus par la PWA (les autres passent aussi) :
+
+| `code` | sens | effet côté PWA |
+|---|---|---|
+| `no_session` | thread sans `session_id` | historique refusé, écran en lecture |
+| `no_load_session` | agent sans capacité `loadSession` (§12.2) | « historique indisponible », composer actif |
+| `inject_failed` | l'agent a refusé le prompt (§12.1) | toast, le message reste affiché |
+| `permission_expired` | demande déjà tranchée | toast, encart verrouillé |
+| `new_thread_failed` | Zed n'a pas ouvert de session | toast |
+| `unknown_message` | message non supporté | toast |
+
+---
+
+## 5. Extensions ZRA dans `acp_event`
+
+L'ACP ne couvre pas tout ce que la PWA sait afficher. Les manques passent par des
+`sessionUpdate` **préfixés `zra/`** — préfixe réservé, pour qu'on ne les confonde
+jamais avec de l'ACP et qu'ils ne cassent rien si l'agent évolue.
+
+### `zra/terminal_output`
+```ts
+{
+  sessionUpdate: 'zra/terminal_output',
+  terminalId: string,
+  output: string,
+  append?: boolean,                       // true = concaténer, false/absent = remplacer
+  exitStatus?: { exitCode: number | null, signal?: string },
+  truncated?: boolean,
+}
+```
+Le `tool_call` porte `{type:'terminal', terminalId}` ; c'est ce message qui remplit
+le bloc. La PWA repeint tous les tool calls qui référencent ce `terminalId`.
+
+### `zra/notice`
+```ts
+{ sessionUpdate: 'zra/notice', text: string, level?: 'info' | 'warn' }
+```
+Message du daemon inséré dans le fil : « tour interrompu », « Zed a fermé
+l'agent : file d'attente perdue »… Rendu en ligne système discrète.
+
+---
+
+## 6. Invariants attendus du daemon
+
+1. **Verbatim.** `acp_event.update` et `history.updates` sont les payloads de
+   l'agent, non réécrits. C'est la règle du §1 de la spec ; elle est ce qui rend
+   ZRA immune aux évolutions du protocole.
+2. **Ordre.** Les `acp_event` d'un thread arrivent dans l'ordre d'émission. Pas de
+   garantie inter-threads.
+3. **Ring buffer.** 2000 événements par thread live, rejoués à `subscribe`.
+4. **Idempotence.** `subscribe`, `unsubscribe`, `interrupt`, `cancel_queued`
+   doivent tolérer d'être reçus deux fois (rejeu à la reconnexion).
+5. **Pas d'état client.** Aucun besoin de retenir qui est connecté au-delà du
+   socket lui-même.
+6. **`thread_state` systématique.** Toute action qui change la file, le tour ou
+   une option est suivie d'un `thread_state`. La PWA ne devine rien.
+7. **Fail-open côté shim.** Rappel du §3.1 : si le daemon est injoignable ou
+   lent, Zed continue de fonctionner normalement. Aucun message de ce protocole
+   ne doit pouvoir bloquer l'IDE.
+8. **Journalisation.** Toute écriture venue du mobile (`send`, `set_option`,
+   `respond_permission`, `new_thread`) est tracée dans
+   `%LOCALAPPDATA%\zra\injections.log`.
+
+### Ce que la PWA ne fait jamais
+
+- Elle ne réessaie pas un `send` d'elle-même (hors rejeu de reconnexion) : pas de
+  double envoi accidentel à un agent.
+- Elle n'interprète pas le contenu ACP : pas de parsing de format d'agent, pas de
+  calcul de diff sémantique, pas de reconstruction d'état à partir du texte.
+- Elle ne devine pas l'état d'un thread : `state` et `turn` viennent du daemon.
+
+---
+
+## 7. Séquences de référence
+
+**Ouvrir un thread live**
+```
+mobile                          daemon
+  | subscribe(threadId)          |
+  |                              |-- thread_state (turn, queue, modes…)
+  |                              |-- acp_event × N   (ring buffer)
+  | load_history(threadId)       |
+  |                              |-- history(updates, complete)
+  |                              |-- acp_event …     (temps réel)
+```
+
+**Envoyer pendant un tour**
+```
+  | send(text, mode='queue')     |
+  |                              |-- thread_state(turn='busy', queue=[{queueId,…}])
+  |                              |   … fin du tour …
+  |                              |-- thread_state(turn='idle', queue=[])
+  |                              |-- acp_event(user_message_chunk)  [si l'agent le rejoue]
+  |                              |-- acp_event(agent_message_chunk) …
+```
+
+**Stop, file vide** — on coupe, rien d'autre. Le texte en cours de saisie dans la
+PWA n'est jamais envoyé par Stop.
+```
+  | interrupt(threadId)          |
+  |                              |-- acp_event(zra/notice "tour interrompu")
+  |                              |-- thread_state(turn='idle')
+```
+
+**Stop avec un message en file** — le message en attente part dans la foulée.
+```
+  | cancel_queued(queueId)       |
+  | send(text, mode='interrupt') |
+  |                              |-- acp_event(zra/notice "tour interrompu")
+  |                              |-- thread_state(turn='idle', queue=[])
+  |                              |-- acp_event(user_message_chunk) …
+```
+
+**Permission**
+```
+  |                              |-- acp_event({requestId, toolCall, options})
+  |                              |   (turn reste 'busy' : l'agent attend)
+  | respond_permission(optionId) |
+  |                              |-- permission_resolved(by='mobile')
+  |                              |-- acp_event(tool_call_update …) — le tour reprend
+```
+
+**Nouvelle session**
+```
+  | new_thread(agentId)          |
+  |                              |   … UIA : Zed ouvre un thread, un shim se connecte …
+  |                              |-- threads(… + le nouveau)
+  |                              |-- thread_created(threadId, agentId)
+```
+
+---
+
+## 8. Vérifier une implémentation
+
+Le bouchon et ses tests forment la suite de conformité :
+
+```bash
+npm run mock    # daemon bouchon : :7777 (DESK-ZED) + :7778 (LAPTOP-ZED)
+npm test        # 73 tests, dont le protocole et la PWA de bout en bout
+```
+
+Pour tester le **vrai** daemon avec la PWA :
+
+1. servir `zra-client/` depuis le daemon (ou pointer un poste vers son adresse
+   dans Réglages → Postes) ;
+2. vérifier dans l'ordre : `machine` → `threads` → `thread_state` → `acp_event` ;
+3. `zra-client/test/mock-daemon.test.mjs` est lisible comme une check-list : file
+   d'attente, interruption, historique, agent sans `loadSession`, thread sans
+   session, perte du shim, permission acceptée/refusée, nouvelle session.
+
+Pendant la mise au point, `ZRA_RECORD=1` côté shim (§10.3) produit un JSONL de
+trames : c'est la matière première des fixtures de non-régression.

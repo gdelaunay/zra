@@ -267,7 +267,7 @@ export function shortTurn(prompt) {
   ]
 }
 
-/** Tour long, pensé pour tester `Stop et envoyer`. */
+/** Tour long, pensé pour tester le bouton Stop et la file d'attente. */
 export function longTurn() {
   const steps = [{ at: 200, update: thought('Analyse en cours…') }]
   let t = 600

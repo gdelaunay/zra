@@ -1,11 +1,12 @@
 // Écran 2 — un thread : flux d'événements ACP + composer.
 
 import { h, button, clear, rafBatch } from '../dom.js'
-import { icon } from '../icons.js'
+import { icon, agentIcon } from '../icons.js'
 import { relTime, absTime, shortPath, agentLabel } from '../format.js'
 import * as store from '../store.js'
 import { renderEntry } from './entry.js'
 import { openMenu, toast } from '../ui.js'
+import { newSessionButton } from './new-session.js'
 import { settings, update as updateSettings } from '../settings.js'
 
 export function ThreadView({ key, navigate }) {
@@ -31,27 +32,55 @@ export function ThreadView({ key, navigate }) {
 
   const banner = h('div.banner.hidden')
   const title = h('span.truncate')
-  const subtitle = h('span.header__sub')
+  const subtitle = h('span', { title: '' })
   const dot = h('span.dot')
+  const agentSlot = h('span.header__agent')
+  const pathLabel = h('span.path.truncate')
 
   const modeBtn = button('pill', { onclick: (ev) => optionMenu(ev, 'mode') })
   const modelBtn = button('pill', { onclick: (ev) => optionMenu(ev, 'model') })
-  const pathLabel = h('span.muted.truncate', { style: { fontSize: 'var(--fs-xs)' } })
 
-  const composer = Composer({ key, onSend: (text, mode) => store.sendMessage(key, text, mode) })
+  const composer = Composer({
+    key,
+    onSend: (text, mode) => store.sendMessage(key, text, mode),
+    onStop: stopTurn,
+  })
 
-  const el = h('div.thread',
+  const el = h('div.view',
     h('div.header', {},
-      button('icon-btn', { onclick: () => navigate('#/'), 'aria-label': 'retour' }, icon('arrow-left', 'icon--sm')),
+      agentSlot,
       h('div.header__title', {}, dot, title),
-      h('span.spacer'),
+      h('div.header__meta', {}, pathLabel, h('span', { text: '·' }), subtitle),
+      newSessionButton({ machineId: store.splitKey(key).machineId }),
       button('icon-btn', { onclick: overflowMenu, 'aria-label': 'actions' }, icon('settings', 'icon--sm')),
     ),
-    h('div.toolbar', {}, modeBtn, modelBtn, h('span.spacer'), pathLabel, subtitle),
     banner,
     h('div.thread__wrap', {}, feed, jump),
     composer.el,
+    h('div.bottombar', {}, modeBtn, modelBtn, h('span.spacer'),
+      // Même boîte que le bouton Envoyer : c'est une action, pas un réglage.
+      button('send-btn.send-btn--icon', {
+        title: 'Liste des threads', 'aria-label': 'liste des threads',
+        onclick: () => navigate('#/'),
+      }, icon('list', 'icon--sm'))),
   )
+
+  /**
+   * Bouton Stop : coupe le tour en cours.
+   *
+   * S'il y a un message **en file d'attente**, il part dans la foulée — c'est le
+   * « stop et envoie ». Le texte en cours de saisie, lui, n'est jamais envoyé
+   * tout seul : seul le bouton Envoyer envoie.
+   */
+  function stopTurn() {
+    const queued = st.queue?.[0]
+    if (queued) {
+      store.cancelQueued(key, queued.queueId)
+      store.sendMessage(key, queued.text, 'interrupt')
+      return
+    }
+    store.interrupt(key)
+  }
 
   // ---- rendu du flux ----
 
@@ -156,6 +185,10 @@ export function ThreadView({ key, navigate }) {
     subtitle.textContent = relTime(summary.updatedAt)
     subtitle.title = absTime(summary.updatedAt)
     pathLabel.textContent = shortPath(summary.folderPaths?.[0], 2)
+    pathLabel.title = summary.folderPaths?.join('\n') || ''
+    clear(agentSlot)
+    agentSlot.append(agentIcon(summary.agentId, 'icon--sm'))
+    agentSlot.title = agentLabel(summary.agentId)
     const mode = st.modes?.find((m) => m.id === st.currentModeId)
     const model = st.models?.find((m) => m.id === st.currentModelId)
     setPill(modeBtn, 'shuffle', mode?.name || st.currentModeId || 'mode', Boolean(st.modes?.length))
@@ -261,7 +294,7 @@ function copy(text) {
 
 // ---- composer ----
 
-function Composer({ key, onSend }) {
+function Composer({ key, onSend, onStop }) {
   const input = h('textarea.composer__input', {
     rows: 1,
     placeholder: 'Répondre à l’agent…',
@@ -274,11 +307,14 @@ function Composer({ key, onSend }) {
   })
 
   const queueBox = h('div.composer__queue')
+  // Envoyer ne change jamais : pendant un tour, le message part en file d'attente.
   const sendBtn = button('send-btn', { onclick: () => send('queue'), title: 'Envoyer (Ctrl+Entrée)' },
     icon('send', 'icon--sm'), h('span', { text: 'Envoyer' }))
-  const stopBtn = button('send-btn.send-btn--stop.hidden', {
-    onclick: () => send('interrupt'), title: 'Interrompre le tour puis envoyer',
-  }, icon('stop', 'icon--sm'), h('span', { text: 'Stop et envoyer' }))
+  // Stop n'apparaît que pendant un tour : icône seule, à gauche d'Envoyer.
+  const stopBtn = button('send-btn.send-btn--icon.send-btn--stop.hidden', {
+    onclick: stop, title: "Interrompre le tour (et envoyer le message en file, s'il y en a un)",
+    'aria-label': 'interrompre',
+  }, icon('stop', 'icon--sm'))
 
   const micBtn = button('icon-btn', { title: 'Dictée', onclick: dictate }, icon('mic', 'icon--sm'))
   const hint = h('span.composer__hint')
@@ -303,6 +339,9 @@ function Composer({ key, onSend }) {
     input.value = ''
     autoGrow()
   }
+
+  // Stop ne touche pas au champ de saisie : ce qui y est écrit y reste.
+  function stop() { onStop?.() }
 
   function dictate() {
     const Rec = window.SpeechRecognition || window.webkitSpeechRecognition
@@ -331,9 +370,8 @@ function Composer({ key, onSend }) {
   function sync(st) {
     const busy = st.turn === 'busy'
     stopBtn.classList.toggle('hidden', !busy)
-    sendBtn.querySelector('span').textContent = busy ? 'Mettre en file' : 'Envoyer'
     el.classList.toggle('is-disabled', st.state === 'unknown')
-    hint.textContent = busy ? 'tour en cours' : ''
+    hint.textContent = busy ? 'tour en cours — le message part en file' : ''
 
     clear(queueBox)
     for (const q of st.queue || []) {

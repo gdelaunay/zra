@@ -215,6 +215,53 @@ test('permission : un refus marque le tool call en échec', async () => {
   hz.stop()
 })
 
+test('le poste annonce les agents de son registry', async () => {
+  const hz = harness()
+  await hz.until((m) => m.some((x) => x.type === 'machine'))
+  const agents = hz.last('machine').agents
+  assert.ok(Array.isArray(agents) && agents.length >= 2)
+  assert.ok(agents.every((a) => a.id && a.name))
+  hz.stop()
+})
+
+test('nouvelle session : thread créé, annoncé et listé', async () => {
+  const hz = harness()
+  await hz.until((m) => m.some((x) => x.type === 'threads'))
+  const before = hz.last('threads').threads.length
+
+  hz.link.send({ type: 'new_thread', agentId: 'gemini-acp' })
+  await hz.until((m) => m.some((x) => x.type === 'thread_created'))
+  const created = hz.last('thread_created')
+  assert.equal(created.agentId, 'gemini-acp')
+
+  const threads = hz.last('threads').threads
+  assert.equal(threads.length, before + 1)
+  const t = threads.find((x) => x.threadId === created.threadId)
+  assert.equal(t.state, 'live')
+  assert.ok(t.sessionId, 'un thread créé a tout de suite une session')
+  hz.stop()
+})
+
+test('interruption sèche : le tour est coupé, rien n’est envoyé', async () => {
+  const hz = harness()
+  await hz.until((m) => m.some((x) => x.type === 'threads'))
+  const id = 'b7c2e441'
+  hz.link.trigger('long', id)
+  await hz.until((m) => m.some((x) => x.type === 'thread_state' && x.threadId === id && x.turn === 'busy'))
+  const usersBefore = hz.of('acp_event').filter((x) => x.update.sessionUpdate === 'user_message_chunk').length
+
+  hz.link.send({ type: 'interrupt', threadId: id })
+  await hz.until((m) => m.some((x) => x.type === 'acp_event' && x.update.sessionUpdate === 'zra/notice'))
+  const last = hz.of('thread_state').filter((s) => s.threadId === id).pop()
+  assert.equal(last.turn, 'idle')
+  assert.equal(
+    hz.of('acp_event').filter((x) => x.update.sessionUpdate === 'user_message_chunk').length,
+    usersBefore,
+    'aucun message utilisateur ajouté',
+  )
+  hz.stop()
+})
+
 test('le second poste a ses propres threads', async () => {
   const hz = harness('mock-laptop')
   await hz.until((m) => m.some((x) => x.type === 'threads'))

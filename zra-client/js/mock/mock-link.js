@@ -13,6 +13,13 @@ import {
 
 // Libellés renvoyés avec `permission_resolved`, comme le ferait un vrai daemon
 // qui relit les `options` de l'agent.
+// Registry `agent_servers` simulé, tel que le daemon le lira dans settings.json.
+const AGENTS = [
+  { id: 'claude-acp', name: 'Claude' },
+  { id: 'gemini-acp', name: 'Gemini' },
+  { id: 'codex-acp', name: 'Codex' },
+]
+
 const PERMISSION_LABELS = {
   'allow-once': 'Autoriser une fois',
   'allow-always': 'Toujours autoriser',
@@ -48,7 +55,11 @@ export class MockLink {
     this.setStatus('connecting')
     this.later(250, () => {
       this.setStatus('online')
-      this.push({ type: 'machine', name: this.spec.name, os: this.spec.os, zedRunning: this.spec.zedRunning, version: this.spec.version })
+      this.push({
+        type: 'machine', name: this.spec.name, os: this.spec.os,
+        zedRunning: this.spec.zedRunning, version: this.spec.version,
+        agents: AGENTS,
+      })
       this.push({ type: 'threads', threads: this.threads })
       for (const t of this.threads) this.pushState(t.threadId)
       if (this.id === 'mock-desk') this.later(900, () => this.play('a1f39c0b', fullTurn('mode ro')))
@@ -120,6 +131,35 @@ export class MockLink {
         }
         break
       }
+      // Stop sec : le tour est coupé, rien n'est envoyé.
+      case 'interrupt': {
+        const st = this.turnOf(msg.threadId)
+        if (st.turn !== 'busy') return
+        this.cancel(msg.threadId)
+        this.pushEvent(msg.threadId, { sessionUpdate: 'zra/notice', text: 'tour interrompu', level: 'warn' })
+        break
+      }
+
+      // Nouvelle session d'agent, comme un « new thread » lancé dans Zed.
+      case 'new_thread': {
+        const agent = AGENTS.find((a) => a.id === msg.agentId) || AGENTS[0]
+        const created = {
+          threadId: `n${Math.random().toString(36).slice(2, 10)}`,
+          sessionId: `sess-${Math.random().toString(36).slice(2, 8)}`,
+          agentId: agent.id,
+          title: 'Nouveau thread',
+          folderPaths: this.threads[0]?.folderPaths || [],
+          updatedAt: new Date().toISOString(),
+          archived: false,
+          state: 'live',
+        }
+        this.threads.unshift(created)
+        this.push({ type: 'threads', threads: this.threads })
+        this.push({ type: 'thread_created', threadId: created.threadId, agentId: agent.id })
+        this.pushState(created.threadId)
+        break
+      }
+
       case 'set_option': {
         const st = this.turnOf(msg.threadId)
         if (msg.key === 'mode') st.modeId = msg.value

@@ -1,4 +1,7 @@
 // Jeu d'icônes, trait 1.6px sur grille 24 — même famille que celles de Zed (Lucide).
+// Les icônes d'agents (Claude, Gemini, …) viennent de Zed : voir agent-icons.js.
+
+import { AGENT_GLYPHS } from './agent-icons.js'
 
 const P = {
   'chevron-right': 'm9 18 6-6-6-6',
@@ -28,6 +31,7 @@ const P = {
   'alert-triangle': 'M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z',
   'shield': 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z',
   'list-todo': 'M3 5h.01M3 12h.01M3 19h.01M8 5h13M8 12h13M8 19h13',
+  'list': 'M4 6h16M4 12h16M4 18h10',
   'mic': 'M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3ZM19 10v2a7 7 0 0 1-14 0v-2M12 19v3',
   'server': 'M4 4h16v6H4zM4 14h16v6H4zM7 7h.01M7 17h.01',
   'refresh': 'M20.5 12a8.5 8.5 0 1 1-2.5-6M21 3v5h-5',
@@ -82,4 +86,53 @@ export function icon(name, cls = '') {
 
 export function toolIcon(kind, cls = '') {
   return icon(TOOL_KIND_ICON[kind] || TOOL_KIND_ICON.other, cls)
+}
+
+// ---- icônes d'agents ----
+
+// `agent_id` du registry Zed -> glyphe. Les identifiants sont libres
+// (`claude-acp`, `claude-zra`, `my-claude`…), on reconnaît par motif.
+const AGENT_PATTERNS = [
+  [/claude|anthropic/i, 'claude'],
+  [/gemini|google/i, 'gemini'],
+  [/codex|openai|open-ai|gpt/i, 'openai'],
+  [/grok|x-?ai/i, 'xai'],
+  [/mistral|codestral/i, 'mistral'],
+  [/opencode|open-code/i, 'opencode'],
+  [/^zed|zeta/i, 'zed'],
+]
+
+export function agentGlyphId(agentId) {
+  if (!agentId) return null
+  for (const [re, id] of AGENT_PATTERNS) if (re.test(agentId)) return id
+  return null
+}
+
+/**
+ * Icône de l'agent, monochrome (`currentColor`), comme dans le panel de Zed.
+ * Agent inconnu : on retombe sur une icône générique plutôt que sur rien.
+ */
+export function agentIcon(agentId, cls = '') {
+  const glyph = AGENT_GLYPHS[agentGlyphId(agentId)]
+  if (!glyph) return icon('sparkles', cls)
+  const svg = document.createElementNS(SVG_NS, 'svg')
+  svg.setAttribute('viewBox', glyph.viewBox)
+  svg.setAttribute('fill', 'currentColor')
+  svg.setAttribute('aria-hidden', 'true')
+  svg.setAttribute('class', `icon ${cls}`.trim())
+  for (const shape of glyph.shapes) {
+    if (shape.rect) {
+      const [x, y, w, hh] = shape.rect
+      const rect = document.createElementNS(SVG_NS, 'rect')
+      rect.setAttribute('x', x); rect.setAttribute('y', y)
+      rect.setAttribute('width', w); rect.setAttribute('height', hh)
+      svg.append(rect)
+    } else {
+      const path = document.createElementNS(SVG_NS, 'path')
+      path.setAttribute('d', shape.d)
+      if (shape.rule) path.setAttribute('fill-rule', shape.rule)
+      svg.append(path)
+    }
+  }
+  return svg
 }

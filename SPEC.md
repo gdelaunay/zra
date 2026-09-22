@@ -30,12 +30,13 @@ sont déjà dans le protocole.
 | ✓ | Envoyer un message : file d'attente **ou** interruption |
 | ✓ | Changer de modèle / de mode depuis le mobile |
 | ✓ | Répondre aux demandes de permission depuis le mobile |
+| ✓ | Ouvrir une nouvelle session d'agent depuis le mobile |
 | ✓ | Multi-postes via WireGuard |
 | ✓ | Injection ACP + repli UI Automation, commutable par config |
 
 ### Hors périmètre v1 (l'archi doit les accueillir sans refonte)
 
-Créer un nouveau thread depuis le mobile · auth par token/QR ·
+Auth par token/QR ·
 Web Push actif · édition de code.
 
 ### Non-objectifs
@@ -277,6 +278,17 @@ au daemon avec son `id` JSON-RPC.
   `permission_expired` et l'encart passe en lecture seule.
 - Toute réponse est journalisée comme une injection (§9).
 
+### 6.7 Ouvrir une nouvelle session
+
+Le daemon expose le registry `agent_servers` de `settings.json` dans le message
+`machine` (`agents[]`). La PWA affiche ces agents derrière le bouton **+**.
+
+`new_thread` demande à Zed d'ouvrir un thread avec l'agent choisi — même voie
+que le §6.3, la palette de commandes par UIA. Dès qu'un shim se connecte avec un
+`session_id` neuf, le daemon renvoie `thread_created`. Timeout 30 s ⇒ `error`
+`new_thread_failed`. Le `cwd` est celui de la fenêtre Zed active : choisir le
+projet depuis le mobile viendra plus tard.
+
 ---
 
 ## 7. Protocole ZRA (mobile ↔ daemon)
@@ -296,16 +308,19 @@ Un WebSocket, JSON, `:7777/ws`. HTTP seulement pour les statiques de la PWA.
 | `set_option` | `{ threadId, key, value }` |
 | `cancel_queued` | `{ threadId, queueId }` |
 | `respond_permission` | `{ threadId, requestId, optionId }` |
+| `interrupt` | `{ threadId }` — couper le tour sans rien envoyer |
+| `new_thread` | `{ agentId }` |
 
 **Daemon → mobile**
 
 | Message | Charge |
 |---|---|
-| `machine` | `{ name, os, zedRunning, version }` |
+| `machine` | `{ name, os, zedRunning, version, agents[] }` |
 | `threads` | `ThreadSummary[]` |
 | `thread_state` | `{ threadId, state, turn: "idle"\|"busy", queue[] }` |
 | `acp_event` | `{ threadId, update }` — **payload ACP verbatim** |
 | `history` | `{ threadId, updates[], complete }` |
+| `thread_created` | `{ threadId, agentId }` |
 | `permission_resolved` | `{ threadId, requestId, optionId, optionName?, by: "mobile" \| "desktop" }` |
 | `error` | `{ code, message, threadId? }` |
 
@@ -332,13 +347,33 @@ type ThreadSummary = {
 
 ## 8. PWA
 
-Deux écrans, calqués sur le panel agent de Zed.
+Deux écrans, calqués sur le panel agent de Zed, **même ossature** pour que le
+cadre ne bouge jamais d'un écran à l'autre :
 
-**Écran 1 — threads.** Liste groupée par machine, puis par récence. Pastille d'état
+```
+┌──────────────────────────────────────────┐
+│ top bar        hauteur fixe              │  identité / titre + actions
+├──────────────────────────────────────────┤
+│ contenu défilant                         │
+├──────────────────────────────────────────┤
+│ [composer — écran thread seulement]      │
+├──────────────────────────────────────────┤
+│ bottom bar     hauteur fixe              │  commandes, collée en bas
+└──────────────────────────────────────────┘
+```
+
+L'état courant de l'app est **le thread**, pas la liste : on navigue vers la
+liste par un bouton de la bottom bar, il n'y a pas de bouton « précédent ».
+
+**Écran 1 — threads.** Top bar : identité, compteur de postes, **+** (nouvelle
+session), réglages. Liste groupée par machine, puis par récence : pastille d'état
 (live plein / fermé creux / inconnu grisé), titre, chemin du dossier abrégé, date
-relative. Filtre texte.
+relative, icône de l'agent. Bottom bar : filtre texte et filtre d'état.
 
-**Écran 2 — thread.** Flux d'événements rendu par type :
+**Écran 2 — thread.** Top bar : icône de l'agent, titre, puis — en retrait —
+chemin du projet et date ; à droite **+** et réglages. Bottom bar : sélecteurs
+de mode et de modèle, et l'accès à la liste des threads. Entre les deux, le flux
+d'événements rendu par type :
 - messages user / agent en markdown streamé ;
 - tool calls repliés, icône par `kind`, couleur par `status` ;
 - diffs en vert/rouge, repliés par défaut, chemin en en-tête ;
@@ -347,9 +382,12 @@ relative. Filtre texte.
   et cliquables ; l'encart se verrouille dès qu'une réponse est partie et
   affiche qui a tranché (mobile ou poste).
 
-**Composer.** Zone de texte, dictée vocale native (`input` mobile), bouton
-**Envoyer** (file d'attente) et bouton **Stop et envoyer** (interruption) visible
-seulement si `turn === "busy"`. Sélecteur de modèle/mode en en-tête.
+**Composer.** Zone de texte, dictée vocale native (`input` mobile), et un bouton
+**Envoyer** qui ne change jamais : pendant un tour, envoyer met simplement en
+file. Quand `turn === "busy"`, un bouton **Stop** (icône seule, rouge) apparaît à
+sa gauche. Stop coupe le tour ; s'il y a un message **en file d'attente**, il part
+dans la foulée — c'est le « stop et envoie » sans bouton supplémentaire. Le texte
+en cours de saisie n'est jamais envoyé par Stop : seul **Envoyer** envoie.
 
 **Technique.** ESM natif, aucun bundler, aucune dépendance runtime. Thème en
 variables CSS calquées sur Gruvbox Dark. `manifest.json` + service worker

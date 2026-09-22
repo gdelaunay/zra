@@ -1,12 +1,15 @@
 // Écran 1 — liste des threads, calquée sur le sidebar de Zed :
 // groupée par poste, triée par récence, pastille d'état, chemin abrégé.
+//
+// Ossature commune aux deux écrans : .header (haut) · .scroll · .bottombar (bas).
 
 import { h, button, clear, debounce } from '../dom.js'
-import { icon } from '../icons.js'
+import { icon, agentIcon } from '../icons.js'
 import { relTime, absTime, shortPath, agentLabel, toMs } from '../format.js'
 import * as store from '../store.js'
 import { openMenu } from '../ui.js'
 import { openSettings } from './settings.js'
+import { newSessionButton } from './new-session.js'
 
 const FILTERS = [
   { id: 'all', label: 'Tous' },
@@ -39,10 +42,10 @@ export function ThreadsView({ navigate }) {
     filterBtn.querySelector('span').textContent = FILTERS.find((f) => f.id === filter).label
   }
 
-  const el = h('div.app__view', { style: { display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 } },
+  const el = h('div.view',
     header({ navigate }),
-    h('div.toolbar', h('div.spacer', { style: { flex: 1, display: 'block' } }, search), filterBtn),
     list,
+    h('div.bottombar', h('span.grow', search), filterBtn),
   )
 
   function paint() {
@@ -90,16 +93,23 @@ export function ThreadsView({ navigate }) {
   ]
   paint()
 
-  return { el, destroy() { offs.forEach((off) => off()) } }
+  return {
+    el,
+    destroy() {
+      offs.forEach((off) => off())
+      el.querySelector('.header')?.dispatchEvent(new CustomEvent('zra:unmount'))
+    },
+  }
 }
 
 function header({ navigate }) {
   const el = h('div.header')
   const sub = h('span.header__sub')
   el.append(
-    h('div.header__title', {}, icon('zap', 'icon--sm'), h('span', { text: 'ZRA' }), sub),
-    h('span.spacer'),
+    h('div.header__title', {}, icon('zap', 'icon--sm'), h('span', { text: 'ZRA' })),
+    h('div.header__meta', {}, sub),
     button('icon-btn', { title: 'Rafraîchir', onclick: () => store.refreshAll() }, icon('refresh', 'icon--sm')),
+    newSessionButton(),
     button('icon-btn', { title: 'Réglages', onclick: () => openSettings() }, icon('settings', 'icon--sm')),
   )
   const sync = () => {
@@ -108,8 +118,8 @@ function header({ navigate }) {
     const live = machines.flatMap((m) => m.threads).filter((t) => t.state === 'live').length
     sub.textContent = `${online}/${machines.length} poste${machines.length > 1 ? 's' : ''} · ${live} live`
   }
-  store.on('machines', sync)
-  store.on('threads', sync)
+  const offs = [store.on('machines', sync), store.on('threads', sync)]
+  el.addEventListener('zra:unmount', () => offs.forEach((off) => off()))
   sync()
   return el
 }
@@ -128,10 +138,10 @@ function machineHead(m) {
 
 function threadRow(m, t, navigate) {
   const unknown = t.state === 'unknown'
-  const row = button('thread-row', {
+  return button('thread-row', {
     class: unknown ? 'thread-row--unknown' : '',
     disabled: unknown,
-    title: unknown ? "thread sans session : non consultable" : t.title,
+    title: unknown ? 'thread sans session : non consultable' : t.title,
     onclick: () => navigate(`#/t/${m.id}/${t.threadId}`),
   },
     h(`span.dot.dot--${t.state}.thread-row__dot`),
@@ -145,15 +155,16 @@ function threadRow(m, t, navigate) {
       ),
     ),
     t.archived ? h('span.thread-row__badge', { text: 'archivé' }) : null,
-    t.agentId ? h('span.thread-row__badge', { text: agentLabel(t.agentId) }) : null,
+    t.agentId
+      ? agentIcon(t.agentId, 'thread-row__agent icon--sm')
+      : null,
   )
-  return row
 }
 
 function matches(t, query, filter) {
   if (filter === 'live' && t.state !== 'live') return false
   if (filter === 'archived' && !t.archived) return false
   if (!query) return true
-  const hay = `${t.title} ${(t.folderPaths || []).join(' ')} ${t.agentId || ''}`.toLowerCase()
+  const hay = `${t.title} ${(t.folderPaths || []).join(' ')} ${agentLabel(t.agentId)}`.toLowerCase()
   return hay.includes(query)
 }

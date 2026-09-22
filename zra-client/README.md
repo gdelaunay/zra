@@ -8,8 +8,9 @@ zra-client/
   index.html  manifest.webmanifest  sw.js  icon.svg
   css/   themes.css (généré)  app.css
   js/    main.js store.js link.js settings.js acp.js markdown.js diff.js
-         dom.js icons.js format.js ui.js themes.js (généré)
-         views/  threads.js thread.js entry.js settings.js devbar.js
+         dom.js icons.js format.js ui.js
+         themes.js + agent-icons.js (générés depuis Zed)
+         views/  threads.js thread.js entry.js settings.js new-session.js devbar.js
          mock/   mock-link.js scenarios.js
   tools/ mock-server.mjs
   test/  *.test.mjs
@@ -18,7 +19,7 @@ zra-client/
 ## Lancer sans Zed, sans daemon, sans agent
 
 ```bash
-npm test            # 57 tests : markdown, diff, réduction ACP, daemon bouchon, PWA headless
+npm test            # 73 tests : markdown, diff, réduction ACP, daemon bouchon, PWA headless
 npm run mock        # http://127.0.0.1:7777 (DESK-ZED) + :7778 (LAPTOP-ZED)
 ```
 
@@ -33,6 +34,9 @@ Deux modes mock, volontairement redondants :
 | **Daemon bouchon** | `npm run mock`, puis `http://127.0.0.1:7777/` | tout le chemin réel : WebSocket, reconnexion, protocole §7 |
 | **Mock intégral** | `http://127.0.0.1:7777/?mock=1` | la PWA seule, sans WebSocket — utile pour travailler le rendu |
 
+Les deux ports sont **deux postes simulés**, pas deux versions : un daemon tourne
+par machine (§3.2), le bouchon en lance deux pour exercer le multi-postes.
+
 Dans les deux cas, une **barre mock** apparaît en bas de l'écran : elle déclenche
 à la main les cas que la spec demande de vérifier — tour complet (réflexion,
 plan, lecture, diff, terminal, markdown streamé), tour long annulable, demande
@@ -42,14 +46,31 @@ shim, nouveau thread ouvert dans Zed.
 Pour voir les deux postes dans le mode daemon bouchon : Réglages → Postes →
 ajouter `127.0.0.1:7778`.
 
+## Ossature de l'interface
+
+Les deux écrans partagent le même cadre, à hauteurs fixes, pour que rien ne
+bouge d'un écran à l'autre :
+
+```
+top bar      identité / titre du thread (+ agent, chemin, date) · actions
+contenu      liste des threads  |  flux d'événements
+composer     (écran thread seulement)
+bottom bar   commandes : filtre  |  mode, modèle, accès à la liste
+```
+
+L'écran « normal » est le thread : on va à la liste par le bouton de la bottom
+bar, il n'y a pas de bouton précédent.
+
 ## Contrat avec le daemon
 
-La PWA n'attend **que** le protocole du §7 de `SPEC.md` :
+→ **`PROTOCOL.md`** à la racine : contrat complet, message par message, avec les
+séquences et les invariants. Résumé :
 
 - elle envoie `hello` `list_threads` `subscribe` `unsubscribe` `load_history`
-  `send` `set_option` `cancel_queued` `respond_permission` ;
+  `send` `interrupt` `set_option` `cancel_queued` `respond_permission`
+  `new_thread` ;
 - elle reçoit `machine` `threads` `thread_state` `acp_event` `history`
-  `permission_resolved` `error`.
+  `thread_created` `permission_resolved` `error`.
 
 `acp_event.update` est passé **verbatim** à `js/acp.js`, qui le réduit en
 timeline. Un `sessionUpdate` inconnu n'est jamais une erreur : il s'affiche en
@@ -63,6 +84,19 @@ de l'ACP :
   file perdue…).
 
 Le daemon devra les émettre, ou la PWA se contentera de ce que l'ACP contient.
+
+## Icônes d'agents
+
+`js/agent-icons.js` est **généré** depuis les icônes de Zed
+(`assets/icons/ai_*.svg`), rendues en monochrome via `currentColor` :
+
+```bash
+curl -sL https://raw.githubusercontent.com/zed-industries/zed/main/assets/icons/ai_claude.svg -o .cache/ai_claude.svg
+node scripts/gen-agent-icons.mjs
+```
+
+L'association `agent_id` → icône se fait par motif (`claude-acp`, `claude-zra`,
+`my-claude` → Claude), agent inconnu → icône générique.
 
 ## Thèmes
 
