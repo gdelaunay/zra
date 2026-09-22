@@ -29,13 +29,13 @@ sont déjà dans le protocole.
 | ✓ | Lecture d'un thread fermé via `session/load` |
 | ✓ | Envoyer un message : file d'attente **ou** interruption |
 | ✓ | Changer de modèle / de mode depuis le mobile |
+| ✓ | Répondre aux demandes de permission depuis le mobile |
 | ✓ | Multi-postes via WireGuard |
 | ✓ | Injection ACP + repli UI Automation, commutable par config |
 
 ### Hors périmètre v1 (l'archi doit les accueillir sans refonte)
 
-Répondre aux demandes de permission depuis le mobile (affichage seul en v1) ·
-créer un nouveau thread depuis le mobile · auth par token/QR ·
+Créer un nouveau thread depuis le mobile · auth par token/QR ·
 Web Push actif · édition de code.
 
 ### Non-objectifs
@@ -97,7 +97,8 @@ C'est le point d'entrée de tout ZRA. Registry actuel de la machine :
 - `kind` : `read` `edit` `delete` `move` `search` `execute` `think` `fetch`
   `switch_mode` `other` — destinés à l'affichage.
 - `status` : `pending` `in_progress` `completed` `failed`.
-- `session/request_permission` : demande d'autorisation (affichée en v1, répondable en v2).
+- `session/request_permission` : demande d'autorisation, **affichée et répondable**
+  depuis le mobile (§6.6).
 - `session/cancel` : interruption d'un tour.
 
 ---
@@ -257,6 +258,27 @@ qu'un message (pas de changement en plein tour).
 
 ---
 
+### 6.6 Répondre à une demande de permission
+
+`session/request_permission` est une **requête** JSON-RPC : l'agent attend une
+réponse et reste bloqué jusque-là. Le shim la voit passer vers Zed et la publie
+au daemon avec son `id` JSON-RPC.
+
+- La PWA affiche les `options` telles quelles (`optionId`, `name`, `kind`) et
+  renvoie l'`optionId` choisi. **ZRA ne juge rien** : il relaie un identifiant
+  d'option produit par l'agent, exactement comme le §1 l'impose.
+- Course avec le poste : le premier qui répond gagne. Le shim garde la trace des
+  requêtes en attente ; si Zed a déjà répondu, la réponse mobile est ignorée et
+  le mobile reçoit `permission_resolved` avec `by: "desktop"`.
+- Le shim doit répondre à la place de Zed **sans** lui faire croire qu'il a
+  répondu : il émet la réponse JSON-RPC vers l'agent et laisse Zed afficher ce
+  qu'il veut. Divergence cosmétique côté desktop, même nature qu'au §6.1.
+- Thread fermé, shim mort, requête expirée : le mobile reçoit une `error`
+  `permission_expired` et l'encart passe en lecture seule.
+- Toute réponse est journalisée comme une injection (§9).
+
+---
+
 ## 7. Protocole ZRA (mobile ↔ daemon)
 
 Un WebSocket, JSON, `:7777/ws`. HTTP seulement pour les statiques de la PWA.
@@ -273,6 +295,7 @@ Un WebSocket, JSON, `:7777/ws`. HTTP seulement pour les statiques de la PWA.
 | `send` | `{ threadId, text, mode: "queue" \| "interrupt" }` |
 | `set_option` | `{ threadId, key, value }` |
 | `cancel_queued` | `{ threadId, queueId }` |
+| `respond_permission` | `{ threadId, requestId, optionId }` |
 
 **Daemon → mobile**
 
@@ -283,6 +306,7 @@ Un WebSocket, JSON, `:7777/ws`. HTTP seulement pour les statiques de la PWA.
 | `thread_state` | `{ threadId, state, turn: "idle"\|"busy", queue[] }` |
 | `acp_event` | `{ threadId, update }` — **payload ACP verbatim** |
 | `history` | `{ threadId, updates[], complete }` |
+| `permission_resolved` | `{ threadId, requestId, optionId, optionName?, by: "mobile" \| "desktop" }` |
 | `error` | `{ code, message, threadId? }` |
 
 `acp_event.update` n'est jamais réinterprété par le daemon. Le rendu est
@@ -319,7 +343,9 @@ relative. Filtre texte.
 - tool calls repliés, icône par `kind`, couleur par `status` ;
 - diffs en vert/rouge, repliés par défaut, chemin en en-tête ;
 - terminaux en bloc monospace qui s'actualise ;
-- demandes de permission en encart signalé « à traiter sur le poste » (v1).
+- demandes de permission en encart, options de l'agent rendues telles quelles
+  et cliquables ; l'encart se verrouille dès qu'une réponse est partie et
+  affiche qui a tranché (mobile ou poste).
 
 **Composer.** Zone de texte, dictée vocale native (`input` mobile), bouton
 **Envoyer** (file d'attente) et bouton **Stop et envoyer** (interruption) visible
@@ -435,5 +461,5 @@ normalement à travers lui ? → (2) les trames arrivent-elles au daemon ? →
 | Envoi pendant un tour | File d'attente **et** interruption, au choix dans l'UI |
 | Historique | `session/load`, pas de parsing de store propriétaire |
 | Agents | Tous, sans adapter — conséquence de la règle du §1 |
-| Permissions | Affichées en v1, répondables en v2 |
+| Permissions | Affichées **et répondables** depuis le mobile dès la v1 (§6.6) |
 | Nom | ZRA |

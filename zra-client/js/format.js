@@ -1,0 +1,64 @@
+// Formatage : dates relatives, chemins abrégés, tailles.
+
+const MIN = 60_000, HOUR = 3_600_000, DAY = 86_400_000
+
+/** Date relative compacte, façon sidebar de Zed : "à l'instant", "12 min", "3 h", "hier", "12 sept." */
+export function relTime(value, now = Date.now()) {
+  const t = toMs(value)
+  if (t === null) return ''
+  const d = now - t
+  if (d < 0) return 'à venir'
+  if (d < 45_000) return "à l'instant"
+  if (d < HOUR) return `${Math.round(d / MIN)} min`
+  if (d < DAY) return `${Math.floor(d / HOUR)} h`
+  if (d < 2 * DAY) return 'hier'
+  if (d < 7 * DAY) return `${Math.floor(d / DAY)} j`
+  const date = new Date(t)
+  const sameYear = new Date(now).getFullYear() === date.getFullYear()
+  return date.toLocaleDateString('fr-FR', {
+    day: 'numeric', month: 'short', ...(sameYear ? {} : { year: 'numeric' }),
+  })
+}
+
+export function absTime(value) {
+  const t = toMs(value)
+  if (t === null) return ''
+  return new Date(t).toLocaleString('fr-FR', {
+    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
+  })
+}
+
+export function toMs(value) {
+  if (value === null || value === undefined || value === '') return null
+  if (typeof value === 'number') return value
+  const t = Date.parse(value)
+  if (!Number.isNaN(t)) return t
+  // SQLite stocke parfois "2025-09-12 08:31:02.123" sans timezone.
+  const t2 = Date.parse(String(value).replace(' ', 'T') + 'Z')
+  return Number.isNaN(t2) ? null : t2
+}
+
+/**
+ * Chemin abrégé pour l'affichage : garde le dernier segment (et son parent
+ * si la place le permet), normalise les séparateurs Windows.
+ */
+export function shortPath(p, segments = 2) {
+  if (!p) return ''
+  const norm = String(p).replace(/\\/g, '/').replace(/\/+$/, '')
+  const parts = norm.split('/').filter(Boolean)
+  if (parts.length <= segments) return norm
+  return '…/' + parts.slice(-segments).join('/')
+}
+
+/** Libellé lisible d'un agent : "claude-acp" -> "Claude". */
+export function agentLabel(agentId) {
+  if (!agentId) return 'agent'
+  const known = {
+    'claude-acp': 'Claude',
+    'claude-zra': 'Claude (ZRA)',
+    'gemini-acp': 'Gemini',
+    'codex-acp': 'Codex',
+  }
+  if (known[agentId]) return known[agentId]
+  return agentId.replace(/[-_]acp$/, '').replace(/[-_]/g, ' ')
+}
