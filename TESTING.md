@@ -18,7 +18,10 @@ Le journal d'injections du daemon reste à `%LOCALAPPDATA%\zra\injections.log`
 
 ---
 
-## Round 1 — lots A et B
+## Round 1 — lots A et B ✅
+
+> **Fait** : les quatre vérifications passent, risque 🔴1 levé. Résultats et
+> points relevés : `ROADMAP.md`, lot C, « Test réel — round 1 ».
 
 > Aucune touche envoyée à Zed. Seule modification du poste : **une** entrée
 > ajoutée à `agent_servers` dans le `settings.json` de Zed, retirée par
@@ -27,7 +30,7 @@ Le journal d'injections du daemon reste à `%LOCALAPPDATA%\zra\injections.log`
 ### Préparation
 
 ```bash
-npm test                          # 208 tests, sans Zed ni agent
+npm test                          # 216 tests, sans Zed ni agent
 npm run daemon:dev                # terminal dédié : loopback seule, PWA sur http://localhost:7777
 npm run setup -- install          # montre l'entrée qui serait ajoutée, n'écrit rien
 npm run setup -- install --apply  # écrit (sauvegarde dans .zra/backups/)

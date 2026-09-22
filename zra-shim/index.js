@@ -105,6 +105,7 @@ export function createShim({
 
   bridge.on('update', (e) => push({ type: 'acp_update', ...e }))
   bridge.on('state', (s) => push({ type: 'state', ...s }))
+  bridge.on('replay', ({ sessionId }) => push({ type: 'session_replay', sessionId }))
   bridge.on('session', (s) => push({ type: 'session', ...s }))
   bridge.on('permission_resolved', (p) => push({ type: 'permission_resolved', ...p }))
   bridge.on('permission_expired', (p) => push({ type: 'permission_expired', sessionId: p.sessionId, requestId: p.requestId }))

@@ -119,13 +119,18 @@ export async function startDaemon(config) {
     emit: (threadId, update) => hub.publish(threadId, update),
   })
 
-  hub = new Hub({ config, threads, states, rings, shims, backend, machine, recordInjection: record, loader, zed: control })
+  hub = new Hub({
+    config, threads, states, rings, shims, backend, machine, recordInjection: record, loader,
+    zed: control, covers: (sessionId) => host.covers(sessionId),
+  })
 
   host.on('update', ({ threadId, update, at }) => hub.publish(threadId, update, at))
   host.on('permission_resolved', (p) => hub.permissionResolved(p.threadId, p))
   host.on('permission_expired', ({ threadId, requestId }) => hub.permissionExpired(threadId, requestId))
   // Un thread qui reprend vie a pu changer depuis sa mise en cache.
   host.on('session', ({ sessionId }) => loader.invalidate(sessionId))
+  // Zed recharge la session : le replay va tout redire, le ring repart de zéro.
+  host.on('replay', ({ threadId }) => hub.restart(threadId))
 
   threads.start()
 

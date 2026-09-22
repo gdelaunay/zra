@@ -37,9 +37,9 @@ export function renderEntry(entry, ctx = {}) {
 // ---- messages ----
 
 function userMsg(entry) {
+  // Pas d'en-tête « vous », comme dans Zed : la bulle suffit. Un message pas
+  // encore confirmé est seulement estompé.
   return h('div.msg.msg--user', { class: entry.pending ? 'is-pending' : '' },
-    h('div.msg__role', icon('message', 'icon--sm'), 'vous',
-      entry.pending ? h('span.muted', {}, '· en attente') : null),
     h('div.msg__body.md', { html: blocksHtml(entry.blocks) }),
   )
 }

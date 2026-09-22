@@ -53,6 +53,12 @@ export class ShimHost extends EventEmitter {
     this.parked = new Map()
     /** Dernier état connu par session, rejoué quand l'index rattrape son retard. */
     this.parkedState = new Map()
+    /**
+     * Sessions dont **tout** le contenu est passé par ce daemon : ouvertes
+     * (`session/new`) ou rechargées (`session/load`, replay complet) pendant que
+     * le shim lui était connecté. Pour elles, le ring buffer est l'historique.
+     */
+    this.whole = new Set()
     this.nextCommandId = 1
 
     // L'index vient de changer : une session inconnue l'est peut-être moins.
@@ -92,6 +98,7 @@ export class ShimHost extends EventEmitter {
     // Le shim meurt (Zed fermé) ⇒ la file est perdue, et le mobile doit
     // l'apprendre explicitement plutôt que de voir une file figée (spec §6.4).
     for (const sessionId of sessions) {
+      this.whole.delete(sessionId)
       this.parked.delete(sessionId)
       this.parkedState.delete(sessionId)
       const thread = this.threads.getBySession(sessionId)
@@ -130,6 +137,7 @@ export class ShimHost extends EventEmitter {
       case 'session': return this.session(entry, msg)
       case 'acp_update': return this.update(msg)
       case 'state': return this.state(msg)
+      case 'session_replay': return this.replay(msg)
       case 'permission_resolved': return this.permissionResolved(msg)
       case 'permission_expired': return this.permissionExpired(msg)
       case 'notice': return this.notice(msg)
@@ -157,9 +165,27 @@ export class ShimHost extends EventEmitter {
 
   session(entry, msg) {
     if (!msg.sessionId) return
+    if (msg.source === 'new') this.whole.add(msg.sessionId)
     if (entry.shimId) this.shims.addSession(entry.shimId, msg.sessionId)
     this.state(msg)
     this.emit('session', { shimId: entry.shimId, ...msg })
+  }
+
+  /**
+   * Zed recharge une session : l'agent va tout rejouer. Ce qu'on en avait est
+   * redit par le replay — on repart de zéro pour ne pas l'avoir deux fois.
+   */
+  replay(msg) {
+    if (!msg.sessionId) return
+    this.parked.delete(msg.sessionId)
+    this.whole.add(msg.sessionId)
+    const thread = this.threads.getBySession(msg.sessionId)
+    if (thread) this.emit('replay', { threadId: thread.threadId, sessionId: msg.sessionId })
+  }
+
+  /** Le ring buffer de cette session en est-il l'histoire complète ? */
+  covers(sessionId) {
+    return this.whole.has(sessionId)
   }
 
   update(msg) {

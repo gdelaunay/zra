@@ -109,7 +109,9 @@ export class Timeline {
   chunk(role, content, meta) {
     const type = role === 'thought' ? 'thought' : role === 'user' ? 'user' : 'agent'
     let entry = this.last()
-    if (!entry || entry.type !== type || entry.closed) {
+    // Un écho local (message envoyé depuis le mobile) ne se complète jamais :
+    // le message réel arrive dans sa propre bulle, et l'écho lui cède la place.
+    if (!entry || entry.type !== type || entry.closed || entry.local) {
       const added = this.push({ type, blocks: [], at: meta.at })
       entry = added.entry
       appendBlock(entry, content)

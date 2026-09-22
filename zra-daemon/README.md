@@ -61,7 +61,7 @@ Un deuxième chemin WebSocket sur le même port, **réservé à la loopback** :
 poste, distincte du `PROTOCOL.md` (qui ne décrit que la PWA ↔ daemon).
 
 ```
-shim → daemon   shim_hello · session · acp_update · state ·
+shim → daemon   shim_hello · session · session_replay · acp_update · state ·
                 permission_resolved · permission_expired · notice · ack
 daemon → shim   cmd { id, cmd: prompt|cancel|set_option|
                               respond_permission|cancel_queued }

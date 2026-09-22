@@ -22,10 +22,12 @@ export class Hub {
    *   backend: object, machine: object, recordInjection?: (e:object)=>void,
    *   loader?: import('./session-loader.js').SessionLoader|null,
    *   zed?: import('./zed/control.js').ZedControl|null,
+   *   covers?: (sessionId:string) => boolean,
    * }} deps
    */
-  constructor({ config, threads, states, rings, shims, backend, machine, recordInjection, loader = null, zed = null }) {
+  constructor({ config, threads, states, rings, shims, backend, machine, recordInjection, loader = null, zed = null, covers = () => false }) {
     this.zed = zed
+    this.covers = covers
     this.config = config
     this.threads = threads
     this.states = states
@@ -168,13 +170,32 @@ export class Hub {
     if (!thread.sessionId) {
       return this.error(conn, 'no_session', 'thread sans session : historique indisponible', threadId)
     }
+
+    // Thread vivant : tout ce que l'agent a émis est passé par le shim, donc
+    // par le ring buffer. On le rend tel quel plutôt que de lancer une seconde
+    // instance de l'agent sur une session que Zed tient déjà ouverte.
+    if (this.shims.hasSession(thread.sessionId) && this.covers(thread.sessionId)) {
+      const events = this.rings.read(threadId)
+      conn.send({
+        type: 'history', threadId,
+        updates: events.map((e) => e.update),
+        complete: !this.rings.truncated(threadId),
+        until: events.at(-1)?.seq ?? 0,
+      })
+      return
+    }
+
     if (!this.loader) {
       return this.error(conn, 'history_unavailable',
         "historique indisponible : ce poste ne sait pas relire une session fermée", threadId)
     }
+    // `until` : ce que le ring contenait au lancement de la relecture est dans
+    // le replay. La PWA écarte ces événements s'ils lui sont aussi parvenus en
+    // direct, sans quoi elle les afficherait deux fois.
+    const until = this.rings.lastSeq(threadId)
     try {
       const { updates, complete } = await this.loader.load(threadId)
-      conn.send({ type: 'history', threadId, updates, complete })
+      conn.send({ type: 'history', threadId, updates, complete, until })
     } catch (err) {
       this.error(conn, err.code || 'history_unavailable', err.message, threadId)
     }
@@ -337,6 +358,18 @@ export class Hub {
   publish(threadId, update, at = new Date().toISOString()) {
     const event = this.rings.push(threadId, { update, at })
     this.broadcastToSubs(threadId, { type: 'acp_event', threadId, ...event })
+  }
+
+  /**
+   * Zed recharge la session et l'agent va tout rejouer (spec §2.3). Le ring
+   * repart de zéro, et les mobiles qui regardent ce thread reçoivent un
+   * historique vide que le replay, en direct, va remplir : sans ça, la
+   * conversation s'afficherait une seconde fois à la suite de la première.
+   */
+  restart(threadId) {
+    const until = this.rings.lastSeq(threadId)
+    this.rings.clear(threadId)
+    this.broadcastToSubs(threadId, { type: 'history', threadId, updates: [], complete: true, until })
   }
 
   /**

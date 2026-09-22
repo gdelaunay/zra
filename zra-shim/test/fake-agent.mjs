@@ -87,7 +87,8 @@ function configOf(session) {
 
 async function runPrompt(session, text) {
   const sessionId = session.id
-  update(sessionId, { sessionUpdate: 'user_message_chunk', content: { type: 'text', text } })
+  // Pas d'écho du message utilisateur en direct : `claude-agent-acp` n'en émet
+  // aucun (relevé au test réel). Il ne le rejoue qu'au `session/load`.
 
   if (text.startsWith('permission:')) {
     update(sessionId, {

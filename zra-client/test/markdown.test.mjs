@@ -69,3 +69,11 @@ test('rendu incrémental : un préfixe ne casse jamais', () => {
     assert.doesNotThrow(() => renderMarkdown(full.slice(0, i)), `préfixe de ${i} caractères`)
   }
 })
+
+test('bloc de code : les chaînes survivent à la coloration des nombres (test réel, Read de package.json)', () => {
+  const html = renderMarkdown('```\n1\t{\n2\t  "name": "zra",\n3\t  "private": true,\n4\t  "n": 12\n```')
+  assert.match(html, /&quot;name&quot;/)
+  assert.match(html, /&quot;zra&quot;/)
+  assert.doesNotMatch(html, /\u0001/)
+  assert.match(html, /<span class="tok-num">12<\/span>/)
+})

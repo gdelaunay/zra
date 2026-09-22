@@ -553,3 +553,77 @@ test('shim installé : journal dans un fichier, trames enregistrées, /status à
   assert.ok(directions.has('zed→agent') && directions.has('agent→zed'), [...directions].join(', '))
   assert.ok(frames.some((f) => f.frame.includes('trace-moi')))
 })
+
+// ===========================================================================
+// Relevé au test réel (round 1)
+// ===========================================================================
+
+test('le message utilisateur est publié par le shim, qu’il vienne de Zed ou du mobile', async (t) => {
+  await boot(t)
+  const { zed } = await startShim(t)
+  const client = await (await Client.open(t)).hello()
+  await subscribe(client, VIVANT)
+
+  // L'agent réel ne renvoie pas le message : sans le shim, le mobile ne verrait que les réponses.
+  await zed.prompt('depuis Zed')
+  const deZed = await client.until((m) => m.type === 'acp_event' && m.update.content?.text === 'depuis Zed', { label: 'message de Zed' })
+  assert.equal(deZed.update.sessionUpdate, 'user_message_chunk')
+  assert.deepEqual(deZed.update._meta, { zra: { synthetic: true, origin: 'zed' } })
+
+  client.send({ type: 'send', threadId: VIVANT, text: 'depuis le mobile', mode: 'queue' })
+  const duMobile = await client.until((m) => m.type === 'acp_event' && m.update.content?.text === 'depuis le mobile', { label: 'message du mobile' })
+  assert.equal(duMobile.update._meta.zra.origin, 'mobile')
+  // Rien de fabriqué ne part vers Zed.
+  assert.ok(!zed.updates.some((u) => u?.sessionUpdate === 'user_message_chunk'))
+})
+
+test('load_history sur un thread live : le ring, sans relancer l’agent, borné par until', async (t) => {
+  const daemon = await boot(t)
+  daemon.loader.load = () => { throw new Error('un thread live ne doit pas relancer l’agent') }
+  const { zed } = await startShim(t)
+  const client = await (await Client.open(t)).hello()
+  await client.until((m) => m.type === 'threads' && m.threads.find((x) => x.threadId === VIVANT)?.state === 'live', { label: 'live' })
+  await zed.prompt('réponds juste OK')
+  await wait(150)
+
+  client.clear()
+  client.send({ type: 'subscribe', threadId: VIVANT })
+  client.send({ type: 'load_history', threadId: VIVANT })
+  const history = await client.until((m) => m.type === 'history', { label: 'history' })
+  assert.equal(history.complete, true)
+  assert.deepEqual(history.updates.filter((u) => u.content).map((u) => u.content.text), ['réponds juste OK', 'reçu : réponds juste OK'])
+
+  // Chaque événement rejoué au subscribe est couvert par l'historique : la PWA l'écarte.
+  const replayed = client.of('acp_event')
+  assert.ok(replayed.length >= 2)
+  assert.ok(replayed.every((e) => typeof e.seq === 'number' && e.seq <= history.until))
+})
+
+test('Zed recharge la session : les abonnés repartent d’un historique vide, le ring aussi', async (t) => {
+  const daemon = await boot(t)
+  const { zed } = await startShim(t)
+  const client = await (await Client.open(t)).hello()
+  await subscribe(client, VIVANT)
+  await zed.prompt('avant rechargement')
+  await client.until((m) => m.type === 'acp_event' && m.update.content?.text === 'reçu : avant rechargement', { label: 'tour' })
+
+  client.clear()
+  await zed.request('session/load', { sessionId: SESSION_VIVANT, cwd: CWD, mcpServers: [] })
+  const reset = await client.until((m) => m.type === 'history', { label: 'historique remis à zéro' })
+  assert.deepEqual(reset.updates, [])
+  await client.until((m) => m.type === 'acp_event' && m.update.content?.text === 'réponse archivée', { label: 'replay' })
+
+  const ring = daemon.rings.read(VIVANT).map((e) => e.update.content?.text).filter(Boolean)
+  assert.deepEqual(ring, ['question archivée', 'réponse archivée'])
+})
+
+test('le modèle choisi par Zed (options par défaut au rechargement) remonte au mobile', async (t) => {
+  await boot(t)
+  const { zed } = await startShim(t)
+  const client = await (await Client.open(t)).hello()
+  await subscribe(client, VIVANT)
+  await client.until((m) => m.type === 'thread_state' && m.threadId === VIVANT && m.currentModelId === 'rapide', { label: 'modèle initial' })
+
+  await zed.request('session/set_config_option', { sessionId: SESSION_VIVANT, configId: 'model', value: 'lent' })
+  await client.until((m) => m.type === 'thread_state' && m.threadId === VIVANT && m.currentModelId === 'lent', { label: 'modèle changé par Zed' })
+})

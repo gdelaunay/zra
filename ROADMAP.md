@@ -227,7 +227,7 @@ Isolé en dernier volontairement : seul lot fragile (fenêtre, langue, version d
 Zed) et seul lot qui ne se valide que sur la machine cible.
 
 **État** : tout ce qui ne dépend pas du test réel est écrit et testé
-(`npm test` → 208 verts, dont 19 pour le lot C). Reste le test réel, en deux
+(`npm test` → 216 verts). Reste le test réel, en deux
 rounds décrits dans `TESTING.md` : le premier valide les lots A et B sans une
 frappe clavier, le second met au point les recettes clavier.
 
@@ -275,9 +275,51 @@ lot B n'était jamais branché sur le shim réel.
 6. **Pas de file d'attente avec le backend `uia`** : la file du shim dépile par
    ACP, mélanger les deux voies enverrait les messages par deux chemins.
 
+### Test réel — round 1 ✅
+
+Fait sur la machine cible : `npm run setup -- install --apply`, puis les
+quatre vérifications du `SPEC.md` §12.
+
+| | Résultat |
+|---|---|
+| 1. shim transparent | ✅ `claude-zra` se comporte comme `claude-acp` |
+| 2. trames au daemon | ✅ thread `live`, streaming dans la PWA |
+| 3. injection ACP (🔴1) | ✅ **risque levé** : Claude accepte le prompt injecté ; la réponse s'affiche des deux côtés, le message mobile seulement dans la PWA (🟠6) |
+| 4. `session/load` | ✅ historique des anciens threads |
+
+Vérifié aussi en réel : interruption, changement de modèle, commandes, tool
+calls (lecture de fichier).
+
+Relevé, à traiter :
+
+- **bugs, corrigés** (causes lues dans `.zra/records/`) :
+  - *réponse affichée deux fois* à l'ouverture d'un thread live : le rejeu du
+    ring et l'historique `session/load` disaient le même tour. Les événements
+    portent désormais un `seq`, l'historique un `until` ; et un thread live
+    tire son historique du ring, sans relancer une seconde instance de l'agent
+    sur une session ouverte dans Zed ;
+  - *« vous · en attente »* qui restait affiché : l'agent ne renvoie jamais le
+    message de l'utilisateur. Le shim le publie lui-même (marqué
+    `_meta.zra.synthetic`), et la PWA ne fusionne plus un écho local avec le
+    message réel. Effet de bord bienvenu : les messages tapés dans Zed
+    apparaissent maintenant en direct sur le mobile ;
+  - *`package.json` rendu en `0: 1, 2: 3…`* : la coloration des nombres cassait
+    les emplacements réservés de celle des chaînes ;
+  - *modèle affiché périmé* sur le mobile après un redémarrage de Zed : Zed
+    réapplique ses options par défaut (`session/set_config_option`) et le shim
+    n'observait que ses propres changements. Il suit désormais ceux de Zed ;
+  - l'agent bouchon renvoyait le message utilisateur, le vrai non : c'est ce
+    qui masquait les deux premiers bugs. Il est désormais fidèle ;
+- **risque 🟠6 à investiguer à fond** (`SPEC.md` §14.1) ;
+- évolutions de la PWA (`SPEC.md` §14.2).
+
+Conséquence pour le round 2 : 🔴1 levé, le clavier ne sert plus à envoyer des
+messages. Il ne reste que l'ouverture d'une session et la réouverture d'un
+thread fermé.
+
 ### Reste — dépend du test réel
 
-- les recettes `newThread`, `openThread`, `submit` ;
+- les recettes `newThread`, `openThread` (et `submit`, seulement si 🟠6 finit par l'exiger) ;
 - le moment où Zed écrit un thread neuf dans `sidebar_threads` (à la création,
   ou au premier message ?) — `new_thread` en dépend ;
 - la tâche planifiée au logon, à faire une fois le fonctionnement validé.

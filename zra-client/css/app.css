@@ -248,11 +248,6 @@ button { cursor: pointer; }
 .entry { margin-bottom: var(--sp-5); }
 .entry:last-child { margin-bottom: 0; }
 
-.msg__role {
-  display: flex; align-items: center; gap: var(--sp-3);
-  font-size: var(--fs-xs); color: var(--text-muted);
-  margin-bottom: var(--sp-2); text-transform: uppercase; letter-spacing: .05em;
-}
 .msg--user .msg__body {
   background: var(--element-background);
   border: 1px solid var(--border-variant);
@@ -516,10 +511,12 @@ button { cursor: pointer; }
 /* Variante icône seule : même boîte, carrée. */
 .send-btn--icon { padding: 0; width: 28px; min-width: 28px; }
 .send-btn--stop {
-  color: var(--error); background: var(--element-background);
+  color: var(--error); background: var(--error-background);
   border: 1px solid var(--error-border);
 }
-.send-btn--stop:hover { background: var(--error-background); }
+.send-btn--stop:hover { background: color-mix(in srgb, var(--error) 30%, var(--error-background)); }
+/* Carré plein, pas un contour. */
+.send-btn--stop .icon { fill: currentColor; }
 
 /* bouton flottant "revenir en bas" */
 .jump {

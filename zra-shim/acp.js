@@ -130,6 +130,12 @@ export class AcpBridge extends EventEmitter {
       this.zedRequests.set(k, { method: msg.method, params: msg.params ?? {} })
       if (msg.method === M.sessionPrompt && msg.params?.sessionId) {
         this.sessions.promptSent(msg.params.sessionId, k)
+        this.publishUserMessage(msg.params.sessionId, msg.params.prompt, 'zed')
+      }
+      // Rechargement d'une session : l'agent va rejouer toute la conversation.
+      // Ce qui a été publié avant pour elle est redit, le daemon repart de zéro.
+      if (msg.method === M.sessionLoad && msg.params?.sessionId) {
+        this.emit('replay', { sessionId: msg.params.sessionId })
       }
       return
     }
@@ -253,6 +259,16 @@ export class AcpBridge extends EventEmitter {
         return
       }
 
+      // Options changées **par Zed** : à chaque ouverture ou rechargement, il
+      // réapplique ses `default_config_options` (relevé au test réel : le
+      // modèle repassait à opus sans que le mobile le sache).
+      case M.sessionSetConfigOption:
+      case M.sessionSetMode: {
+        const sessionId = pending.params?.sessionId
+        if (sessionId && !msg.error) this.noteOptions(sessionId, pending.method, pending.params, result)
+        return
+      }
+
       default:
         // Toute autre réponse ne concerne que Zed : on ne l'interprète pas.
     }
@@ -268,6 +284,30 @@ export class AcpBridge extends EventEmitter {
     if (p.currentModeId != null) st.currentModeId = p.currentModeId
     if (p.currentModelId != null) st.currentModelId = p.currentModelId
     this.emit('session', { sessionId, cwd: st.cwd, source, ...this.sessions.snapshot(sessionId) })
+    this.sessions.changed(sessionId)
+  }
+
+  /**
+   * Options de session après un changement, d'où qu'il vienne. La réponse de
+   * l'agent fait foi quand elle porte `configOptions` ; à défaut, la requête.
+   */
+  noteOptions(sessionId, method, params = {}, result = null) {
+    const st = this.sessions.get(sessionId)
+    if (method === M.sessionSetMode) {
+      if (params.modeId) st.currentModeId = params.modeId
+    } else if (Array.isArray(result?.configOptions)) {
+      const p = projectOptions({ configOptions: result.configOptions })
+      if (p.models) {
+        st.models = p.models
+        st.currentModelId = p.currentModelId
+        st.modelConfigId = p.modelConfigId
+      }
+      const mode = result.configOptions.find((o) => o?.category === 'mode' || o?.id === 'mode')
+      if (mode?.currentValue != null) st.currentModeId = mode.currentValue
+    } else if (params.configId) {
+      if (params.configId === (st.modelConfigId || 'model')) st.currentModelId = params.value
+      else if (params.configId === 'mode') st.currentModeId = params.value
+    }
     this.sessions.changed(sessionId)
   }
 
@@ -354,6 +394,28 @@ export class AcpBridge extends EventEmitter {
   // =========================================================================
   // Injection
   // =========================================================================
+
+  /**
+   * Le message de l'utilisateur, tel qu'il part vers l'agent. L'agent ne le
+   * renvoie pas en direct (`claude-agent-acp` ne le rejoue qu'au
+   * `session/load`) : sans ça, le mobile ne verrait que les réponses.
+   *
+   * Publié **vers le daemon seulement**, jamais vers Zed, et marqué comme tel
+   * (`_meta.zra.synthetic`) : c'est la seule trame que ZRA fabrique, et elle
+   * reprend les blocs du prompt tels quels.
+   */
+  publishUserMessage(sessionId, prompt, origin) {
+    if (!Array.isArray(prompt)) return
+    const at = new Date().toISOString()
+    for (const block of prompt) {
+      if (!block || typeof block !== 'object') continue
+      this.emit('update', {
+        sessionId,
+        update: { sessionUpdate: 'user_message_chunk', content: block, _meta: { zra: { synthetic: true, origin } } },
+        at,
+      })
+    }
+  }
 
   /** Écrit une trame **produite par ZRA** vers l'agent. */
   write(msg) {
@@ -500,6 +562,7 @@ export class AcpBridge extends EventEmitter {
       },
     })
     this.sessions.promptSent(sessionId, k)
+    this.publishUserMessage(sessionId, params.prompt, 'mobile')
     try {
       this.write({ jsonrpc: '2.0', id, method: M.sessionPrompt, params })
     } catch (err) {
@@ -564,18 +627,17 @@ export class AcpBridge extends EventEmitter {
   async applyOption(sessionId, key, value) {
     const st = this.sessions.get(sessionId)
     if (key === 'mode') {
-      await this.request(M.sessionSetMode, { sessionId, modeId: value })
-      st.currentModeId = value
-      this.sessions.changed(sessionId)
+      const params = { sessionId, modeId: value }
+      await this.request(M.sessionSetMode, params)
+      this.noteOptions(sessionId, M.sessionSetMode, params)
       return
     }
     const configId = key === 'model' ? (st.modelConfigId || 'model') : key
     const params = typeof value === 'boolean'
       ? { sessionId, configId, value, type: 'boolean' }
       : { sessionId, configId, value }
-    await this.request(M.sessionSetConfigOption, params)
-    if (key === 'model') st.currentModelId = value
-    this.sessions.changed(sessionId)
+    const result = await this.request(M.sessionSetConfigOption, params)
+    this.noteOptions(sessionId, M.sessionSetConfigOption, params, result)
   }
 
   flushOptions(sessionId) {

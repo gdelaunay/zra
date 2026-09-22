@@ -135,7 +135,7 @@ function handle(machine, msg) {
     case 'acp_event': {
       const k = key(machine.id, msg.threadId)
       const st = ensureState(k)
-      if (st.historyPending) { st.buffer.push(msg.update); break }
+      if (st.historyPending) { st.buffer.push({ update: msg.update, at: msg.at, seq: msg.seq }); break }
       applyToTimeline(k, msg.update, { at: msg.at })
       break
     }
@@ -149,7 +149,13 @@ function handle(machine, msg) {
       st.historyComplete = msg.complete !== false
       st.historyPending = false
       st.historyError = null
-      for (const u of st.buffer.splice(0)) tl.apply(u)
+      // `until` : dernier événement que l'historique contient déjà. Ce qui a été
+      // reçu en direct jusque-là (rejeu du `subscribe`) ferait doublon.
+      const until = typeof msg.until === 'number' ? msg.until : null
+      for (const ev of st.buffer.splice(0)) {
+        if (until !== null && typeof ev.seq === 'number' && ev.seq <= until) continue
+        tl.apply(ev.update, { at: ev.at })
+      }
       emit(`timeline:${k}`, { reset: true })
       emit(`state:${k}`, st)
       break

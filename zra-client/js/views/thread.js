@@ -298,17 +298,23 @@ function Composer({ key, onSend, onStop }) {
   const input = h('textarea.composer__input', {
     rows: 1,
     placeholder: 'Répondre à l’agent…',
-    enterkeyhint: 'enter',
+    enterkeyhint: 'send',
     autocapitalize: 'sentences',
     oninput: autoGrow,
+    // Entrée envoie ; Maj+Entrée et Ctrl+Entrée sautent une ligne (SPEC §14.2).
+    // Pendant une composition (IME, accents morts), Entrée appartient à la saisie.
     onkeydown: (ev) => {
-      if (ev.key === 'Enter' && (ev.ctrlKey || ev.metaKey)) { ev.preventDefault(); send('queue') }
+      if (ev.key !== 'Enter' || ev.isComposing) return
+      if (ev.shiftKey) return
+      ev.preventDefault()
+      if (ev.ctrlKey || ev.metaKey) newline()
+      else send('queue')
     },
   })
 
   const queueBox = h('div.composer__queue')
   // Envoyer ne change jamais : pendant un tour, le message part en file d'attente.
-  const sendBtn = button('send-btn', { onclick: () => send('queue'), title: 'Envoyer (Ctrl+Entrée)' },
+  const sendBtn = button('send-btn', { onclick: () => send('queue'), title: 'Envoyer (Entrée — Maj+Entrée pour aller à la ligne)' },
     icon('send', 'icon--sm'), h('span', { text: 'Envoyer' }))
   // Stop n'apparaît que pendant un tour : icône seule, à gauche d'Envoyer.
   const stopBtn = button('send-btn.send-btn--icon.send-btn--stop.hidden', {
@@ -326,6 +332,14 @@ function Composer({ key, onSend, onStop }) {
       h('div.composer__row', {}, micBtn, hint, h('span.spacer'), stopBtn, sendBtn),
     ),
   )
+
+  /** Ctrl+Entrée n'insère rien de lui-même dans un textarea : on le fait. */
+  function newline() {
+    const { selectionStart: a, selectionEnd: b, value } = input
+    input.value = value.slice(0, a) + '\n' + value.slice(b)
+    input.selectionStart = input.selectionEnd = a + 1
+    autoGrow()
+  }
 
   function autoGrow() {
     input.style.height = 'auto'

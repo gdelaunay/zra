@@ -559,12 +559,12 @@ logon (optionnelle, script d'install fourni). Le shim n'est jamais lancé à la 
 
 | # | Risque | Détection | Repli |
 |---|---|---|---|
-| 🔴 1 | L'agent refuse un `session/prompt` qui ne vient pas de Zed | Log ACP au premier envoi mobile | Backend `uia` (déjà construit) |
+| ✅ 1 | L'agent refuse un `session/prompt` qui ne vient pas de Zed | Log ACP au premier envoi mobile | **Levé au test réel (round 1)** : `claude-agent-acp` accepte le prompt injecté, la réponse s'affiche des deux côtés. Le backend `uia` reste en repli pour d'autres agents |
 | ✅ 2 | `claude-agent-acp` ne déclare pas `loadSession` | Réponse à `initialize` | **Levé au lot B** : la version 0.80 installée déclare `loadSession: true`. Le repli `no_load_session` reste câblé et testé pour les autres agents |
 | 🟠 3 | L'arbre UIA de Zed n'expose pas le composer | Sonde UIA (`npm run zed -- probe`) | **Avéré au lot C** : arbre vide, 0 élément. Pilotage au clavier (`SendInput`) de la fenêtre Zed, par recettes |
 | 🟡 4 | Zed lance un agent par fenêtre, pas par thread | Observer les `session_id` d'un même shim | Le registre shim→sessions est déjà multi-sessions |
 | 🟡 5 | Schéma `sidebar_threads` modifié par une mise à jour de Zed | Vérification des colonnes au démarrage | Message d'erreur explicite, dégradation en « live seul » |
-| 🟡 6 | Message utilisateur invisible dans le panel Zed (§6.1) | Visuel | Passer en `uia`, ou accepter |
+| 🟠 6 | Message utilisateur invisible dans le panel Zed (§6.1) | **Avéré au test réel** : la réponse de l'agent s'affiche dans Zed, le message envoyé depuis le mobile non | **À investiguer à fond** (§14) avant tout choix : le repli clavier n'est pas une solution satisfaisante |
 | 🟡 7 | Séparateur de `folder_paths` inconnu pour un thread multi-dossiers | Aucun thread multi-dossiers sur la machine cible ; `folder_paths_order` est une liste d'indices séparés par des virgules | On ne découpe que si l'ordre annonce plusieurs entrées **et** que le découpage retombe sur le bon compte — sinon chemin unique. Un chemin Windows peut contenir une virgule |
 
 **Ordre d'attaque au test réel** : (1) le shim est-il transparent — Zed fonctionne-t-il
@@ -592,3 +592,39 @@ technique et leur état d'avancement : `ROADMAP.md`.
 | Agents | Tous, sans adapter — conséquence de la règle du §1 |
 | Permissions | Affichées **et répondables** depuis le mobile dès la v1 (§6.6) |
 | Nom | ZRA |
+
+---
+
+## 14. Notes du test réel — à traiter
+
+Relevées au round 1 (`TESTING.md`), sur la machine cible.
+
+### 14.1 Le message mobile absent du panel Zed (risque 🟠6) — à investiguer à fond
+
+C'est la limite qui pèsera le plus à l'usage : on écrit depuis le mobile, on
+revient au poste, et la conversation affichée par Zed a un trou — la réponse de
+l'agent sans la question. Le repli clavier (backend `uia`) la contourne, mais
+taper dans la fenêtre de l'utilisateur n'est pas une solution qu'on veut
+généraliser.
+
+À explorer **en profondeur** avant de trancher, sans a priori :
+
+- ce que Zed fait d'un `user_message_chunk` émis par l'agent pendant un tour
+  qu'il n'a pas lancé : l'affiche-t-il ? l'ignore-t-il ? (le shim peut en
+  émettre un, synthétique, vers Zed) ;
+- ce que Zed relit à la réouverture d'un thread : s'il rejoue `session/load`,
+  le message injecté apparaît-il alors, puisque l'agent l'a bien reçu ?
+- les points d'entrée de Zed lui-même : actions, extensions, URL `zed://`,
+  canal CLI — une voie officielle pour poser un message dans un thread ;
+- en dernier recours seulement, le clavier.
+
+### 14.2 PWA
+
+- ✅ **Composer** : **Entrée envoie** ; **Maj+Entrée** et **Ctrl+Entrée** sautent
+  une ligne.
+- **Threads regroupés par projet** dans la liste, sous chaque poste — c'est
+  ainsi que l'utilisateur pense ses threads.
+- Événements ACP à rendre proprement plutôt qu'en bloc générique : `usage_update`
+  (consommation), `session_info_update` (titre, métadonnées).
+- Le streaming est un peu saccadé — secondaire.
+

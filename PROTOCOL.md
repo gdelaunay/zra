@@ -262,11 +262,24 @@ ne connaît pas les options de la session. `commands` est mémorisé par la PWA 
 
 ### `acp_event`
 ```ts
-{ type: 'acp_event', threadId: string, update: object, at?: string }
+{ type: 'acp_event', threadId: string, update: object, at?: string, seq?: number }
 ```
 **Le cœur.** `update` est le payload `session/update` de l'agent, **verbatim** :
-le daemon ne le relit pas, ne le normalise pas, ne le complète pas. La PWA sait
-rendre :
+le daemon ne le relit pas, ne le normalise pas, ne le complète pas.
+
+`seq` : numéro d'ordre attribué par le daemon, croissant. Il ne sert qu'à une
+chose : reconnaître un événement reçu deux fois — par le rejeu du `subscribe`
+et par l'`history` (voir `until`).
+
+**Le message de l'utilisateur.** L'agent ne le renvoie pas en direct
+(`claude-agent-acp` ne le rejoue qu'au `session/load`, relevé au test réel).
+Le shim publie donc lui-même un `user_message_chunk` pour chaque prompt qu'il
+voit passer, qu'il vienne de Zed ou du mobile, en reprenant les blocs du prompt
+tels quels. C'est la seule trame fabriquée par ZRA, et elle le dit :
+`update._meta.zra = { synthetic: true, origin: 'zed' | 'mobile' }`. Elle n'est
+jamais envoyée à Zed.
+
+La PWA sait rendre :
 
 | `update.sessionUpdate` | rendu |
 |---|---|
@@ -291,12 +304,25 @@ La PWA la reconnaît à la présence simultanée de `toolCall` et `options`.
 
 ### `history`
 ```ts
-{ type: 'history', threadId: string, updates: object[], complete: boolean }
+{ type: 'history', threadId: string, updates: object[], complete: boolean, until?: number }
 ```
-Réponse à `load_history` : le replay de `session/load`, dans l'ordre, au même
-format que `acp_event.update`. La PWA **remet la timeline à zéro** et rejoue tout,
-puis applique les événements live reçus entre-temps (elle les tamponne).
-`complete: false` = replay partiel (l'UI le signale).
+Réponse à `load_history`, dans l'ordre, au même format que `acp_event.update`.
+La PWA **remet la timeline à zéro** et rejoue tout, puis applique les
+événements live reçus entre-temps (elle les tamponne) — **sauf** ceux dont le
+`seq` est inférieur ou égal à `until`, que l'historique contient déjà.
+`complete: false` = historique partiel (l'UI le signale).
+
+D'où vient l'historique :
+
+- **thread fermé** : le replay de `session/load`, par une instance jetable de
+  l'agent (spec §5.2) ;
+- **thread live** dont toute la session est passée par le daemon : le ring
+  buffer lui-même. On ne relance pas l'agent sur une session que Zed tient
+  ouverte. `complete: false` si le ring a évincé son début.
+
+Envoyé aussi **sans demande**, vide, quand Zed recharge une session que le
+mobile regarde : l'agent va tout rejouer en direct, la timeline repart de zéro
+pour ne pas afficher la conversation deux fois.
 
 ### `thread_created`
 ```ts
@@ -372,7 +398,8 @@ l'agent : file d'attente perdue »… Rendu en ligne système discrète.
    ZRA immune aux évolutions du protocole.
 2. **Ordre.** Les `acp_event` d'un thread arrivent dans l'ordre d'émission. Pas de
    garantie inter-threads.
-3. **Ring buffer.** 2000 événements par thread live, rejoués à `subscribe`.
+3. **Ring buffer.** 2000 événements par thread live, rejoués à `subscribe`,
+   chacun avec son `seq`.
 4. **Idempotence.** `subscribe`, `unsubscribe`, `interrupt`, `cancel_queued`
    doivent tolérer d'être reçus deux fois (rejeu à la reconnexion).
 5. **Pas d'état client.** Aucun besoin de retenir qui est connecté au-delà du
