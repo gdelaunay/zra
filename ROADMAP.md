@@ -7,7 +7,7 @@ suivant.
 | Lot | Dépend de | Testable avec | État |
 |---|---|---|---|
 | **A** — daemon | rien | la fixture SQLite seule | ✅ **fait** |
-| **B** — plomberie ACP | un agent ACP | l'agent bouchon, sans Zed | ⬜ à faire |
+| **B** — plomberie ACP | un agent ACP | l'agent bouchon, sans Zed | ✅ **fait** |
 | **C** — pont vers Zed | Zed lancé | la machine cible uniquement | ⬜ à faire |
 
 Si on coupait plutôt « lecture / écriture », l'UI Automation se retrouverait
@@ -91,28 +91,28 @@ client WebSocket ; le serveur WebSocket tient dans `ws.js`.
 Vérifié aussi sur la vraie base de la machine : 54 threads lus, Zed détecté,
 statiques servies.
 
-### Limites assumées
+### Limites assumées à la fin du lot A
 
-Les messages qui relèvent des lots suivants répondent une `error` explicite
+Les messages qui relevaient des lots suivants répondaient une `error` explicite
 plutôt que d'échouer en silence :
 
-| Message | Réponse en lot A | Débloqué par |
-|---|---|---|
-| `load_history` | `history_unavailable` | lot B |
-| `respond_permission` | `permission_expired` | lot B |
-| `new_thread` | `new_thread_failed` | lot C |
+| Message | Réponse en lot A | Débloqué par | État |
+|---|---|---|---|
+| `load_history` | `history_unavailable` | lot B | ✅ levé |
+| `respond_permission` | `permission_expired` | lot B | ✅ levé |
+| `new_thread` | `new_thread_failed` | lot C | ⬜ |
 
-Et tout thread est `closed` ou `unknown` : sans shim, rien n'est `live`.
+Et tout thread était `closed` ou `unknown` : sans shim, rien n'était `live`.
 
 ---
 
-## Lot B — la plomberie ACP ⬜
+## Lot B — la plomberie ACP ✅
 
 > *Critère de sortie : celui de la `SPEC.md` §10 — `npm test` vert et PWA
 > pilotable de bout en bout contre l'agent bouchon, **sans Zed lancé**.*
 
-C'est le cœur technique et le seul lot avec un vrai risque d'ingénierie
-(risques 🔴1 et 🟠2). Environ 60 % de la charge restante.
+C'était le cœur technique et le seul lot avec un vrai risque d'ingénierie
+(risques 🔴1 et 🟠2).
 
 ### Fonctionnellement
 
@@ -125,36 +125,98 @@ C'est le cœur technique et le seul lot avec un vrai risque d'ingénierie
 
 ### Techniquement
 
-| Composant | Contenu |
+| Fichier | Rôle |
 |---|---|
-| `zra-shim/proxy.js` | proxy stdio **relai d'octets** entre Zed et l'agent ; parse une copie pour observer, ne ré-sérialise jamais. Fail-open absolu |
-| `zra-shim/daemon-link.js` | liaison locale au daemon, non bloquante, best-effort |
-| `zra-shim/index.js` | capture de l'`initialize` : capacités, `agent_id`, `session_id` |
-| `zra-shim/queue.js` | machine à états réelle ; alimente `thread-state.js` par `setTurn` |
-| `inject/acp.js` | `session/prompt` émis par le shim, `session/cancel`, `set_option` |
-| permissions | interception de `session/request_permission`, `permission_resolved`, `permission_expired` |
-| `daemon/session-loader.js` | spawn de l'agent, `initialize` → `loadSession`, replay, cache TTL 10 min, kill |
-| `ZRA_RECORD=1` | vidage des trames en JSONL — première chose à activer au test réel |
-| `test/fake-agent.js` | agent bouchon ACP sur stdio |
-| `test/fake-zed.js` | client bouchon face au shim |
+| `zra-shim/index.js` | entrée : résolution de l'agent, spawn, assemblage, cycle de vie |
+| `zra-shim/framing.js` | découpage JSON Lines **préservant les octets** |
+| `zra-shim/proxy.js` | relai d'un flux vers l'autre, fail-open absolu |
+| `zra-shim/acp.js` | tout ce que le shim comprend : sessions, tour, permissions, terminaux, injection |
+| `zra-shim/queue.js` | machine à états réelle ; le daemon n'en tient qu'un miroir |
+| `zra-shim/daemon-link.js` | lien local best-effort : backoff, tampon borné, jamais bloquant |
+| `zra-shim/record.js` | `ZRA_RECORD=1`, toutes les trames en JSONL |
+| `zra-shim/log.js` | journal **sur stderr** — stdout est le canal ACP |
+| `zra-daemon/shim-link.js` | canal `/shim` : `session_id` → `threadId`, commandes et accusés |
+| `zra-daemon/inject/acp.js` | backend d'injection par défaut, simple traducteur |
+| `zra-daemon/session-loader.js` | `session/load` : spawn, replay, cache TTL 10 min, kill |
+| `zra-daemon/acp-client.js` | client ACP minimal et jetable pour cette relecture |
+| `zra-daemon/agent-commands.js` | comment lancer un agent : config, `settings.json`, registry de Zed |
+| `zra-shim/test/fake-agent.mjs` | agent bouchon ACP sur stdio, scénarios scriptés |
+| `zra-shim/test/fake-zed.mjs` | client bouchon face au shim, avec course aux permissions |
 
-### Ce que le lot A a déjà préparé
+Toujours zéro dépendance runtime : le client WebSocket du shim est celui de
+Node ≥ 22, et le JSON-RPC sur stdio tient dans `framing.js`.
 
-- `shim-registry.js` : API complète, multi-sessions par shim (risque 🟡4).
-- `thread-state.js` : la machine à états existe et est testée ; le lot B change
-  seulement la **source** des transitions (le shim au lieu du backend bouchon).
-- `ring-buffer.js`, `hub.publish()` : le chemin de diffusion verbatim est en place.
-- `inject/backend.js` : `acp.js` n'a qu'à s'enficher, rien d'autre ne bouge.
-- Les codes d'erreur `history_unavailable` / `permission_expired` sont déjà
-  câblés et testés côté PWA.
+### Décisions prises pendant ce lot
 
-### Coupe de secours
+1. **La file d'attente et le tour vivent dans le shim.** Il est seul à voir le
+   trafic réel ; le daemon n'en garde qu'un miroir (`thread-state.mirror()`) et
+   ne dépile jamais ce que le shim a déjà dépilé. Le hub s'en remet au drapeau
+   `backend.ownsQueue` plutôt qu'à un test de backend.
+2. **Deux entorses au relai intégral, et deux seulement.** La réponse tardive de
+   Zed à une permission déjà tranchée depuis le mobile est *avalée* (deux
+   réponses pour un même `id` JSON-RPC embrouilleraient l'agent), tout comme les
+   réponses aux requêtes injectées par ZRA — Zed ne les a jamais émises.
+3. **Espace d'`id` séparé pour l'injection** : `zra-1`, `zra-2`… Textuel, donc
+   sans collision possible avec la numérotation de Zed.
+4. **Le registry de Zed résout les agents.** La spec supposait des entrées
+   `agent_servers` de type `custom` ; la machine cible n'en a aucune, ses deux
+   agents sont de type `registry`. `agent-commands.js` retrouve donc ce que Zed
+   a installé (`external_agents/registry`, npx comme binaire) — sans jamais rien
+   télécharger.
+5. **Modes et modèles projetés une fois, au même endroit.** L'ACP moderne range
+   le modèle dans `configOptions` (sélecteurs typés, éventuellement groupés) et
+   non plus à côté de `modes` ; `projectOptions()` en fait le `modes`/`models`
+   du protocole ZRA, et `set_option` repart vers `session/set_mode` ou
+   `session/set_config_option` selon la clé.
+6. **La sortie des terminaux vient des requêtes `terminal/*`**, pas des
+   `session/update` : elle n'existe nulle part ailleurs. Le shim la republie en
+   `zra/terminal_output` (protocole §5).
+7. **Canal des shims réservé à la loopback.** Il injecte des prompts sans passer
+   par la PWA : rien de légitime ne s'y connecte depuis le tunnel.
 
-Si le lot paraît trop gros d'un bloc, la seule coupe propre à l'intérieur est
-`B1 = shim + live en lecture` / `B2 = file, injection, permissions,
-session/load`.
+### Vérifications
 
----
+`npm test` → **174 tests verts** (73 client + 79 daemon + 22 shim), sans Zed et
+sans le vrai agent.
+
+- `zra-shim/test/shim.test.mjs` — transparence du proxy (octets entrants ≡
+  octets sortants, y compris sur une trame illisible), tour, file, interruption,
+  injection invisible pour Zed, les trois issues d'une permission, terminaux,
+  options différées, enregistrement des trames.
+- `zra-daemon/test/lot-b.test.mjs` — la chaîne complète : daemon réel, vrai
+  processus shim lancé comme Zed le lancerait, agent bouchon, faux Zed. Lisible
+  comme le parcours d'un utilisateur : thread qui passe `live`, flux verbatim,
+  envoi, file, interruption, permissions des deux côtés, historique, perte du
+  shim.
+- `zra-daemon/test/unit.test.mjs` — miroir d'état, mise de côté des sessions non
+  encore indexées, accusés en échec, résolution des commandes d'agents.
+
+### Vérifié contre le vrai agent
+
+`npm run probe:agent claude-acp` lance le **vrai** agent de la machine à travers
+le shim et ne fait qu'un `initialize` — aucune session, aucun prompt, aucun
+appel d'API. Résultat sur la machine cible :
+
+```
+commande résolue (registry/npx)
+✓ poignée de main relayée par le shim
+  agent            : @agentclientprotocol/claude-agent-acp 0.80.0
+  protocolVersion  : 1
+  loadSession      : oui
+```
+
+Trois choses d'un coup : la résolution par le registry de Zed fonctionne, le
+shim relaie la poignée de main sans l'abîmer, et le **risque 🟠2 est levé** —
+l'historique des threads fermés est jouable sans repli. Le chemin
+`no_load_session` reste câblé et testé pour les agents qui ne le déclarent pas.
+
+La sonde tourne avec une URL de daemon volontairement injoignable : elle vérifie
+donc aussi le fail-open du shim.
+
+### Ce qui reste à vérifier au test réel
+
+Le risque 🔴1 — un agent qui refuserait un `session/prompt` ne venant pas de Zed
+— ne se lève que face au vrai agent. Le repli est le backend `uia` du lot C.
 
 ## Lot C — le pont vers Zed ⬜
 

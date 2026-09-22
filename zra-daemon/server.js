@@ -40,6 +40,17 @@ export function checkOrigin(origin, allowed) {
   return allowed.includes(normalized)
 }
 
+/**
+ * Le canal des shims n'est ouvert qu'aux processus du **même poste** (spec §3.1
+ * et §9). Un shim est lancé par Zed en local : rien de légitime ne s'y connecte
+ * depuis le tunnel, et ce canal-là injecte des prompts sans passer par la PWA.
+ */
+export function isLoopback(address) {
+  if (!address) return false
+  const a = String(address).replace(/^::ffff:/, '')
+  return a === '127.0.0.1' || a === '::1' || a.startsWith('127.')
+}
+
 /** Origines propres du daemon, autorisées d'office quand il sert les statiques. */
 export function selfOrigins({ addresses, port, tls }) {
   const scheme = tls ? 'https' : 'http'
@@ -48,7 +59,7 @@ export function selfOrigins({ addresses, port, tls }) {
   return [...hosts].map((h) => `${scheme}://${h}:${port}`)
 }
 
-export async function createServers({ config, addresses, onConnection }) {
+export async function createServers({ config, addresses, onConnection, onShim }) {
   const tlsOptions = config.tls
     ? { cert: await readFile(config.tls.cert), key: await readFile(config.tls.key) }
     : null
@@ -80,18 +91,33 @@ export async function createServers({ config, addresses, onConnection }) {
     const server = tlsOptions ? createHttps(tlsOptions, handler) : createHttp(handler)
 
     attachWebSocket(server, {
-      path: '/ws',
       log,
-      verify: ({ req, origin }) => {
-        if (!checkOrigin(origin, allowed)) {
-          return { ok: false, status: 403, reason: 'origine non autorisée' }
-        }
-        if (!authenticate({ req, origin })) {
-          return { ok: false, status: 401, reason: 'non authentifié' }
-        }
-        return true
-      },
-      onConnection,
+      routes: [
+        {
+          // La PWA, à travers le tunnel (protocole §1).
+          path: '/ws',
+          verify: ({ req, origin }) => {
+            if (!checkOrigin(origin, allowed)) {
+              return { ok: false, status: 403, reason: 'origine non autorisée' }
+            }
+            if (!authenticate({ req, origin })) {
+              return { ok: false, status: 401, reason: 'non authentifié' }
+            }
+            return true
+          },
+          onConnection,
+        },
+        {
+          // Les shims, en local uniquement (spec §3.1).
+          path: '/shim',
+          verify: ({ req }) => (
+            isLoopback(req.socket.remoteAddress)
+              ? true
+              : { ok: false, status: 403, reason: 'canal des shims réservé au poste local' }
+          ),
+          onConnection: onShim,
+        },
+      ],
     })
 
     instances.push({ address, server })

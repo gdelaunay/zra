@@ -35,6 +35,21 @@
   "pollMs": 2000,
   "ringSize": 2000,
 
-  // Backend d'injection : "mock" en lot A, "acp"/"uia"/"auto" en lot B/C.
-  "injection": "mock"
+  // Backend d'injection (spec §6) :
+  //   "acp"   le shim émet lui-même le session/prompt — défaut
+  //   "mock"  backend bouchon, pour valider la chaîne sans agent (spec §10.6)
+  //   "uia" / "auto"  UI Automation — lot C
+  "injection": "acp",
+
+  // Comment lancer un agent, quand le registry de Zed ne suffit pas à le dire.
+  // Sert au shim (quel binaire envelopper) comme au relecteur de threads fermés.
+  // Les agents installés par Zed depuis son registry sont résolus tout seuls.
+  //   "agentCommands": {
+  //     "claude-acp": { "command": "node", "args": ["C:/.../claude-agent-acp/dist/index.js"] }
+  //   }
+  "agentCommands": {},
+
+  // Cache du replay session/load (spec §5.2) et garde-fou de durée.
+  "historyTtlMs": 600000,
+  "historyTimeoutMs": 60000
 }

@@ -13,23 +13,52 @@ npm run daemon:dev      # loopback seule, sans exiger de tunnel
 npm test                # suite complète, sans Zed ni agent
 ```
 
-## État : lot A
+## État : lots A et B
 
 | | |
 |---|---|
 | ✓ | index `sidebar_threads` en lecture seule, poll 2 s, diff |
 | ✓ | protocole ZRA complet côté daemon, invariants du `PROTOCOL.md` §6 |
 | ✓ | ring buffer 2000/thread, rejoué au `subscribe` |
-| ✓ | file d'attente, interruption, options de session |
 | ✓ | écoute restreinte (loopback + tunnel), allowlist d'`Origin`, TLS optionnel |
 | ✓ | registry `agent_servers`, présence de Zed, journal d'injections |
-| ✓ | backend d'injection `mock` |
-| ✗ | shim, live réel, `session/load`, permissions, injection ACP → **lot B** |
+| ✓ | **shims connectés, threads `live`, flux ACP verbatim** |
+| ✓ | **injection ACP : envoi, file d'attente, interruption, options** |
+| ✓ | **permissions répondables depuis le mobile, course avec le poste** |
+| ✓ | **historique d'un thread fermé par `session/load`, cache 10 min** |
+| ✓ | backends d'injection `acp` (défaut) et `mock` |
 | ✗ | UI Automation, `new_thread`, ouverture de thread fermé → **lot C** |
 
-Les messages qui relèvent des lots suivants répondent une `error` explicite
-plutôt que d'échouer en silence : `history_unavailable`, `permission_expired`,
-`new_thread_failed`.
+Ce qui relève encore du lot C répond une `error` explicite plutôt que d'échouer
+en silence : `new_thread_failed`. Et écrire à un thread fermé — que personne
+n'a rouvert dans Zed — répond `inject_failed` avec la raison.
+
+## Le canal des shims
+
+Un deuxième chemin WebSocket sur le même port, **réservé à la loopback** :
+`ws://127.0.0.1:7777/shim`. C'est une conversation entre deux processus du même
+poste, distincte du `PROTOCOL.md` (qui ne décrit que la PWA ↔ daemon).
+
+```
+shim → daemon   shim_hello · session · acp_update · state ·
+                permission_resolved · permission_expired · notice · ack
+daemon → shim   cmd { id, cmd: prompt|cancel|set_option|
+                              respond_permission|cancel_queued }
+```
+
+Deux traductions, et elles n'ont lieu que dans `shim-link.js` :
+
+- **`session_id` → `threadId`.** Le shim ne connaît que des sessions ACP, la PWA
+  que des `threadId`. Une session dont la ligne n'est pas encore dans
+  `sidebar_threads` — Zed l'écrit avec un temps de retard — voit ses événements
+  mis de côté puis rejoués dès que l'index la nomme.
+- **commande → accusé.** Le hub veut une promesse qui échoue avec un code du
+  protocole ; le shim répond un `ack`.
+
+Le **tour et la file d'attente vivent dans le shim** (spec §6.4), seul à voir le
+trafic réel. Le daemon n'en garde qu'un miroir pour la PWA
+(`thread-state.js` → `mirror()`). Si le shim meurt, la file est perdue et le
+mobile en est averti par un `zra/notice` explicite.
 
 ## Où est servi le client web
 
@@ -127,21 +156,28 @@ hors du tunnel.
 | `threads-index.js` | lecture `sidebar_threads`, poll, projection |
 | `thread-state.js` | tour, file d'attente, options |
 | `ring-buffer.js` | 2000 événements par thread |
-| `shim-registry.js` | registre des shims (prêt pour le lot B) |
+| `shim-registry.js` | registre shim → sessions (multi-sessions, risque 🟡4) |
+| `shim-link.js` | canal `/shim` : événements entrants, commandes sortantes |
+| `session-loader.js` | relecture d'un thread fermé, cache TTL 10 min |
+| `acp-client.js` | client ACP minimal et jetable, pour cette relecture |
+| `agent-commands.js` | comment lancer un agent : config, `settings.json`, registry de Zed |
 | `agents.js` | registry `agent_servers`, présence de Zed |
 | `jsonc.js` | parseur tolérant pour le `settings.json` de Zed |
-| `inject/` | interface d'injection + backend bouchon |
+| `inject/` | interface d'injection + backends `acp` et `mock` |
 
 ## Tests
 
 ```bash
-npm test                                          # tout
+npm test                                          # tout, sans Zed ni agent
 node --test zra-daemon/test/protocol.test.mjs     # conformité au PROTOCOL.md
+node --test zra-daemon/test/lot-b.test.mjs        # daemon + shim + agent bouchon
 npm run fixture                                   # régénère la fixture SQLite
 ```
 
 `test/protocol.test.mjs` se lit comme une check-list du `PROTOCOL.md` : chaque
-test cite le message qu'il verrouille. La fixture
+test cite le message qu'il verrouille. `test/lot-b.test.mjs` monte la chaîne
+complète — daemon, vrai processus shim, agent ACP bouchon, faux Zed — et vérifie
+ce que la PWA verrait. La fixture
 `test/fixtures/sidebar_threads.sqlite` reproduit le schéma relevé sur la machine
 cible avec des lignes synthétiques couvrant les cas limites (`session_id` NULL,
 `agent_id` NULL, `title_override`, archivé, dossiers multiples, dates à la

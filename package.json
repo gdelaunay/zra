@@ -11,8 +11,9 @@
     "daemon": "node --no-warnings zra-daemon/index.js",
     "daemon:dev": "node --no-warnings zra-daemon/index.js --no-tunnel",
     "mock": "node zra-client/tools/mock-server.mjs",
-    "test": "node --no-warnings --test \"zra-client/test/*.test.mjs\" \"zra-daemon/test/*.test.mjs\"",
+    "test": "node --no-warnings --test \"zra-client/test/*.test.mjs\" \"zra-daemon/test/*.test.mjs\" \"zra-shim/test/*.test.mjs\"",
     "fixture": "node --no-warnings scripts/make-fixture.mjs",
+    "probe:agent": "node --no-warnings scripts/probe-agent.mjs",
     "themes": "node scripts/gen-themes.mjs"
   },
   "devDependencies": {

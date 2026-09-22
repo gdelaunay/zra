@@ -461,7 +461,7 @@ Le bouchon et ses tests forment la suite de conformité :
 
 ```bash
 npm run mock    # daemon bouchon : :7777 (DESK-ZED) + :7778 (LAPTOP-ZED)
-npm test        # 73 tests, dont le protocole et la PWA de bout en bout
+npm test        # toute la suite : PWA, daemon, shim — sans Zed ni vrai agent
 ```
 
 Le **vrai** daemon a sa propre suite, écrite comme une check-list de ce document :
@@ -469,6 +469,7 @@ Le **vrai** daemon a sa propre suite, écrite comme une check-list de ce documen
 ```bash
 npm run daemon:dev                              # loopback seule, sans tunnel
 node --test zra-daemon/test/protocol.test.mjs   # conformité au PROTOCOL.md
+node --test zra-daemon/test/lot-b.test.mjs      # la chaîne complète, avec shim
 ```
 
 `zra-daemon/test/protocol.test.mjs` verrouille, message par message : bootstrap
@@ -476,6 +477,13 @@ et son ordre, `subscribe`/`unsubscribe`, rejeu du ring buffer, file d'attente et
 dépilage, interruption sèche, `send` en mode `interrupt`, options différées
 pendant un tour, thread sans session, trames illisibles, diffusion aux seuls
 abonnés, allowlist d'`Origin`.
+
+`zra-daemon/test/lot-b.test.mjs` fait la même chose contre la chaîne réelle —
+daemon, vrai processus shim, agent ACP bouchon, faux Zed — et couvre ce que le
+bouchon seul ne peut pas prouver : `acp_event` verbatim venus de l'agent, file
+d'attente tenue par le shim, `history` par `session/load`, les trois issues
+d'une permission (`mobile`, `desktop`, `permission_expired`), et la perte du
+shim.
 
 Pour le piloter depuis la PWA : servir `zra-client/` (par le daemon en dev, ou
 par un hébergeur), puis ajouter l'adresse du poste dans Réglages → Postes, et

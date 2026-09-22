@@ -2,11 +2,11 @@
 // zra-daemon — un par poste, long-running (spec §3.2).
 //
 //   node zra-daemon/index.js
-//   node zra-daemon/index.js --port 7777 --no-tunnel --no-static
+//   node zra-daemon/index.js --port 7777 --no-tunnel --no-static --injection mock
 //
-// Le shim (lot B) et le pilotage de Zed (lot C) ne sont pas encore branchés :
-// ce daemon lit l'index des threads et parle le protocole ZRA, avec le backend
-// d'injection bouchon.
+// Il lit l'index des threads de Zed, accueille les shims sur `/shim` et parle le
+// protocole ZRA à la PWA sur `/ws`. Le pilotage de Zed lui-même — ouvrir une
+// session, rouvrir un thread fermé — arrive au lot C.
 
 import { loadConfig } from './config.js'
 import { startDaemon } from './daemon.js'
@@ -27,6 +27,7 @@ function parseArgs(argv) {
     else if (a === '--static-dir') out.staticDir = argv[++i]
     else if (a === '--origin') (out.allowedOrigins ??= []).push(argv[++i])
     else if (a === '--zed-db') out.zedDb = argv[++i]
+    else if (a === '--injection') out.injection = argv[++i]
     else if (a === '--verbose') setLevel('debug')
     else if (a === '--help' || a === '-h') { usage(); process.exit(0) }
     else { console.error(`option inconnue : ${a}`); usage(); process.exit(2) }
@@ -45,6 +46,7 @@ function usage() {
   --static-dir <chem>  dossier du client web (défaut zra-client/)
   --origin <url>       origine autorisée à ouvrir le WebSocket (répétable)
   --zed-db <chemin>    base sidebar_threads à lire
+  --injection <mode>   acp (défaut) ou mock (backend bouchon, spec §10.6)
   --verbose            journal détaillé
 `)
 }

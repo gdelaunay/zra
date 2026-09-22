@@ -118,6 +118,27 @@ export class ThreadStates extends EventEmitter {
     this.changed(threadId)
   }
 
+  /**
+   * Recopie l'état que le **shim** tient pour vrai (lot B).
+   *
+   * Le tour et la file vivent dans le shim, seul à voir le trafic ACP réel
+   * (spec §6.4) : le daemon n'en garde qu'un miroir pour la PWA. On n'émet donc
+   * pas `dequeue` ici — le dépilage a déjà eu lieu de l'autre côté ; on se
+   * contente de publier un `thread_state` à jour (invariant §6.6 du protocole).
+   */
+  mirror(threadId, { turn, queue, modes, models, commands, currentModeId, currentModelId } = {}) {
+    const st = this.get(threadId)
+    if (turn === 'idle' || turn === 'busy') st.turn = turn
+    if (Array.isArray(queue)) st.queue = queue
+    if (modes !== undefined) st.modes = modes
+    if (models !== undefined) st.models = models
+    if (commands !== undefined) st.commands = commands
+    if (currentModeId !== undefined) st.currentModeId = currentModeId
+    if (currentModelId !== undefined) st.currentModelId = currentModelId
+    this.changed(threadId)
+    return st
+  }
+
   /** Options de session lues à l'`initialize` (lot B). */
   setCapabilities(threadId, { modes, models, commands, currentModeId, currentModelId } = {}) {
     const st = this.get(threadId)

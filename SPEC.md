@@ -89,6 +89,15 @@ sur stdio. Le binaire lancé est configurable dans `settings.json` :
 C'est le point d'entrée de tout ZRA. Registry actuel de la machine :
 `claude-acp` → `@agentclientprotocol/claude-agent-acp` (via npx), 40 threads sur 51.
 
+**Précision relevée au lot B** : les deux agents de la machine sont déclarés
+`"type": "registry"`, pas `custom` — leur commande n'est donc écrite nulle part
+dans `settings.json`. C'est Zed qui les installe sous
+`%LOCALAPPDATA%\Zed\external_agents\registry` (`registry.json` + le paquet npx
+ou le binaire versionné). `zra-daemon/agent-commands.js` sait retrouver les
+trois formes — surcharge de `zra.config.json`, entrée `custom`, registry de Zed —
+sans jamais rien télécharger. Brancher le shim reste une entrée `custom`, qui
+enveloppe l'agent ainsi résolu.
+
 ### 2.3 Ce que le protocole donne gratuitement
 
 - `session/load` + capacité `loadSession` : l'agent **rejoue toute la conversation**
@@ -197,6 +206,7 @@ complète par `session/load` si l'utilisateur remonte plus haut.
    `cwd` du thread. Le daemon joue le rôle de client ACP.
 3. `initialize` → vérifier la capacité `loadSession`. Absente ⇒ afficher
    « historique indisponible pour cet agent », composer actif quand même.
+   *Vérifié au lot B : `claude-agent-acp` 0.80 déclare `loadSession: true`.*
 4. `session/load`, collecter le replay, mettre en cache (mémoire, TTL 10 min).
 5. Tuer l'instance. **Elle ne sert qu'à lire** — jamais à prompter.
 
@@ -476,10 +486,11 @@ sur le tunnel peut piloter les postes. Acceptable sur un tunnel strictement priv
 Contrainte structurante : tout est écrit avant le premier test réel. Le code doit
 donc être vérifiable sans Zed ni agent.
 
-1. **Agent bouchon** (`test/fake-agent.ts`) — parle ACP sur stdio, émet des
+1. **Agent bouchon** (`zra-shim/test/fake-agent.mjs`) — parle ACP sur stdio, émet des
    scénarios scriptés : texte streamé, tool call avec diff, terminal, demande de
    permission, tour long annulable. Permet de tester daemon + PWA de bout en bout.
-2. **Client bouchon** (`test/fake-zed.ts`) — joue le rôle de Zed face au shim.
+2. **Client bouchon** (`zra-shim/test/fake-zed.mjs`) — joue le rôle de Zed face au
+   shim, et sait ne pas répondre à une permission pour laisser le mobile gagner.
 3. **Mode enregistrement** — `ZRA_RECORD=1` fait vider au shim toutes les trames
    dans un JSONL horodaté. Première chose à activer au test réel : une session
    enregistrée devient une fixture de non-régression.
@@ -519,10 +530,14 @@ zra/
   zra.config.json              écoute, TLS, origines, injection, chemins
   zra-daemon/    index.js  daemon.js  config.js  server.js  ws.js  static.js
                  hub.js  threads-index.js  thread-state.js  ring-buffer.js
-                 shim-registry.js  agents.js  jsonc.js  net.js  log.js
-                 inject/   backend.js  mock.js  [acp.js  uia.js  uia.ps1]
-                 test/     unit  threads-index  protocol  fixtures/
-  zra-shim/      index.js  proxy.js  queue.js  daemon-link.js       (lot B)
+                 shim-registry.js  shim-link.js  session-loader.js
+                 acp-client.js  agent-commands.js
+                 agents.js  jsonc.js  net.js  log.js
+                 inject/   backend.js  mock.js  acp.js  [uia.js  uia.ps1]
+                 test/     unit  threads-index  protocol  lot-b  fixtures/
+  zra-shim/      index.js  proxy.js  framing.js  acp.js  queue.js
+                 daemon-link.js  record.js  log.js
+                 test/     shim  fake-agent  fake-zed
   zra-client/    index.html  js/  css/  manifest.webmanifest  sw.js
                  tools/mock-server.mjs  test/
   scripts/       make-fixture.mjs  probe-zed-db.mjs  gen-themes.mjs
@@ -539,7 +554,7 @@ logon (optionnelle, script d'install fourni). Le shim n'est jamais lancé à la 
 | # | Risque | Détection | Repli |
 |---|---|---|---|
 | 🔴 1 | L'agent refuse un `session/prompt` qui ne vient pas de Zed | Log ACP au premier envoi mobile | Backend `uia` (déjà construit) |
-| 🟠 2 | `claude-agent-acp` ne déclare pas `loadSession` | Réponse à `initialize` | Historique indisponible, live seul ; envisager la lecture du JSONL de Claude Code, dont la correspondance `session_id` ↔ `~/.claude/projects/<slug>/<session_id>.jsonl` est **vérifiée** |
+| ✅ 2 | `claude-agent-acp` ne déclare pas `loadSession` | Réponse à `initialize` | **Levé au lot B** : la version 0.80 installée déclare `loadSession: true`. Le repli `no_load_session` reste câblé et testé pour les autres agents |
 | 🟠 3 | L'arbre UIA de Zed n'expose pas le composer | Sonde UIA au démarrage | `SendKeys` sur la fenêtre focalisée |
 | 🟡 4 | Zed lance un agent par fenêtre, pas par thread | Observer les `session_id` d'un même shim | Le registre shim→sessions est déjà multi-sessions |
 | 🟡 5 | Schéma `sidebar_threads` modifié par une mise à jour de Zed | Vérification des colonnes au démarrage | Message d'erreur explicite, dégradation en « live seul » |

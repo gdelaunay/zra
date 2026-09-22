@@ -1,0 +1,240 @@
+#!/usr/bin/env node
+// Agent ACP bouchon — spec §10.1.
+//
+// Parle l'ACP réel sur stdio (celui du schéma `@agentclientprotocol/sdk` relevé
+// sur la machine cible) et joue des scénarios scriptés : texte streamé, tool
+// call avec diff, terminal, demande de permission, tour long annulable.
+//
+// Il sert deux maîtres :
+//  · le shim, qui l'enveloppe comme il envelopperait le vrai agent ;
+//  · le daemon, qui le relance en client ACP pour rejouer un `session/load`.
+//
+// Le scénario se choisit par le **texte du prompt** : c'est ce qui rend les
+// tests lisibles — `prompt('permission: …')` demande une autorisation.
+//
+//   ZRA_FAKE_NO_LOAD_SESSION=1   ne déclare pas `loadSession` (risque 🟠2)
+//   ZRA_FAKE_SLOW_MS=…           durée d'un tour long (défaut 400 ms)
+//   ZRA_FAKE_SESSION_ID=…        `session/new` renvoie cet id, pour le faire
+//                                correspondre à une ligne de `sidebar_threads`
+
+import { createFramer, parseFrame } from '../framing.js'
+
+const NO_LOAD_SESSION = process.env.ZRA_FAKE_NO_LOAD_SESSION === '1'
+const SLOW_MS = Number(process.env.ZRA_FAKE_SLOW_MS || 400)
+
+const sessions = new Map()
+let nextSession = 1
+
+function send(msg) {
+  process.stdout.write(JSON.stringify(msg) + '\n')
+}
+
+function reply(id, result) {
+  send({ jsonrpc: '2.0', id, result })
+}
+
+function fail(id, message, code = -32000) {
+  send({ jsonrpc: '2.0', id, error: { code, message } })
+}
+
+function update(sessionId, payload) {
+  send({ jsonrpc: '2.0', method: 'session/update', params: { sessionId, update: payload } })
+}
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+
+/** Requête de l'agent vers le client, dont on attend la réponse. */
+const waiting = new Map()
+let nextRequestId = 1000
+function ask(method, params) {
+  const id = nextRequestId++
+  return new Promise((resolve, reject) => {
+    waiting.set(id, { resolve, reject })
+    send({ jsonrpc: '2.0', id, method, params })
+  })
+}
+
+function modesOf(session) {
+  return {
+    currentModeId: session.modeId,
+    availableModes: [
+      { id: 'default', name: 'Normal' },
+      { id: 'plan', name: 'Plan' },
+    ],
+  }
+}
+
+function configOf(session) {
+  return [{
+    id: 'model',
+    type: 'select',
+    name: 'Modèle',
+    category: 'model',
+    currentValue: session.modelId,
+    options: [
+      { value: 'rapide', name: 'Rapide' },
+      { value: 'lent', name: 'Appliqué' },
+    ],
+  }]
+}
+
+// ---------------------------------------------------------------------------
+// Scénarios
+// ---------------------------------------------------------------------------
+
+async function runPrompt(session, text) {
+  const sessionId = session.id
+  update(sessionId, { sessionUpdate: 'user_message_chunk', content: { type: 'text', text } })
+
+  if (text.startsWith('permission:')) {
+    update(sessionId, {
+      sessionUpdate: 'tool_call',
+      toolCallId: 'tc-1',
+      title: 'Écrire dans app.js',
+      kind: 'edit',
+      status: 'pending',
+    })
+    const outcome = await ask('session/request_permission', {
+      sessionId,
+      toolCall: { toolCallId: 'tc-1', title: 'Écrire dans app.js', kind: 'edit' },
+      options: [
+        { optionId: 'allow', name: 'Autoriser', kind: 'allow_once' },
+        { optionId: 'reject', name: 'Refuser', kind: 'reject_once' },
+      ],
+    })
+    const allowed = outcome?.outcome?.outcome === 'selected' && outcome.outcome.optionId === 'allow'
+    update(sessionId, {
+      sessionUpdate: 'tool_call_update',
+      toolCallId: 'tc-1',
+      status: allowed ? 'completed' : 'failed',
+      content: allowed
+        ? [{ type: 'diff', path: 'app.js', oldText: 'a\n', newText: 'b\n' }]
+        : [{ type: 'content', content: { type: 'text', text: 'refusé' } }],
+    })
+    return { stopReason: 'end_turn' }
+  }
+
+  if (text.startsWith('terminal:')) {
+    const terminalId = 'term-1'
+    await ask('terminal/create', { sessionId, command: 'echo', args: ['bonjour'] })
+    update(sessionId, {
+      sessionUpdate: 'tool_call',
+      toolCallId: 'tc-term',
+      title: 'echo bonjour',
+      kind: 'execute',
+      status: 'in_progress',
+      content: [{ type: 'terminal', terminalId }],
+    })
+    await ask('terminal/output', { sessionId, terminalId })
+    update(sessionId, { sessionUpdate: 'tool_call_update', toolCallId: 'tc-term', status: 'completed' })
+    return { stopReason: 'end_turn' }
+  }
+
+  if (text.startsWith('lent:')) {
+    // Tour long : c'est celui qu'on interrompt.
+    for (let i = 0; i < 20; i++) {
+      if (session.cancelled) {
+        session.cancelled = false
+        return { stopReason: 'cancelled' }
+      }
+      await sleep(SLOW_MS / 20)
+      update(sessionId, { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: '.' } })
+    }
+    return { stopReason: 'end_turn' }
+  }
+
+  update(sessionId, {
+    sessionUpdate: 'agent_message_chunk',
+    content: { type: 'text', text: `reçu : ${text}` },
+  })
+  return { stopReason: 'end_turn' }
+}
+
+// ---------------------------------------------------------------------------
+// Boucle JSON-RPC
+// ---------------------------------------------------------------------------
+
+async function handle(msg) {
+  // Réponse à une requête que l'agent a posée au client.
+  if (msg.id !== undefined && msg.method === undefined) {
+    const waiter = waiting.get(msg.id)
+    if (!waiter) return
+    waiting.delete(msg.id)
+    if (msg.error) waiter.reject(new Error(msg.error.message))
+    else waiter.resolve(msg.result)
+    return
+  }
+
+  const { id, method, params = {} } = msg
+
+  switch (method) {
+    case 'initialize':
+      return reply(id, {
+        protocolVersion: 1,
+        agentCapabilities: {
+          loadSession: !NO_LOAD_SESSION,
+          promptCapabilities: { image: false, audio: false, embeddedContext: false },
+        },
+        agentInfo: { name: 'fake-agent', version: '1.0.0' },
+      })
+
+    case 'session/new': {
+      const sessionId = process.env.ZRA_FAKE_SESSION_ID || `fake-session-${nextSession++}`
+      sessions.set(sessionId, { id: sessionId, cwd: params.cwd, modeId: 'default', modelId: 'rapide', cancelled: false })
+      return reply(id, { sessionId, modes: modesOf(sessions.get(sessionId)), configOptions: configOf(sessions.get(sessionId)) })
+    }
+
+    case 'session/load': {
+      if (NO_LOAD_SESSION) return fail(id, 'session/load non supporté', -32601)
+      const sessionId = params.sessionId
+      const session = sessions.get(sessionId)
+        ?? { id: sessionId, cwd: params.cwd, modeId: 'default', modelId: 'rapide', cancelled: false }
+      sessions.set(sessionId, session)
+      // Replay : mêmes `session/update` que le live (spec §2.3).
+      update(sessionId, { sessionUpdate: 'user_message_chunk', content: { type: 'text', text: 'question archivée' } })
+      update(sessionId, { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'réponse archivée' } })
+      return reply(id, { modes: modesOf(session), configOptions: configOf(session) })
+    }
+
+    case 'session/prompt': {
+      const session = sessions.get(params.sessionId)
+      if (!session) return fail(id, 'session inconnue')
+      const text = (params.prompt ?? []).map((p) => p.text ?? '').join('')
+      const result = await runPrompt(session, text)
+      return reply(id, result)
+    }
+
+    case 'session/cancel': {
+      const session = sessions.get(params.sessionId)
+      if (session) session.cancelled = true
+      return
+    }
+
+    case 'session/set_mode': {
+      const session = sessions.get(params.sessionId)
+      if (!session) return fail(id, 'session inconnue')
+      session.modeId = params.modeId
+      update(session.id, { sessionUpdate: 'current_mode_update', currentModeId: params.modeId })
+      return reply(id, {})
+    }
+
+    case 'session/set_config_option': {
+      const session = sessions.get(params.sessionId)
+      if (!session) return fail(id, 'session inconnue')
+      if (params.configId === 'model') session.modelId = params.value
+      return reply(id, { configOptions: configOf(session) })
+    }
+
+    default:
+      if (id !== undefined) fail(id, `méthode inconnue : ${method}`, -32601)
+  }
+}
+
+const framer = createFramer()
+process.stdin.on('data', (chunk) => {
+  for (const raw of framer.push(chunk)) {
+    const msg = parseFrame(raw)
+    if (msg) handle(msg).catch((err) => process.stderr.write(`fake-agent : ${err.message}\n`))
+  }
+})
+process.stdin.on('end', () => process.exit(0))

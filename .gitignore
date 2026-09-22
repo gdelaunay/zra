@@ -2,3 +2,8 @@ node_modules/
 .cache/
 dist/
 *.log
+
+# fixtures fabriquées par les tests (celle du lot A est committée)
+zra-daemon/test/fixtures/lot-b.sqlite*
+zra-daemon/test/fixtures/registry/
+zra-daemon/test/fixtures/settings-custom.json

@@ -170,22 +170,28 @@ export class WsConnection extends EventEmitter {
 /**
  * Greffe le WebSocket sur un serveur HTTP/HTTPS.
  *
+ * Plusieurs chemins cohabitent sur le même port : `/ws` pour la PWA (protocole
+ * §1) et `/shim` pour les shims locaux (lot B). Chacun a sa propre vérification
+ * — l'allowlist d'`Origin` d'un côté, la loopback de l'autre.
+ *
  * `verify({ req, origin })` retourne `true`, ou `{ ok:false, status, reason }`
  * pour refuser avant l'upgrade (allowlist d'Origin, `authenticate()`).
  */
-export function attachWebSocket(server, { path = '/ws', verify, onConnection, log } = {}) {
+export function attachWebSocket(server, { path = '/ws', verify, onConnection, routes, log } = {}) {
   const clients = new Set()
+  const table = routes?.length ? routes : [{ path, verify, onConnection }]
 
   server.on('upgrade', (req, socket) => {
     const url = (req.url || '').split('?')[0].replace(/\/+$/, '') || '/'
-    if (url !== path) return refuse(socket, 404, 'chemin inconnu')
+    const route = table.find((r) => (r.path || '/ws') === url)
+    if (!route) return refuse(socket, 404, 'chemin inconnu')
 
     const key = req.headers['sec-websocket-key']
     const version = req.headers['sec-websocket-version']
     if (!key || String(version) !== '13') return refuse(socket, 400, 'handshake invalide')
 
     const origin = req.headers.origin || null
-    const verdict = verify ? verify({ req, origin }) : true
+    const verdict = route.verify ? route.verify({ req, origin }) : true
     if (verdict !== true) {
       const { status = 403, reason = 'refusé' } = verdict || {}
       log?.warn(`upgrade refusé (${reason}) origin=${origin ?? '—'} ip=${req.socket.remoteAddress}`)
@@ -222,7 +228,7 @@ export function attachWebSocket(server, { path = '/ws', verify, onConnection, lo
     socket.on('error', bye)
     conn.on('close', () => clients.delete(conn))
 
-    onConnection?.(conn)
+    route.onConnection?.(conn)
   })
 
   return {

@@ -124,7 +124,14 @@ export const ROWS = [
   },
 ]
 
-export function build(file = FIXTURE) {
+/**
+ * Écrit une base au schéma de Zed avec les lignes données.
+ *
+ * Exporté pour que le lot B s'en fabrique une à sa mesure : relire un thread
+ * fermé relance l'agent dans le `cwd` du thread, qui doit donc exister, et les
+ * `session_id` doivent être ceux que l'agent bouchon annonce.
+ */
+export function buildCustom(file, rows) {
   mkdirSync(dirname(file), { recursive: true })
   rmSync(file, { force: true })
   rmSync(`${file}-wal`, { force: true })
@@ -138,16 +145,20 @@ export function build(file = FIXTURE) {
      main_worktree_paths_order, remote_connection, interacted_at, title_override)
     values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
 
-  for (const r of ROWS) {
+  for (const r of rows) {
     insert.run(
       Buffer.from(r.thread_id, 'hex'),
-      r.session_id, r.agent_id, r.title, r.updated_at, r.created_at,
-      r.folder_paths, r.folder_paths_order, r.archived,
-      r.folder_paths, r.folder_paths_order, null, r.created_at, r.title_override,
+      r.session_id ?? null, r.agent_id ?? null, r.title, r.updated_at, r.created_at ?? null,
+      r.folder_paths ?? null, r.folder_paths_order ?? null, r.archived ?? 0,
+      r.folder_paths ?? null, r.folder_paths_order ?? null, null, r.created_at ?? null, r.title_override ?? null,
     )
   }
   db.close()
   return file
+}
+
+export function build(file = FIXTURE) {
+  return buildCustom(file, ROWS)
 }
 
 /**

@@ -9,6 +9,7 @@
 // Un seul point de commutation pour toute l'écriture. `acp` (lot B) et `uia`
 // (lot C) viendront s'enficher ici sans que le reste du daemon bouge.
 
+import { AcpBackend } from './acp.js'
 import { MockBackend } from './mock.js'
 
 /** Erreur d'injection portant un code du protocole (§4 `error`). */
@@ -21,17 +22,18 @@ export class InjectionError extends Error {
 }
 
 /**
- * @param {string} kind `mock` (lot A) · `acp` (lot B) · `uia` (lot C) · `auto`
- * @param {{ states, emit, threads, delayMs?:number }} ctx
+ * @param {string} kind `acp` (défaut) · `mock` (spec §10.6) · `uia`/`auto` (lot C)
+ * @param {{ states, emit, threads, host?, delayMs?:number }} ctx
  */
 export function createBackend(kind, ctx) {
   switch (kind) {
+    case 'acp':
+      return new AcpBackend(ctx)
     case 'mock':
       return new MockBackend(ctx)
-    case 'acp':
     case 'uia':
     case 'auto':
-      throw new Error(`backend d'injection "${kind}" pas encore implémenté (lot B/C)`)
+      throw new Error(`backend d'injection "${kind}" pas encore implémenté (lot C)`)
     default:
       throw new Error(`backend d'injection inconnu : ${kind}`)
   }

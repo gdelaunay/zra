@@ -350,15 +350,18 @@ test('thread sans session : ni écriture ni historique (spec §4)', async (t) =>
   assert.equal(errHist.code, 'no_session')
 })
 
-test('portée du lot A : les messages qui exigent shim ou UIA répondent proprement', async (t) => {
-  await boot(t)
+test('ce qui manque à ce montage répond proprement, jamais en silence', async (t) => {
+  // Backend bouchon, aucun shim, et un agent volontairement introuvable : les
+  // trois chemins qui échouent sans que rien ne soit cassé. Le lot B complet
+  // est vérifié par `lot-b.test.mjs`, contre un vrai shim et un vrai agent.
+  await boot(t, { agentCommands: { 'claude-acp': { command: 'zra-agent-inexistant' } } })
   const c = await (await Client.open(t)).hello()
 
-  // session/load exige de lancer l'agent en client ACP (spec §5.2) : lot B.
+  // Relire une session fermée exige de relancer l'agent (spec §5.2).
   c.send({ type: 'load_history', threadId: VIVANT })
   assert.equal((await c.until((m) => m.type === 'error')).code, 'history_unavailable')
 
-  // Le relais de permission passe par le shim (spec §6.6) : lot B.
+  // Le relais de permission passe par le shim (spec §6.6) ; le bouchon n'en a pas.
   c.clear()
   c.send({ type: 'respond_permission', threadId: VIVANT, requestId: 'r1', optionId: 'allow-once' })
   assert.equal((await c.until((m) => m.type === 'error')).code, 'permission_expired')

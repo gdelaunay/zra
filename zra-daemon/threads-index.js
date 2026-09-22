@@ -206,4 +206,14 @@ export class ThreadsIndex extends EventEmitter {
   get(threadId) {
     return this.threads.find((t) => t.threadId === threadId) || null
   }
+
+  /**
+   * Résolution inverse `session_id` → thread : le shim ne connaît que les
+   * sessions ACP, la PWA ne connaît que les `threadId` (protocole §2). C'est
+   * l'index qui fait le pont, et lui seul.
+   */
+  getBySession(sessionId) {
+    if (!sessionId) return null
+    return this.threads.find((t) => t.sessionId === sessionId) || null
+  }
 }

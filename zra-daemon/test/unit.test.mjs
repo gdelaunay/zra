@@ -2,6 +2,10 @@
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { EventEmitter } from 'node:events'
+import { mkdirSync, writeFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 import { parseJsonc, stripJsonc } from '../jsonc.js'
 import { inCidr, findTunnel, resolveBinds, listInterfaces, TunnelMissingError } from '../net.js'
@@ -11,7 +15,12 @@ import { RingBuffers } from '../ring-buffer.js'
 import { ThreadStates } from '../thread-state.js'
 import { ShimRegistry } from '../shim-registry.js'
 import { agentLabel } from '../agents.js'
-import { checkOrigin, selfOrigins, authenticate } from '../server.js'
+import { checkOrigin, selfOrigins, authenticate, isLoopback } from '../server.js'
+import { ShimHost } from '../shim-link.js'
+import { resolveAgentCommand, packageName } from '../agent-commands.js'
+
+/** Dossier de travail des fixtures fabriquées à la volée. */
+const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), 'fixtures')
 
 // ---- JSONC ----------------------------------------------------------------
 
@@ -274,4 +283,143 @@ test('agentLabel : identifiants Zed rendus lisibles', () => {
   assert.equal(agentLabel('mistral-vibe'), 'Mistral')
   assert.equal(agentLabel('gemini'), 'Gemini')
   assert.equal(agentLabel('mon-agent-maison'), 'Mon Agent Maison')
+})
+
+// ===========================================================================
+// Lot B — briques ajoutées par la plomberie ACP
+// ===========================================================================
+
+test('isLoopback : le canal des shims ne s’ouvre qu’au poste local (spec §9)', () => {
+  assert.ok(isLoopback('127.0.0.1'))
+  assert.ok(isLoopback('::1'))
+  // Node rend souvent les adresses IPv4 mappées en IPv6.
+  assert.ok(isLoopback('::ffff:127.0.0.1'))
+  assert.ok(isLoopback('127.0.0.53'))
+  assert.ok(!isLoopback('10.0.0.2'))
+  assert.ok(!isLoopback('192.168.1.10'))
+  assert.ok(!isLoopback(null))
+})
+
+test('thread-state : `mirror` recopie l’état du shim sans redépiler', () => {
+  const states = new ThreadStates()
+  const changes = []
+  const dequeues = []
+  states.on('change', (id) => changes.push(id))
+  states.on('dequeue', (id) => dequeues.push(id))
+
+  states.mirror('t1', { turn: 'busy', queue: [{ queueId: 'q1', text: 'attente', at: 'x' }] })
+  assert.equal(states.get('t1').turn, 'busy')
+  assert.equal(states.get('t1').queue.length, 1)
+
+  // Retour au repos côté shim : la file a déjà été dépilée là-bas.
+  states.mirror('t1', { turn: 'idle', queue: [] })
+  assert.equal(states.get('t1').turn, 'idle')
+  assert.deepEqual(dequeues, [], 'le daemon ne dépile pas ce que le shim a déjà dépilé')
+  assert.deepEqual(changes, ['t1', 't1'])
+
+  // Un champ absent ne doit pas effacer ce qu'on savait.
+  states.mirror('t1', { modes: [{ id: 'plan' }] })
+  states.mirror('t1', { turn: 'busy' })
+  assert.deepEqual(states.get('t1').modes, [{ id: 'plan' }])
+})
+
+test('shim-link : les événements d’une session inconnue sont gardés puis rejoués', () => {
+  // L'index de Zed écrit la ligne d'un thread neuf avec un temps de retard :
+  // sans mise de côté, ses premières trames seraient perdues.
+  const threads = new EventEmitter()
+  threads.threads = []
+  threads.getBySession = (sid) => threads.threads.find((t) => t.sessionId === sid) || null
+
+  const states = new ThreadStates()
+  const host = new ShimHost({ shims: new ShimRegistry(), threads, states })
+  const recus = []
+  host.on('update', (e) => recus.push(e))
+
+  host.update({ sessionId: 'sess-neuve', update: { sessionUpdate: 'agent_message_chunk' }, at: 'now' })
+  host.state({ sessionId: 'sess-neuve', turn: 'busy', queue: [] })
+  assert.deepEqual(recus, [], 'rien ne part tant que le thread n’a pas de nom')
+
+  threads.threads = [{ threadId: 'abc', sessionId: 'sess-neuve' }]
+  threads.emit('change', threads.threads)
+
+  assert.equal(recus.length, 1)
+  assert.equal(recus[0].threadId, 'abc')
+  assert.equal(states.get('abc').turn, 'busy')
+  host.close()
+})
+
+test('shim-link : une commande sans destinataire ou sans accusé porte son code', async () => {
+  const threads = new EventEmitter()
+  threads.threads = []
+  threads.getBySession = () => null
+  const shims = new ShimRegistry()
+  const host = new ShimHost({ shims, threads, states: new ThreadStates(), commandTimeoutMs: 200 })
+
+  // Aucun shim pour cette session : l'erreur dit pourquoi, avec le bon code.
+  await assert.rejects(() => host.command('sess-x', 'prompt', { text: 'a' }), (err) => {
+    assert.equal(err.code, 'inject_failed')
+    assert.match(err.message, /pas ouvert dans Zed/)
+    return true
+  })
+
+  // Shim présent mais muet : la commande expire au lieu de pendre indéfiniment.
+  const envoyes = []
+  shims.register({ shimId: 's1', sessions: ['sess-y'] })
+  host.byShim.set('s1', { send: (m) => { envoyes.push(m); return true } })
+  await assert.rejects(() => host.command('sess-y', 'cancel'), (err) => {
+    assert.equal(err.code, 'inject_failed')
+    assert.match(err.message, /pas répondu/)
+    return true
+  })
+  assert.equal(envoyes[0].cmd, 'cancel')
+  host.close()
+})
+
+test('agent-commands : la config prime, puis le settings.json', async () => {
+  const overrides = { 'mon-agent': { command: 'node', args: ['agent.js'], env: { A: '1' } } }
+  const parConfig = await resolveAgentCommand('mon-agent', { overrides })
+  assert.deepEqual(parConfig, { command: 'node', args: ['agent.js'], env: { A: '1' }, source: 'config' })
+
+  const settingsFile = join(FIXTURES, 'settings-custom.json')
+  mkdirSync(FIXTURES, { recursive: true })
+  writeFileSync(settingsFile, JSON.stringify({
+    agent_servers: { 'sur-mesure': { type: 'custom', command: 'monbinaire', args: ['--acp'] } },
+  }), 'utf8')
+  const parSettings = await resolveAgentCommand('sur-mesure', { settingsFile })
+  assert.equal(parSettings.source, 'settings')
+  assert.equal(parSettings.command, 'monbinaire')
+  assert.deepEqual(parSettings.args, ['--acp'])
+})
+
+test('agent-commands : un agent du registry de Zed est retrouvé sur le disque', async () => {
+  // Reproduction de l'arborescence réelle : `registry.json` + le paquet que Zed
+  // a installé lui-même. C'est le cas de la machine cible, dont les deux agents
+  // sont de type `registry` et n'ont donc aucune commande dans `settings.json`.
+  const registryDir = join(FIXTURES, 'registry')
+  const pkgDir = join(registryDir, 'npx', 'faux-acp', 'node_modules', '@editeur', 'faux-agent')
+  mkdirSync(join(pkgDir, 'dist'), { recursive: true })
+  writeFileSync(join(pkgDir, 'package.json'), JSON.stringify({ bin: { 'faux-agent': 'dist/index.js' } }), 'utf8')
+  writeFileSync(join(pkgDir, 'dist', 'index.js'), '// agent\n', 'utf8')
+  writeFileSync(join(registryDir, 'registry.json'), JSON.stringify({
+    agents: [
+      { id: 'faux-acp', distribution: { npx: { package: '@editeur/faux-agent@1.2.3' } } },
+      { id: 'faux-uvx', distribution: { uvx: { package: 'truc' } } },
+    ],
+  }), 'utf8')
+
+  const npx = await resolveAgentCommand('faux-acp', { registryDir })
+  assert.equal(npx.source, 'registry/npx')
+  assert.equal(npx.command, process.execPath)
+  assert.equal(npx.args[0], join(pkgDir, 'dist', 'index.js'))
+
+  // Un mode de distribution qu'on ne sait pas lancer le dit clairement.
+  await assert.rejects(() => resolveAgentCommand('faux-uvx', { registryDir }), /uvx/)
+  // Et un agent inconnu aussi.
+  await assert.rejects(() => resolveAgentCommand('jamais-vu', { registryDir }), /introuvable/)
+})
+
+test('agent-commands : le nom de paquet se lit sans sa version', () => {
+  assert.equal(packageName('@agentclientprotocol/claude-agent-acp@0.80.0'), '@agentclientprotocol/claude-agent-acp')
+  assert.equal(packageName('vibe-acp@2.25.5'), 'vibe-acp')
+  assert.equal(packageName('@scope/sans-version'), '@scope/sans-version')
 })

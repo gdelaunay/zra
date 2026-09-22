@@ -11,6 +11,8 @@ import { ThreadStates } from './thread-state.js'
 import { RingBuffers } from './ring-buffer.js'
 import { createBackend } from './inject/backend.js'
 import { Hub } from './hub.js'
+import { ShimHost } from './shim-link.js'
+import { SessionLoader } from './session-loader.js'
 import { createServers } from './server.js'
 import { resolveBinds } from './net.js'
 import { ZedPresence, machineName, osLabel, readAgents } from './agents.js'
@@ -70,6 +72,19 @@ export async function startDaemon(config) {
     agents: await readAgents(config.zedSettings),
   })
 
+  // Les shims sont la source de tout ce qui est vivant (lot B) : flux ACP
+  // verbatim, tour, file d'attente, permissions.
+  const host = new ShimHost({ shims, threads, states })
+
+  // Relecture d'un thread fermé : le daemon relance l'agent en client ACP.
+  const loader = new SessionLoader({
+    threads,
+    settingsFile: config.zedSettings,
+    agentCommands: config.agentCommands,
+    ttlMs: config.historyTtlMs,
+    timeoutMs: config.historyTimeoutMs,
+  })
+
   // Le backend publie ses événements par le hub, qui n'existe pas encore :
   // liaison tardive plutôt qu'une dépendance circulaire à l'import.
   /** @type {Hub} */
@@ -77,10 +92,17 @@ export async function startDaemon(config) {
   const backend = createBackend(config.injection, {
     states,
     threads,
+    host,
     emit: (threadId, update) => hub.publish(threadId, update),
   })
 
-  hub = new Hub({ config, threads, states, rings, shims, backend, machine, recordInjection: record })
+  hub = new Hub({ config, threads, states, rings, shims, backend, machine, recordInjection: record, loader })
+
+  host.on('update', ({ threadId, update, at }) => hub.publish(threadId, update, at))
+  host.on('permission_resolved', (p) => hub.permissionResolved(p.threadId, p))
+  host.on('permission_expired', ({ threadId, requestId }) => hub.permissionExpired(threadId, requestId))
+  // Un thread qui reprend vie a pu changer depuis sa mise en cache.
+  host.on('session', ({ sessionId }) => loader.invalidate(sessionId))
 
   threads.start()
 
@@ -105,6 +127,7 @@ export async function startDaemon(config) {
     config,
     addresses,
     onConnection: (conn) => hub.attach(conn),
+    onShim: (conn) => host.attach(conn),
   })
   await servers.listen()
 
@@ -114,6 +137,7 @@ export async function startDaemon(config) {
   for (const a of addresses) log.info(`écoute ${scheme}://${a}:${config.port}  (${wsScheme}://${a}:${config.port}/ws)`)
   if (tunnel) log.info(`tunnel : ${tunnel.name} (${tunnel.address}, ${tunnel.how})`)
   else log.warn('aucun tunnel : écoute en loopback seule — mode dev')
+  log.info(`injection : backend ${backend.name}${backend.ownsQueue ? ' (file tenue par le shim)' : ''}`)
   if (!config.serveStatic) log.info('statiques désactivées : le client est servi ailleurs')
   log.info(`origines autorisées : ${servers.allowedOrigins.join(', ') || '(aucune — seuls les clients non-navigateur pourront se connecter)'}`)
   if (!servers.secure) {
@@ -122,6 +146,7 @@ export async function startDaemon(config) {
 
   return {
     config, hub, threads, states, rings, shims, backend, servers, machine, presence,
+    host, loader,
     addresses, tunnel,
     port: config.port,
 
@@ -129,6 +154,8 @@ export async function startDaemon(config) {
       clearInterval(agentsTimer)
       presence.stop()
       threads.stop()
+      host.close()
+      loader.close()
       backend.close?.()
       for (const client of hub.clients.values()) client.conn.close(1001)
       await servers.close()

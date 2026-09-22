@@ -63,8 +63,19 @@ export const DEFAULTS = {
   /** Ring buffer par thread live (spec §5.1). */
   ringSize: 2000,
 
-  /** Backend d'injection. Lot A : `mock` seul (`acp`/`uia` arrivent en lot B/C). */
-  injection: 'mock',
+  /** Backend d'injection (spec §6). `acp` par défaut ; `uia`/`auto` en lot C. */
+  injection: 'acp',
+
+  /**
+   * Comment lancer un agent, quand le registry de Zed ne suffit pas à le dire
+   * (spec §2.2) : `{ "<agent_id>": { "command": …, "args": [], "env": {} } }`.
+   * Sert au shim comme au relecteur de threads fermés.
+   */
+  agentCommands: {},
+  /** Cache du replay `session/load` (spec §5.2). */
+  historyTtlMs: 10 * 60_000,
+  /** Garde-fou : un agent qui ne rend jamais la main ne bloque pas le daemon. */
+  historyTimeoutMs: 60_000,
 
   /** Journal d'injections (spec §9). */
   logFile: join(LOCALAPPDATA, 'zra', 'injections.log'),
@@ -130,9 +141,9 @@ function validate(cfg) {
   if (!['mock', 'acp', 'uia', 'auto'].includes(cfg.injection)) {
     throw new Error(`injection inconnue : ${cfg.injection}`)
   }
-  if (cfg.injection !== 'mock') {
-    // Garde-fou honnête : les backends réels arrivent avec le shim (lot B) et
-    // l'UI Automation (lot C). Mieux vaut le dire que d'échouer à l'envoi.
-    throw new Error(`backend d'injection "${cfg.injection}" pas encore implémenté (lot B/C) — utiliser "mock"`)
+  if (cfg.injection === 'uia' || cfg.injection === 'auto') {
+    // Garde-fou honnête : l'UI Automation arrive en lot C. Mieux vaut le dire au
+    // démarrage que d'échouer au premier envoi.
+    throw new Error(`backend d'injection "${cfg.injection}" pas encore implémenté (lot C) — utiliser "acp"`)
   }
 }
