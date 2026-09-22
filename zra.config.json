@@ -1,0 +1,40 @@
+// Configuration de zra-daemon. Les commentaires sont tolérés (JSONC), comme
+// dans le settings.json de Zed. Surchargeable par variables d'environnement
+// (ZRA_PORT, ZRA_REQUIRE_TUNNEL…) et par les options de la ligne de commande.
+{
+  "port": 7777,
+
+  // Écoute — spec §9. Jamais 0.0.0.0 : loopback + IP du tunnel, rien d'autre.
+  // "bindInterface" est le nom de l'adaptateur WireGuard (sous Windows, celui
+  // de la configuration du tunnel). À défaut, "bindCidr" sert de repli.
+  "bindInterface": null,
+  "bindCidr": null,
+  "requireTunnel": true,
+
+  // Client web. En production il est servi ailleurs (voir zra-daemon/README.md)
+  // et le daemon n'est qu'une API WebSocket ; on garde la capacité de le servir
+  // en dev, où localhost accorde le contexte sécurisé.
+  "serveStatic": true,
+  "staticDir": "zra-client",
+
+  // Origines autorisées à ouvrir le WebSocket. Indispensable : le navigateur
+  // n'applique pas la same-origin policy aux WebSockets, donc sans cette liste
+  // n'importe quelle page visitée depuis le tunnel pourrait piloter le poste.
+  // L'origine propre du daemon est ajoutée d'office quand il sert les statiques.
+  "allowedOrigins": [],
+
+  // TLS. Absent => HTTP + ws:// : l'app fonctionne, mais le navigateur refuse
+  // le service worker, l'installation sur l'écran d'accueil et le Web Push.
+  // Renseigné => HTTPS + wss://, contexte sécurisé, PWA complète.
+  //   "tls": { "cert": "C:/certs/zra.crt", "key": "C:/certs/zra.key" }
+  "tls": null,
+
+  // Sources Zed. null => chemins par défaut de la machine (spec §2.1).
+  "zedDb": null,
+  "zedSettings": null,
+  "pollMs": 2000,
+  "ringSize": 2000,
+
+  // Backend d'injection : "mock" en lot A, "acp"/"uia"/"auto" en lot B/C.
+  "injection": "mock"
+}

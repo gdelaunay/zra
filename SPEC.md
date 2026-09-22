@@ -115,14 +115,22 @@ C'est le point d'entrée de tout ZRA. Registry actuel de la machine :
 │                  │ ws://127.0.0.1    │
 │                  ▼                   │        WireGuard
 │            zra-daemon  ──────────────┼───────────────────►  PWA
-│             · index threads (ro)     │   ws + http :7777
-│             · session/load           │
-│             · injection ACP / UIA    │
-│             · sert la PWA            │
-└──────────────────────────────────────┘
+│             · index threads (ro)     │   ws(s) :7777          ▲
+│             · session/load           │                        │
+│             · injection ACP / UIA    │                        │ statiques
+└──────────────────────────────────────┘                   ┌────┴─────┐
+                                                           │ hébergeur│
+                                                           └──────────┘
 ```
 
 Trois processus, responsabilités strictes.
+
+**Le client est servi indépendamment du daemon.** Le navigateur télécharge les
+statiques d'un hébergeur quelconque, puis ouvre le WebSocket **directement**
+vers chaque poste à travers le tunnel : rien ne transite par l'hébergeur, et le
+daemon ignore jusqu'à son existence. C'est la conséquence naturelle du
+multi-postes (un client, N daemons) — que la PWA soit servie par l'un d'eux
+était arbitraire. Le daemon garde la capacité de les servir, en mode dev/repli.
 
 ### 3.1 `zra-shim` — lancé par Zed, un par agent
 
@@ -149,8 +157,12 @@ Proxy stdio transparent entre Zed et le vrai agent.
 
 ### 3.3 `zra-app` — PWA
 
-Zéro build. HTML + CSS + ESM servis tels quels par le daemon.
-Installable, dark, calquée sur le panel agent de Zed.
+Zéro build. HTML + CSS + ESM servis tels quels, par un hébergeur en production
+ou par le daemon en dev. Installable, dark, calquée sur le panel agent de Zed.
+
+L'installabilité et le service worker exigent un **contexte sécurisé** : servi
+en HTTPS, ou depuis `localhost`. En HTTP simple sur une IP de tunnel, l'app
+fonctionne intégralement mais reste un onglet (§8).
 
 ---
 
@@ -201,6 +213,7 @@ Interface unique, backend commutable :
 interface InjectionBackend {
   send(thread: ThreadRef, text: string, mode: "queue" | "interrupt"): Promise<void>
   setOption(thread: ThreadRef, key: string, value: unknown): Promise<void>
+  interrupt(thread: ThreadRef): Promise<void>   // Stop sec, sans rien envoyer
 }
 ```
 
@@ -393,7 +406,31 @@ en cours de saisie n'est jamais envoyé par Stop : seul **Envoyer** envoie.
 variables CSS calquées sur Gruvbox Dark. `manifest.json` + service worker
 (coquille de cache en v1, abonnement Web Push présent mais inactif).
 Reconnexion WS avec backoff. État multi-postes en `localStorage` : liste
-d'URLs `http://<ip-wireguard>:7777`, saisie manuelle, connexions WS parallèles.
+d'URLs `http(s)://<ip-wireguard>:7777`, saisie manuelle, connexions WS parallèles.
+
+**Hébergement et contexte sécurisé.** Le client n'est pas lié à un daemon : son
+origine ne dit rien de l'adresse des postes, qui se saisissent dans Réglages. Le
+poste implicite n'est pré-rempli que quand l'origine est manifestement celle
+d'un daemon (port 7777, ou `localhost`).
+
+Deux montages tiennent, et le daemon accepte les deux :
+
+| | HTTP simple | HTTPS |
+|---|---|---|
+| Lecture, streaming, envoi, permissions | ✓ | ✓ |
+| Service worker (l'app s'ouvre hors tunnel) | ✗ | ✓ |
+| Installation sur l'écran d'accueil | ✗ | ✓ |
+| Web Push (v2) | ✗ | ✓ |
+| `SpeechRecognition` (bouton dictée) | ✗, repli micro clavier | ✓ |
+
+En HTTPS, le navigateur refuse un `ws://` depuis une page `https://` (contenu
+mixte) : le daemon doit donc servir `wss://`, avec un certificat. Le chemin
+praticable pour une IP de tunnel est un vrai domaine dont l'enregistrement A
+pointe l'IP privée, et un certificat Let's Encrypt obtenu en **DNS-01** — le
+challenge ne requiert aucune joignabilité depuis Internet.
+
+`localhost` étant un contexte sécurisé, le dev sur le poste a tout sans
+certificat.
 
 ---
 
@@ -404,7 +441,23 @@ Décision v1 : **aucune authentification**, le tunnel WireGuard privé fait foi.
 Conséquences à assumer et à câbler quand même :
 
 - Le daemon écoute **exclusivement** sur l'IP du tunnel et `127.0.0.1`. Jamais
-  `0.0.0.0`. Refus de démarrer si l'interface WireGuard est absente.
+  `0.0.0.0`. Refus de démarrer si l'interface WireGuard est absente. WireGuard
+  lui-même est hors périmètre du code : le tunnel est monté à la main des deux
+  côtés, le daemon ne fait que *lire* l'état des interfaces pour savoir où
+  écouter. Aucune déduction par plage privée sans consigne explicite — le Wi-Fi
+  du bureau est aussi en `192.168.`, et se tromper d'interface exposerait le port.
+- **Allowlist d'`Origin` sur le handshake WebSocket.** Le navigateur n'applique
+  pas la same-origin policy aux WebSockets : pas de préflight, pas de blocage.
+  Sans filtre, n'importe quelle page visitée depuis le tunnel peut ouvrir un WS
+  vers un poste et piloter ses agents — il n'y a aucune auth. L'en-tête `Origin`
+  est posé par le navigateur et le JS d'une page ne peut pas le falsifier ; le
+  daemon refuse toute origine non déclarée. C'est devenu nécessaire dès lors que
+  le client est servi ailleurs (§3.3) : l'origine légitime doit être nommée.
+  Une requête sans `Origin` est acceptée — elle ne vient pas d'une page web, et
+  un client natif forgerait l'en-tête sans effort. Le filtre ferme le
+  *cross-site WebSocket hijacking*, pas l'accès de quelqu'un déjà sur le tunnel.
+- TLS optionnel (`tls: { cert, key }`) : absent ⇒ `ws://`, présent ⇒ `wss://`.
+  Nécessaire dès que le client est servi en HTTPS (§8).
 - Le texte venu du mobile est **toujours** traité comme un prompt d'agent. Aucune
   interpolation dans un shell, aucun `eval`, jamais.
 - Le point d'extension auth est présent dès la v1 (middleware `authenticate()`
@@ -430,8 +483,12 @@ donc être vérifiable sans Zed ni agent.
 3. **Mode enregistrement** — `ZRA_RECORD=1` fait vider au shim toutes les trames
    dans un JSONL horodaté. Première chose à activer au test réel : une session
    enregistrée devient une fixture de non-régression.
-4. **Fixture SQLite** — copie anonymisée de `sidebar_threads` committée, pour
-   tester le lecteur d'index sans Zed installé.
+4. **Fixture SQLite** — `sidebar_threads` committée, pour tester le lecteur
+   d'index sans Zed installé. Schéma relevé tel quel sur la machine cible,
+   lignes **synthétiques** plutôt qu'anonymisées : on ne risque pas d'y laisser
+   un chemin réel, et on choisit les cas limites à couvrir (`session_id` NULL,
+   `agent_id` NULL, `title_override`, archivé, dossiers multiples, dates à la
+   nanoseconde et au format SQLite). Générateur : `scripts/make-fixture.mjs`.
 5. **Tests unitaires** — machine à états file/interruption, transparence du proxy
    (octets entrants ≡ octets sortants sur un corpus de trames), lecteur d'index,
    résolution d'état des threads.
@@ -445,27 +502,35 @@ l'agent bouchon, **sans Zed lancé**.
 
 ## 11. Stack et arborescence
 
-TypeScript partout. Node ≥ 22 (`node:sqlite` et `node:test` intégrés ⇒ deux
-dépendances de moins). Dépendance runtime unique : `ws`.
+JavaScript ESM annoté en JSDoc, Node ≥ 22. **Zéro build, zéro dépendance
+runtime** — des deux côtés.
+
+Cette décision remplace le « TypeScript partout » initial, pour trois raisons
+mesurées à l'écriture du client puis du daemon : le client est déjà en ESM natif
+servi tel quel et mélanger les deux langages aurait coûté un build pour un seul
+côté ; Node ≥ 22 fournit SQLite (`node:sqlite`), le test runner (`node:test`),
+le serveur HTTP et un client `WebSocket` ; et le serveur WebSocket (RFC 6455)
+tient dans un fichier, ce que le bouchon avait déjà démontré — `ws` disparaît
+donc aussi. Il reste `jsdom`, en dépendance de développement, pour les tests PWA.
 
 ```
 zra/
   package.json
-  zra.config.json              injection, port, interface, chemins
-  src/
-    shim/        index.ts  proxy.ts  queue.ts  daemon-link.ts
-    daemon/      index.ts  server.ts  threads-index.ts  session-loader.ts
-                 shim-registry.ts  ring-buffer.ts
-    inject/      backend.ts  acp.ts  uia.ts  uia.ps1  mock.ts
-    shared/      protocol.ts  acp-types.ts  config.ts  log.ts
-  app/           index.html  app.js  render.js  ws.js  theme.css
-                 manifest.json  sw.js
-  test/          fake-agent.ts  fake-zed.ts  fixtures/
-  scripts/       dump_zed_threads.py        (existant, exploration)
+  zra.config.json              écoute, TLS, origines, injection, chemins
+  zra-daemon/    index.js  daemon.js  config.js  server.js  ws.js  static.js
+                 hub.js  threads-index.js  thread-state.js  ring-buffer.js
+                 shim-registry.js  agents.js  jsonc.js  net.js  log.js
+                 inject/   backend.js  mock.js  [acp.js  uia.js  uia.ps1]
+                 test/     unit  threads-index  protocol  fixtures/
+  zra-shim/      index.js  proxy.js  queue.js  daemon-link.js       (lot B)
+  zra-client/    index.html  js/  css/  manifest.webmanifest  sw.js
+                 tools/mock-server.mjs  test/
+  scripts/       make-fixture.mjs  probe-zed-db.mjs  gen-themes.mjs
+                 dump_zed_threads.py        (existant, exploration)
 ```
 
-Distribution : `node dist/daemon.js`, plus une tâche planifiée Windows au logon
-(optionnelle, script d'install fourni). Le shim n'est jamais lancé à la main.
+Distribution : `node zra-daemon/index.js`, plus une tâche planifiée Windows au
+logon (optionnelle, script d'install fourni). Le shim n'est jamais lancé à la main.
 
 ---
 
@@ -479,10 +544,14 @@ Distribution : `node dist/daemon.js`, plus une tâche planifiée Windows au logo
 | 🟡 4 | Zed lance un agent par fenêtre, pas par thread | Observer les `session_id` d'un même shim | Le registre shim→sessions est déjà multi-sessions |
 | 🟡 5 | Schéma `sidebar_threads` modifié par une mise à jour de Zed | Vérification des colonnes au démarrage | Message d'erreur explicite, dégradation en « live seul » |
 | 🟡 6 | Message utilisateur invisible dans le panel Zed (§6.1) | Visuel | Passer en `uia`, ou accepter |
+| 🟡 7 | Séparateur de `folder_paths` inconnu pour un thread multi-dossiers | Aucun thread multi-dossiers sur la machine cible ; `folder_paths_order` est une liste d'indices séparés par des virgules | On ne découpe que si l'ordre annonce plusieurs entrées **et** que le découpage retombe sur le bon compte — sinon chemin unique. Un chemin Windows peut contenir une virgule |
 
 **Ordre d'attaque au test réel** : (1) le shim est-il transparent — Zed fonctionne-t-il
 normalement à travers lui ? → (2) les trames arrivent-elles au daemon ? →
 (3) l'injection ACP est-elle acceptée ? → (4) `session/load` fonctionne-t-il ?
+
+Le découpage de l'implémentation en trois lots, leur contenu fonctionnel et
+technique et leur état d'avancement : `ROADMAP.md`.
 
 ---
 
@@ -490,11 +559,12 @@ normalement à travers lui ? → (2) les trames arrivent-elles au daemon ? →
 
 | Sujet | Décision |
 |---|---|
-| Langage | TypeScript partout, Node ≥ 22 |
-| Front | Zéro build, ESM natif, servi par le daemon |
-| Réseau | WireGuard direct, pas de relais |
-| Auth | Aucune en v1, point d'extension câblé |
-| Web Push | Archi prévue, inactif (HTTP en v1) |
+| Langage | JavaScript ESM + JSDoc, Node ≥ 22, zéro build, zéro dépendance runtime (§11) |
+| Front | Zéro build, ESM natif, **servi indépendamment du daemon** ; le daemon sait les servir en dev/repli |
+| Réseau | WireGuard direct, pas de relais. Le trafic ne passe jamais par l'hébergeur du client |
+| TLS | Optionnel : HTTP+`ws` par défaut, HTTPS+`wss` dès qu'on veut l'installabilité (§8) |
+| Auth | Aucune en v1, point d'extension câblé. Allowlist d'`Origin` dès la v1 (§9) |
+| Web Push | Archi prévue, inactif ; exige le HTTPS de la §8 |
 | Injection | `acp` par défaut, `uia` construit dès la v1 |
 | Envoi pendant un tour | File d'attente **et** interruption, au choix dans l'UI |
 | Historique | `session/load`, pas de parsing de store propriétaire |

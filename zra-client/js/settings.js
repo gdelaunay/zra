@@ -87,16 +87,27 @@ export function applyTheme(id) {
 }
 
 /**
- * Poste implicite : si la PWA est servie par un daemon (cas nominal), on s'y
- * connecte sans configuration. En dev sur un autre port, on vise :7777.
+ * Poste implicite — confort de dev, jamais une hypothèse.
+ *
+ * Le client est servi indépendamment du daemon : en production il vient d'un
+ * hébergeur quelconque, et l'origine de la page ne dit **rien** de l'adresse des
+ * postes. On ne pré-remplit donc que dans les deux cas où l'origine est
+ * effectivement celle d'un daemon : servi par lui (port 7777) ou en local.
+ * Partout ailleurs : liste vide, et les postes se saisissent dans Réglages.
  */
 export function originMachine() {
   if (!location.protocol.startsWith('http')) return null
-  const port = location.port && location.port !== '7777' ? '7777' : (location.port || '7777')
+
+  const local = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname)
+  const servedByDaemon = location.port === '7777'
+  if (!local && !servedByDaemon) return null
+
+  // Le daemon écoute toujours sur 7777, y compris quand un serveur de dev sert
+  // le client sur un autre port de la même machine.
   return {
     id: 'origin',
-    url: `${location.protocol}//${location.hostname}:${port}`,
-    label: location.hostname === 'localhost' ? 'ce poste' : location.hostname,
+    url: `${location.protocol}//${location.hostname}:7777`,
+    label: local ? 'ce poste' : location.hostname,
     implicit: true,
   }
 }

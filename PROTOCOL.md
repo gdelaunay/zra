@@ -10,6 +10,8 @@ Il décrit le seul point de contact entre les deux : un WebSocket JSON sur `:777
   `zra-client/js/mock/mock-link.js`. Ce qu'ils font est, par construction, ce que
   la PWA attend — les tests de `zra-client/test/mock-daemon.test.mjs` verrouillent
   ce comportement.
+- Implémentation réelle : `zra-daemon/`, avec `zra-daemon/test/protocol.test.mjs`
+  comme suite de conformité (§8).
 
 Statut : **v1**. Tout changement ici doit être répercuté dans `SPEC.md` §7 et
 dans le bouchon.
@@ -20,15 +22,28 @@ dans le bouchon.
 
 | | |
 |---|---|
-| Statiques | `GET http://<hôte>:7777/` sert `zra-client/` tel quel (ESM, pas de build) |
-| API | un seul WebSocket : `ws://<hôte>:7777/ws` |
-| Écoute | `127.0.0.1` + IP du tunnel WireGuard, **jamais** `0.0.0.0` (§9) |
+| API | un seul WebSocket : `ws://<hôte>:7777/ws`, ou `wss://` si le daemon a un certificat |
+| Statiques | **optionnelles** : le client est servi ailleurs en production ; en dev/repli `GET http://<hôte>:7777/` sert `zra-client/` tel quel |
+| Écoute | `127.0.0.1` + IP du tunnel WireGuard, **jamais** `0.0.0.0` (§9 de la spec) |
+| Origine | allowlist stricte sur le handshake ; une requête sans `Origin` est acceptée |
 | Auth | aucune en v1 ; le middleware `authenticate()` existe et retourne `true` |
 | Encodage | JSON UTF-8, une trame WebSocket texte = un message |
 
-**Types MIME** à servir correctement, sinon les modules ne chargent pas :
-`.js → text/javascript`, `.css → text/css`, `.webmanifest → application/manifest+json`,
-`.svg → image/svg+xml`.
+**Client et daemon sont décorrélés.** Le navigateur télécharge les statiques d'un
+hébergeur quelconque, puis ouvre le WebSocket **directement** vers chaque poste à
+travers le tunnel : rien ne transite par l'hébergeur. Conséquences pour le
+daemon :
+
+- il ne peut pas supposer que l'origine de la page est la sienne ;
+- il doit déclarer les origines légitimes (`allowedOrigins`), sinon le
+  navigateur — qui n'applique pas la same-origin policy aux WebSockets — laisse
+  n'importe quelle page du tunnel piloter le poste ;
+- si le client est servi en HTTPS, le daemon **doit** offrir `wss://` : une page
+  `https://` a interdiction d'ouvrir un `ws://` (contenu mixte).
+
+**Types MIME** à servir correctement quand les statiques sont activées, sinon les
+modules ne chargent pas : `.js → text/javascript`, `.css → text/css`,
+`.webmanifest → application/manifest+json`, `.svg → image/svg+xml`.
 
 ### Cycle de vie de la connexion
 
@@ -208,6 +223,7 @@ type ThreadSummary = {
   title: string             // title_override ?? title
   folderPaths: string[]     // UTF-8 décodé, séparateurs libres
   updatedAt: string
+  createdAt?: string | null // informatif, la PWA ne s'en sert pas en v1
   archived: boolean
   state: 'live' | 'closed' | 'unknown'
 }
@@ -230,6 +246,7 @@ affiche les `unknown` grisés et non cliquables — **ne pas les masquer**.
   queue: Array<{ queueId: string, text: string, at?: string }>,
   modes?: Array<{ id: string, name?: string }>,
   models?: Array<{ id: string, name?: string }>,
+  commands?: Array<{ name: string, description?: string }>,
   currentModeId?: string | null,
   currentModelId?: string | null,
 }
@@ -239,7 +256,9 @@ L'état vivant d'un thread. À envoyer : au bootstrap, sur `subscribe`, et à
 
 C'est ce message qui pilote l'UI : bouton Stop, entrées en file annulables,
 sélecteurs de mode/modèle. `modes`/`models` absents ⇒ sélecteurs grisés, ce n'est
-pas une erreur.
+pas une erreur : tant qu'aucun shim n'a lu l'`initialize` de l'agent, le daemon
+ne connaît pas les options de la session. `commands` est mémorisé par la PWA sans
+être affiché en v1.
 
 ### `acp_event`
 ```ts
@@ -307,6 +326,9 @@ français. Codes attendus par la PWA (les autres passent aussi) :
 |---|---|---|
 | `no_session` | thread sans `session_id` | historique refusé, écran en lecture |
 | `no_load_session` | agent sans capacité `loadSession` (§12.2) | « historique indisponible », composer actif |
+| `history_unavailable` | le poste ne sait pas relire une session fermée | idem, composer actif |
+| `unknown_thread` | `threadId` absent de l'index du poste | toast |
+| `index_degraded` | `sidebar_threads` illisible ou au schéma inattendu | toast ; le poste n'expose que les threads live |
 | `inject_failed` | l'agent a refusé le prompt (§12.1) | toast, le message reste affiché |
 | `permission_expired` | demande déjà tranchée | toast, encart verrouillé |
 | `new_thread_failed` | Zed n'a pas ouvert de session | toast |
@@ -442,14 +464,26 @@ npm run mock    # daemon bouchon : :7777 (DESK-ZED) + :7778 (LAPTOP-ZED)
 npm test        # 73 tests, dont le protocole et la PWA de bout en bout
 ```
 
-Pour tester le **vrai** daemon avec la PWA :
+Le **vrai** daemon a sa propre suite, écrite comme une check-list de ce document :
 
-1. servir `zra-client/` depuis le daemon (ou pointer un poste vers son adresse
-   dans Réglages → Postes) ;
-2. vérifier dans l'ordre : `machine` → `threads` → `thread_state` → `acp_event` ;
-3. `zra-client/test/mock-daemon.test.mjs` est lisible comme une check-list : file
-   d'attente, interruption, historique, agent sans `loadSession`, thread sans
-   session, perte du shim, permission acceptée/refusée, nouvelle session.
+```bash
+npm run daemon:dev                              # loopback seule, sans tunnel
+node --test zra-daemon/test/protocol.test.mjs   # conformité au PROTOCOL.md
+```
+
+`zra-daemon/test/protocol.test.mjs` verrouille, message par message : bootstrap
+et son ordre, `subscribe`/`unsubscribe`, rejeu du ring buffer, file d'attente et
+dépilage, interruption sèche, `send` en mode `interrupt`, options différées
+pendant un tour, thread sans session, trames illisibles, diffusion aux seuls
+abonnés, allowlist d'`Origin`.
+
+Pour le piloter depuis la PWA : servir `zra-client/` (par le daemon en dev, ou
+par un hébergeur), puis ajouter l'adresse du poste dans Réglages → Postes, et
+vérifier dans l'ordre `machine` → `threads` → `thread_state` → `acp_event`.
+
+Côté bouchon, `zra-client/test/mock-daemon.test.mjs` couvre ce que le lot A ne
+fournit pas encore : historique, agent sans `loadSession`, perte du shim,
+permission acceptée/refusée, nouvelle session.
 
 Pendant la mise au point, `ZRA_RECORD=1` côté shim (§10.3) produit un JSONL de
 trames : c'est la matière première des fixtures de non-régression.
