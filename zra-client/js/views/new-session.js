@@ -1,5 +1,9 @@
 // Bouton « + » : ouvrir une nouvelle session d'agent, comme dans Zed.
 // Un clic déplie la liste des agents du registry du poste (claude, gemini, …).
+//
+// Une session s'ouvre **dans un projet** : le « + » vit sur la ligne de chaque
+// projet de la liste, et dans la top bar d'un thread, où il vise le projet de
+// ce thread. Il n'y a pas de « + » global.
 
 import { button } from '../dom.js'
 import { icon } from '../icons.js'
@@ -10,18 +14,25 @@ import { openMenu, toast } from '../ui.js'
 const FALLBACK_AGENTS = [{ id: 'claude-acp', name: 'Claude' }]
 
 /**
- * @param {{navigate:Function, machineId?:string}} opts machineId : poste
- *        privilégié (celui du thread courant) — sinon tous les postes en ligne.
+ * @param {{
+ *   machineId: string,
+ *   project: () => ({ name:string, folderPaths:string[] } | null),
+ *   title?: string,
+ * }} opts `project` est lu au clic : le thread courant peut n'être connu de
+ *        l'index qu'après le montage du bouton.
  */
-export function newSessionButton({ machineId } = {}) {
+export function newSessionButton({ machineId, project, title = 'Nouveau thread' }) {
   const btn = button('icon-btn', {
-    title: 'Nouvelle session',
+    title,
     'aria-label': 'nouvelle session',
-    onclick: (ev) => openAgentMenu(ev.currentTarget, machineId),
+    onclick: (ev) => {
+      ev.stopPropagation()
+      openAgentMenu(ev.currentTarget, { machineId, project: project() })
+    },
   }, icon('plus', 'icon--sm'))
 
   const sync = () => {
-    btn.disabled = ![...store.state.machines.values()].some((m) => m.status === 'online')
+    btn.disabled = store.state.machines.get(machineId)?.status !== 'online'
   }
 
   // Le bouton vit et meurt avec sa vue : une fois monté puis détaché du DOM,
@@ -37,29 +48,25 @@ export function newSessionButton({ machineId } = {}) {
   return btn
 }
 
-export function openAgentMenu(anchor, preferredMachineId) {
-  const machines = [...store.state.machines.values()].filter((m) => m.status === 'online')
-  if (!machines.length) return toast('aucun poste en ligne', { level: 'warn' })
+/**
+ * Menu des agents d'un poste ; le choix ouvre la session dans le projet.
+ * @param {HTMLElement} anchor
+ * @param {{ machineId:string, project:{ name:string, folderPaths:string[] } | null }} target
+ */
+export function openAgentMenu(anchor, { machineId, project }) {
+  const m = store.state.machines.get(machineId)
+  if (!m || m.status !== 'online') return toast('poste hors ligne', { level: 'warn' })
 
-  // Le poste du thread courant passe en premier.
-  machines.sort((a, b) => (a.id === preferredMachineId ? -1 : b.id === preferredMachineId ? 1 : 0))
-  const several = machines.length > 1
-
-  const items = []
-  for (const m of machines) {
-    if (several) items.push({ separator: items.length > 0 }, { label: m.info?.name || m.label, header: true })
-    for (const agent of agentsOf(m)) {
-      items.push({
-        label: agent.name,
-        agentId: agent.id,
-        onSelect: () => {
-          store.newThread(m.id, agent.id)
-          toast(`nouvelle session ${agent.name}…`)
-        },
-      })
-    }
-  }
-  return openMenu(anchor, { label: several ? null : 'Nouvelle session', items: items.filter(Boolean) })
+  const where = project?.folderPaths?.length ? project.name : null
+  const items = agentsOf(m).map((agent) => ({
+    label: agent.name,
+    agentId: agent.id,
+    onSelect: () => {
+      store.newThread(m.id, agent.id, where ? project.folderPaths : undefined)
+      toast(`nouvelle session ${agent.name}${where ? ` dans ${where}` : ''}…`)
+    },
+  }))
+  return openMenu(anchor, { label: where ? `Nouveau thread · ${where}` : 'Nouveau thread', items })
 }
 
 /**

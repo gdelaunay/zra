@@ -351,13 +351,14 @@ export function interrupt(k) {
 }
 
 /**
- * Ouvre une nouvelle session d'agent sur un poste. Le daemon répond
- * `thread_created` : la navigation se fait à ce moment-là, pas avant.
+ * Ouvre une nouvelle session d'agent sur un poste, dans un projet — les dossiers
+ * d'un thread existant. Le daemon répond `thread_created` : la navigation se
+ * fait à ce moment-là, pas avant.
  */
-export function newThread(machineId, agentId) {
+export function newThread(machineId, agentId, folderPaths) {
   const m = state.machines.get(machineId)
   if (!m) return
-  m.link.send({ type: 'new_thread', agentId })
+  m.link.send(folderPaths?.length ? { type: 'new_thread', agentId, folderPaths } : { type: 'new_thread', agentId })
 }
 
 export function cancelQueued(k, queueId) {

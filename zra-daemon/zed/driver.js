@@ -9,7 +9,9 @@
 // **Désactivé par défaut** (`zedControl.enabled: false`). Envoyer des touches à
 // un poste de travail n'est pas anodin : on l'active en connaissance de cause.
 
-import { spawn } from 'node:child_process'
+import { execFile, spawn } from 'node:child_process'
+import { existsSync } from 'node:fs'
+import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -47,7 +49,13 @@ export class ZedControlError extends Error {
  * Piste : `CANDIDATE_RECIPES.openThread`.
  *
  * Variables : `{agent}` (id Zed), `{agentName}`, `{title}` (titre du thread),
- * `{text}` (message).
+ * `{text}` (message), `{project}` (dossier du projet visé par `newThread`).
+ *
+ * **Le projet.** Une session s'ouvre dans un projet (le « + » de sa ligne sur
+ * le mobile). Avant la recette, le pilote demande à la CLI de Zed d'ouvrir ce
+ * dossier — Zed amène au premier plan la fenêtre qui l'a déjà, ou en ouvre une —
+ * puis la recette vise **la fenêtre de ce projet**, reconnue à son titre
+ * (« zra — fichier »), plutôt que la fenêtre la plus récente.
  */
 export const DEFAULT_RECIPES = {
   newThread: [
@@ -169,6 +177,45 @@ export class KeyboardRunner {
 }
 
 // ---------------------------------------------------------------------------
+// La CLI de Zed : ouvrir le dossier d'un projet
+// ---------------------------------------------------------------------------
+
+/** Nom de fenêtre d'un projet : Zed titre ses fenêtres d'après le premier dossier. */
+export function projectWindow(folderPaths) {
+  const first = folderPaths?.[0]
+  if (!first) return null
+  return String(first).replace(/\\/g, '/').replace(/\/+$/, '').split('/').pop() || null
+}
+
+/** CLI de Zed : celle de l'installation par défaut, sinon `zed` dans le PATH. */
+export function defaultZedCli() {
+  const local = process.env.LOCALAPPDATA || join(homedir(), 'AppData', 'Local')
+  const installed = join(local, 'Programs', 'Zed', 'bin', 'zed.exe')
+  return existsSync(installed) ? installed : 'zed'
+}
+
+/**
+ * `zed <dossiers>` : Zed amène au premier plan la fenêtre qui a déjà ces
+ * dossiers, ou en ouvre une. Les chemins passent en arguments, jamais par un
+ * shell : aucune interprétation possible.
+ */
+export class ZedCli {
+  constructor({ command = defaultZedCli(), timeoutMs = 15_000 } = {}) {
+    this.command = command
+    this.timeoutMs = timeoutMs
+  }
+
+  open(folderPaths) {
+    return new Promise((resolve, reject) => {
+      execFile(this.command, folderPaths, { timeout: this.timeoutMs, windowsHide: true }, (err) => {
+        if (err) reject(new ZedControlError('zed_control_failed', `CLI de Zed (${this.command}) : ${err.message}`))
+        else resolve()
+      })
+    })
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Le pilote
 // ---------------------------------------------------------------------------
 
@@ -178,10 +225,17 @@ export class ZedDriver {
    *   runner?: { run:(req:object)=>Promise<object> },
    *   enabled?: boolean, window?: string|null, stepDelayMs?: number,
    *   recipes?: object, dryRun?: boolean, log?: object,
-   * }} opts
+   *   cli?: { open:(folderPaths:string[])=>Promise<void> }, windowWaitMs?: number,
+   * }} opts `windowWaitMs` : délai laissé à la fenêtre d'un projet pour
+   *        apparaître après l'appel à la CLI (ouverture d'une fenêtre neuve).
    */
-  constructor({ runner = new KeyboardRunner(), enabled = false, window = null, stepDelayMs = 120, recipes = {}, dryRun = false, log = null } = {}) {
+  constructor({
+    runner = new KeyboardRunner(), enabled = false, window = null, stepDelayMs = 120, recipes = {},
+    dryRun = false, log = null, cli = new ZedCli(), windowWaitMs = 8000,
+  } = {}) {
     this.runner = runner
+    this.cli = cli
+    this.windowWaitMs = windowWaitMs
     this.enabled = enabled
     this.window = window
     this.stepDelayMs = stepDelayMs
@@ -199,22 +253,48 @@ export class ZedDriver {
     return this.runner.run({ op: 'probe' })
   }
 
-  async play(name, vars = {}) {
-    if (!this.enabled) {
-      throw new ZedControlError('zed_control_disabled',
-        'pilotage de Zed désactivé sur ce poste (zedControl.enabled dans zra.config.json)')
-    }
+  /**
+   * @param {string} name
+   * @param {object} vars
+   * @param {{ project?: string|null }} [target] `project` : jouer dans la
+   *        fenêtre de ce projet plutôt que dans `window`.
+   */
+  async play(name, vars = {}, { project = null } = {}) {
+    this.assertEnabled()
     if (!this.has(name)) {
       throw new ZedControlError('recipe_missing',
         `aucune recette clavier « ${name} » : voie non établie pour cette version de Zed (zedControl.recipes)`)
     }
     const steps = expandRecipe(checkRecipe(name, this.recipes[name]), vars)
     this.log?.info(`recette ${name}${this.dryRun ? ' (simulation)' : ''} : ${steps.length} étape(s)`)
-    return this.runner.run({ op: 'run', steps, window: this.window, stepDelayMs: this.stepDelayMs, dryRun: this.dryRun })
+    const where = project
+      ? { project, windowWaitMs: this.windowWaitMs }
+      : { window: this.window }
+    return this.runner.run({ op: 'run', steps, ...where, stepDelayMs: this.stepDelayMs, dryRun: this.dryRun })
   }
 
-  newThread(agent) {
-    return this.play('newThread', { agent: agent.id, agentName: agent.name ?? agent.id })
+  assertEnabled() {
+    if (!this.enabled) {
+      throw new ZedControlError('zed_control_disabled',
+        'pilotage de Zed désactivé sur ce poste (zedControl.enabled dans zra.config.json)')
+    }
+  }
+
+  /** Amène au premier plan la fenêtre des dossiers donnés, ou en ouvre une. */
+  async openWorkspace(folderPaths) {
+    this.assertEnabled()
+    this.log?.info(`projet ${folderPaths.join(', ')}${this.dryRun ? ' (simulation, CLI non lancée)' : ''}`)
+    if (!this.dryRun) await this.cli.open(folderPaths)
+  }
+
+  /**
+   * Nouvelle session. Avec `folderPaths`, dans ce projet : sa fenêtre est
+   * ouverte ou ramenée au premier plan, puis la recette y est jouée.
+   */
+  async newThread(agent, { folderPaths = null } = {}) {
+    const project = projectWindow(folderPaths)
+    if (project) await this.openWorkspace(folderPaths)
+    return this.play('newThread', { agent: agent.id, agentName: agent.name ?? agent.id, project: project ?? '' }, { project })
   }
 
   openThread(thread) {

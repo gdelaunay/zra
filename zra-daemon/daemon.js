@@ -13,7 +13,7 @@ import { createBackend } from './inject/backend.js'
 import { Hub } from './hub.js'
 import { ShimHost } from './shim-link.js'
 import { SessionLoader } from './session-loader.js'
-import { ZedDriver, KeyboardRunner } from './zed/driver.js'
+import { ZedDriver, KeyboardRunner, ZedCli } from './zed/driver.js'
 import { ZedControl } from './zed/control.js'
 import { createServers } from './server.js'
 import { resolveBinds } from './net.js'
@@ -97,6 +97,9 @@ export async function startDaemon(config) {
     stepDelayMs: zc.stepDelayMs,
     recipes: zc.recipes ?? {},
     dryRun: Boolean(zc.dryRun),
+    // `cli` : chemin de la CLI de Zed (config), ou lanceur factice (tests).
+    cli: typeof zc.cli === 'object' && zc.cli ? zc.cli : new ZedCli(zc.cli ? { command: zc.cli } : {}),
+    windowWaitMs: zc.windowWaitMs,
     log: logger('zed'),
   })
   const control = new ZedControl({

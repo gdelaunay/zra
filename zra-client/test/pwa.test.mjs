@@ -375,23 +375,112 @@ test('icônes d’agent au lieu des étiquettes texte', async () => {
     'plus d’étiquette texte pour l’agent')
 })
 
-test('bouton + : choix de l’agent puis nouvelle session ouverte', async () => {
-  const before = $$('.thread-row').length
-  const plus = $$('.header .icon-btn').find((b) => b.getAttribute('aria-label') === 'nouvelle session')
-  assert.ok(plus, 'le bouton + est dans la top bar de la liste')
-  click(plus)
-  await until(() => $('.menu'), 2000, 'menu des agents')
-  const items = [...doc.querySelectorAll('.menu__item')].map((n) => n.textContent.trim())
-  assert.ok(items.includes('Gemini'), `agents proposés : ${items.join(', ')}`)
-  assert.ok(doc.querySelector('.menu__item svg'), 'chaque agent porte son icône')
+/** Ligne de titre d'un projet, sous un poste donné. */
+function projectHead(machine, name) {
+  const heads = $$('.group__head, .project__head')
+  const at = heads.findIndex((n) => n.classList.contains('group__head') && n.textContent.includes(machine))
+  for (const n of heads.slice(at + 1)) {
+    if (n.classList.contains('group__head')) break
+    if (n.querySelector('.project__name').textContent === name) return n
+  }
+  return null
+}
 
-  click([...doc.querySelectorAll('.menu__item')].find((n) => /Claude/.test(n.textContent)))
+/** Titres des threads affichés sous la ligne d'un projet. */
+function rowsUnder(head) {
+  const out = []
+  for (let n = head.nextElementSibling; n && n.classList.contains('thread-row'); n = n.nextElementSibling) {
+    out.push(n.querySelector('.thread-row__title').textContent)
+  }
+  return out
+}
+
+test('threads regroupés par projet sous chaque poste, nommés d’après leur dossier', async () => {
+  ZRA.navigate('#/')
+  await until(() => $$('.thread-row').length >= 7, 3000)
+  const zra = projectHead('DESK-ZED', 'zra')
+  assert.ok(zra, 'projet zra sur DESK-ZED')
+  assert.equal(rowsUnder(zra).length, 4, 'ses quatre threads, dont celui sans session')
+  assert.deepEqual(rowsUnder(projectHead('DESK-ZED', 'uia')), ['Spike : UI Automation sur la fenêtre Zed'])
+  assert.ok(projectHead('LAPTOP-ZED', 'zra'), 'même nom de dossier, autre poste : autre groupe')
+  assert.deepEqual(rowsUnder(projectHead('LAPTOP-ZED', 'zra + notes')), ['Notes de release v0.1'],
+    'un thread sur deux dossiers forme son propre projet')
+  // Ordre : le projet au thread le plus récent d'abord.
+  const names = $$('.project__name').map((n) => n.textContent)
+  assert.ok(names.indexOf('zra') < names.indexOf('uia'))
+})
+
+test('un projet se replie sur sa ligne de titre, et le reste après un rendu', async () => {
+  const toggle = () => projectHead('DESK-ZED', 'zra').querySelector('.project__toggle')
+  assert.equal(toggle().getAttribute('aria-expanded'), 'true')
+  click(toggle())
+  assert.equal(toggle().getAttribute('aria-expanded'), 'false')
+  assert.deepEqual(rowsUnder(projectHead('DESK-ZED', 'zra')), [], 'plus aucun thread affiché')
+  assert.ok(rowsUnder(projectHead('DESK-ZED', 'uia')).length, 'les autres projets restent dépliés')
+  assert.ok(ZRA.settings.collapsedProjects.some((k) => k.startsWith('mock-desk|')), 'repli mémorisé')
+
+  // Un nouveau rendu (retour sur la liste) garde le repli.
+  ZRA.render()
+  assert.equal(toggle().getAttribute('aria-expanded'), 'false')
+
+  // Une recherche montre ses résultats, même dans un projet replié.
+  const search = $('input[type=search]')
+  search.value = 'encodage'
+  search.dispatchEvent(new win.Event('input', { bubbles: true }))
+  await until(() => $$('.thread-row').length === 1, 2000, 'recherche')
+  assert.deepEqual(rowsUnder(projectHead('DESK-ZED', 'zra')), ['Bug : encodage UTF-8 des folder_paths'])
+  search.value = ''
+  search.dispatchEvent(new win.Event('input', { bubbles: true }))
+  await until(() => $$('.thread-row').length >= 3)
+
+  click(toggle())
+  assert.equal(rowsUnder(projectHead('DESK-ZED', 'zra')).length, 4, 'déplié à nouveau')
+  assert.equal(ZRA.settings.collapsedProjects.length, 0)
+})
+
+test('pas de « + » global : la liste n’en a qu’un par projet', () => {
+  assert.ok(!$('.header [aria-label="nouvelle session"]'), 'plus de + dans la top bar de la liste')
+  const heads = $$('.project__head')
+  assert.ok(heads.every((n) => n.querySelector('[aria-label="nouvelle session"]')), 'chaque projet a son +')
+  // Le + est le dernier élément de la ligne, tout à droite.
+  assert.ok(heads.every((n) => n.lastElementChild.getAttribute('aria-label') === 'nouvelle session'))
+})
+
+test('le + d’un projet ouvre la session dans ce projet', async () => {
+  const head = projectHead('DESK-ZED', 'uia')
+  const before = rowsUnder(head).length
+  const sent = []
+  const link = ZRA.store.state.machines.get('mock-desk').link
+  const send = link.send.bind(link)
+  link.send = (msg) => { sent.push(msg); return send(msg) }
+  try {
+    click(head.querySelector('[aria-label="nouvelle session"]'))
+    await until(() => $('.menu'), 2000, 'menu des agents')
+    assert.match($('.menu__label').textContent, /Nouveau thread · uia/)
+    const items = [...doc.querySelectorAll('.menu__item')].map((n) => n.textContent.trim())
+    assert.ok(items.includes('Gemini'), `agents proposés : ${items.join(', ')}`)
+    assert.ok(doc.querySelector('.menu__item svg'), 'chaque agent porte son icône')
+
+    click([...doc.querySelectorAll('.menu__item')].find((n) => /Claude/.test(n.textContent)))
+    const msg = sent.find((m) => m.type === 'new_thread')
+    assert.deepEqual(msg.folderPaths, ['C:/Users/gd/Documents/Développement/spikes/uia'])
+  } finally {
+    link.send = send
+  }
   // le daemon crée le thread et la PWA l'ouvre
   await until(() => /Nouveau thread/.test($('.header__title')?.textContent || ''), 4000, 'thread ouvert')
   assert.ok($('.composer'), 'on est bien sur l’écran thread')
 
   ZRA.navigate('#/')
-  await until(() => $$('.thread-row').length > before, 3000, 'le thread apparaît dans la liste')
+  await until(() => rowsUnder(projectHead('DESK-ZED', 'uia')).length === before + 1, 3000, 'rangé dans son projet')
+})
+
+test('le + d’un thread ouvre la session dans le projet de ce thread', async () => {
+  ZRA.navigate('#/t/mock-laptop/aa77bb00')
+  await until(() => /Notes de release/.test($('.header__title')?.textContent || ''), 3000)
+  click($('.header [aria-label="nouvelle session"]'))
+  await until(() => $('.menu'), 2000, 'menu des agents')
+  assert.match($('.menu__label').textContent, /Nouveau thread · zra \+ notes/)
   ZRA.navigate('#/t/mock-desk/a1f39c0b')
   await until(() => /Refactor/.test($('.header__title')?.textContent || ''), 3000)
 })

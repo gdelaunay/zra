@@ -321,8 +321,16 @@ Le daemon expose le registry `agent_servers` de `settings.json` dans le message
 `new_thread` demande à Zed d'ouvrir un thread avec l'agent choisi — même voie
 que le §6.3, la palette de commandes par UIA. Dès qu'un shim se connecte avec un
 `session_id` neuf, le daemon renvoie `thread_created`. Timeout 30 s ⇒ `error`
-`new_thread_failed`. Le `cwd` est celui de la fenêtre Zed active : choisir le
-projet depuis le mobile viendra plus tard.
+`new_thread_failed`.
+
+Une session s'ouvre **dans un projet** : le **+** vit sur la ligne de chaque
+projet de la liste (et dans la top bar d'un thread, pour son projet), jamais au
+global. `new_thread` porte alors les `folderPaths` du projet ; le daemon
+n'accepte que des dossiers déjà connus de l'index, demande à la CLI de Zed de
+les ouvrir (Zed ramène la fenêtre qui les a, ou en ouvre une), puis joue la
+recette dans **la fenêtre de ce projet**, reconnue à son titre (« zra — … »).
+Si l'agent annonce malgré tout un autre `cwd`, le thread existe : un
+`zra/notice` le dit dans son fil.
 
 ---
 
@@ -628,8 +636,10 @@ généraliser.
 
 - ✅ **Composer** : **Entrée envoie** ; **Maj+Entrée** et **Ctrl+Entrée** sautent
   une ligne.
-- **Threads regroupés par projet** dans la liste, sous chaque poste — c'est
-  ainsi que l'utilisateur pense ses threads.
+- ✅ **Threads regroupés par projet** dans la liste, sous chaque poste — c'est
+  ainsi que l'utilisateur pense ses threads. Projet = dossier du thread, nommé
+  d'après son dernier segment ; sa ligne se replie (mémorisé) et porte le **+**
+  du projet. Plus de **+** global dans la liste (§6.7).
 - Événements ACP à rendre proprement plutôt qu'en bloc générique : `usage_update`
   (consommation), `session_info_update` (titre, métadonnées).
 - Le streaming est un peu saccadé — secondaire.

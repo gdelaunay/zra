@@ -148,7 +148,8 @@ export class MockLink {
           sessionId: `sess-${Math.random().toString(36).slice(2, 8)}`,
           agentId: agent.id,
           title: 'Nouveau thread',
-          folderPaths: this.threads[0]?.folderPaths || [],
+          // Le projet du « + » ; à défaut, celui du thread le plus récent.
+          folderPaths: Array.isArray(msg.folderPaths) && msg.folderPaths.length ? msg.folderPaths : (this.threads[0]?.folderPaths || []),
           updatedAt: new Date().toISOString(),
           archived: false,
           state: 'live',

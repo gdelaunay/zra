@@ -7,6 +7,7 @@
 # Entrée : un objet JSON sur stdin.
 #   { "op": "probe" }                         fenêtres Zed + taille de l'arbre UIA
 #   { "op": "run", "steps": [...], "window": "zra", "stepDelayMs": 120, "dryRun": false }
+#   { "op": "run", "steps": [...], "project": "zra", … }   fenêtre du projet « zra »
 #
 # Étapes :
 #   { "keys": "ctrl+shift+p" }   accord de touches ('+' entre les touches)
@@ -145,12 +146,25 @@ function Resolve-Chord([string]$spec) {
   return , $vks.ToArray()
 }
 
-function Find-ZedWindow([string]$filter) {
+# `project` : la fenêtre d'un projet précis. Zed la titre « <projet> — <fichier> »
+# (ou « <projet> » seul) : on compare le début du titre, pas une sous-chaîne —
+# « zra » ne doit pas désigner la fenêtre de « zra-docs ».
+function Test-ProjectTitle([string]$title, [string]$project) {
+  $t = $title.ToLowerInvariant()
+  $p = $project.ToLowerInvariant()
+  return $t -eq $p -or $t.StartsWith("$p ") -or $t.StartsWith("$p,")
+}
+
+function Find-ZedWindow([string]$filter, [string]$project) {
   $pids = @(Get-Process -Name 'zed' -ErrorAction SilentlyContinue | ForEach-Object { [uint32]$_.Id })
   if ($pids.Count -eq 0) { return $null }
   $windows = [ZraKeyboard]::Windows($pids)
   foreach ($h in $windows) {
     $title = [ZraKeyboard]::Title($h)
+    if ($project) {
+      if (Test-ProjectTitle $title $project) { return @{ handle = $h; title = $title; pid = [ZraKeyboard]::Pid($h) } }
+      continue
+    }
     if (-not $filter -or $title.ToLowerInvariant().Contains($filter.ToLowerInvariant())) {
       return @{ handle = $h; title = $title; pid = [ZraKeyboard]::Pid($h) }
     }
@@ -215,9 +229,18 @@ try {
       else { throw "étape inconnue : $($step | ConvertTo-Json -Compress)" }
     }
 
-    $win = Find-ZedWindow $request.window
+    $win = Find-ZedWindow $request.window $request.project
+    # La CLI de Zed vient peut-être d'ouvrir la fenêtre du projet : on lui
+    # laisse le temps d'apparaître (hors simulation, où rien n'a été lancé).
+    if (-not $win -and $request.project -and $request.windowWaitMs -and -not $dry) {
+      $deadline = [DateTime]::UtcNow.AddMilliseconds([int]$request.windowWaitMs)
+      while (-not $win -and [DateTime]::UtcNow -lt $deadline) {
+        Start-Sleep -Milliseconds 250
+        $win = Find-ZedWindow $request.window $request.project
+      }
+    }
     if (-not $win) {
-      $what = if ($request.window) { "aucune fenêtre Zed dont le titre contient « $($request.window) »" } else { 'aucune fenêtre Zed ouverte' }
+      $what = if ($request.project) { "aucune fenêtre Zed pour le projet « $($request.project) »" } elseif ($request.window) { "aucune fenêtre Zed dont le titre contient « $($request.window) »" } else { 'aucune fenêtre Zed ouverte' }
       throw $what
     }
     $result.window = @{ title = $win.title; pid = $win.pid }

@@ -62,3 +62,24 @@ export function agentLabel(agentId) {
   if (known[agentId]) return known[agentId]
   return agentId.replace(/[-_]acp$/, '').replace(/[-_]/g, ' ')
 }
+
+/** Dernier segment d'un chemin : "C:\\dev\\zra\\" -> "zra". */
+export function baseName(p) {
+  const parts = String(p || '').replace(/\\/g, '/').replace(/\/+$/, '').split('/').filter(Boolean)
+  return parts.at(-1) || ''
+}
+
+/**
+ * Projet d'un thread, tel que l'utilisateur le pense : le dossier ouvert dans
+ * Zed, nommé d'après son dernier segment. Un thread sur plusieurs dossiers
+ * forme son propre projet (« zra + notes ») — c'est un autre espace de travail.
+ *
+ * `key` compare les chemins sans casse ni séparateur : Windows ne les distingue
+ * pas, et l'index de Zed n'écrit pas toujours les mêmes.
+ */
+export function projectOf(folderPaths) {
+  const paths = (Array.isArray(folderPaths) ? folderPaths : []).filter(Boolean)
+  if (!paths.length) return { key: '', name: 'sans projet', folderPaths: [] }
+  const key = paths.map((p) => String(p).replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase()).join('|')
+  return { key, name: paths.map(baseName).join(' + '), folderPaths: paths }
+}

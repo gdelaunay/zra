@@ -120,6 +120,7 @@ npm run zed -- probe                         # fenêtres Zed, arbre UIA — aucu
 npm run zed -- recipes                       # recettes en vigueur et pistes candidates
 npm run zed -- try newThread                 # simulation
 npm run zed -- try newThread --apply         # pour de vrai, compte à rebours de 3 s
+npm run zed -- try newThread --project C:/…/zra --apply   # le « + » d'un projet
 npm run zed -- try openThread --candidate --title "Titre exact" --apply
 npm run zed -- try --steps '[{"keys":"ctrl+shift+/"}]' --apply   # essai ad hoc
 ```
@@ -128,7 +129,10 @@ npm run zed -- try --steps '[{"keys":"ctrl+shift+/"}]' --apply   # essai ad hoc
 
 1. **`newThread`** — ouvre-t-il un thread avec l'agent `claude-zra` ? La recette
    par défaut passe par la palette (`agent: new thread`), qui reprend le dernier
-   agent choisi dans le panneau.
+   agent choisi dans le panneau. Avec `--project` : la CLI de Zed ramène-t-elle
+   bien la fenêtre du projet (ou en ouvre-t-elle une), et le thread s'ouvre-t-il
+   dans ce dossier ? Un projet qui n'est ouvert dans aucune fenêtre est le cas à
+   essayer aussi.
 2. **`openThread`** — la voie pour rouvrir un thread **précis** par son titre.
    Aucune n'est éprouvée ; la piste candidate passe par le filtre du sidebar
    (`agents sidebar: focus sidebar filter`). Tant qu'elle manque, répondre à un
@@ -141,8 +145,8 @@ Puis, une fois les recettes reportées dans `zra.config.json` :
 "zedControl": { "enabled": true, "recipes": { "openThread": [ … ] } }
 ```
 
-- **+** dans la PWA → `new_thread` → le thread s'ouvre dans Zed et la PWA y
-  navigue ;
+- **+** d'un projet dans la PWA → `new_thread` → le thread s'ouvre dans Zed,
+  dans ce projet, et la PWA y navigue ;
 - répondre depuis la PWA à un thread **fermé** `claude-zra` → Zed le rouvre, le
   message part ;
 - si le risque 🔴1 s'est avéré au round 1 : `"injection": "auto"` et refaire la

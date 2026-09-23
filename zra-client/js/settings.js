@@ -22,16 +22,18 @@ function load() {
     expandTools: s.expandTools === true,
     mock: s.mock === true,
     lastThread: s.lastThread || null,
+    /** Projets repliés dans la liste, clé `${machineId}|${projectKey}`. */
+    collapsedProjects: Array.isArray(s.collapsedProjects) ? s.collapsedProjects.filter((k) => typeof k === 'string') : [],
   }
 }
 
 export const settings = load()
 
 function persist() {
-  const { machines, theme, clientId, defaultSendMode, showThoughts, expandTools, mock, lastThread } = settings
+  const { machines, theme, clientId, defaultSendMode, showThoughts, expandTools, mock, lastThread, collapsedProjects } = settings
   try {
     localStorage.setItem(KEY, JSON.stringify({
-      machines, theme, clientId, defaultSendMode, showThoughts, expandTools, mock, lastThread,
+      machines, theme, clientId, defaultSendMode, showThoughts, expandTools, mock, lastThread, collapsedProjects,
     }))
   } catch { /* mode privé : on tourne en mémoire */ }
 }

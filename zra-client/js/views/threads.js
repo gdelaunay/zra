@@ -1,12 +1,16 @@
 // Écran 1 — liste des threads, calquée sur le sidebar de Zed :
-// groupée par poste, triée par récence, pastille d'état, chemin abrégé.
+// groupée par poste puis par projet, triée par récence, pastille d'état.
+//
+// Un projet se replie (sa ligne de titre seule reste) et porte son propre « + » :
+// une session s'ouvre toujours dans un projet, jamais « quelque part ».
 //
 // Ossature commune aux deux écrans : .header (haut) · .scroll · .bottombar (bas).
 
 import { h, button, clear, debounce } from '../dom.js'
 import { icon, agentIcon } from '../icons.js'
-import { relTime, absTime, shortPath, agentLabel, toMs } from '../format.js'
+import { relTime, absTime, shortPath, agentLabel, toMs, projectOf } from '../format.js'
 import * as store from '../store.js'
+import { settings, update as updateSettings } from '../settings.js'
 import { openMenu } from '../ui.js'
 import { openSettings } from './settings.js'
 import { newSessionButton } from './new-session.js'
@@ -79,7 +83,12 @@ export function ThreadsView({ navigate }) {
         list.append(h('div.empty', { style: { padding: '12px' }, text: 'aucun thread' }))
         continue
       }
-      for (const t of rows) list.append(threadRow(m, t, navigate))
+      for (const group of byProject(rows)) {
+        // Une recherche montre ses résultats, même dans un projet replié.
+        const open = Boolean(query) || !isCollapsed(m, group.project)
+        list.append(projectHead(m, group.project, open, () => { toggleProject(m, group.project); paint() }))
+        if (open) for (const t of group.threads) list.append(threadRow(m, t, navigate))
+      }
     }
 
     if (!total && query) {
@@ -108,7 +117,6 @@ function header({ navigate }) {
   el.append(
     h('div.header__title', {}, icon('zap', 'icon--sm'), h('span', { text: 'ZRA' })),
     h('div.header__meta', {}, sub),
-    newSessionButton(),
     button('icon-btn', { title: 'Rafraîchir', onclick: () => store.refreshAll() }, icon('refresh', 'icon--sm')),
     button('icon-btn', { title: 'Réglages', onclick: () => openSettings() }, icon('settings', 'icon--sm')),
   )
@@ -133,6 +141,48 @@ function machineHead(m) {
     m.info?.zedRunning === false ? h('span.group__meta', { text: '· Zed fermé' }) : null,
     h('span.spacer'),
     h('span.group__meta', { text: m.threads.length ? `${m.threads.length}` : '' }),
+  )
+}
+
+/**
+ * Threads regroupés par projet, déjà triés par récence : l'ordre des projets
+ * suit leur thread le plus récent.
+ */
+function byProject(rows) {
+  const groups = new Map()
+  for (const t of rows) {
+    const project = projectOf(t.folderPaths)
+    let g = groups.get(project.key)
+    if (!g) groups.set(project.key, (g = { project, threads: [] }))
+    g.threads.push(t)
+  }
+  return [...groups.values()]
+}
+
+const collapseKey = (m, project) => `${m.id}|${project.key}`
+const isCollapsed = (m, project) => settings.collapsedProjects.includes(collapseKey(m, project))
+
+function toggleProject(m, project) {
+  const k = collapseKey(m, project)
+  const rest = settings.collapsedProjects.filter((x) => x !== k)
+  updateSettings({ collapsedProjects: rest.length === settings.collapsedProjects.length ? [...rest, k] : rest })
+}
+
+/** Ligne de titre d'un projet : nom et flèche à gauche (repli), « + » à droite. */
+function projectHead(m, project, open, onToggle) {
+  return h('div.project__head', {},
+    button('project__toggle', {
+      'aria-expanded': String(open),
+      title: project.folderPaths.join('\n') || project.name,
+      onclick: onToggle,
+    },
+      h('span.project__name.truncate', { text: project.name }),
+      icon(open ? 'chevron-down' : 'chevron-right', 'icon--sm project__chevron'),
+    ),
+    h('span.spacer'),
+    project.folderPaths.length
+      ? newSessionButton({ machineId: m.id, project: () => project, title: `Nouveau thread dans ${project.name}` })
+      : null,
   )
 }
 
