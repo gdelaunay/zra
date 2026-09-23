@@ -31,6 +31,9 @@ export const REGISTRY_DIR = join(LOCALAPPDATA, 'Zed', 'external_agents', 'regist
 
 export class AgentCommandError extends Error {}
 
+/** Zed n'installe un agent du registry qu'à sa première utilisation. */
+const NOT_INSTALLED_HINT = 'ouvrir une fois un thread avec cet agent dans Zed, qui l’installe à ce moment-là'
+
 /**
  * Une entrée `agent_servers` qui lance `zra-shim` plutôt que l'agent lui-même
  * (c'est ce que pose `scripts/setup.mjs`). Reconnue à son script, pas à son nom :
@@ -137,19 +140,27 @@ export async function resolveAgentCommand(agentId, { settingsFile = null, overri
     const pkg = await readJsonc(join(dir, 'package.json'))
     const bin = pkg ? binPath(dir, pkg) : null
     if (!bin || !existsSync(bin)) {
-      throw new AgentCommandError(`agent « ${agentId} » (${name}) pas encore installé par Zed : ${dir}`)
+      throw new AgentCommandError(`agent « ${agentId} » (${name}) pas encore installé par Zed (${dir}) — ${NOT_INSTALLED_HINT}`)
     }
+    // Les `args`/`env` du registry font partie de la commande : sans le
+    // `--acp` de qwen-code, l'agent démarre en mode interactif.
+    const args = Array.isArray(npx.args) ? npx.args.map(String) : []
+    const env = npx.env && typeof npx.env === 'object' ? npx.env : {}
+    // Un paquet peut livrer un exécutable natif : on le lance tel quel.
+    if (/\.(exe|cmd|bat)$/i.test(bin)) return { command: bin, args, env, source: 'registry/npx' }
     // Node lance Node : on réutilise l'exécutable courant plutôt que de dépendre
     // d'un `npx` dans le PATH, qui rejouerait une résolution et un téléchargement.
-    return { command: process.execPath, args: [bin], env: {}, source: 'registry/npx' }
+    return { command: process.execPath, args: [bin, ...args], env, source: 'registry/npx' }
   }
 
   const binary = agent.distribution?.binary?.[platformKey()]
   if (binary?.cmd) {
     const file = bare(binary.cmd)
     const dir = newestVersionDir(join(registryDir, agentId), file)
-    if (!dir) throw new AgentCommandError(`agent « ${agentId} » pas encore installé par Zed : ${join(registryDir, agentId)}`)
-    return { command: join(dir, file), args: [], env: {}, source: 'registry/binary' }
+    if (!dir) throw new AgentCommandError(`agent « ${agentId} » pas encore installé par Zed (${join(registryDir, agentId)}) — ${NOT_INSTALLED_HINT}`)
+    const args = Array.isArray(binary.args) ? binary.args.map(String) : []
+    const env = binary.env && typeof binary.env === 'object' ? binary.env : {}
+    return { command: join(dir, file), args, env, source: 'registry/binary' }
   }
 
   throw new AgentCommandError(
@@ -157,4 +168,40 @@ export async function resolveAgentCommand(agentId, { settingsFile = null, overri
     `(${Object.keys(agent.distribution ?? {}).join(', ') || 'aucun'}) — ` +
     'déclarer sa commande dans `agentCommands` de zra.config.json',
   )
+}
+
+/**
+ * Les agents ACP de ce poste, pour l'installation sans argument : ceux que
+ * déclare le `settings.json` de Zed (hors entrées ZRA), ceux de `agentCommands`,
+ * et ceux que Zed a déjà téléchargés depuis son registry. Chacun est résolu :
+ * `ok: false` porte la raison (typiquement : déclaré mais jamais lancé dans
+ * Zed, donc pas encore installé).
+ *
+ * @returns {Promise<Array<{ id:string, ok:boolean, source?:string, reason?:string }>>}
+ */
+export async function discoverAgents({ settingsFile = null, overrides = {}, registryDir = REGISTRY_DIR } = {}) {
+  const ids = new Set()
+  const settings = settingsFile ? await readJsonc(settingsFile) : null
+  for (const [id, entry] of Object.entries(settings?.agent_servers ?? {})) {
+    if (!isShimEntry(entry)) ids.add(id)
+  }
+  for (const id of Object.keys(overrides ?? {})) ids.add(id)
+
+  const registry = await readJsonc(join(registryDir, 'registry.json'))
+  for (const agent of Array.isArray(registry?.agents) ? registry.agents : []) {
+    const id = agent?.id
+    if (!id) continue
+    if (existsSync(join(registryDir, 'npx', id)) || existsSync(join(registryDir, id))) ids.add(id)
+  }
+
+  const out = []
+  for (const id of ids) {
+    try {
+      const cmd = await resolveAgentCommand(id, { settingsFile, overrides, registryDir })
+      out.push({ id, ok: true, source: cmd.source })
+    } catch (err) {
+      out.push({ id, ok: false, reason: err.message })
+    }
+  }
+  return out
 }

@@ -49,8 +49,8 @@ de Zed, même si elle utilise les mêmes entiers.
 ## Le brancher dans Zed
 
 ```bash
-npm run setup -- install           # montre l'entrée, n'écrit rien
-npm run setup -- install --apply   # l'ajoute (sauvegarde dans .zra/backups/)
+npm run setup install              # montre les entrées, n’écrit rien (agents nommés : install qwen-code pi-acp)
+npm run setup install apply        # les ajoute (sauvegarde dans .zra/backups/)
 npm run setup -- uninstall --apply # la retire, et elle seule
 ```
 

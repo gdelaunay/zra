@@ -7,6 +7,8 @@ dist/
 zra-daemon/test/fixtures/lot-b.sqlite*
 zra-daemon/test/fixtures/registry/
 zra-daemon/test/fixtures/settings-custom.json
+zra-daemon/test/fixtures/registry-args/
+zra-daemon/test/fixtures/settings-discover.json
 
 # état local de ZRA : journaux du shim, trames enregistrées, sauvegardes du settings.json
 .zra/

@@ -24,6 +24,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { loadConfig } from '../zra-daemon/config.js'
+import { npmSafeArgs } from './lib/args.mjs'
 import { daemonStatus } from './lib/daemon-status.mjs'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -34,7 +35,7 @@ const XML_FILE = join(ROOT, '.zra', 'service', 'zra-daemon.xml')
 
 function parseArgs(argv) {
   const out = { command: 'status', apply: false, lines: 40 }
-  const rest = [...argv]
+  const rest = npmSafeArgs(argv, ['apply'])
   if (rest[0] && !rest[0].startsWith('-')) out.command = rest.shift()
   for (let i = 0; i < rest.length; i++) {
     const a = rest[i]
