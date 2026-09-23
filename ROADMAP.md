@@ -357,3 +357,30 @@ Inchangé par rapport à la `SPEC.md` §12 :
 2. les trames arrivent-elles au daemon ?
 3. l'injection ACP est-elle acceptée (risque 🔴1) ?
 4. `session/load` fonctionne-t-il (risque 🟠2) ?
+
+## Problèmes connus
+
+### Options de session : mode et modèle codés en dur 🟠
+
+La command bar réserve deux places fixes, **mode** puis **modèle**, et affiche
+ensuite les autres `configOptions` (effort de réflexion…). Tous les agents
+n'exposent pas ces deux-là. Avec **pi** (pi-acp), il n'y a pas de mode : l'effort
+de réflexion vient occuper sa place (alias « mode » ? à vérifier dans ce qu'annonce
+pi-acp), **et** il s'affiche aussi en troisième position. Résultat : l'effort de
+réflexion apparaît deux fois dans la command bar.
+
+Piste : ne plus présumer de mode ni de modèle, et afficher les `configOptions`
+telles que l'agent les annonce, chacune une seule fois (dédoublonnage par `id`).
+Mode et modèle ne gardent une place privilégiée que s'ils existent vraiment.
+
+### Réflexions : pas de repli individuel 🟡
+
+Les blocs « réflexion » ne se masquent qu'en bloc, par le réglage
+`showThoughts` (réglages ou menu « ⋯ » du thread). Il faut pouvoir replier et
+déplier **chacun** d'un clic sur sa ligne de titre, comme un tool call. L'état
+ouvert/fermé doit survivre aux re-rendus du streaming (`thoughtMsg`,
+`zra-client/js/views/entry.js`). Le réglage global peut rester, comme état
+par défaut des nouveaux blocs.
+
+La mise en page des réflexions est aussi à reprendre, au moment du polish du
+front.

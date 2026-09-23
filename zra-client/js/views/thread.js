@@ -457,7 +457,9 @@ export function ThreadView({ key, navigate }) {
   paintAll()
   syncMeta()
   composer.sync(st)
-  setTimeout(() => composer.focus(), 60)
+  // Focus d'office sur desktop seulement : sur mobile, il ferait surgir le
+  // clavier alors qu'on ouvre souvent un thread juste pour le lire.
+  if (window.matchMedia?.('(hover: hover) and (pointer: fine)').matches) setTimeout(() => composer.focus(), 60)
 
   return {
     el,
