@@ -542,13 +542,13 @@ l'agent bouchon, **sans Zed lancé**.
 
 ## 11. Stack et arborescence
 
-JavaScript ESM annoté en JSDoc, Node ≥ 22. **Zéro build, zéro dépendance
+JavaScript ESM annoté en JSDoc, Node ≥ 24. **Zéro build, zéro dépendance
 runtime** — des deux côtés.
 
 Cette décision remplace le « TypeScript partout » initial, pour trois raisons
 mesurées à l'écriture du client puis du daemon : le client est déjà en ESM natif
 servi tel quel et mélanger les deux langages aurait coûté un build pour un seul
-côté ; Node ≥ 22 fournit SQLite (`node:sqlite`), le test runner (`node:test`),
+côté ; Node ≥ 24 fournit SQLite (`node:sqlite`), le test runner (`node:test`),
 le serveur HTTP et un client `WebSocket` ; et le serveur WebSocket (RFC 6455)
 tient dans un fichier, ce que le bouchon avait déjà démontré — `ws` disparaît
 donc aussi. Il reste `jsdom`, en dépendance de développement, pour les tests PWA.
@@ -603,7 +603,7 @@ technique et leur état d'avancement : `ROADMAP.md`.
 
 | Sujet | Décision |
 |---|---|
-| Langage | JavaScript ESM + JSDoc, Node ≥ 22, zéro build, zéro dépendance runtime (§11) |
+| Langage | JavaScript ESM + JSDoc, Node ≥ 24, zéro build, zéro dépendance runtime (§11) |
 | Front | Zéro build, ESM natif, **servi indépendamment du daemon** ; le daemon sait les servir en dev/repli |
 | Réseau | Réseau local en direct, et le tunnel existant de l'utilisateur à distance (hors du code). Le trafic ne passe jamais par un hébergeur |
 | TLS | Optionnel : HTTP+`ws` par défaut, HTTPS+`wss` dès qu'on veut l'installabilité (§8) |

@@ -10,7 +10,7 @@ ZRA relaie le flux ACP tel quel : ce que Zed affiche, la PWA l'affiche.
 | `zra-client/` | PWA sans build, servie par le daemon |
 | `scripts/` | installation, service, appairage, certificat, mise au point clavier |
 
-**Prérequis** : Windows, Zed, Node ≥ 22. Aucune dépendance runtime.
+**Prérequis** : Windows, Zed, Node ≥ 24. Aucune dépendance runtime.
 
 ```sh
 npm run setup install apply          # une entrée ZRA par agent de Zed (claude-zra, qwen-code-zra…)
