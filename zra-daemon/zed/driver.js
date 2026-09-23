@@ -168,14 +168,17 @@ export class KeyboardRunner {
         }
         reject(new ZedControlError('zed_control_failed', `pilotage de Zed : ${shell} non lançable (${e.message})`))
       })
-      child.on('close', () => {
+      child.on('close', (code) => {
         clearTimeout(timer)
         const line = out.trim().split(/\r?\n/).at(-1)
         let res
         try {
           res = JSON.parse(line)
         } catch {
-          reject(new ZedControlError('zed_control_failed', `pilotage de Zed : réponse illisible${err ? ` — ${err.trim().split('\n').at(-1)}` : ''}`))
+          // Tout ce qu'on sait, pour diagnostiquer à distance : quel PowerShell,
+          // son code de sortie, et ce qu'il a écrit à la place du JSON.
+          const said = (err.trim().split(/\r?\n/).at(-1) || out.trim().slice(0, 200) || 'sortie vide')
+          reject(new ZedControlError('zed_control_failed', `pilotage de Zed : réponse illisible (${shell}, code ${code}) — ${said}`))
           return
         }
         if (!res.ok) reject(new ZedControlError('zed_control_failed', res.error || 'échec du pilotage de Zed'))

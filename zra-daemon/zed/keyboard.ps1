@@ -1,4 +1,4 @@
-# Pilotage clavier de Zed — lot C, spec §6.2 (backend `uia`, repli SendKeys).
+﻿# Pilotage clavier de Zed — lot C, spec §6.2 (backend `uia`, repli SendKeys).
 #
 # Constat de la machine cible : l'arbre UI Automation de la fenêtre Zed est
 # **vide** (0 descendant). Zed dessine lui-même son interface (GPUI) et n'expose

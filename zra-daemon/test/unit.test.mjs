@@ -389,7 +389,11 @@ test('shim-link : les événements d’une session inconnue sont gardés puis re
   host.close()
 })
 
-test('shim-link : une commande sans destinataire ou sans accusé porte son code', async () => {
+test('shim-link : une commande sans destinataire ou sans accusé porte son code', async (t) => {
+  // Le délai attendu est un minuteur `unref()` : sans rien d'autre en vol,
+  // Node 22 juge la boucle vide et abandonne le test (Node 24 attend).
+  const keepAlive = setInterval(() => {}, 1000)
+  t.after(() => clearInterval(keepAlive))
   const threads = new EventEmitter()
   threads.threads = []
   threads.getBySession = () => null
