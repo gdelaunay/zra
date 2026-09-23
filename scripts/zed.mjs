@@ -17,10 +17,11 @@ import { loadConfig } from '../zra-daemon/config.js'
 import {
   CANDIDATE_RECIPES, DEFAULT_RECIPES, KeyboardRunner, ZedCli, checkRecipe, expandRecipe, projectWindow,
 } from '../zra-daemon/zed/driver.js'
+import { npmSafeArgs } from './lib/args.mjs'
 
 function parseArgs(argv) {
   const out = { command: argv[0] ?? 'help', recipe: null, apply: false, candidate: false, vars: {}, steps: null, window: undefined, project: null }
-  const rest = argv.slice(1)
+  const rest = npmSafeArgs(argv.slice(1), ['apply'])
   if (out.command === 'try' && rest[0] && !rest[0].startsWith('-')) out.recipe = rest.shift()
   for (let i = 0; i < rest.length; i++) {
     const a = rest[i]

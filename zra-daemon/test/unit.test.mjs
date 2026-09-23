@@ -17,7 +17,7 @@ import { ShimRegistry } from '../shim-registry.js'
 import { agentLabel } from '../agents.js'
 import { checkOrigin, selfOrigins, authenticate, isLoopback } from '../server.js'
 import { ShimHost } from '../shim-link.js'
-import { resolveAgentCommand, packageName } from '../agent-commands.js'
+import { resolveAgentCommand, packageName, discoverAgents } from '../agent-commands.js'
 
 /** Dossier de travail des fixtures fabriquées à la volée. */
 const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), 'fixtures')
@@ -457,6 +457,52 @@ test('agent-commands : un agent du registry de Zed est retrouvé sur le disque',
   await assert.rejects(() => resolveAgentCommand('faux-uvx', { registryDir }), /uvx/)
   // Et un agent inconnu aussi.
   await assert.rejects(() => resolveAgentCommand('jamais-vu', { registryDir }), /introuvable/)
+})
+
+test('agent-commands : les args et env du registry font partie de la commande', async () => {
+  // qwen-code ne parle ACP qu'avec `--acp` : sans lui, il démarre en interactif.
+  const registryDir = join(FIXTURES, 'registry-args')
+  const pkgDir = join(registryDir, 'npx', 'qwen-code', 'node_modules', '@qwen-code', 'qwen-code')
+  mkdirSync(pkgDir, { recursive: true })
+  writeFileSync(join(pkgDir, 'package.json'), JSON.stringify({ bin: { qwen: 'cli.js' } }), 'utf8')
+  writeFileSync(join(pkgDir, 'cli.js'), '// agent\n', 'utf8')
+  const binDir = join(registryDir, 'faux-bin', 'v1')
+  mkdirSync(binDir, { recursive: true })
+  writeFileSync(join(binDir, 'agent.exe'), '', 'utf8')
+  const key = `${process.platform === 'win32' ? 'windows' : process.platform}-${process.arch === 'x64' ? 'x86_64' : process.arch === 'arm64' ? 'aarch64' : process.arch}`
+  writeFileSync(join(registryDir, 'registry.json'), JSON.stringify({
+    agents: [
+      { id: 'qwen-code', distribution: { npx: { package: '@qwen-code/qwen-code@0.24.4', args: ['--acp', '--experimental-skills'], env: { X: '1' } } } },
+      { id: 'faux-bin', distribution: { binary: { [key]: { cmd: './agent.exe', args: ['acp'] } } } },
+      { id: 'pas-installe', distribution: { npx: { package: 'pas-installe@1.0.0' } } },
+    ],
+  }), 'utf8')
+
+  const qwen = await resolveAgentCommand('qwen-code', { registryDir })
+  assert.deepEqual(qwen.args, [join(pkgDir, 'cli.js'), '--acp', '--experimental-skills'])
+  assert.deepEqual(qwen.env, { X: '1' })
+  const bin = await resolveAgentCommand('faux-bin', { registryDir })
+  assert.equal(bin.command, join(binDir, 'agent.exe'))
+  assert.deepEqual(bin.args, ['acp'])
+  await assert.rejects(() => resolveAgentCommand('pas-installe', { registryDir }), /ouvrir une fois un thread/)
+})
+
+test('agent-commands : découverte — déclarés dans Zed ou installés, résolus ou pas', async () => {
+  const registryDir = join(FIXTURES, 'registry-args') // posé par le test précédent
+  const settingsFile = join(FIXTURES, 'settings-discover.json')
+  writeFileSync(settingsFile, JSON.stringify({
+    agent_servers: {
+      'pas-installe': { type: 'registry' },
+      'claude-zra': { type: 'custom', command: 'node', args: ['C:/zra/zra-shim/index.js'], env: { ZRA_AGENT_ID: 'qwen-code' } },
+    },
+  }), 'utf8')
+  const found = await discoverAgents({ settingsFile, registryDir })
+  const byId = Object.fromEntries(found.map((a) => [a.id, a]))
+  assert.deepEqual(Object.keys(byId).sort(), ['faux-bin', 'pas-installe', 'qwen-code'], 'jamais l’entrée ZRA elle-même')
+  assert.equal(byId['qwen-code'].ok, true)
+  assert.equal(byId['faux-bin'].ok, true)
+  assert.equal(byId['pas-installe'].ok, false)
+  assert.match(byId['pas-installe'].reason, /pas encore installé/)
 })
 
 test('agent-commands : le nom de paquet se lit sans sa version', () => {

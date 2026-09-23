@@ -32,8 +32,8 @@ Le journal d'injections du daemon reste à `%LOCALAPPDATA%\zra\injections.log`
 ```bash
 npm test                          # 216 tests, sans Zed ni agent
 npm run daemon:dev                # terminal dédié : loopback seule, PWA sur http://localhost:7777
-npm run setup -- install          # montre l'entrée qui serait ajoutée, n'écrit rien
-npm run setup -- install --apply  # écrit (sauvegarde dans .zra/backups/)
+npm run setup install              # montre les entrées qui seraient ajoutées (tous les agents lançables), n’écrit rien
+npm run setup install apply        # écrit (sauvegarde dans .zra/backups/) ; « apply » sans tirets, npm avale --apply
 npm run setup                     # état : entrée ✓, agent ✓, daemon ✓
 ```
 

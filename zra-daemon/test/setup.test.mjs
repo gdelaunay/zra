@@ -11,7 +11,7 @@ import { locate, removeAgentServer, upsertAgentServer, SettingsEditError } from 
 import { parseJsonc } from '../jsonc.js'
 import { isShimEntry, resolveAgentCommand, wrappedAgentId } from '../agent-commands.js'
 import { readAgents } from '../agents.js'
-import { buildEntry, lineDiff } from '../../scripts/setup.mjs'
+import { buildEntry, lineDiff, parseArgs, zraName } from '../../scripts/setup.mjs'
 
 const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), 'fixtures')
 
@@ -195,4 +195,24 @@ test('resolveAgentCommand : une entrée ZRA se résout vers l’agent enveloppé
   const agents = await readAgents(settingsFile)
   assert.deepEqual(agents.find((a) => a.id === 'claude-zra'), { id: 'claude-zra', name: 'Claude (ZRA)', kind: 'custom', wraps: 'claude-acp' })
   assert.deepEqual(agents.find((a) => a.id === 'claude-acp'), { id: 'claude-acp', name: 'Claude', kind: 'registry' })
+})
+
+// ---- ligne de commande -------------------------------------------------------
+
+test('setup : « apply » et les agents passent en mots nus — npm avale les --options', () => {
+  // `npm run setup install --apply` : npm garde --apply pour lui, le script ne reçoit que `install`.
+  assert.deepEqual(parseArgs(['install', 'apply']).apply, true)
+  assert.deepEqual(parseArgs(['install', '--apply']).apply, true)
+  assert.deepEqual(parseArgs(['install']).apply, false)
+  const opts = parseArgs(['install', 'qwen-code', 'pi-acp', 'apply', 'no-record'])
+  assert.deepEqual(opts.agents, ['qwen-code', 'pi-acp'])
+  assert.equal(opts.record, false)
+  assert.deepEqual(parseArgs(['install', '--agent', 'x']).agents, ['x'])
+  assert.throws(() => parseArgs(['install', 'a', 'b', '--name', 'n']), /un seul agent/)
+})
+
+test('setup : nom d’entrée dérivé de l’agent', () => {
+  assert.equal(zraName('claude-acp'), 'claude-zra', 'nom historique conservé')
+  assert.equal(zraName('qwen-code'), 'qwen-code-zra')
+  assert.equal(zraName('pi-acp'), 'pi-zra')
 })

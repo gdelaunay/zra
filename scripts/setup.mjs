@@ -25,8 +25,9 @@ import { fileURLToPath } from 'node:url'
 
 import { loadConfig } from '../zra-daemon/config.js'
 import { parseJsonc } from '../zra-daemon/jsonc.js'
-import { isShimEntry, resolveAgentCommand } from '../zra-daemon/agent-commands.js'
+import { discoverAgents, isShimEntry, resolveAgentCommand, wrappedAgentId } from '../zra-daemon/agent-commands.js'
 import { assertParsable, removeAgentServer, upsertAgentServer } from '../zra-daemon/zed-settings.js'
+import { npmSafeArgs } from './lib/args.mjs'
 import { daemonStatus } from './lib/daemon-status.mjs'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -37,23 +38,26 @@ const SHIM = join(ROOT, 'zra-shim', 'index.js')
 // Options
 // ---------------------------------------------------------------------------
 
-function parseArgs(argv) {
-  const out = { command: 'status', apply: false, name: 'claude-zra', agent: 'claude-acp', record: true, port: null }
-  const rest = [...argv]
+export function parseArgs(argv) {
+  const out = { command: 'status', apply: false, name: null, agents: [], record: true, port: null }
+  const rest = npmSafeArgs(argv, ['apply', 'no-record'])
   if (rest[0] && !rest[0].startsWith('-')) out.command = rest.shift()
   for (let i = 0; i < rest.length; i++) {
     const a = rest[i]
     if (a === '--apply') out.apply = true
     else if (a === '--name') out.name = rest[++i]
-    else if (a === '--agent') out.agent = rest[++i]
+    else if (a === '--agent') out.agents.push(rest[++i])
     else if (a === '--no-record') out.record = false
     else if (a === '--port') out.port = Number(rest[++i])
     else if (a === '--help' || a === '-h') out.command = 'help'
+    // Mot nu : un agent. npm transmet toujours les mots nus, jamais `--agent x`.
+    else if (!a.startsWith('-')) out.agents.push(a)
     else throw new Error(`option inconnue : ${a}`)
   }
   if (!['status', 'install', 'uninstall', 'help'].includes(out.command)) {
     throw new Error(`commande inconnue : ${out.command}`)
   }
+  if (out.name && out.agents.length > 1) throw new Error('--name ne vaut que pour un seul agent')
   return out
 }
 
@@ -62,13 +66,19 @@ const USAGE = `zra setup — brancher ZRA dans Zed
   npm run setup [-- <commande>] [options]
 
   status               état de l'installation (défaut)
-  install              ajoute l'entrée ZRA à agent_servers
-  uninstall            la retire
+  install [agent…]     une entrée ZRA par agent dans agent_servers. Sans agent
+                       nommé : tous ceux que Zed sait lancer sur ce poste
+  uninstall [--name]   retire les entrées ZRA (toutes, ou celle nommée)
 
-  --apply              écrire pour de vrai (sans : simulation, rien n'est écrit)
-  --name <id>          nom de l'entrée dans Zed (défaut claude-zra)
-  --agent <id>         agent à envelopper (défaut claude-acp)
+  --apply              écrire pour de vrai (sans : simulation, rien n'est écrit) ;
+                       « apply » tout court marche aussi, si npm avale le --apply
+  --agent <id>         agent à envelopper (répétable ; un mot nu suffit)
+  --name <id>          nom de l'entrée dans Zed, pour un seul agent
+                       (défaut : claude-acp → claude-zra, qwen-code → qwen-code-zra)
   --no-record          ne pas enregistrer les trames (ZRA_RECORD)
+
+  ex. npm run setup install apply
+      npm run setup install qwen-code pi-acp apply
 `
 
 // ---------------------------------------------------------------------------
@@ -104,6 +114,11 @@ export function buildEntry({ agent, record, nodePath = process.execPath, root = 
     entry.default_config_options = wrapped.default_config_options
   }
   return entry
+}
+
+/** Nom de l'entrée ZRA d'un agent : `claude-acp` → `claude-zra`, `qwen-code` → `qwen-code-zra`. */
+export function zraName(agentId) {
+  return `${String(agentId).replace(/-acp$/, '')}-zra`
 }
 
 /** Diff ligne à ligne minimal : on ne montre que la zone qui change. */
@@ -170,19 +185,18 @@ async function status(opts, config) {
     console.log('  ✗ aucune entrée ZRA — `npm run setup -- install` pour voir ce qui serait ajouté')
   }
   for (const [id, entry] of zra) {
-    const expected = buildEntry({ agent: entry.env?.ZRA_AGENT_ID ?? opts.agent, record: entry.env?.ZRA_RECORD === '1', wrapped: servers[entry.env?.ZRA_AGENT_ID] })
+    const expected = buildEntry({ agent: entry.env?.ZRA_AGENT_ID ?? '?', record: entry.env?.ZRA_RECORD === '1', wrapped: servers[entry.env?.ZRA_AGENT_ID] })
     const upToDate = entry.command === expected.command && entry.args?.[0] === expected.args[0]
     console.log(`  ✓ entrée « ${id} » → enveloppe « ${entry.env?.ZRA_AGENT_ID ?? '?'} »` +
       `${entry.env?.ZRA_RECORD === '1' ? ', enregistrement des trames' : ''}` +
       `${upToDate ? '' : '  ⚠ chemins différents de ce dépôt : relancer install'}`)
   }
 
-  const agentId = zra[0]?.[1].env?.ZRA_AGENT_ID ?? opts.agent
-  try {
-    const cmd = await resolveAgentCommand(agentId, { settingsFile: file, overrides: config.agentCommands })
-    console.log(`agent « ${agentId} » : ${cmd.source} — ${cmd.command} ${cmd.args.join(' ')}`)
-  } catch (err) {
-    console.log(`agent « ${agentId} » : ✗ ${err.message}`)
+  // Tous les agents du poste : enveloppés ou pas, lançables ou pas.
+  const wrapped = new Set(zra.map(([, e]) => e.env?.ZRA_AGENT_ID))
+  for (const a of await discoverAgents({ settingsFile: file, overrides: config.agentCommands })) {
+    const tag = wrapped.has(a.id) ? 'via ZRA' : a.ok ? 'sans ZRA — `install` l’ajouterait' : 'non lançable'
+    console.log(`agent « ${a.id} » : ${a.ok ? a.source : '✗ ' + a.reason} (${tag})`)
   }
 
   const port = opts.port ?? config.port
@@ -205,33 +219,66 @@ async function install(opts, config) {
   const servers = before.parsed?.agent_servers ?? {}
 
   if (!existsSync(SHIM)) throw new Error(`shim introuvable : ${SHIM}`)
-  if (servers[opts.name] && !isShimEntry(servers[opts.name])) {
-    throw new Error(`« ${opts.name} » existe déjà dans agent_servers et n'est pas une entrée ZRA : choisir un autre --name`)
-  }
-  if (!servers[opts.agent]) {
-    console.log(`⚠ « ${opts.agent} » n'est pas déclaré dans agent_servers : le shim le cherchera dans le registry de Zed`)
-  }
-  // L'agent enveloppé doit être lançable, sinon Zed afficherait une erreur au
-  // premier thread : autant le dire maintenant.
-  const cmd = await resolveAgentCommand(opts.agent, { settingsFile: file, overrides: config.agentCommands })
-  console.log(`agent enveloppé : ${opts.agent} (${cmd.source})`)
+  const resolveOpts = { settingsFile: file, overrides: config.agentCommands }
 
-  const entry = buildEntry({ agent: opts.agent, record: opts.record, wrapped: servers[opts.agent] })
-  const { text, action } = upsertAgentServer(before.text, opts.name, entry)
-  if (action === 'unchanged') {
-    console.log(`✓ entrée « ${opts.name} » déjà à jour : rien à faire`)
+  // Quels agents envelopper. Nommés : chacun doit être lançable, sinon Zed
+  // afficherait une erreur au premier thread. Découverts : on prend ceux qui le
+  // sont, on dit pourquoi on saute les autres, sans échouer pour autant.
+  let agents
+  if (opts.agents.length) {
+    agents = []
+    for (const id of opts.agents) {
+      const cmd = await resolveAgentCommand(id, resolveOpts)
+      agents.push({ id, source: cmd.source })
+    }
+  } else {
+    const found = await discoverAgents(resolveOpts)
+    for (const a of found.filter((x) => !x.ok)) console.log(`  – ${a.id} ignoré : ${a.reason}`)
+    agents = found.filter((x) => x.ok)
+    if (!agents.length) {
+      throw new Error(
+        'aucun agent lançable sur ce poste. Ouvrir une fois un thread avec l’agent voulu dans Zed ' +
+        '(Zed l’installe à ce moment-là), ou le déclarer dans agentCommands de zra.config.json',
+      )
+    }
+  }
+
+  // Entrée ZRA déjà posée pour un agent : on la met à jour sous son nom actuel.
+  const existing = new Map(Object.entries(servers).filter(([, v]) => isShimEntry(v)).map(([k, v]) => [wrappedAgentId(v), k]))
+
+  let text = before.text
+  const changes = []
+  for (const { id, source } of agents) {
+    const name = opts.name ?? existing.get(id) ?? zraName(id)
+    if (servers[name] && !isShimEntry(servers[name])) {
+      const msg = `« ${name} » existe déjà dans agent_servers et n'est pas une entrée ZRA`
+      if (opts.name) throw new Error(`${msg} : choisir un autre --name`)
+      console.log(`  – ${id} ignoré : ${msg}`)
+      continue
+    }
+    const entry = buildEntry({ agent: id, record: opts.record, wrapped: servers[id] })
+    // Mode et modèle réglés depuis sur l'entrée ZRA elle-même : ils restent.
+    const mine = servers[name]?.default_config_options
+    if (mine && typeof mine === 'object') entry.default_config_options = mine
+    const res = upsertAgentServer(text, name, entry)
+    text = res.text
+    console.log(`  ${res.action === 'unchanged' ? '✓' : '+'} ${name} → ${id} (${source})${res.action === 'unchanged' ? ' — déjà à jour' : ''}`)
+    if (res.action !== 'unchanged') changes.push(name)
+  }
+  if (!changes.length) {
+    console.log('✓ rien à faire')
     return
   }
 
-  console.log(`\n${action === 'added' ? 'ajout' : 'mise à jour'} de agent_servers.${opts.name} dans ${file} :\n`)
+  console.log(`\n${changes.map((n) => `agent_servers.${n}`).join(', ')} dans ${file} :\n`)
   console.log(lineDiff(before.text, text))
   if (!opts.apply) {
-    console.log('\nsimulation : rien n’a été écrit. Relancer avec --apply pour appliquer.')
+    console.log('\nsimulation : rien n’a été écrit. Relancer avec --apply (ou « apply » tout court) pour appliquer.')
     return
   }
   const backup = await writeSettings(file, before, text)
   console.log(`\n✓ écrit. Sauvegarde : ${backup}`)
-  console.log(`  Zed recharge settings.json à chaud : l'agent « ${opts.name} » apparaît dans le menu des nouveaux threads.`)
+  console.log(`  Zed recharge settings.json à chaud : les agents « (ZRA) » apparaissent dans le menu des nouveaux threads.`)
 }
 
 async function uninstall(opts, config) {
@@ -251,7 +298,7 @@ async function uninstall(opts, config) {
   console.log(`\nretrait de ${names.map((n) => `agent_servers.${n}`).join(', ')} dans ${file} :\n`)
   console.log(lineDiff(before.text, text))
   if (!opts.apply) {
-    console.log('\nsimulation : rien n’a été écrit. Relancer avec --apply pour appliquer.')
+    console.log('\nsimulation : rien n’a été écrit. Relancer avec --apply (ou « apply » tout court) pour appliquer.')
     return
   }
   const backup = await writeSettings(file, before, text)
