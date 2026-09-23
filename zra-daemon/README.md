@@ -10,8 +10,12 @@ le WebSocket (RFC 6455) tient dans `ws.js`.
 ```bash
 npm run daemon          # écoute loopback + tunnel WireGuard
 npm run daemon:dev      # loopback seule, sans exiger de tunnel
+npm run service         # le daemon en tâche planifiée, à l'ouverture de session
 npm test                # suite complète, sans Zed ni agent
 ```
+
+Mise en service sur le téléphone — tunnel, certificat, démarrage automatique :
+**`DEPLOY.md`** à la racine.
 
 ## État : lots A, B et C
 
@@ -21,6 +25,7 @@ npm test                # suite complète, sans Zed ni agent
 | ✓ | protocole ZRA complet côté daemon, invariants du `PROTOCOL.md` §6 |
 | ✓ | ring buffer 2000/thread, rejoué au `subscribe` |
 | ✓ | écoute restreinte (loopback + tunnel), allowlist d'`Origin`, TLS optionnel |
+| ✓ | **tunnel suivi à chaud** (`--wait-tunnel`, apparition, coupure, changement d'IP), **TLS relu à chaud**, journal sur disque (`--log`) |
 | ✓ | registry `agent_servers`, présence de Zed, journal d'injections |
 | ✓ | **shims connectés, threads `live`, flux ACP verbatim** |
 | ✓ | **injection ACP : envoi, file d'attente, interruption, options** |
@@ -157,6 +162,12 @@ poste et sur le mobile. Le daemon se contente de lire l'état des interfaces
 "bindCidr": "10.7.0.0/24",     // repli si le nom varie
 "requireTunnel": true          // refus de démarrer sans tunnel
 ```
+
+Le tunnel est suivi pendant que le daemon tourne (sondage toutes les 5 s) :
+WireGuard pour Windows retire l'adaptateur quand on désactive le tunnel et le
+recrée à la réactivation. L'écoute du tunnel s'ouvre et se ferme en conséquence,
+la loopback reste. `--wait-tunnel` (la tâche planifiée) démarre sans tunnel au
+lieu de refuser.
 
 Sans consigne explicite, la détection se fait par motif de nom
 (`wg0`, `WireGuard`, `ZRA`…). Aucune déduction par plage privée : le Wi-Fi du

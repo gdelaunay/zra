@@ -170,6 +170,8 @@ export async function loadConfig({ file = process.env.ZRA_CONFIG || join(ROOT, '
   cfg.staticDir = abs(cfg.staticDir)
   cfg.logFile = cfg.logFile === null ? null : abs(cfg.logFile)
   cfg.daemonLogFile = cfg.daemonLogFile ? abs(cfg.daemonLogFile) : null
+  // `".zra/tls/zra.crt"` (scripts/cert.ps1) : relatif à la racine du dépôt.
+  if (cfg.tls?.cert && cfg.tls?.key) cfg.tls = { ...cfg.tls, cert: abs(cfg.tls.cert), key: abs(cfg.tls.key) }
   cfg.allowedOrigins = (cfg.allowedOrigins || []).map((o) => String(o).replace(/\/+$/, ''))
   cfg.configFile = existsSync(file) ? file : null
 

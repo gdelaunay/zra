@@ -27,6 +27,7 @@ import { loadConfig } from '../zra-daemon/config.js'
 import { parseJsonc } from '../zra-daemon/jsonc.js'
 import { isShimEntry, resolveAgentCommand } from '../zra-daemon/agent-commands.js'
 import { assertParsable, removeAgentServer, upsertAgentServer } from '../zra-daemon/zed-settings.js'
+import { daemonStatus } from './lib/daemon-status.mjs'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const STATE = join(ROOT, '.zra')
@@ -156,16 +157,6 @@ async function writeSettings(file, before, next) {
     throw new Error('relecture différente de l’écriture : fichier restauré depuis la sauvegarde')
   }
   return backup
-}
-
-async function daemonStatus(port) {
-  try {
-    const res = await fetch(`http://127.0.0.1:${port}/status`, { signal: AbortSignal.timeout(1500) })
-    if (!res.ok) return { ok: false, reason: `HTTP ${res.status}` }
-    return { ok: true, ...(await res.json()) }
-  } catch (err) {
-    return { ok: false, reason: err.cause?.code || err.name || err.message }
-  }
 }
 
 async function status(opts, config) {

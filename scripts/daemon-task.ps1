@@ -1,4 +1,4 @@
-# Lanceur du daemon pour la tâche planifiée — `npm run service`.
+﻿# Lanceur du daemon pour la tâche planifiée — `npm run service`.
 #
 # La tâche l'exécute à l'ouverture de session, dans une console PowerShell
 # masquée (-WindowStyle Hidden) : node hérite de cette console invisible, aucune

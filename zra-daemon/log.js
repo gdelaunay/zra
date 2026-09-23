@@ -19,7 +19,14 @@ function emit(level, scope, ...rest) {
   if (level === 'error') console.error(line, ...rest)
   else if (level === 'warn') console.warn(line, ...rest)
   else console.log(line, ...rest)
-  if (file) toFile(`${new Date().toISOString().slice(0, 10)} ${line} ${format(...rest)}\n`)
+  if (file) toFile(`${localStamp()} ${level.padEnd(5)} ${scope.padEnd(10)} ${format(...rest)}\n`)
+}
+
+/** Heure locale, comme le lanceur de la tâche : « 2026-09-23 13:25:06.875 ». */
+function localStamp(d = new Date()) {
+  const p = (n, w = 2) => String(n).padStart(w, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ` +
+    `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}.${p(d.getMilliseconds(), 3)}`
 }
 
 // ---- journal sur disque --------------------------------------------------
