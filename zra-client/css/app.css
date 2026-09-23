@@ -233,6 +233,10 @@ button { cursor: pointer; }
 }
 .project__name { font-size: var(--fs-sm); font-weight: 600; }
 .project__chevron { color: var(--icon-muted); flex: none; }
+/* Flèche au survol seulement, comme Zed — sauf sur écran tactile, sans survol. */
+@media (hover: hover) {
+  .project__head:not(:hover) .project__chevron { visibility: hidden; }
+}
 
 .thread-row {
   display: flex; align-items: flex-start; gap: var(--sp-4);

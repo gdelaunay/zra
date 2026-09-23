@@ -480,11 +480,7 @@ test('sans ZRA_RECORD, l’enregistreur ne touche à rien', () => {
 
 // ---- confirmation d'un prompt injecté (mode auto, lot C) --------------------
 
-test('prompt confirmé : accepté au premier update, refusé sur erreur, muet au délai', async (t) => {
-  // Le délai attendu est un minuteur `unref()` : sans rien d'autre en vol,
-  // Node 22 juge la boucle vide et abandonne le test (Node 24 attend).
-  const keepAlive = setInterval(() => {}, 1000)
-  t.after(() => clearInterval(keepAlive))
+test('prompt confirmé : accepté au premier update, refusé sur erreur, muet au délai', async () => {
   const { AcpBridge } = await import('../acp.js')
   const sent = []
   const bridge = new AcpBridge({ toAgent: (raw) => sent.push(JSON.parse(raw.toString())) })
