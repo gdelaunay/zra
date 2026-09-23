@@ -1,7 +1,9 @@
 // Service worker : coquille de cache (v1) + point d'ancrage Web Push, inactif.
-// Réseau d'abord pour /ws et l'API, cache d'abord pour la coquille statique.
+// Réseau d'abord partout (coquille comprise), cache en repli hors tunnel.
 
-const VERSION = 'zra-v1'
+const VERSION = 'zra-v2'
+/** Au-delà, le réseau est tenu pour absent (hors tunnel) : on sert le cache. */
+const NETWORK_TIMEOUT_MS = 3000
 const SHELL = [
   './',
   './index.html',
@@ -54,21 +56,20 @@ self.addEventListener('fetch', (ev) => {
   const url = new URL(req.url)
   if (url.pathname.endsWith('/ws') || url.origin !== self.location.origin) return
 
-  ev.respondWith(
-    caches.match(req).then((hit) => {
-      const network = fetch(req)
-        .then((res) => {
-          if (res.ok) {
-            const copy = res.clone()
-            caches.open(VERSION).then((c) => c.put(req, copy))
-          }
-          return res
-        })
-        .catch(() => hit || Response.error())
-      // Coquille : cache d'abord, rafraîchissement en arrière-plan.
-      return hit || network
-    }),
-  )
+  // Réseau d'abord, cache en repli. Servir la coquille depuis le cache mélangerait,
+  // après une mise à jour, des modules d'avant et d'après : des imports qui ne
+  // correspondent plus, une app cassée jusqu'au rechargement suivant. Hors du
+  // tunnel, le réseau ne répond pas : au bout de 3 s, le cache prend le relais.
+  ev.respondWith((async () => {
+    const cache = await caches.open(VERSION)
+    try {
+      const res = await fetch(req, { signal: AbortSignal.timeout(NETWORK_TIMEOUT_MS) })
+      if (res.ok) cache.put(req, res.clone())
+      return res
+    } catch {
+      return (await cache.match(req)) || Response.error()
+    }
+  })())
 })
 
 // Web Push : câblé, inactif en v1 (§8). Le daemon n'envoie rien pour l'instant.

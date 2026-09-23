@@ -10,10 +10,12 @@
   "bindInterface": null,
   "bindCidr": null,
   "requireTunnel": true,
+  // La tâche planifiée (npm run service) lance le daemon en --wait-tunnel :
+  // loopback d'abord, écoute du tunnel dès qu'il apparaît. Voir DEPLOY.md.
 
-  // Client web. En production il est servi ailleurs (voir zra-daemon/README.md)
-  // et le daemon n'est qu'une API WebSocket ; on garde la capacité de le servir
-  // en dev, où localhost accorde le contexte sécurisé.
+  // Client web. Le déploiement retenu (DEPLOY.md) : le daemon le sert lui-même,
+  // en HTTPS sur l'IP du tunnel — même origine que le WebSocket. S'il est servi
+  // ailleurs : false, et son origine dans "allowedOrigins".
   "serveStatic": true,
   "staticDir": "zra-client",
 
@@ -26,7 +28,8 @@
   // TLS. Absent => HTTP + ws:// : l'app fonctionne, mais le navigateur refuse
   // le service worker, l'installation sur l'écran d'accueil et le Web Push.
   // Renseigné => HTTPS + wss://, contexte sécurisé, PWA complète.
-  //   "tls": { "cert": "C:/certs/zra.crt", "key": "C:/certs/zra.key" }
+  //   "tls": { "cert": ".zra/tls/zra.crt", "key": ".zra/tls/zra.key" }   (scripts/cert.ps1, DEPLOY.md §2)
+  // Relu à chaud au renouvellement ; ses noms DNS deviennent des origines autorisées.
   "tls": null,
 
   // Sources Zed. null => chemins par défaut de la machine (spec §2.1).

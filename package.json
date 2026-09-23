@@ -15,10 +15,13 @@
     "fixture": "node --no-warnings scripts/make-fixture.mjs",
     "probe:agent": "node --no-warnings scripts/probe-agent.mjs",
     "setup": "node --no-warnings scripts/setup.mjs",
+    "service": "node --no-warnings scripts/service.mjs",
+    "wireguard": "node --no-warnings scripts/wireguard.mjs",
     "zed": "node --no-warnings scripts/zed.mjs",
     "themes": "node scripts/gen-themes.mjs"
   },
   "devDependencies": {
-    "jsdom": "^29.1.1"
+    "jsdom": "^29.1.1",
+    "jsqr": "^1.4.0"
   }
 }
