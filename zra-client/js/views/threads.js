@@ -178,7 +178,7 @@ function toggleProject(m, project) {
   updateSettings({ collapsedProjects: rest.length === settings.collapsedProjects.length ? [...rest, k] : rest })
 }
 
-/** Ligne de titre d'un projet : nom et flèche à gauche (repli), « + » à droite. */
+/** Ligne de titre d'un projet : toute la ligne replie/déplie (comme Zed), « + » à droite. */
 function projectHead(m, project, open, onToggle) {
   return h('div.project__head', {},
     button('project__toggle', {
@@ -189,7 +189,6 @@ function projectHead(m, project, open, onToggle) {
       h('span.project__name.truncate', { text: project.name }),
       icon(open ? 'chevron-down' : 'chevron-right', 'icon--sm project__chevron'),
     ),
-    h('span.spacer'),
     project.folderPaths.length
       ? newSessionButton({ machineId: m.id, project: () => project, title: `Nouveau thread dans ${project.name}` })
       : null,
