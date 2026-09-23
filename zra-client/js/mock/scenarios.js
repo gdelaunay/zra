@@ -34,7 +34,14 @@ export const MACHINES = {
         threadId: 'd39a5b12', sessionId: 'sess-closed-2', agentId: 'gemini-acp',
         title: 'Spike : UI Automation sur la fenêtre Zed',
         folderPaths: ['C:/Users/gd/Documents/Développement/spikes/uia'],
-        updatedAt: ago(2 * DAY), archived: true, state: 'closed',
+        updatedAt: ago(2 * DAY), archived: false, state: 'closed',
+      },
+      {
+        // Archivé dans Zed : masqué par défaut, visible sous le filtre « Archivés ».
+        threadId: 'f7a2e0d4', sessionId: 'sess-archived', agentId: 'claude-acp',
+        title: 'Ancien essai : injection au clavier',
+        folderPaths: ['C:/Users/gd/Documents/Développement/zra'],
+        updatedAt: ago(4 * DAY), archived: true, state: 'closed',
       },
       {
         threadId: 'e5510cc9', sessionId: null, agentId: null,

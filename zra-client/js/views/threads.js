@@ -223,7 +223,8 @@ function threadRow(m, t, navigate) {
 
 function matches(t, query, filter) {
   if (filter === 'live' && t.state !== 'live') return false
-  if (filter === 'archived' && !t.archived) return false
+  // Archivés : seulement sous leur filtre, comme dans le sidebar de Zed.
+  if ((filter === 'archived') !== Boolean(t.archived)) return false
   if (!query) return true
   const hay = `${t.title} ${(t.folderPaths || []).join(' ')} ${agentLabel(t.agentId)}`.toLowerCase()
   return hay.includes(query)

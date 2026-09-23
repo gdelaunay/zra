@@ -58,6 +58,7 @@ test('écran 1 : les threads des deux postes s’affichent', async () => {
   assert.ok(titles.some((t) => t.includes('Refactor du lecteur')))
   assert.ok(titles.some((t) => t.includes('Portage du daemon')))
   assert.equal($$('.group__head').length, 2, 'un groupe par poste')
+  assert.ok(!titles.some((t) => t.includes('Ancien essai')), 'les archivés restent sous leur filtre')
 })
 
 test('un thread sans session_id est grisé et non cliquable', () => {
