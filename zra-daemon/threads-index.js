@@ -1,13 +1,12 @@
 // Index des threads — lecture de `sidebar_threads` (spec §2.1).
 //
-// Ouverture **toujours** en lecture seule via URI `file:...?mode=ro`. Le fichier
+// Ouverture **toujours** en lecture seule (`readOnly`). Le fichier
 // est en WAL et Zed tourne en parallèle : jamais de connexion en écriture,
 // jamais de lock. Poll toutes les 2 s, diff, et on ne pousse que si ça a bougé.
 
 import { EventEmitter } from 'node:events'
 import { existsSync } from 'node:fs'
 import { DatabaseSync } from 'node:sqlite'
-import { pathToFileURL } from 'node:url'
 
 import { logger } from './log.js'
 
@@ -91,8 +90,10 @@ export class ThreadsIndex extends EventEmitter {
       return false
     }
     try {
-      const uri = pathToFileURL(this.file).href + '?mode=ro'
-      this.db = new DatabaseSync(uri, { readOnly: true })
+      // Chemin brut + `readOnly` (SQLITE_OPEN_READONLY), pas d'URI `file:` :
+      // les premiers Node 22 unflaggés (22.13…) la prennent pour un nom de
+      // fichier littéral => « unable to open database file ».
+      this.db = new DatabaseSync(this.file, { readOnly: true })
       this.columns = this.readColumns()
       const missing = REQUIRED.filter((c) => !this.columns.includes(c))
       if (missing.length) {

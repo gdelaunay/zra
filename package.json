@@ -5,7 +5,7 @@
   "type": "module",
   "description": "ZRA — Zed Remote Agent : suivre et piloter ses threads d'agents ACP Zed depuis le mobile.",
   "engines": {
-    "node": ">=22"
+    "node": ">=22.13"
   },
   "scripts": {
     "daemon": "node --no-warnings zra-daemon/index.js",
