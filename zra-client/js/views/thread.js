@@ -2,7 +2,7 @@
 
 import { h, button, clear, rafBatch } from '../dom.js'
 import { icon, agentIcon } from '../icons.js'
-import { relTime, absTime, shortPath, agentLabel, projectOf } from '../format.js'
+import { relTime, absTime, shortPath, agentLabel, projectOf, toMs, formatTokens, formatCost } from '../format.js'
 import * as store from '../store.js'
 import { renderEntry } from './entry.js'
 import { openMenu, toast, switchEl } from '../ui.js'
@@ -160,11 +160,14 @@ export function ThreadView({ key, navigate }) {
 
   // Les événements sont peints par lot, une fois par frame, sans en perdre un seul.
   const onTimeline = rafBatch((batch) => {
-    if (batch.some((p) => !p || p.reset)) { paintAll(); return }
+    if (batch.some((p) => !p || p.reset)) { paintAll(); syncMeta(); return }
     const tl = store.ensureTimeline(key)
+    let meta = false
     for (const payload of batch) {
       for (const e of payload.removed || []) { nodes.get(e.id)?.remove(); nodes.delete(e.id) }
       for (const change of payload.changes || []) {
+        // État de la session (consommation, titre) : rien à peindre dans le fil.
+        if (change.op === 'meta') { meta = true; continue }
         if (change.op === 'add') {
           // l'entrée précédente perd son curseur de frappe
           const prevEntry = tl.entries[tl.entries.indexOf(change.entry) - 1]
@@ -174,8 +177,15 @@ export function ThreadView({ key, navigate }) {
       }
     }
     if (tl.entries.length) feed.querySelector('.thread__status')?.remove()
+    if (meta) syncMeta()
     scrollToEnd()
   })
+
+  /** Ce qui dépend de l'état annoncé par l'agent : titre, date, consommation. */
+  function syncMeta() {
+    syncHeader()
+    composer.setUsage(store.ensureTimeline(key).usage)
+  }
 
   const onState = () => {
     syncHeader()
@@ -194,10 +204,14 @@ export function ThreadView({ key, navigate }) {
 
   function syncHeader() {
     const summary = st.summary || {}
-    title.textContent = summary.title || 'thread'
+    const info = store.ensureTimeline(key).info
+    // Le titre que l'agent annonce en direct devance l'index de Zed (poll 2 s),
+    // sauf si l'utilisateur a renommé le thread : son choix prime.
+    title.textContent = (!summary.titleOverridden && info.title) || summary.title || 'thread'
     dot.className = `dot dot--${st.turn === 'busy' ? 'busy' : st.state || 'closed'}`
-    subtitle.textContent = relTime(summary.updatedAt)
-    subtitle.title = absTime(summary.updatedAt)
+    const updatedAt = (toMs(info.updatedAt) ?? 0) > (toMs(summary.updatedAt) ?? 0) ? info.updatedAt : summary.updatedAt
+    subtitle.textContent = relTime(updatedAt)
+    subtitle.title = absTime(updatedAt)
     pathLabel.textContent = shortPath(summary.folderPaths?.[0], 2)
     pathLabel.title = summary.folderPaths?.join('\n') || ''
     clear(agentSlot)
@@ -348,7 +362,7 @@ export function ThreadView({ key, navigate }) {
   ]
 
   paintAll()
-  syncHeader()
+  syncMeta()
   composer.sync(st)
   setTimeout(() => composer.focus(), 60)
 
@@ -408,12 +422,14 @@ function Composer({ key, onSend, onStop }) {
 
   const micBtn = button('icon-btn', { title: 'Dictée', onclick: dictate }, icon('mic', 'icon--sm'))
   const hint = h('span.composer__hint')
+  // Consommation du contexte, comme sous l'éditeur de Zed : « 27k / 1M ».
+  const usage = h('span.usage.hidden')
 
   const el = h('div.composer', {},
     queueBox,
     h('div.composer__box', {},
       input,
-      h('div.composer__row', {}, micBtn, hint, h('span.spacer'), stopBtn, sendBtn),
+      h('div.composer__row', {}, micBtn, hint, h('span.spacer'), usage, stopBtn, sendBtn),
     ),
   )
 
@@ -482,5 +498,21 @@ function Composer({ key, onSend, onStop }) {
     }
   }
 
-  return { el, sync, focus: () => input.focus() }
+  /** @param {{ used:number, size:number|null, cost:object|null } | null} u */
+  function setUsage(u) {
+    usage.classList.toggle('hidden', !u)
+    if (!u) return
+    const ratio = u.size ? u.used / u.size : null
+    const cost = formatCost(u.cost)
+    usage.textContent = u.size ? `${formatTokens(u.used)} / ${formatTokens(u.size)}` : formatTokens(u.used)
+    usage.classList.toggle('usage--warn', ratio !== null && ratio >= 0.8 && ratio < 0.95)
+    usage.classList.toggle('usage--full', ratio !== null && ratio >= 0.95)
+    const n = (v) => v.toLocaleString('fr-FR')
+    usage.title = [
+      `contexte : ${n(u.used)}${u.size ? ` / ${n(u.size)}` : ''} tokens${ratio !== null ? ` (${Math.round(ratio * 100)} %)` : ''}`,
+      cost ? `coût de la session : ${cost}` : null,
+    ].filter(Boolean).join('\n')
+  }
+
+  return { el, sync, setUsage, focus: () => input.focus() }
 }

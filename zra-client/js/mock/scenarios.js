@@ -122,6 +122,11 @@ export const termOut = (terminalId, output, o = {}) =>
   ({ sessionUpdate: 'zra/terminal_output', terminalId, output, append: true, ...o })
 
 export const plan = (items) => ({ sessionUpdate: 'plan', entries: items })
+/** Formes relevées chez claude-acp : le coût n'accompagne que la fin d'un tour. */
+export const usage = (used, size = 1_000_000, cost) =>
+  ({ sessionUpdate: 'usage_update', used, size, ...(cost !== undefined ? { cost: { amount: cost, currency: 'USD' } } : {}) })
+export const sessionInfo = (title) =>
+  ({ sessionUpdate: 'session_info_update', title, updatedAt: new Date().toISOString() })
 export const permission = (o) => ({
   requestId: o.requestId || `perm-${Math.random().toString(36).slice(2, 8)}`,
   toolCall: o.toolCall,
@@ -187,6 +192,7 @@ const HISTORIES = {
     }),
     agentChunk("C'est corrigé : le décodage est forcé en `utf8` à la lecture. " +
       "Les accents de `Développement` s'affichent correctement.\n"),
+    usage(862_000, 1_000_000, 1.42),
   ],
   d39a5b12: [
     userChunk("Est-ce que l'arbre UIA de Zed expose le composer du panel agent ?"),
@@ -222,6 +228,7 @@ export function fullTurn(prompt) {
   const tcRead = `tc-${rid()}`, tcEdit = `tc-${rid()}`, tcRun = `tc-${rid()}`
   const term = `term-${rid()}`
   return [
+    { at: 60, update: usage(24_310) },
     { at: 120, update: thought("L'utilisateur veut que le lecteur d'index ouvre la base en lecture seule.") },
     { at: 300, update: plan([
       { content: 'Lire le lecteur actuel', priority: 'high', status: 'in_progress' },
@@ -271,6 +278,8 @@ export function fullTurn(prompt) {
       '3. `title_override` prend le pas sur `title`.\n\n' +
       '```js\nconst db = new DatabaseSync(`file:${dbPath}?mode=ro`, { readOnly: true })\n```\n\n' +
       'Les trois tests passent.\n', 5400),
+    { at: 6200, update: usage(31_842, 1_000_000, 0.0873) },
+    { at: 6250, update: sessionInfo("Refactor du lecteur d'index en lecture seule") },
   ]
 }
 
@@ -282,6 +291,7 @@ export function shortTurn(prompt) {
     ...streamSteps(head + "Je m'en occupe. Voici ce que je prévois :\n\n" +
       '- relire le point concerné ;\n- proposer un diff ;\n- lancer les tests.\n\n' +
       'Dis-moi si tu veux que je commence.\n', 400),
+    { at: 1400, update: usage(12_480, 1_000_000, 0.0215) },
   ]
 }
 

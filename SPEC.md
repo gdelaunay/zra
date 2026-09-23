@@ -640,7 +640,11 @@ généraliser.
   ainsi que l'utilisateur pense ses threads. Projet = dossier du thread, nommé
   d'après son dernier segment ; sa ligne se replie (mémorisé) et porte le **+**
   du projet. Plus de **+** global dans la liste (§6.7).
-- Événements ACP à rendre proprement plutôt qu'en bloc générique : `usage_update`
-  (consommation), `session_info_update` (titre, métadonnées).
+- ✅ Événements ACP à rendre proprement plutôt qu'en bloc générique : `usage_update`
+  (consommation), `session_info_update` (titre, métadonnées). Ce sont des états
+  de la session, pas des messages : la consommation vit sous le composer, comme
+  sous l'éditeur de Zed (en alerte à 80 %, en rouge à 95 %) ; le titre annoncé
+  par l'agent remplace celui de l'index dans la top bar, sauf si l'utilisateur a
+  renommé le thread dans Zed.
 - Le streaming est un peu saccadé — secondaire.
 

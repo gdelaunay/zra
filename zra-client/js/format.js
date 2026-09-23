@@ -83,3 +83,26 @@ export function projectOf(folderPaths) {
   const key = paths.map((p) => String(p).replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase()).join('|')
   return { key, name: paths.map(baseName).join(' + '), folderPaths: paths }
 }
+
+/** Nombre de tokens compact, façon Zed : 950, 9.4k, 27k, 1M, 1.5M. */
+export function formatTokens(n) {
+  if (!Number.isFinite(n)) return ''
+  const compact = (v, unit) => `${v >= 10 ? Math.round(v) : Math.round(v * 10) / 10}${unit}`
+  if (n < 1000) return String(Math.round(n))
+  // 999 600 s'arrondit à 1000k : autant écrire 1M.
+  if (Math.round(n / 1000) < 1000) return compact(n / 1000, 'k')
+  return compact(n / 1_000_000, 'M')
+}
+
+/** Coût d'une session : "0,07 $". Sous le centime, on le dit plutôt que d'afficher 0. */
+export function formatCost(cost) {
+  if (!cost || !Number.isFinite(cost.amount)) return ''
+  const fmt = (v) => {
+    try {
+      return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: cost.currency || 'USD', currencyDisplay: 'narrowSymbol', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v)
+    } catch {
+      return `${v.toFixed(2)} ${cost.currency || ''}`.trim()
+    }
+  }
+  return cost.amount > 0 && cost.amount < 0.01 ? `< ${fmt(0.01)}` : fmt(cost.amount)
+}

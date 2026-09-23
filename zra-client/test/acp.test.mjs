@@ -140,3 +140,33 @@ test('mode courant suivi', () => {
   assert.equal(tl.currentModeId, 'plan')
   assert.equal(tl.entries[0].type, 'mode')
 })
+
+test('usage_update : état de la session, jamais une entrée du fil', () => {
+  const tl = new Timeline()
+  const changes = tl.apply({ sessionUpdate: 'usage_update', used: 26663, size: 1000000 })
+  assert.deepEqual(changes, [{ op: 'meta', what: 'usage' }])
+  assert.equal(tl.entries.length, 0, 'ni bulle ni bloc brut')
+  assert.equal(tl.stats.unknown, 0)
+  assert.deepEqual(tl.usage, { used: 26663, size: 1000000, cost: null })
+
+  // Le coût arrive en fin de tour ; l'update suivant, sans coût, le garde.
+  tl.apply({ sessionUpdate: 'usage_update', used: 26695, size: 1000000, cost: { amount: 0.0697446, currency: 'USD' } })
+  tl.apply({ sessionUpdate: 'usage_update', used: 27001, size: 1000000 })
+  assert.deepEqual(tl.usage, { used: 27001, size: 1000000, cost: { amount: 0.0697446, currency: 'USD' } })
+
+  // Malformé : ignoré, sans rien casser.
+  assert.deepEqual(tl.apply({ sessionUpdate: 'usage_update', used: 'beaucoup' }), [])
+  assert.equal(tl.usage.used, 27001)
+})
+
+test('session_info_update : titre et date suivis, champ absent = inchangé', () => {
+  const tl = new Timeline()
+  assert.deepEqual(tl.apply({ sessionUpdate: 'session_info_update', title: 'Confirmation', updatedAt: '2026-09-22T22:46:33.065Z' }),
+    [{ op: 'meta', what: 'info' }])
+  assert.equal(tl.entries.length, 0)
+  assert.deepEqual(tl.info, { title: 'Confirmation', updatedAt: '2026-09-22T22:46:33.065Z' })
+  tl.apply({ sessionUpdate: 'session_info_update', updatedAt: '2026-09-22T23:00:00.000Z' })
+  assert.equal(tl.info.title, 'Confirmation')
+  tl.apply({ sessionUpdate: 'session_info_update', title: null })
+  assert.equal(tl.info.title, null, 'title: null efface')
+})

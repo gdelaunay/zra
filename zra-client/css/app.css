@@ -510,6 +510,13 @@ button { cursor: pointer; }
   margin-top: var(--sp-3);
 }
 .composer__hint { font-size: var(--fs-xs); color: var(--text-disabled); }
+/* Consommation du contexte : discrète, colorée à l'approche de la limite. */
+.usage {
+  font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--text-muted);
+  white-space: nowrap; flex: none;
+}
+.usage--warn { color: var(--warning); }
+.usage--full { color: var(--error); }
 .composer.is-disabled { opacity: .55; pointer-events: none; }
 
 .pill {

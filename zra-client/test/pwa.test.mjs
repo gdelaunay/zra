@@ -95,6 +95,17 @@ test('écran 2 : ouverture du thread live, flux ACP rendu', async () => {
   assert.match($('.term__head').textContent, /term-/)
 })
 
+test('consommation et titre annoncés par l’agent : à leur place, pas dans le fil', async () => {
+  // Dès le début du tour : le contexte consommé, sans coût encore.
+  await until(() => $('.usage') && !$('.usage').classList.contains('hidden'), 3000, 'consommation affichée')
+  // En fin de tour : coût et nouveau titre (session_info_update).
+  await until(() => $('.usage').textContent === '32k / 1M', 9000, 'consommation de fin de tour')
+  assert.match($('.usage').title, /31\s842 \/ 1\s000\s000 tokens \(3 %\)/)
+  assert.match($('.usage').title, /coût de la session : 0,09/)
+  await until(() => /en lecture seule/.test($('.header__title').textContent), 2000, 'titre annoncé par l’agent')
+  assert.ok(!$$('.raw').some((n) => /usage_update|session_info_update/.test(n.textContent)), 'aucun bloc brut')
+})
+
 test('le diff se déplie et se replie', () => {
   const diff = $('.diff')
   assert.equal(diff.classList.contains('is-open'), false)
@@ -325,6 +336,9 @@ test('thread fermé : historique chargé via session/load', async () => {
   await until(() => $$('.msg--user').length >= 1 && $('.tool'), 6000, 'replay')
   assert.match(doc.body.textContent, /encodage/i)
   assert.ok($('.banner') && !$('.banner').classList.contains('hidden'), 'bandeau « thread fermé »')
+  // L'historique rejoue aussi la consommation : 86 % du contexte, en alerte.
+  await until(() => $('.usage')?.textContent === '862k / 1M', 2000, 'consommation de l’historique')
+  assert.ok($('.usage').classList.contains('usage--warn'))
 })
 
 test('agent sans loadSession : message explicite, composer actif', async () => {
