@@ -121,7 +121,7 @@ npm run zed -- recipes                       # recettes en vigueur et pistes can
 npm run zed -- try newThread                 # simulation
 npm run zed -- try newThread --apply         # pour de vrai, compte à rebours de 3 s
 npm run zed -- try newThread --project C:/…/zra --apply   # le « + » d'un projet
-npm run zed -- try openThread --candidate --title "Titre exact" --apply
+npm run zed -- try openThread --title "Titre exact" --apply
 npm run zed -- try --steps '[{"keys":"ctrl+shift+/"}]' --apply   # essai ad hoc
 ```
 
@@ -134,16 +134,12 @@ npm run zed -- try --steps '[{"keys":"ctrl+shift+/"}]' --apply   # essai ad hoc
    dans ce dossier ? Un projet qui n'est ouvert dans aucune fenêtre est le cas à
    essayer aussi.
 2. **`openThread`** — la voie pour rouvrir un thread **précis** par son titre.
-   Aucune n'est éprouvée ; la piste candidate passe par le filtre du sidebar
-   (`agents sidebar: focus sidebar filter`). Tant qu'elle manque, répondre à un
-   thread fermé depuis le mobile échoue avec une erreur explicite.
+   ✅ Éprouvée : `multi workspace: focus workspace sidebar`, taper le titre
+   filtre, `enter` ouvre. Lancer les essais depuis un terminal **hors de Zed** :
+   si une étape rate, le texte part dans le terminal intégré qui a le focus.
 3. **`submit`** — le composer a-t-il le focus après 1 et 2 ?
 
-Puis, une fois les recettes reportées dans `zra.config.json` :
-
-```jsonc
-"zedControl": { "enabled": true, "recipes": { "openThread": [ … ] } }
-```
+Puis, avec `"zedControl": { "enabled": true }` dans `zra.config.json` :
 
 - **+** d'un projet dans la PWA → `new_thread` → le thread s'ouvre dans Zed,
   dans ce projet, et la PWA y navigue ;
@@ -151,6 +147,11 @@ Puis, une fois les recettes reportées dans `zra.config.json` :
   message part ;
 - si le risque 🔴1 s'est avéré au round 1 : `"injection": "auto"` et refaire la
   vérification 3.
+
+**Risque 🟠6** — `"mirrorToZed": true` dans `zra.config.json`, puis rouvrir le
+thread dans Zed (le shim relit la config à son lancement). Envoyer un message
+depuis la PWA : apparaît-il dans le panneau de Zed, avant la réponse ? Et après
+un redémarrage de Zed, est-il affiché une seule fois ?
 
 `npm run daemon:dev -- --zed-control-dry-run` fait tourner le daemon avec le
 pilotage actif mais simulé : les recettes sont résolues et journalisées, aucune

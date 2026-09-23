@@ -266,9 +266,10 @@ lot B n'était jamais branché sur le shim réel.
    d'origine, et le retirer rend le fichier à l'octet près.
 2. **Tout sous `.zra/`** dans le dépôt : journal du shim, trames, sauvegardes.
 3. **Pilotage clavier désactivé par défaut** (`zedControl.enabled`).
-4. **Pas de recette `openThread` par défaut.** Taper un titre au hasard dans
-   Zed pourrait écrire dans le mauvais champ ; tant que la voie n'est pas
-   éprouvée, répondre à un thread fermé échoue explicitement.
+4. **Recette `openThread` éprouvée avant d'être livrée.** Taper un titre au
+   hasard dans Zed pourrait écrire dans le mauvais champ : la piste
+   `agents sidebar: focus sidebar filter` n'existait pas, et le titre a fini
+   dans le terminal intégré. Retenue : `multi workspace: focus workspace sidebar`.
 5. **Le repli `auto` n'a lieu que sur un refus explicite**, pas sur un silence
    de 5 s comme le disait la spec : un agent lent recevrait le message deux
    fois. Le shim attend désormais le verdict de l'agent quand on le lui demande

@@ -123,11 +123,13 @@ function assignOptions(st, p) {
 
 export class AcpBridge extends EventEmitter {
   /**
-   * @param {{ toAgent:(raw:Buffer)=>void, log?:object, cancelTimeoutMs?:number }} opts
+   * @param {{ toAgent:(raw:Buffer)=>void, toZed?:(raw:Buffer)=>void, mirrorToZed?:boolean, log?:object, cancelTimeoutMs?:number }} opts
    */
-  constructor({ toAgent, log = null, cancelTimeoutMs = 5000 }) {
+  constructor({ toAgent, toZed = null, mirrorToZed = false, log = null, cancelTimeoutMs = 5000 }) {
     super()
     this.toAgent = toAgent
+    this.toZed = toZed
+    this.mirrorToZed = Boolean(mirrorToZed && toZed)
     this.log = log
     this.cancelTimeoutMs = cancelTimeoutMs
 
@@ -441,6 +443,25 @@ export class AcpBridge extends EventEmitter {
     }
   }
 
+  /**
+   * Risque 🟠6, expérimental (`mirrorToZed`) : le message du mobile, que Zed
+   * n'a pas émis, lui est annoncé comme l'agent le ferait au `session/load`.
+   * Reste à voir au test réel si Zed l'affiche dans le panneau. Désactivé, la
+   * transparence est entière : ZRA n'écrit rien vers Zed.
+   */
+  mirrorUserMessage(sessionId, prompt) {
+    if (!this.mirrorToZed || !Array.isArray(prompt)) return
+    for (const block of prompt) {
+      if (!block || typeof block !== 'object') continue
+      const msg = {
+        jsonrpc: '2.0',
+        method: 'session/update',
+        params: { sessionId, update: { sessionUpdate: 'user_message_chunk', content: block, _meta: { zra: { synthetic: true, origin: 'mobile' } } } },
+      }
+      try { this.toZed(encodeFrame(msg)) } catch (err) { this.log?.warn('écho vers Zed impossible :', err.message) }
+    }
+  }
+
   /** Écrit une trame **produite par ZRA** vers l'agent. */
   write(msg) {
     this.toAgent(encodeFrame(msg))
@@ -587,6 +608,7 @@ export class AcpBridge extends EventEmitter {
     })
     this.sessions.promptSent(sessionId, k)
     this.publishUserMessage(sessionId, params.prompt, 'mobile')
+    this.mirrorUserMessage(sessionId, params.prompt)
     try {
       this.write({ jsonrpc: '2.0', id, method: M.sessionPrompt, params })
     } catch (err) {
