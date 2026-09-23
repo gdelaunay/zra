@@ -163,22 +163,23 @@ touche ne part.
 > Procédure complète : **`DEPLOY.md`**. Ici, seulement ce qu'il faut vérifier
 > et me rapporter à chaque étape.
 
-1. **Tunnel** — `npm run wireguard -- init --endpoint …`, QR scanné, tunnel
-   monté des deux côtés. `npm run wireguard` voit l'interface `ZRA` ; depuis le
-   téléphone, `http://10.77.0.1:7777` affiche la PWA. En 4G aussi, pas
-   seulement sur le Wi-Fi.
-2. **Daemon en mode normal** — `"bindInterface": "ZRA"`, `npm run daemon` :
-   le journal annonce l'écoute sur `10.77.0.1`. Désactiver puis réactiver le
-   tunnel dans WireGuard : « tunnel disparu », puis « tunnel apparu », sans
-   redémarrer le daemon.
-3. **HTTPS** — domaine → 10.77.0.1, `scripts/cert.ps1` (d'abord `-Staging`),
-   `tls` dans `zra.config.json`. `https://zra.exemple.fr:7777` sans alerte de
-   certificat ; **installation sur l'écran d'accueil** proposée ; l'app installée
-   s'ouvre tunnel coupé (service worker) et affiche « poste injoignable ».
-4. **Démarrage automatique** — `npm run service -- install --apply`, fermer la
+1. **Local** — `npm run daemon` : le journal annonce l'écoute sur l'IP locale et
+   un code. Téléphone sur le même Wi-Fi : `http://<IP locale>:7777` affiche la
+   PWA avec « appairage requis ».
+2. **Appairage** — saisir le code : les threads apparaissent. Fermer et
+   rouvrir la PWA : pas de code redemandé. `npm run pair` liste le téléphone ;
+   `npm run pair -- revoke <id>` : la PWA redemande un code.
+3. **À distance** — 4G + tunnel wg-easy actif : **même adresse**, même PWA,
+   sans rien toucher. Couper le tunnel : « poste injoignable » ; le remettre :
+   reconnexion seule.
+4. **Changement de réseau** — le poste passe d'un Wi-Fi à l'autre (ou câble
+   ↔ Wi-Fi) : le journal annonce la nouvelle écoute, sans redémarrage.
+5. **Démarrage automatique** — `npm run service -- install --apply`, fermer la
    session, la rouvrir : `npm run service` montre le daemon, **aucune fenêtre**
-   à l'écran. Le téléphone s'y connecte sans rien toucher au poste.
-5. **À l'usage** — liste groupée par projet, streaming fluide, consommation sous
+   à l'écran.
+6. **HTTPS** (si le temps le permet) — domaine, `scripts/cert.ps1 -Staging`
+   d'abord, puis l'installation sur l'écran d'accueil.
+7. **À l'usage** — liste groupée par projet, streaming fluide, consommation sous
    le composer, envoi depuis le téléphone, réponse à une permission.
 
 À me rapporter : ce qui a bloqué, le journal (`npm run service -- logs`) et,

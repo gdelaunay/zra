@@ -24,9 +24,9 @@ dans le bouchon.
 |---|---|
 | API | un seul WebSocket : `ws://<hôte>:7777/ws`, ou `wss://` si le daemon a un certificat |
 | Statiques | **optionnelles** : le client est servi ailleurs en production ; en dev/repli `GET http://<hôte>:7777/` sert `zra-client/` tel quel |
-| Écoute | `127.0.0.1` + IP du tunnel WireGuard, **jamais** `0.0.0.0` (§9 de la spec) |
+| Écoute | `127.0.0.1` + réseau local + tunnel éventuel, **jamais** `0.0.0.0` (§9 de la spec) |
 | Origine | allowlist stricte sur le handshake ; une requête sans `Origin` est acceptée |
-| Auth | aucune en v1 ; le middleware `authenticate()` existe et retourne `true` |
+| Auth | appairage hors loopback : `hello.token`, sinon `auth_required` puis `pair` (§3) |
 | Encodage | JSON UTF-8, une trame WebSocket texte = un message |
 
 **Client et daemon sont décorrélés.** Le navigateur télécharge les statiques d'un
@@ -88,11 +88,24 @@ Règles :
 
 ### `hello`
 ```ts
-{ type: 'hello', clientId: string }
+{ type: 'hello', clientId: string, token?: string }
 ```
 Premier message. `clientId` est un identifiant stable stocké en `localStorage`
-(utile pour les logs et, plus tard, Web Push). Aucune réponse obligatoire, mais
-le daemon en profite pour envoyer le bootstrap.
+(utile pour les logs et, plus tard, Web Push). Le daemon répond le bootstrap —
+ou, pour un client hors loopback sans jeton valide, `auth_required`.
+
+### `pair`
+```ts
+{ type: 'pair', code: string, label?: string }
+```
+Appairage (spec §9) : `code` est celui que le daemon affiche (6 chiffres,
+espaces tolérés), `label` nomme l'appareil (« Android · Chrome »). Réponse :
+`paired` puis le bootstrap, ou `error` `pair_failed` (code faux) /
+`pair_locked` (trop d'essais, le message dit quand réessayer).
+
+**Avant l'appairage**, le daemon ignore tout sauf `hello` et `pair`, sans
+répondre (la file rejouée par la PWA à la connexion ne produit pas une rafale
+d'erreurs), et n'envoie aucune diffusion. La loopback est exemptée.
 
 ### `list_threads`
 ```ts
@@ -202,6 +215,17 @@ deux, et la barre mock ne s'affiche que si `machine.version` se termine par
 
 ## 4. Daemon → mobile
 
+### `auth_required` / `paired`
+```ts
+{ type: 'auth_required', name: string, reason?: string | null }
+{ type: 'paired', token: string, clientId: string }
+```
+`auth_required` : ce client doit s'appairer — `name` pour l'afficher, `reason`
+si un jeton a été présenté et refusé (révoqué) ; la PWA oublie alors ce jeton.
+`paired` : le jeton à garder et à présenter dans chaque `hello` ; `clientId` est
+l'identifiant de l'appareil côté poste (`npm run pair -- revoke <id>`).
+Révoqué, un appareil voit sa connexion fermée (code 4401).
+
 ### `machine`
 ```ts
 {
@@ -211,6 +235,7 @@ deux, et la barre mock ne s'affiche que si `machine.version` se termine par
   zedRunning?: boolean,    // false => bandeau « Zed fermé »
   version?: string,        // suffixe `-mock` => la PWA active sa barre de dev
   agents?: Array<{ id: string, name?: string }>,  // registry agent_servers
+  urls?: string[],         // adresses du poste hors loopback (IP locales, ou noms du certificat)
 }
 ```
 Envoyé au bootstrap, et à chaque changement notable (Zed lancé/fermé).
@@ -381,6 +406,8 @@ français. Codes attendus par la PWA (les autres passent aussi) :
 | `permission_expired` | demande déjà tranchée | toast, encart verrouillé |
 | `new_thread_failed` | Zed n'a pas ouvert de session | toast |
 | `unknown_message` | message non supporté | toast |
+| `pair_failed` | code d'appairage faux | toast, la saisie reste ouverte |
+| `pair_locked` | trop d'essais depuis cette adresse | toast (« réessaie dans N s ») |
 
 ---
 

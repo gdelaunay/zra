@@ -14,6 +14,7 @@ import { settings, update as updateSettings } from '../settings.js'
 import { openMenu } from '../ui.js'
 import { openSettings } from './settings.js'
 import { newSessionButton } from './new-session.js'
+import { openPairSheet } from './pair.js'
 
 const FILTERS = [
   { id: 'all', label: 'Tous' },
@@ -71,6 +72,13 @@ export function ThreadsView({ navigate }) {
       total += rows.length
 
       list.append(machineHead(m))
+      if (m.status === 'locked') {
+        // Le poste répond, mais ne parle qu'aux appareils appairés (spec §9).
+        list.append(h('div.empty', { style: { padding: '12px' } },
+          h('span', { text: 'Ce poste ne connaît pas encore ce téléphone.' }),
+          button('btn.btn--accent.btn--sm', { onclick: () => openPairSheet(m) }, icon('lock', 'icon--sm'), 'Saisir le code')))
+        continue
+      }
       if (m.status !== 'online') {
         list.append(h('div.empty', { style: { padding: '12px' } },
           h('span', { text: m.status === 'connecting' ? 'connexion…' : (m.error || 'poste injoignable') }),
@@ -133,7 +141,9 @@ function header({ navigate }) {
 }
 
 function machineHead(m) {
-  const status = m.status === 'online' ? 'en ligne' : m.status === 'connecting' ? 'connexion…' : 'hors ligne'
+  const status = m.status === 'online' ? 'en ligne'
+    : m.status === 'connecting' ? 'connexion…'
+      : m.status === 'locked' ? 'appairage requis' : 'hors ligne'
   return h('div.group__head', {},
     h(`span.dot.dot--${m.status === 'online' ? 'live' : 'unknown'}`),
     h('span.group__name', { text: m.info?.name || m.label || m.url }),

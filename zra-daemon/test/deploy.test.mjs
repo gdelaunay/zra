@@ -49,6 +49,9 @@ async function boot(t, overrides = {}) {
       zedProbeMs: 60_000,
       logFile: null,
       injection: 'mock',
+      // Les interfaces factices ont des IP inventées : le réseau local ne s'écoute
+      // que dans les tests qui le demandent, sur des adresses de la loopback.
+      bindLan: false,
       ...overrides,
     },
   })
@@ -73,7 +76,7 @@ function reachable(host, { scheme = 'ws', origin } = {}) {
 
 test('sans tunnel ni --wait-tunnel : refus de démarrer (spec §9)', async () => {
   const config = await loadConfig({
-    overrides: { port: PORT, zedDb: FIXTURE, logFile: null, requireTunnel: true, interfaces: () => [] },
+    overrides: { port: PORT, zedDb: FIXTURE, logFile: null, requireTunnel: true, bindLan: false, interfaces: () => [] },
   })
   await assert.rejects(() => startDaemon(config), (e) => e.code === 'no_tunnel')
 })
@@ -119,9 +122,34 @@ test('un client connecté par la loopback survit aux allers-retours du tunnel', 
   assert.equal(closed, false)
 })
 
+test('réseau local : écouté sans tunnel, suivi quand le Wi-Fi change d’adresse', async (t) => {
+  // « Wi-Fi » sur 127.0.0.3 puis 127.0.0.4 : deux vraies adresses de la loopback,
+  // tenues pour le réseau local par `lanCidrs`.
+  let ifaces = [{ name: 'Wi-Fi', address: '127.0.0.3' }]
+  const daemon = await boot(t, { bindLan: true, lanCidrs: ['127.0.0.0/8'], tunnelPollMs: 30, interfaces: () => ifaces })
+  assert.deepEqual(daemon.servers.addresses, ['127.0.0.1', '127.0.0.3'])
+  assert.deepEqual(daemon.machine.urls, [`http://127.0.0.3:${PORT}`], 'le poste annonce son adresse locale')
+  assert.equal(await reachable('127.0.0.3'), true)
+
+  ifaces = [{ name: 'Wi-Fi', address: '127.0.0.4' }]
+  await until(() => daemon.servers.addresses.includes('127.0.0.4') && !daemon.servers.addresses.includes('127.0.0.3'),
+    { label: 'nouvelle adresse' })
+  assert.equal(await reachable('127.0.0.4'), true)
+  assert.equal(await reachable('127.0.0.3'), false)
+  assert.deepEqual(daemon.machine.urls, [`http://127.0.0.4:${PORT}`])
+})
+
+test('réseau local et tunnel ensemble : chacun son écoute', async (t) => {
+  const daemon = await boot(t, {
+    bindLan: true, lanCidrs: ['127.0.0.0/8'], bindInterface: 'ZRA',
+    interfaces: () => [{ name: 'Wi-Fi', address: '127.0.0.3' }, { name: 'ZRA', address: TUNNEL }],
+  })
+  assert.deepEqual(daemon.servers.addresses, ['127.0.0.1', '127.0.0.3', TUNNEL])
+})
+
 test('port déjà pris : erreur explicite, pas une pile', async (t) => {
   await boot(t, { requireTunnel: false })
-  const config = await loadConfig({ overrides: { port: PORT, zedDb: FIXTURE, logFile: null, requireTunnel: false } })
+  const config = await loadConfig({ overrides: { port: PORT, zedDb: FIXTURE, logFile: null, bindLan: false, bindTunnel: false } })
   await assert.rejects(() => startDaemon(config), (e) => e.code === 'port_in_use' && /un autre zra-daemon/.test(e.message))
 })
 

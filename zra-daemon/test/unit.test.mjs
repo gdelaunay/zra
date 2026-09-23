@@ -8,7 +8,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { parseJsonc, stripJsonc } from '../jsonc.js'
-import { inCidr, findTunnel, resolveBinds, listInterfaces, bindAddresses, TunnelWatch, TunnelMissingError } from '../net.js'
+import { inCidr, isPrivate, findTunnel, findLan, resolveBinds, listInterfaces, bindAddresses, NetWatch, TunnelMissingError } from '../net.js'
 import { acceptKey, encodeFrame, createDecoder } from '../ws.js'
 import { toIso, splitFolderPaths } from '../threads-index.js'
 import { RingBuffers } from '../ring-buffer.js'
@@ -69,55 +69,59 @@ test('findTunnel : nom configuré, puis plage, puis motif connu', () => {
   assert.equal(findTunnel({ bindInterface: 'absent' }, FAKE_IFACES), null)
 })
 
-test('findTunnel : aucune déduction par plage privée sans consigne explicite', () => {
-  // Le Wi-Fi du bureau est aussi en 192.168. : se tromper exposerait le port.
+test('findTunnel : le Wi-Fi n’est jamais pris pour le tunnel', () => {
   const wifiOnly = [{ name: 'Wi-Fi', address: '192.168.1.42' }]
   assert.equal(findTunnel({}, wifiOnly), null)
 })
 
-test('resolveBinds : loopback + tunnel, jamais 0.0.0.0', () => {
-  const { addresses, tunnel } = resolveBinds({ requireTunnel: true, bindLoopback: true }, FAKE_IFACES)
-  assert.deepEqual(addresses, ['127.0.0.1', '10.7.0.2'])
+test('réseau local : IPv4 privées hors tunnel, jamais une IP publique', () => {
+  assert.ok(isPrivate('192.168.1.42') && isPrivate('10.8.0.3') && isPrivate('172.20.1.1') && isPrivate('100.101.1.2'))
+  assert.ok(!isPrivate('82.64.1.2') && !isPrivate('172.32.0.1') && !isPrivate('169.254.3.4'))
+  const ifaces = [...FAKE_IFACES, { name: 'Box', address: '82.64.1.2' }]
+  assert.deepEqual(findLan({}, ifaces).map((i) => i.address), ['192.168.1.42'], 'le tunnel et l’IP publique à part')
+  assert.deepEqual(findLan({ lanCidrs: ['10.0.0.0/8'] }, [{ name: 'Wi-Fi', address: '192.168.1.42' }]), [], 'restreint')
+  assert.deepEqual(findLan({ bindLan: false }, ifaces), [])
+})
+
+test('resolveBinds : loopback, réseau local et tunnel, jamais 0.0.0.0', () => {
+  const { addresses, tunnel, lan } = resolveBinds({}, FAKE_IFACES)
+  assert.deepEqual(addresses, ['127.0.0.1', '192.168.1.42', '10.7.0.2'])
   assert.equal(tunnel.name, 'ZRA')
+  assert.equal(lan[0].name, 'Ethernet')
   assert.ok(!addresses.includes('0.0.0.0'))
+  assert.deepEqual(resolveBinds({ bindTunnel: false, bindLan: false }, FAKE_IFACES).addresses, ['127.0.0.1'], 'loopback seule')
 })
 
-test('resolveBinds : refus de démarrer sans tunnel (spec §9)', () => {
-  assert.throws(
-    () => resolveBinds({ requireTunnel: true, bindLoopback: true }, [{ name: 'Wi-Fi', address: '192.168.1.42' }]),
-    TunnelMissingError,
-  )
-  // Mode dev assumé : loopback seule.
-  const dev = resolveBinds({ requireTunnel: false, bindLoopback: true }, [])
-  assert.deepEqual(dev.addresses, ['127.0.0.1'])
+test('resolveBinds : requireTunnel refuse de démarrer sans tunnel, waitTunnel l’attend', () => {
+  const wifi = [{ name: 'Wi-Fi', address: '192.168.1.42' }]
+  assert.throws(() => resolveBinds({ requireTunnel: true }, wifi), TunnelMissingError)
+  assert.deepEqual(resolveBinds({}, wifi).addresses, ['127.0.0.1', '192.168.1.42'], 'par défaut, le tunnel est facultatif')
+  const waiting = resolveBinds({ requireTunnel: true, waitTunnel: true }, wifi)
+  assert.equal(waiting.tunnel, null)
+  assert.deepEqual(waiting.addresses, ['127.0.0.1', '192.168.1.42'])
 })
 
-test('resolveBinds : waitTunnel démarre en loopback au lieu de refuser', () => {
-  const out = resolveBinds({ requireTunnel: true, waitTunnel: true, bindLoopback: true }, [{ name: 'Wi-Fi', address: '192.168.1.42' }])
-  assert.deepEqual(out.addresses, ['127.0.0.1'])
-  assert.equal(out.tunnel, null)
-})
-
-test('bindAddresses : loopback + tunnel, et rien que ça', () => {
+test('bindAddresses : chaque adresse une fois, jamais un joker', () => {
   assert.deepEqual(bindAddresses({}, null), ['127.0.0.1'])
-  assert.deepEqual(bindAddresses({}, { address: '10.7.0.2' }), ['127.0.0.1', '10.7.0.2'])
+  assert.deepEqual(bindAddresses({}, { address: '10.7.0.2' }, [{ address: '192.168.1.42' }]), ['127.0.0.1', '192.168.1.42', '10.7.0.2'])
   assert.throws(() => bindAddresses({}, { address: '0.0.0.0' }), /interdite/)
 })
 
-test('TunnelWatch : apparition, changement d’IP, disparition — une seule fois chacun', () => {
+test('NetWatch : tunnel apparu, changé, disparu ; Wi-Fi changé — une seule fois chacun', () => {
   let ifaces = [{ name: 'Wi-Fi', address: '192.168.1.42' }]
   const seen = []
-  const watch = new TunnelWatch({ bindInterface: 'ZRA' }, { interfaces: () => ifaces })
-  watch.onChange((next, prev) => seen.push(`${prev?.address ?? '∅'}→${next?.address ?? '∅'}`))
+  const watch = new NetWatch({ bindInterface: 'ZRA' }, { interfaces: () => ifaces })
+  watch.onChange((next) => seen.push(next.addresses.slice(1).join('+') || '∅'))
   watch.check()
-  assert.deepEqual(seen, [], 'rien au départ : pas de tunnel, pas de changement')
+  assert.deepEqual(seen, ['192.168.1.42'], 'premier relevé')
+  watch.check()
   ifaces = [...ifaces, { name: 'ZRA', address: '10.7.0.2' }]
   watch.check(); watch.check()
-  ifaces = [{ name: 'ZRA', address: '10.7.0.3' }]
+  ifaces = [{ name: 'Wi-Fi', address: '192.168.1.42' }, { name: 'ZRA', address: '10.7.0.3' }]
   watch.check()
-  ifaces = []
+  ifaces = [{ name: 'Wi-Fi', address: '10.1.4.7' }]
   watch.check(); watch.check()
-  assert.deepEqual(seen, ['∅→10.7.0.2', '10.7.0.2→10.7.0.3', '10.7.0.3→∅'])
+  assert.deepEqual(seen, ['192.168.1.42', '192.168.1.42+10.7.0.2', '192.168.1.42+10.7.0.3', '10.1.4.7'])
 })
 
 test('listInterfaces ignore la loopback et l’IPv6', () => {

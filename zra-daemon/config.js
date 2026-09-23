@@ -29,18 +29,28 @@ export const DEFAULTS = {
   bindInterface: null,
   /** Repli de détection par plage, ex. "10.0.0.0/24". */
   bindCidr: null,
-  /** Toujours vrai en pratique : le mode dev passe par la loopback. */
+  /** Toujours vrai en pratique : les shims de Zed passent par la loopback. */
   bindLoopback: true,
+  /**
+   * Écouter le réseau local (IPv4 privées). Le téléphone sur le même Wi-Fi s'y
+   * connecte en direct ; à distance, un tunnel « tout le trafic » (wg-easy,
+   * AllowedIPs 0.0.0.0/0) y mène aussi. Appairage obligatoire (`auth`).
+   */
+  bindLan: true,
+  /** Restreindre le réseau local à ces plages, ex. ["192.168.1.0/24"]. `null` : toutes les IPv4 privées. */
+  lanCidrs: null,
+  /** Écouter l'interface d'un tunnel monté sur le poste, s'il y en a une. */
+  bindTunnel: true,
   /** Refus de démarrer si aucune interface de tunnel n'est trouvée. */
-  requireTunnel: true,
+  requireTunnel: false,
   /**
    * Plutôt que refuser : démarrer en loopback et écouter le tunnel dès qu'il
    * apparaît. Le mode de la tâche planifiée (`npm run service`), lancée à
    * l'ouverture de session, parfois avant que WireGuard ait monté l'adaptateur.
    */
   waitTunnel: false,
-  /** Sondage des interfaces : tunnel apparu, disparu, changé d'IP. */
-  tunnelPollMs: 5000,
+  /** Sondage des interfaces : tunnel apparu ou disparu, Wi-Fi changé, IP renouvelée. */
+  tunnelPollMs: 10_000,
 
   // --- client web -----------------------------------------------------------
   /**
@@ -60,6 +70,17 @@ export const DEFAULTS = {
 
   /** `{ cert, key }` => HTTPS + wss. Absent => HTTP + ws. */
   tls: null,
+
+  /**
+   * Appairage (spec §9) : hors loopback, un client présente un jeton obtenu une
+   * fois contre le code affiché par le daemon. `file` : les clients appairés
+   * (jetons hachés). `required: false` ouvre tout — dev isolé seulement.
+   */
+  auth: {
+    required: true,
+    exemptLoopback: true,
+    file: '.zra/auth.json',
+  },
 
   // --- sources --------------------------------------------------------------
   zedDb: null,
@@ -131,6 +152,7 @@ function envOverrides() {
   if (e.ZRA_BIND_CIDR) out.bindCidr = e.ZRA_BIND_CIDR
   if (e.ZRA_REQUIRE_TUNNEL) out.requireTunnel = e.ZRA_REQUIRE_TUNNEL !== '0'
   if (e.ZRA_WAIT_TUNNEL) out.waitTunnel = e.ZRA_WAIT_TUNNEL !== '0'
+  if (e.ZRA_BIND_LAN) out.bindLan = e.ZRA_BIND_LAN !== '0'
   if (e.ZRA_SERVE_STATIC) out.serveStatic = e.ZRA_SERVE_STATIC !== '0'
   if (e.ZRA_STATIC_DIR) out.staticDir = e.ZRA_STATIC_DIR
   if (e.ZRA_ALLOWED_ORIGINS) out.allowedOrigins = e.ZRA_ALLOWED_ORIGINS.split(',').map((s) => s.trim()).filter(Boolean)
@@ -164,6 +186,8 @@ export async function loadConfig({ file = process.env.ZRA_CONFIG || join(ROOT, '
   // Fusion d'un niveau : `"zedControl": { "enabled": true }` ne doit pas effacer le reste.
   cfg.zedControl = { ...DEFAULTS.zedControl, ...fromFile.zedControl, ...overrides.zedControl }
   if (process.env.ZRA_ZED_CONTROL) cfg.zedControl.enabled = process.env.ZRA_ZED_CONTROL !== '0'
+  cfg.auth = { ...DEFAULTS.auth, ...fromFile.auth, ...overrides.auth }
+  cfg.auth.file = cfg.auth.file ? abs(cfg.auth.file) : null
 
   cfg.zedDb = abs(cfg.zedDb) || ZED.db
   cfg.zedSettings = abs(cfg.zedSettings) || ZED.settings

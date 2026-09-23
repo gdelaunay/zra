@@ -4,14 +4,21 @@
 {
   "port": 7777,
 
-  // Écoute — spec §9. Jamais 0.0.0.0 : loopback + IP du tunnel, rien d'autre.
-  // "bindInterface" est le nom de l'adaptateur WireGuard (sous Windows, celui
-  // de la configuration du tunnel). À défaut, "bindCidr" sert de repli.
+  // Écoute — spec §9. Jamais 0.0.0.0 : la loopback, le réseau local et le
+  // tunnel éventuel, chacun sur son adresse. Hors loopback, appairage obligatoire.
+  //
+  // Réseau local (IPv4 privées) : le téléphone sur le même Wi-Fi, et à distance
+  // à travers un tunnel « tout le trafic » (wg-easy, AllowedIPs 0.0.0.0/0) qui
+  // débouche sur ce réseau. "lanCidrs" : le restreindre, ex. ["192.168.1.0/24"].
+  "bindLan": true,
+  "lanCidrs": null,
+  // Tunnel monté sur le poste lui-même (facultatif) : "bindInterface" est le nom
+  // de son adaptateur, "bindCidr" un repli par plage ; sinon détection par nom.
+  "bindTunnel": true,
   "bindInterface": null,
   "bindCidr": null,
-  "requireTunnel": true,
-  // La tâche planifiée (npm run service) lance le daemon en --wait-tunnel :
-  // loopback d'abord, écoute du tunnel dès qu'il apparaît. Voir DEPLOY.md.
+  // true : refuser de démarrer sans tunnel (--wait-tunnel : l'attendre).
+  "requireTunnel": false,
 
   // Client web. Le déploiement retenu (DEPLOY.md) : le daemon le sert lui-même,
   // en HTTPS sur l'IP du tunnel — même origine que le WebSocket. S'il est servi

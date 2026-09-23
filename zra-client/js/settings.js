@@ -24,16 +24,18 @@ function load() {
     lastThread: s.lastThread || null,
     /** Projets repliés dans la liste, clé `${machineId}|${projectKey}`. */
     collapsedProjects: Array.isArray(s.collapsedProjects) ? s.collapsedProjects.filter((k) => typeof k === 'string') : [],
+    /** Jetons d'appairage, par adresse de poste (spec §9). */
+    tokens: s.tokens && typeof s.tokens === 'object' ? s.tokens : {},
   }
 }
 
 export const settings = load()
 
 function persist() {
-  const { machines, theme, clientId, defaultSendMode, showThoughts, expandTools, mock, lastThread, collapsedProjects } = settings
+  const { machines, theme, clientId, defaultSendMode, showThoughts, expandTools, mock, lastThread, collapsedProjects, tokens } = settings
   try {
     localStorage.setItem(KEY, JSON.stringify({
-      machines, theme, clientId, defaultSendMode, showThoughts, expandTools, mock, lastThread, collapsedProjects,
+      machines, theme, clientId, defaultSendMode, showThoughts, expandTools, mock, lastThread, collapsedProjects, tokens,
     }))
   } catch { /* mode privé : on tourne en mémoire */ }
 }
@@ -119,4 +121,14 @@ export function originMachine() {
     label: local ? 'ce poste' : location.hostname,
     implicit: true,
   }
+}
+
+/** Jeton d'appairage d'un poste, ou `null`. */
+export const tokenFor = (url) => settings.tokens[url] ?? null
+
+export function setToken(url, token) {
+  const tokens = { ...settings.tokens }
+  if (token) tokens[url] = token
+  else delete tokens[url]
+  update({ tokens })
 }

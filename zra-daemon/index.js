@@ -2,7 +2,7 @@
 // zra-daemon — un par poste, long-running (spec §3.2).
 //
 //   node zra-daemon/index.js
-//   node zra-daemon/index.js --port 7777 --no-tunnel --no-static --injection mock
+//   node zra-daemon/index.js --port 7777 --loopback-only --no-static --injection mock
 //
 // Il lit l'index des threads de Zed, accueille les shims sur `/shim` et parle le
 // protocole ZRA à la PWA sur `/ws`. Le pilotage de la fenêtre Zed — ouvrir une
@@ -22,7 +22,9 @@ function parseArgs(argv) {
     if (a === '--port') out.port = Number(argv[++i])
     else if (a === '--interface') out.bindInterface = argv[++i]
     else if (a === '--cidr') out.bindCidr = argv[++i]
-    else if (a === '--no-tunnel') out.requireTunnel = false
+    else if (a === '--no-tunnel') { out.requireTunnel = false; out.bindTunnel = false }
+    else if (a === '--no-lan') out.bindLan = false
+    else if (a === '--loopback-only') Object.assign(out, { bindLan: false, bindTunnel: false, requireTunnel: false })
     else if (a === '--wait-tunnel') out.waitTunnel = true
     else if (a === '--log') out.daemonLogFile = argv[++i]
     else if (a === '--no-static') out.serveStatic = false
@@ -45,7 +47,9 @@ function usage() {
   --port <n>           port d'écoute (défaut 7777)
   --interface <nom>    adaptateur WireGuard à utiliser
   --cidr <plage>       repli de détection du tunnel, ex. 10.0.0.0/24
-  --no-tunnel          démarrer en loopback seule (dev)
+  --loopback-only      écouter la loopback seule (dev : ni réseau local ni tunnel)
+  --no-lan             ne pas écouter le réseau local
+  --no-tunnel          ne pas écouter l'interface d'un tunnel
   --wait-tunnel        tunnel absent : démarrer en loopback et l'attendre
                        (au lieu de refuser — mode de la tâche planifiée)
   --log <fichier>      journal aussi dans ce fichier (rotation à 5 Mo)

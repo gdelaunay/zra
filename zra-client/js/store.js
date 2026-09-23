@@ -6,7 +6,7 @@
 import { emitter } from './dom.js'
 import { DaemonLink } from './link.js'
 import { Timeline, blocksText } from './acp.js'
-import { settings, originMachine } from './settings.js'
+import { settings, originMachine, tokenFor, setToken } from './settings.js'
 import { MockLink } from './mock/mock-link.js'
 
 const e = emitter()
@@ -56,7 +56,7 @@ export function addMachine(cfg) {
     error: null,
     link: state.mock
       ? new MockLink({ id: cfg.id, url: cfg.url, label: cfg.label, clientId: settings.clientId })
-      : new DaemonLink({ id: cfg.id, url: cfg.url, clientId: settings.clientId }),
+      : new DaemonLink({ id: cfg.id, url: cfg.url, clientId: settings.clientId, token: () => tokenFor(cfg.url) }),
   }
   state.machines.set(cfg.id, machine)
   wire(machine)
@@ -79,12 +79,7 @@ function wire(machine) {
     machine.status = status
     if (status === 'online') {
       machine.error = null
-      machine.link.send({ type: 'list_threads' })
-      // Réabonnement des threads déjà ouverts après une coupure.
-      for (const [k, st] of state.threadStates) {
-        const { machineId, threadId } = splitKey(k)
-        if (machineId === machine.id && st.subscribed) machine.link.send({ type: 'subscribe', threadId })
-      }
+      resync(machine)
     } else if (status === 'offline') {
       machine.error = machine.link.lastError
     }
@@ -94,8 +89,37 @@ function wire(machine) {
   machine.link.on('message', (msg) => handle(machine, msg))
 }
 
+/** Liste et abonnements, après une reconnexion ou un appairage. */
+function resync(machine) {
+  machine.link.send({ type: 'list_threads' })
+  // Réabonnement des threads déjà ouverts après une coupure.
+  for (const [k, st] of state.threadStates) {
+    const { machineId, threadId } = splitKey(k)
+    if (machineId === machine.id && st.subscribed) machine.link.send({ type: 'subscribe', threadId })
+  }
+}
+
 function handle(machine, msg) {
   switch (msg.type) {
+    // Appairage (spec §9) : le poste ne répond qu'à un appareil appairé.
+    case 'auth_required':
+      // Jeton refusé (révoqué, poste réinstallé) : il ne sert plus à rien.
+      if (tokenFor(machine.url)) setToken(machine.url, null)
+      machine.status = 'locked'
+      machine.error = 'appairage requis'
+      if (msg.name && (machine.implicit || !machine.label)) machine.label = msg.name
+      emit('machines')
+      break
+
+    case 'paired':
+      setToken(machine.url, msg.token)
+      machine.status = 'online'
+      machine.error = null
+      emit('machines')
+      emit('paired', { machineId: machine.id })
+      resync(machine)
+      break
+
     case 'machine':
       machine.info = msg
       if (msg.name) machine.label = machine.implicit || !machine.label ? msg.name : machine.label
@@ -370,8 +394,23 @@ export function cancelQueued(k, queueId) {
 export function refreshAll() {
   for (const m of state.machines.values()) {
     if (m.status === 'online') m.link.send({ type: 'list_threads' })
-    else m.link.wake?.()
+    else if (m.status !== 'locked') m.link.wake?.()
   }
+}
+
+/** Nom de l'appareil, tel que `npm run pair` le listera : « Android · Chrome ». */
+function deviceLabel() {
+  const ua = globalThis.navigator?.userAgent || ''
+  const os = /Android/.test(ua) ? 'Android' : /iPhone|iPad/.test(ua) ? 'iOS' : /Windows/.test(ua) ? 'Windows' : /Mac/.test(ua) ? 'macOS' : /Linux/.test(ua) ? 'Linux' : 'appareil'
+  const browser = /Edg\//.test(ua) ? 'Edge' : /Firefox\//.test(ua) ? 'Firefox' : /Chrome\//.test(ua) ? 'Chrome' : /Safari\//.test(ua) ? 'Safari' : null
+  return browser ? `${os} · ${browser}` : os
+}
+
+/** Échange le code affiché par le poste contre un jeton (`paired`, ou `error`). */
+export function pair(machineId, code) {
+  const m = state.machines.get(machineId)
+  if (!m) return
+  m.link.send({ type: 'pair', code: String(code).replace(/\D/g, ''), label: deviceLabel() })
 }
 
 /** Tous les threads connus, tous postes confondus. */

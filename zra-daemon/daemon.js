@@ -17,9 +17,10 @@ import { SessionLoader } from './session-loader.js'
 import { ZedDriver, KeyboardRunner, ZedCli } from './zed/driver.js'
 import { ZedControl } from './zed/control.js'
 import { createServers } from './server.js'
-import { TunnelWatch, bindAddresses, resolveBinds } from './net.js'
+import { NetWatch, resolveBinds } from './net.js'
 import { ZedPresence, machineName, osLabel, readAgents } from './agents.js'
 import { injectionLog, logger } from './log.js'
+import { Pairing } from './auth.js'
 
 const log = logger('daemon')
 
@@ -45,6 +46,8 @@ class Machine {
     this.version = version
     this.agents = agents
     this.zedRunning = false
+    /** Adresses par lesquelles le poste se joint, hors loopback (protocole §4). */
+    this.urls = []
   }
 
   describe() {
@@ -54,14 +57,15 @@ class Machine {
       version: this.version,
       zedRunning: this.zedRunning,
       agents: this.agents,
+      urls: this.urls,
     }
   }
 }
 
 /** @param {object} config résultat de `loadConfig()` */
 export async function startDaemon(config) {
-  // `config.interfaces` : interfaces factices, pour les tests du suivi du tunnel.
-  const { addresses, tunnel } = resolveBinds(config, config.interfaces?.())
+  // `config.interfaces` : interfaces factices, pour les tests du suivi du réseau.
+  const { addresses, tunnel, lan } = resolveBinds(config, config.interfaces?.())
 
   const shims = new ShimRegistry()
   const threads = new ThreadsIndex({ file: config.zedDb, pollMs: config.pollMs, shims })
@@ -124,9 +128,12 @@ export async function startDaemon(config) {
     emit: (threadId, update) => hub.publish(threadId, update),
   })
 
+  // Appairage : tout client hors loopback présente un jeton (spec §9).
+  const pairing = config.auth.required ? new Pairing({ file: config.auth.file, log: logger('auth') }) : null
+
   hub = new Hub({
     config, threads, states, rings, shims, backend, machine, recordInjection: record, loader,
-    zed: control, covers: (sessionId) => host.covers(sessionId),
+    zed: control, covers: (sessionId) => host.covers(sessionId), pairing,
   })
 
   host.on('update', ({ threadId, update, at }) => hub.publish(threadId, update, at))
@@ -188,39 +195,57 @@ export async function startDaemon(config) {
     onConnection: (conn) => hub.attach(conn),
     onShim: (conn) => host.attach(conn),
     status: () => describeStatus(),
+    admin: pairing ? pairAdmin({ pairing, hub }) : null,
   })
   await servers.listen()
 
   const scheme = servers.secure ? 'https' : 'http'
   const wsScheme = servers.secure ? 'wss' : 'ws'
+  // En HTTPS, les noms du certificat d'abord : c'est par eux que le navigateur
+  // valide la connexion ; les IP ne passent qu'en HTTP.
+  const publicUrls = () => {
+    const hosts = servers.secure
+      ? (servers.tls?.names ?? [])
+      : servers.addresses.filter((a) => a !== '127.0.0.1')
+    return hosts.map((h) => `${scheme}://${h}:${config.port}`)
+  }
+  machine.urls = publicUrls()
   const announce = (a) => log.info(`écoute ${scheme}://${a}:${config.port}  (${wsScheme}://${a}:${config.port}/ws)`)
   log.info(`poste « ${machine.name} » — ${threads.threads.length} thread(s) dans l'index`)
   for (const a of addresses) announce(a)
   if (tunnel) log.info(`tunnel : ${tunnel.name} (${tunnel.address}, ${tunnel.how})`)
-  else if (config.requireTunnel) log.warn('tunnel absent : écoute en loopback seule en attendant WireGuard (--wait-tunnel)')
-  else log.warn('aucun tunnel : écoute en loopback seule — mode dev')
+  else if (config.requireTunnel) log.warn('tunnel absent : on l’attend (--wait-tunnel)')
+  if (lan.length) log.info(`réseau local : ${lan.map((i) => `${i.name} (${i.address})`).join(', ')}`)
+  if (!tunnel && !lan.length) log.warn('ni réseau local ni tunnel : écoute en loopback seule')
 
-  // Le tunnel vit sa vie : désactivé, réactivé, réécrit. Le daemon suit, sans
-  // jamais s'arrêter — les shims du poste ont besoin de sa loopback.
-  const watch = new TunnelWatch(config, { intervalMs: config.tunnelPollMs, initial: tunnel, interfaces: config.interfaces })
+  // Le réseau vit sa vie : tunnel coupé puis rétabli, Wi-Fi de la maison puis
+  // du bureau. Le daemon suit, sans jamais s'arrêter — les shims du poste ont
+  // besoin de sa loopback.
+  const watch = new NetWatch(config, {
+    intervalMs: config.tunnelPollMs, initial: { tunnel, lan, addresses }, interfaces: config.interfaces,
+  })
   let rebinding = Promise.resolve()
   watch.onChange((next, previous) => {
     rebinding = rebinding.then(async () => {
-      if (next) log.info(`tunnel ${previous ? 'changé' : 'apparu'} : ${next.name} (${next.address}, ${next.how})`)
-      else log.warn(`tunnel ${previous?.name ?? ''} disparu : écoute en loopback seule jusqu'à son retour`)
+      const was = previous?.tunnel
+      if (next.tunnel && (!was || was.address !== next.tunnel.address)) {
+        log.info(`tunnel ${was ? 'changé' : 'apparu'} : ${next.tunnel.name} (${next.tunnel.address}, ${next.tunnel.how})`)
+      } else if (!next.tunnel && was) log.warn(`tunnel ${was.name} disparu`)
       try {
-        const { opened, closed } = await servers.setAddresses(bindAddresses(config, next))
+        const { opened, closed } = await servers.setAddresses(next.addresses)
         for (const a of closed) log.info(`écoute ${a} fermée`)
         for (const a of opened) announce(a)
       } catch (err) {
-        log.warn(`écoute du tunnel impossible : ${err.message}`)
+        log.warn(`écoute impossible : ${err.message}`)
       }
+      machine.urls = publicUrls()
       hub.broadcast({ type: 'machine', ...machine.describe() })
     })
   })
-  // En dev (`--no-tunnel`), rien à suivre ; et lire les interfaces n'est pas
-  // gratuit sous Windows (25 à 60 ms, synchrone).
-  if (config.requireTunnel || config.waitTunnel || config.bindInterface || config.bindCidr) watch.start()
+  // En loopback seule (`--loopback-only`, dev et tests), rien à suivre ; et lire
+  // les interfaces n'est pas gratuit sous Windows (25 à 60 ms, synchrone).
+  const loopbackOnly = config.bindLan === false && config.bindTunnel === false
+  if (!loopbackOnly) watch.start()
 
   // Certificat : renouvelé tous les 60 à 90 jours (Let's Encrypt). Relu à chaud,
   // et son échéance surveillée : un certificat expiré, c'est une PWA qui ne
@@ -238,13 +263,19 @@ export async function startDaemon(config) {
   }
   if (!config.serveStatic) log.info('statiques désactivées : le client est servi ailleurs')
   log.info(`origines autorisées : ${servers.allowedOrigins.join(', ') || '(aucune — seuls les clients non-navigateur pourront se connecter)'}`)
+  if (pairing) {
+    log.info(`appairage : code ${pairing.display} — à saisir dans la PWA (npm run pair pour le revoir), ` +
+      `${pairing.clients.length} appareil(s) appairé(s)`)
+  } else {
+    log.warn('appairage désactivé (auth.required: false) : tout client du réseau local pilote ce poste')
+  }
   if (!servers.secure) {
     log.warn('HTTP en clair : pas de service worker, pas d’installation PWA, pas de Web Push (contexte non sécurisé)')
   }
 
   return {
     config, hub, threads, states, rings, shims, backend, servers, machine, presence,
-    host, loader, control, driver,
+    host, loader, control, driver, pairing,
     addresses, tunnel, watch,
     port: config.port,
 
@@ -307,5 +338,37 @@ function watchTls({ config, servers, intervalMs = 30_000 }) {
       clearInterval(daily)
       clearTimeout(pending)
     },
+  }
+}
+
+/**
+ * `/pair` en loopback : ce que `npm run pair` interroge. Le code n'est lisible
+ * que depuis le poste lui-même — c'est tout le principe.
+ */
+function pairAdmin({ pairing, hub }) {
+  const json = (res, status, body) => {
+    res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' })
+    res.end(JSON.stringify(body))
+  }
+  return (req, res) => {
+    const url = new URL(req.url, 'http://localhost')
+    if (url.pathname === '/pair' && req.method === 'GET') {
+      json(res, 200, { code: pairing.display, clients: pairing.list() })
+      return true
+    }
+    if (url.pathname === '/pair/rotate' && req.method === 'POST') {
+      pairing.rotate()
+      log.info(`nouveau code d'appairage : ${pairing.display}`)
+      json(res, 200, { code: pairing.display })
+      return true
+    }
+    if (url.pathname === '/pair/revoke' && req.method === 'POST') {
+      const id = url.searchParams.get('id')
+      const ok = hub.revoke(id)
+      if (ok) log.info(`appareil ${id} révoqué`)
+      json(res, ok ? 200 : 404, { revoked: ok })
+      return true
+    }
+    return false
   }
 }

@@ -104,6 +104,8 @@ async function boot(t, { keyboard, cli = fakeCli(), enabled = true, recipes = RE
     overrides: {
       port: PORT,
       requireTunnel: false,
+      bindLan: false,
+      bindTunnel: false,
       zedDb: FIXTURE,
       zedSettings: SETTINGS,
       pollMs: 40,
