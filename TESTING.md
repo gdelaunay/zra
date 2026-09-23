@@ -1,3 +1,11 @@
+notes : 
+
+node -v
+(Get-Command pwsh -ErrorAction SilentlyContinue).Source; $ExecutionContext.SessionState.LanguageMode
+'{"op":"run","dryRun":true,"steps":[{"keys":"ctrl+enter"}]}' | pwsh -NoProfile -NonInteractive -ExecutionPolicy Bypass -File zra-daemon\zed\keyboard.ps1; "exit=$LASTEXITCODE"
+Select-String -Path .zra\logs\shim.log -Pattern 'pi-acp|session' | Select-Object -Last 15
+
+
 # ZRA — test réel sur la machine cible
 
 Deux rounds, dans cet ordre. Le premier valide les lots A et B **sans une seule
