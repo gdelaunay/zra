@@ -96,16 +96,78 @@ export class TunnelMissingError extends Error {
  */
 export function resolveBinds(cfg, interfaces = listInterfaces()) {
   const tunnel = findTunnel(cfg, interfaces)
-  if (!tunnel && cfg.requireTunnel) throw new TunnelMissingError(interfaces)
+  // `waitTunnel` : démarrer en loopback et attendre le tunnel (`TunnelWatch`)
+  // plutôt que refuser — le mode de la tâche planifiée, lancée à l'ouverture
+  // de session, parfois avant que WireGuard ait monté son adaptateur.
+  if (!tunnel && cfg.requireTunnel && !cfg.waitTunnel) throw new TunnelMissingError(interfaces)
 
-  const addresses = []
-  if (cfg.bindLoopback !== false) addresses.push(LOOPBACK)
-  if (tunnel && !addresses.includes(tunnel.address)) addresses.push(tunnel.address)
-
-  for (const a of addresses) {
-    if (WILDCARD.has(a)) throw new Error(`écoute sur ${a || '(vide)'} interdite (spec §9)`)
-  }
+  const addresses = bindAddresses(cfg, tunnel)
   if (!addresses.length) throw new Error('aucune adresse d’écoute : activer bindLoopback ou fournir un tunnel')
 
   return { addresses, tunnel }
+}
+
+/**
+ * Adresses d'écoute pour un tunnel donné (ou absent) : la loopback, plus l'IP
+ * du tunnel. Même règle que `resolveBinds`, sans le refus de démarrer.
+ */
+export function bindAddresses(cfg, tunnel) {
+  const addresses = []
+  if (cfg.bindLoopback !== false) addresses.push(LOOPBACK)
+  if (tunnel && !addresses.includes(tunnel.address)) addresses.push(tunnel.address)
+  for (const a of addresses) {
+    if (WILDCARD.has(a)) throw new Error(`écoute sur ${a || '(vide)'} interdite (spec §9)`)
+  }
+  return addresses
+}
+
+/**
+ * Suit l'interface du tunnel pendant que le daemon tourne. WireGuard pour
+ * Windows retire l'adaptateur quand on désactive le tunnel et le recrée à la
+ * réactivation ; l'IP peut aussi changer si on réécrit la configuration. Le
+ * daemon, lui, ne s'arrête pas : les shims du poste ont besoin de sa loopback.
+ *
+ * `onChange(tunnel|null, previous|null)` n'est appelé que sur un vrai changement.
+ */
+export class TunnelWatch {
+  constructor(cfg, { intervalMs = 5000, interfaces = () => listInterfaces(), initial = null } = {}) {
+    this.cfg = cfg
+    this.intervalMs = intervalMs
+    this.interfaces = interfaces
+    this.current = initial
+    this.listeners = new Set()
+    this.timer = null
+  }
+
+  onChange(fn) {
+    this.listeners.add(fn)
+    return () => this.listeners.delete(fn)
+  }
+
+  check() {
+    let next
+    try {
+      next = findTunnel(this.cfg, this.interfaces())
+    } catch {
+      return this.current
+    }
+    const same = (a, b) => (a?.name ?? null) === (b?.name ?? null) && (a?.address ?? null) === (b?.address ?? null)
+    if (!same(next, this.current)) {
+      const previous = this.current
+      this.current = next
+      for (const fn of this.listeners) fn(next, previous)
+    }
+    return this.current
+  }
+
+  start() {
+    this.timer = setInterval(() => this.check(), this.intervalMs)
+    this.timer.unref?.()
+    return this
+  }
+
+  stop() {
+    clearInterval(this.timer)
+    this.timer = null
+  }
 }

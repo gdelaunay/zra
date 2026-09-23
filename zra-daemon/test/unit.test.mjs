@@ -8,7 +8,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { parseJsonc, stripJsonc } from '../jsonc.js'
-import { inCidr, findTunnel, resolveBinds, listInterfaces, TunnelMissingError } from '../net.js'
+import { inCidr, findTunnel, resolveBinds, listInterfaces, bindAddresses, TunnelWatch, TunnelMissingError } from '../net.js'
 import { acceptKey, encodeFrame, createDecoder } from '../ws.js'
 import { toIso, splitFolderPaths } from '../threads-index.js'
 import { RingBuffers } from '../ring-buffer.js'
@@ -92,6 +92,34 @@ test('resolveBinds : refus de démarrer sans tunnel (spec §9)', () => {
   assert.deepEqual(dev.addresses, ['127.0.0.1'])
 })
 
+test('resolveBinds : waitTunnel démarre en loopback au lieu de refuser', () => {
+  const out = resolveBinds({ requireTunnel: true, waitTunnel: true, bindLoopback: true }, [{ name: 'Wi-Fi', address: '192.168.1.42' }])
+  assert.deepEqual(out.addresses, ['127.0.0.1'])
+  assert.equal(out.tunnel, null)
+})
+
+test('bindAddresses : loopback + tunnel, et rien que ça', () => {
+  assert.deepEqual(bindAddresses({}, null), ['127.0.0.1'])
+  assert.deepEqual(bindAddresses({}, { address: '10.7.0.2' }), ['127.0.0.1', '10.7.0.2'])
+  assert.throws(() => bindAddresses({}, { address: '0.0.0.0' }), /interdite/)
+})
+
+test('TunnelWatch : apparition, changement d’IP, disparition — une seule fois chacun', () => {
+  let ifaces = [{ name: 'Wi-Fi', address: '192.168.1.42' }]
+  const seen = []
+  const watch = new TunnelWatch({ bindInterface: 'ZRA' }, { interfaces: () => ifaces })
+  watch.onChange((next, prev) => seen.push(`${prev?.address ?? '∅'}→${next?.address ?? '∅'}`))
+  watch.check()
+  assert.deepEqual(seen, [], 'rien au départ : pas de tunnel, pas de changement')
+  ifaces = [...ifaces, { name: 'ZRA', address: '10.7.0.2' }]
+  watch.check(); watch.check()
+  ifaces = [{ name: 'ZRA', address: '10.7.0.3' }]
+  watch.check()
+  ifaces = []
+  watch.check(); watch.check()
+  assert.deepEqual(seen, ['∅→10.7.0.2', '10.7.0.2→10.7.0.3', '10.7.0.3→∅'])
+})
+
 test('listInterfaces ignore la loopback et l’IPv6', () => {
   const out = listInterfaces({
     lo: [{ family: 'IPv4', address: '127.0.0.1', internal: true }],
@@ -116,7 +144,16 @@ test('checkOrigin : allowlist stricte, absence tolérée', () => {
 test('selfOrigins : localhost ajouté à la loopback', () => {
   const out = selfOrigins({ addresses: ['127.0.0.1', '10.7.0.2'], port: 7777, tls: null })
   assert.deepEqual(out, ['http://127.0.0.1:7777', 'http://10.7.0.2:7777', 'http://localhost:7777'])
-  assert.equal(selfOrigins({ addresses: ['10.7.0.2'], port: 443, tls: {} })[0], 'https://10.7.0.2:443')
+  // Port par défaut : le navigateur l'omet de l'en-tête Origin.
+  assert.equal(selfOrigins({ addresses: ['10.7.0.2'], port: 443, tls: {} })[0], 'https://10.7.0.2')
+})
+
+test('selfOrigins : en HTTPS, les noms du certificat sont des origines du daemon', () => {
+  const out = selfOrigins({ addresses: ['10.7.0.2'], port: 7777, tls: {}, names: ['zra.exemple.fr'] })
+  assert.deepEqual(out, ['https://10.7.0.2:7777', 'https://zra.exemple.fr:7777'])
+  // En HTTP, un nom de certificat ne veut rien dire.
+  assert.deepEqual(selfOrigins({ addresses: ['10.7.0.2'], port: 7777, tls: null, names: ['zra.exemple.fr'] }),
+    ['http://10.7.0.2:7777'])
 })
 
 test('authenticate : point d’extension v2, ouvert en v1', () => {
