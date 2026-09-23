@@ -43,10 +43,10 @@ export class ZedControlError extends Error {
  * panneau : si ce n'est pas l'agent ZRA, aucun shim ne s'annonce et l'ouverture
  * échoue proprement au bout du délai (le thread vide reste dans Zed).
  *
- * `openThread` est `null` : aucune voie éprouvée pour rouvrir un thread précis.
- * Tant qu'elle n'est pas établie (`npm run zed -- try openThread`), répondre à
- * un thread fermé échoue avec une erreur explicite plutôt que de taper au hasard.
- * Piste : `CANDIDATE_RECIPES.openThread`.
+ * `openThread` passe par `multi workspace: focus workspace sidebar` (éprouvé) :
+ * le focus arrive dans le sidebar des threads, ouvert ou non ; taper filtre la
+ * liste, `enter` ouvre le premier résultat. Pas de `ctrl+a` : le champ est vide
+ * à la prise de focus, et dans une liste il ferait autre chose.
  *
  * Variables : `{agent}` (id Zed), `{agentName}`, `{title}` (titre du thread),
  * `{text}` (message), `{project}` (dossier du projet visé par `newThread`).
@@ -63,7 +63,13 @@ export const DEFAULT_RECIPES = {
     { text: 'agent: new thread' }, { wait: 400 },
     { keys: 'enter' }, { wait: 800 },
   ],
-  openThread: null,
+  openThread: [
+    { keys: 'ctrl+shift+p' }, { wait: 400 },
+    { text: 'multi workspace: focus workspace sidebar' }, { wait: 400 },
+    { keys: 'enter' }, { wait: 400 },
+    { text: '{title}' }, { wait: 600 },
+    { keys: 'enter' }, { wait: 800 },
+  ],
   submit: [
     { text: '{text}' }, { wait: 150 },
     { keys: 'enter' },
@@ -72,14 +78,6 @@ export const DEFAULT_RECIPES = {
 
 /** Pistes non éprouvées, à essayer au test réel avant d'en faire des défauts. */
 export const CANDIDATE_RECIPES = {
-  // Filtre du sidebar des threads, puis ouverture du premier résultat.
-  openThread: [
-    { keys: 'ctrl+shift+p' }, { wait: 400 },
-    { text: 'agents sidebar: focus sidebar filter' }, { wait: 400 },
-    { keys: 'enter' }, { wait: 400 },
-    { keys: 'ctrl+a' }, { text: '{title}' }, { wait: 600 },
-    { keys: 'enter' }, { wait: 800 },
-  ],
   // Menu « nouveau thread » du panneau : liste des agents, choix au clavier.
   newThreadMenu: [
     { keys: 'ctrl+shift+p' }, { wait: 400 },
@@ -120,6 +118,17 @@ export function checkRecipe(name, steps) {
  * Lance `keyboard.ps1`, une requête à la fois : le clavier est une ressource
  * globale du poste, deux recettes entrelacées taperaient n'importe quoi.
  */
+/**
+ * Sous `node --test`, aucune frappe ni fenêtre réelle : un test qui atteindrait
+ * le vrai clavier taperait dans la fenêtre Zed ouverte sur le poste (c'est arrivé).
+ * La simulation (`dryRun`) reste permise : elle ne touche à rien.
+ */
+const UNDER_TEST = Boolean(process.env.NODE_TEST_CONTEXT)
+
+function refuseUnderTest(what) {
+  return Promise.reject(new ZedControlError('zed_control_failed', `${what} refusé sous node --test : fournir un bouchon`))
+}
+
 export class KeyboardRunner {
   constructor({ shell = 'pwsh', script = KEYBOARD_SCRIPT, timeoutMs = 30_000 } = {}) {
     this.shell = shell
@@ -129,6 +138,7 @@ export class KeyboardRunner {
   }
 
   run(request) {
+    if (UNDER_TEST && !request?.dryRun) return refuseUnderTest('clavier réel')
     const job = this.chain.then(() => this.exec(request))
     this.chain = job.catch(() => {})
     return job
@@ -206,6 +216,7 @@ export class ZedCli {
   }
 
   open(folderPaths) {
+    if (UNDER_TEST) return refuseUnderTest('CLI de Zed réelle')
     return new Promise((resolve, reject) => {
       execFile(this.command, folderPaths, { timeout: this.timeoutMs, windowsHide: true }, (err) => {
         if (err) reject(new ZedControlError('zed_control_failed', `CLI de Zed (${this.command}) : ${err.message}`))

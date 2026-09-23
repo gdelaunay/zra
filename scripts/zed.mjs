@@ -4,7 +4,7 @@
 //   npm run zed -- probe                       fenêtres Zed et arbre UIA (aucune touche)
 //   npm run zed -- recipes                     recettes en vigueur (défauts + zra.config.json)
 //   npm run zed -- try newThread               simulation : fenêtre et touches résolues, rien envoyé
-//   npm run zed -- try openThread --candidate --title "Mon thread" --apply
+//   npm run zed -- try openThread --title "Mon thread" --apply
 //   npm run zed -- try newThread --project C:/dev/zra --apply   (le « + » d'un projet)
 //   npm run zed -- try --steps '[{"keys":"ctrl+shift+/"}]' --apply
 //

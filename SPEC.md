@@ -634,7 +634,8 @@ généraliser.
 
 - ce que Zed fait d'un `user_message_chunk` émis par l'agent pendant un tour
   qu'il n'a pas lancé : l'affiche-t-il ? l'ignore-t-il ? (le shim peut en
-  émettre un, synthétique, vers Zed) ;
+  émettre un, synthétique, vers Zed) — **prêt à essayer** : `"mirrorToZed": true`
+  dans `zra.config.json` (ou `ZRA_MIRROR_TO_ZED=1`), relu au lancement du shim ;
 - ce que Zed relit à la réouverture d'un thread : s'il rejoue `session/load`,
   le message injecté apparaît-il alors, puisque l'agent l'a bien reçu ?
 - les points d'entrée de Zed lui-même : actions, extensions, URL `zed://`,

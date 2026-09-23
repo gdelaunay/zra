@@ -22,7 +22,7 @@ const HERE = dirname(fileURLToPath(import.meta.url))
 const FAKE_AGENT = join(HERE, 'fake-agent.mjs')
 
 /** Monte un shim entre un faux Zed (en mémoire) et l'agent bouchon (un vrai processus). */
-async function boot(t, { zed = {}, env = {} } = {}) {
+async function boot(t, { zed = {}, env = {}, mirrorToZed = false } = {}) {
   const agent = spawn(process.execPath, [FAKE_AGENT], {
     stdio: ['pipe', 'pipe', 'pipe'],
     env: { ...process.env, ...env },
@@ -39,6 +39,7 @@ async function boot(t, { zed = {}, env = {} } = {}) {
     agentId: 'fake-acp',
     daemonUrl: null,
     cancelTimeoutMs: 2000,
+    mirrorToZed,
   })
 
   const fakeZed = new FakeZed({ toShim: zedIn, fromShim: zedOut, ...zed })
@@ -226,6 +227,25 @@ test('un prompt injecté part vers l’agent sans que Zed voie la requête', asy
   const nouveaux = zed.messages.slice(before)
   assert.ok(nouveaux.every((m) => m.method !== undefined || m.id === undefined || String(m.id).startsWith('zra-') === false))
   assert.ok(!zed.messages.some((m) => typeof m.id === 'string' && m.id.startsWith('zra-')))
+})
+
+test('mirrorToZed : le message du mobile est annoncé à Zed avant la réponse (🟠6)', async (t) => {
+  const { bridge, zed } = await boot(t, { mirrorToZed: true })
+  await bridge.prompt(zed.sessionId, 'depuis le mobile')
+  await until(() => zed.updates.some((u) => u.content?.text === 'reçu : depuis le mobile'), { label: 'réponse de l’agent' })
+
+  const echo = zed.updates.findIndex((u) => u.sessionUpdate === 'user_message_chunk' && u.content?.text === 'depuis le mobile')
+  const reply = zed.updates.findIndex((u) => u.content?.text === 'reçu : depuis le mobile')
+  assert.ok(echo !== -1, 'écho reçu par Zed')
+  assert.ok(echo < reply, 'la question avant la réponse')
+  assert.equal(zed.updates[echo]._meta?.zra?.synthetic, true)
+})
+
+test('sans mirrorToZed, ZRA n’écrit rien vers Zed', async (t) => {
+  const { bridge, zed } = await boot(t)
+  await bridge.prompt(zed.sessionId, 'depuis le mobile')
+  await until(() => zed.updates.some((u) => u.content?.text === 'reçu : depuis le mobile'), { label: 'réponse de l’agent' })
+  assert.ok(!zed.updates.some((u) => u._meta?.zra?.synthetic), 'aucune trame fabriquée par ZRA')
 })
 
 test('mode queue : pendant un tour, le message est mis en file puis dépilé', async (t) => {

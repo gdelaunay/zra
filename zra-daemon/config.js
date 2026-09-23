@@ -172,9 +172,13 @@ function abs(p) {
   return isAbsolute(p) ? p : join(ROOT, p)
 }
 
-export async function loadConfig({ file = process.env.ZRA_CONFIG || join(ROOT, 'zra.config.json'), overrides = {} } = {}) {
+// Sous `node --test`, jamais le zra.config.json du poste : un pilotage de Zed
+// activé pour de vrai ferait taper les tests dans la fenêtre Zed ouverte.
+const UNDER_TEST = Boolean(process.env.NODE_TEST_CONTEXT)
+
+export async function loadConfig({ file = process.env.ZRA_CONFIG || (UNDER_TEST ? null : join(ROOT, 'zra.config.json')), overrides = {} } = {}) {
   let fromFile = {}
-  if (existsSync(file)) {
+  if (file && existsSync(file)) {
     try {
       fromFile = parseJsonc(await readFile(file, 'utf8'))
     } catch (err) {

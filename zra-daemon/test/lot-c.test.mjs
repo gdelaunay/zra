@@ -19,7 +19,7 @@ import { startDaemon } from '../daemon.js'
 import { setLevel } from '../log.js'
 import { buildCustom } from '../../scripts/make-fixture.mjs'
 import { FakeZed } from '../../zra-shim/test/fake-zed.mjs'
-import { ZedDriver, expandRecipe, checkRecipe, KeyboardRunner, ZedControlError } from '../zed/driver.js'
+import { ZedDriver, expandRecipe, checkRecipe, KeyboardRunner, ZedCli, ZedControlError } from '../zed/driver.js'
 
 setLevel('error')
 
@@ -196,15 +196,16 @@ test('recettes : variables substituées dans le texte seulement, étapes validé
   assert.throws(() => checkRecipe('x', [{ keys: '' }]), /touches invalides/)
 })
 
-test('pilote : désactivé par défaut, et aucune recette openThread livrée', async () => {
+test('pilote : désactivé par défaut, recette openThread livrée', async () => {
   const keyboard = fakeKeyboard()
   const off = new ZedDriver({ runner: keyboard })
   await assert.rejects(() => off.newThread({ id: 'a' }), (e) => e instanceof ZedControlError && e.code === 'zed_control_disabled')
   assert.equal(keyboard.calls.length, 0, 'aucune touche demandée')
 
   const on = new ZedDriver({ runner: keyboard, enabled: true })
-  assert.equal(on.has('openThread'), false)
-  await assert.rejects(() => on.openThread({ title: 't' }), /aucune recette clavier « openThread »/)
+  assert.equal(on.has('openThread'), true)
+  await on.openThread({ title: 'Mon thread' })
+  assert.ok(keyboard.calls.at(-1).steps.some((s) => s.text === 'Mon thread'), 'titre tapé dans le filtre')
   await on.submit('bonjour\nà toi')
   assert.deepEqual(keyboard.calls.at(-1).steps.find((s) => s.text), { text: 'bonjour\nà toi' })
 })
@@ -218,8 +219,17 @@ test('lanceur clavier : une requête à la fois', async () => {
     order.push(`fin ${req.n}`)
     return { ok: true }
   }
-  await Promise.all([runner.run({ n: 1 }), runner.run({ n: 2 })])
+  await Promise.all([runner.run({ n: 1, dryRun: true }), runner.run({ n: 2, dryRun: true })])
   assert.deepEqual(order, ['début 1', 'fin 1', 'début 2', 'fin 2'])
+})
+
+test('sous node --test : ni frappe réelle, ni CLI de Zed, ni zra.config.json du poste', async () => {
+  const runner = new KeyboardRunner()
+  runner.exec = async () => assert.fail('clavier réel atteint')
+  await assert.rejects(() => runner.run({ op: 'run', steps: [{ keys: 'enter' }] }), /refusé sous node --test/)
+  await assert.rejects(() => new ZedCli({ command: 'zed-imaginaire' }).open(['C:/x']), /refusé sous node --test/)
+  const config = await loadConfig()
+  assert.equal(config.zedControl.enabled, false, 'défauts seuls, quel que soit le zra.config.json')
 })
 
 test('keyboard.ps1 : recette résolue en simulation, touche inconnue refusée avant toute frappe', { skip: process.platform !== 'win32' }, async () => {

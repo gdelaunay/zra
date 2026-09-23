@@ -46,16 +46,24 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
  *   agentIn: NodeJS.WritableStream, agentOut: NodeJS.ReadableStream,
  *   agentId?: string|null, daemonUrl?: string|null, shimId?: string,
  *   record?: { write:Function, close:Function }, cancelTimeoutMs?: number,
+ *   mirrorToZed?: boolean,
  * }} opts
  */
 export function createShim({
   zedIn, zedOut, agentIn, agentOut,
   agentId = null, daemonUrl = null, shimId = randomUUID().slice(0, 8),
-  record = { write: () => {}, close: () => {} }, cancelTimeoutMs = 5000,
+  record = { write: () => {}, close: () => {} }, cancelTimeoutMs = 5000, mirrorToZed = false,
 }) {
   const bridge = new AcpBridge({
     log,
     cancelTimeoutMs,
+    mirrorToZed,
+    // L'écho `mirrorToZed` : une trame entière en un seul appel, comme le relai
+    // agent → Zed ; les deux ne s'entrelacent pas.
+    toZed: (raw) => {
+      record.write('zra→zed', raw)
+      try { zedOut.write(raw) } catch (err) { log.warn('écriture vers Zed impossible :', err.message) }
+    },
     toAgent: (raw) => {
       record.write('zra→agent', raw)
       try { agentIn.write(raw) } catch (err) { log.warn("écriture vers l'agent impossible :", err.message) }
@@ -251,6 +259,7 @@ export async function main(argv = process.argv.slice(2)) {
     agentId: agent.agentId,
     daemonUrl,
     record,
+    mirrorToZed: process.env.ZRA_MIRROR_TO_ZED ? process.env.ZRA_MIRROR_TO_ZED !== '0' : Boolean(config.mirrorToZed),
   })
 
   // Zed coupe le shim comme il couperait l'agent : on transmet et on suit.
