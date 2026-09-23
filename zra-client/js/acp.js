@@ -23,6 +23,10 @@ export class Timeline {
     this.modes = []
     this.models = []
     this.currentModelId = null
+    /** Contexte consommé : `{ used, size, cost: { amount, currency } | null }` (`usage_update`). */
+    this.usage = null
+    /** Titre et date annoncés par l'agent (`session_info_update`). */
+    this.info = { title: null, updatedAt: null }
     this.stats = { updates: 0, unknown: 0 }
   }
 
@@ -58,6 +62,13 @@ export class Timeline {
       case 'current_mode_update':
         this.currentModeId = update.currentModeId ?? update.modeId ?? null
         return [this.push({ type: 'mode', modeId: this.currentModeId, at: meta.at })]
+
+      // État de la session, pas un message : ni bulle ni ligne dans le fil.
+      // Le changement `meta` dit à la vue de repeindre ce qui en dépend.
+      case 'usage_update':
+        return this.usageUpdate(update)
+      case 'session_info_update':
+        return this.sessionInfoUpdate(update)
 
       // Extensions ZRA : le daemon ne réécrit pas l'ACP, il ajoute ses propres
       // événements sous un préfixe explicite.
@@ -185,6 +196,28 @@ export class Timeline {
       resolved: false,
       at: meta.at,
     })
+  }
+
+  /**
+   * `used`/`size` en tokens. Le coût n'arrive qu'en fin de tour, et pas chez
+   * tous les agents : un update sans `cost` garde le dernier connu.
+   */
+  usageUpdate(u) {
+    const used = Number(u.used)
+    const size = Number(u.size)
+    if (!Number.isFinite(used)) return []
+    const cost = u.cost && Number.isFinite(Number(u.cost.amount))
+      ? { amount: Number(u.cost.amount), currency: u.cost.currency || 'USD' }
+      : this.usage?.cost ?? null
+    this.usage = { used, size: Number.isFinite(size) && size > 0 ? size : null, cost }
+    return [{ op: 'meta', what: 'usage' }]
+  }
+
+  /** Champ absent = inchangé ; `title: null` = effacé (ACP). */
+  sessionInfoUpdate(u) {
+    if ('title' in u) this.info.title = typeof u.title === 'string' && u.title.trim() ? u.title : null
+    if ('updatedAt' in u) this.info.updatedAt = u.updatedAt ?? null
+    return [{ op: 'meta', what: 'info' }]
   }
 
   terminalOutput(u) {

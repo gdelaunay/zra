@@ -226,6 +226,7 @@ type ThreadSummary = {
   sessionId: string | null
   agentId: string | null    // "claude-acp", … — sert à choisir l'icône
   title: string             // title_override ?? title
+  titleOverridden?: boolean // renommé dans Zed : prime sur le titre annoncé par l'agent
   folderPaths: string[]     // UTF-8 décodé, séparateurs libres
   updatedAt: string
   createdAt?: string | null // informatif, la PWA ne s'en sert pas en v1
@@ -309,6 +310,8 @@ La PWA sait rendre :
 | `plan` | carte de plan, mise à jour en place |
 | `current_mode_update` | ligne système |
 | `available_commands_update` | mémorisé, pas affiché en v1 |
+| `usage_update` | consommation du contexte sous le composer (« 27k / 1M »), coût en infobulle — pas dans le fil |
+| `session_info_update` | titre de la top bar (sauf thread renommé dans Zed, `titleOverridden`) et date — pas dans le fil |
 | *(autre)* | **bloc brut repliable** — jamais une erreur |
 
 `ToolCallContent` géré : `{type:'content'}`, `{type:'diff', path, oldText, newText}`

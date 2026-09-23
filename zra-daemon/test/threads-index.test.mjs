@@ -39,6 +39,8 @@ test('index : title_override prime sur title', (t) => {
   const index = open(t)
   const th = index.get('0000000000000000000000000000000b')
   assert.equal(th.title, 'Titre choisi par l’utilisateur')
+  assert.equal(th.titleOverridden, true)
+  assert.equal(index.get('0000000000000000000000000000000a').titleOverridden, false)
 })
 
 test('index : deux dossiers découpés, un seul sinon', (t) => {

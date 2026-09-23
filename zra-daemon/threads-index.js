@@ -162,6 +162,9 @@ export class ThreadsIndex extends EventEmitter {
         sessionId,
         agentId: r.agent_id ?? null,
         title: (r.title_override ?? r.title ?? '').toString(),
+        // Renommé par l'utilisateur dans Zed : ce titre prime sur celui que
+        // l'agent annonce en direct (`session_info_update`).
+        titleOverridden: r.title_override !== null && r.title_override !== undefined && r.title_override !== '',
         folderPaths: splitFolderPaths(r.folder_paths, r.folder_paths_order),
         updatedAt: toIso(r.updated_at),
         createdAt: toIso(r.created_at),
