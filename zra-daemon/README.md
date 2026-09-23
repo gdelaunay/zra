@@ -4,7 +4,7 @@ Passerelle ZRA d'un poste : lit l'index des threads de Zed, parle le protocole
 ZRA aux clients mobiles, et porte les backends d'injection.
 
 Un daemon par poste, long-running (`SPEC.md` §3.2). Aucune dépendance runtime :
-Node ≥ 22 fournit SQLite (`node:sqlite`), le serveur HTTP et le test runner, et
+Node ≥ 24 fournit SQLite (`node:sqlite`), le serveur HTTP et le test runner, et
 le WebSocket (RFC 6455) tient dans `ws.js`.
 
 ```bash

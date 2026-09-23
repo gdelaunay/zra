@@ -1,9 +1,3 @@
-notes : 
-
-node --no-warnings scripts/probe-sessions.mjs pi
-
-
-
 # ZRA — test réel sur la machine cible
 
 Deux rounds, dans cet ordre. Le premier valide les lots A et B **sans une seule

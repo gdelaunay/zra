@@ -57,7 +57,7 @@ lots B et C brancheront derrière.
 | `inject/backend.js` | interface d'injection, point de commutation unique |
 | `inject/mock.js` | backend bouchon (spec §10.6) |
 
-Zéro dépendance runtime : Node ≥ 22 fournit SQLite, HTTP, le test runner et un
+Zéro dépendance runtime : Node ≥ 24 fournit SQLite, HTTP, le test runner et un
 client WebSocket ; le serveur WebSocket tient dans `ws.js`.
 
 ### Décisions prises pendant ce lot
@@ -145,7 +145,7 @@ C'était le cœur technique et le seul lot avec un vrai risque d'ingénierie
 | `zra-shim/test/fake-zed.mjs` | client bouchon face au shim, avec course aux permissions |
 
 Toujours zéro dépendance runtime : le client WebSocket du shim est celui de
-Node ≥ 22, et le JSON-RPC sur stdio tient dans `framing.js`.
+Node ≥ 24, et le JSON-RPC sur stdio tient dans `framing.js`.
 
 ### Décisions prises pendant ce lot
 
