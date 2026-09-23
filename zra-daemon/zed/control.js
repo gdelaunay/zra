@@ -83,10 +83,12 @@ export class ZedControl {
   }
 
   /**
-   * Ouvre une nouvelle session d'agent dans la fenêtre Zed active (spec §6.7).
-   * @returns {Promise<object>} le thread, tel que l'index le décrit
+   * Ouvre une nouvelle session d'agent (spec §6.7) : dans le projet
+   * `folderPaths` s'il est donné, sinon dans la fenêtre Zed active.
+   * @returns {Promise<{ thread:object, cwd:string|null }>} le thread, tel que
+   *          l'index le décrit, et le dossier où l'agent l'a réellement ouvert
    */
-  newThread(agentId) {
+  newThread(agentId, { folderPaths = null } = {}) {
     return this.serial(async () => {
       const agent = this.agents().find((a) => a.id === agentId)
       if (!agent) throw new ZedControlError('new_thread_failed', `agent « ${agentId} » absent du registry agent_servers de ce poste`)
@@ -95,21 +97,23 @@ export class ZedControl {
       // l'index, lui, range le thread sous le nom de l'entrée Zed.
       const shimAgent = agent.wraps ?? agent.id
       const known = new Set(this.threads.threads.map((t) => t.threadId))
-      const fresh = new Set()
+      /** Sessions neuves de cet agent → dossier annoncé par le shim. */
+      const fresh = new Map()
 
       const wait = this.waitFor(({ session }) => {
         if (session?.sessionId && session.source === 'new') {
           const shim = session.shimId ? this.shims.shims.get(session.shimId) : null
-          if (!shim || shim.agentId === shimAgent) fresh.add(session.sessionId)
+          if (!shim || shim.agentId === shimAgent) fresh.set(session.sessionId, session.cwd ?? null)
         }
-        for (const sessionId of fresh) {
+        for (const [sessionId, cwd] of fresh) {
           const thread = this.threads.getBySession(sessionId)
-          if (thread) return thread
+          if (thread) return { thread, cwd }
         }
         // Agent sans shim (entrée qui ne passe pas par ZRA) : seule l'apparition
         // d'une ligne neuve pour cet agent dit que Zed a ouvert quelque chose.
         if (agent.wraps === undefined) {
-          return this.threads.threads.find((t) => !known.has(t.threadId) && t.agentId === agent.id) ?? null
+          const thread = this.threads.threads.find((t) => !known.has(t.threadId) && t.agentId === agent.id)
+          return thread ? { thread, cwd: thread.folderPaths?.[0] ?? null } : null
         }
         return null
       }, {
@@ -119,15 +123,15 @@ export class ZedControl {
       })
 
       try {
-        await this.driver.newThread(agent)
+        await this.driver.newThread(agent, { folderPaths })
       } catch (err) {
         wait.cancel()
         throw new ZedControlError('new_thread_failed', err.message)
       }
-      const thread = await wait.promise
-      this.focused = thread.threadId
-      this.log?.info(`nouvelle session ${agent.id} : thread ${thread.threadId}`)
-      return thread
+      const found = await wait.promise
+      this.focused = found.thread.threadId
+      this.log?.info(`nouvelle session ${agent.id} : thread ${found.thread.threadId} (${found.cwd ?? 'dossier ?'})`)
+      return found
     })
   }
 

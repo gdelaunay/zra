@@ -87,6 +87,13 @@ export const DEFAULTS = {
     dryRun: false,
     /** Attente de la preuve venue du shim (session ouverte ou rechargée). */
     timeoutMs: 30_000,
+    /**
+     * CLI de Zed, pour ouvrir le projet d'une nouvelle session. `null` => celle
+     * de l'installation par défaut, sinon `zed` dans le PATH.
+     */
+    cli: null,
+    /** Délai laissé à la fenêtre d'un projet pour apparaître après la CLI. */
+    windowWaitMs: 8000,
   },
 
   /**

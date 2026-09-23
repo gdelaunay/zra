@@ -2,7 +2,7 @@
 
 import { h, button, clear, rafBatch } from '../dom.js'
 import { icon, agentIcon } from '../icons.js'
-import { relTime, absTime, shortPath, agentLabel } from '../format.js'
+import { relTime, absTime, shortPath, agentLabel, projectOf } from '../format.js'
 import * as store from '../store.js'
 import { renderEntry } from './entry.js'
 import { openMenu, toast, switchEl } from '../ui.js'
@@ -61,7 +61,11 @@ export function ThreadView({ key, navigate }) {
       agentSlot,
       h('div.header__title', {}, dot, title),
       h('div.header__meta', {}, pathLabel, h('span', { text: '·' }), subtitle),
-      newSessionButton({ machineId: store.splitKey(key).machineId }),
+      // Nouveau thread dans le projet de celui-ci.
+      newSessionButton({
+        machineId: store.splitKey(key).machineId,
+        project: () => (st.summary ? projectOf(st.summary.folderPaths) : null),
+      }),
       button('icon-btn', { onclick: overflowMenu, 'aria-label': 'actions' }, icon('settings', 'icon--sm')),
     ),
     banner,

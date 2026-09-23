@@ -92,7 +92,13 @@ const RECIPES = {
   submit: [{ text: '{text}' }, { keys: 'enter' }],
 }
 
-async function boot(t, { keyboard, enabled = true, recipes = RECIPES, injection = 'acp', timeoutMs = 4000 } = {}) {
+/** Fausse CLI de Zed : retient les dossiers qu'on lui demande d'ouvrir. */
+function fakeCli() {
+  const calls = []
+  return { calls, async open(folderPaths) { calls.push(folderPaths) } }
+}
+
+async function boot(t, { keyboard, cli = fakeCli(), enabled = true, recipes = RECIPES, injection = 'acp', timeoutMs = 4000 } = {}) {
   freshFixture()
   const config = await loadConfig({
     overrides: {
@@ -106,7 +112,7 @@ async function boot(t, { keyboard, enabled = true, recipes = RECIPES, injection 
       injection,
       injectConfirmMs: 1500,
       agentCommands: { 'fake-acp': { command: process.execPath, args: [FAKE_AGENT] } },
-      zedControl: { enabled, runner: keyboard ?? fakeKeyboard(), recipes, timeoutMs },
+      zedControl: { enabled, runner: keyboard ?? fakeKeyboard(), cli, recipes, timeoutMs },
     },
   })
   const daemon = await startDaemon(config)
@@ -115,7 +121,7 @@ async function boot(t, { keyboard, enabled = true, recipes = RECIPES, injection 
 }
 
 /** Un shim lancé comme Zed le lancerait. `resume` : réouverture d'un thread existant. */
-async function startShim(t, { sessionId, resume = false, env = {} } = {}) {
+async function startShim(t, { sessionId, resume = false, env = {}, cwd = CWD } = {}) {
   const child = spawn(process.execPath, [SHIM, '--', process.execPath, FAKE_AGENT], {
     stdio: ['pipe', 'pipe', 'pipe'],
     env: {
@@ -129,8 +135,8 @@ async function startShim(t, { sessionId, resume = false, env = {} } = {}) {
   })
   t.after(() => child.kill())
   const zed = new FakeZed({ toShim: child.stdin, fromShim: child.stdout })
-  if (resume) await zed.resume(sessionId, { cwd: CWD })
-  else await zed.boot({ cwd: CWD })
+  if (resume) await zed.resume(sessionId, { cwd })
+  else await zed.boot({ cwd })
   return { child, zed }
 }
 
@@ -276,6 +282,66 @@ test('new_thread : Zed ouvre la session, threads puis thread_created', async (t)
   const threadsBefore = client.messages.slice(0, at).filter((m) => m.type === 'threads')
   assert.ok(threadsBefore.at(-1).threads.some((x) => x.threadId === NOUVEAU && x.state === 'live'))
   assert.equal(keyboard.calls.length, 1)
+})
+
+test('new_thread dans un projet : Zed ouvre ses dossiers, la recette vise sa fenêtre', async (t) => {
+  const NOUVEAU = 'c00000000000000000000000000000ab'
+  const keyboard = fakeKeyboard(async (recipe) => {
+    if (recipe !== 'newThread') return
+    setTimeout(async () => {
+      await startShim(t, { sessionId: 'lotc-session-projet' })
+      setTimeout(() => indexRow(NOUVEAU, 'lotc-session-projet'), 100)
+    }, 30)
+  })
+  const cli = fakeCli()
+  await boot(t, { keyboard, cli })
+  const client = await Client.open(t)
+
+  // Casse et séparateurs libres : Windows ne les distingue pas.
+  client.send({ type: 'new_thread', agentId: 'fake-zra', folderPaths: [CWD.replace(/\\/g, '/').toUpperCase()] })
+  const created = await client.until((m) => m.type === 'thread_created', { label: 'thread_created' })
+  assert.equal(created.threadId, NOUVEAU)
+  assert.deepEqual(cli.calls, [[CWD]], 'la CLI ouvre les dossiers tels que l’index les écrit')
+  assert.equal(keyboard.calls[0].project, 'zra', 'la recette vise la fenêtre du projet')
+  assert.equal(keyboard.calls[0].window, undefined)
+
+  // Même dossier : aucune alerte dans le fil.
+  client.send({ type: 'subscribe', threadId: NOUVEAU })
+  await client.until((m) => m.type === 'thread_state' && m.threadId === NOUVEAU, { label: 'abonnement' })
+  await wait(100)
+  assert.ok(!client.messages.some((m) => m.type === 'acp_event' && m.update?.sessionUpdate === 'zra/notice'))
+})
+
+test('new_thread : un projet inconnu du poste est refusé, sans une touche', async (t) => {
+  const keyboard = fakeKeyboard()
+  const cli = fakeCli()
+  await boot(t, { keyboard, cli })
+  const client = await Client.open(t)
+  client.send({ type: 'new_thread', agentId: 'fake-zra', folderPaths: ['C:/Windows/System32'] })
+  const err = await client.until((m) => m.type === 'error', { label: 'erreur' })
+  assert.equal(err.code, 'new_thread_failed')
+  assert.match(err.message, /projet inconnu/)
+  assert.equal(keyboard.calls.length, 0)
+  assert.equal(cli.calls.length, 0)
+})
+
+test('new_thread : session ouverte dans un autre dossier => le fil le signale', async (t) => {
+  const NOUVEAU = 'c00000000000000000000000000000ac'
+  const AILLEURS = join(ROOT, 'zra-client')
+  const keyboard = fakeKeyboard(async (recipe) => {
+    if (recipe !== 'newThread') return
+    setTimeout(async () => {
+      await startShim(t, { sessionId: 'lotc-session-ailleurs', cwd: AILLEURS })
+      setTimeout(() => indexRow(NOUVEAU, 'lotc-session-ailleurs'), 100)
+    }, 30)
+  })
+  await boot(t, { keyboard })
+  const client = await Client.open(t)
+  client.send({ type: 'new_thread', agentId: 'fake-zra', folderPaths: [CWD] })
+  await client.until((m) => m.type === 'thread_created', { label: 'thread_created' })
+  client.send({ type: 'subscribe', threadId: NOUVEAU })
+  const notice = await client.until((m) => m.type === 'acp_event' && m.update?.sessionUpdate === 'zra/notice', { label: 'alerte' })
+  assert.match(notice.update.text, /zra-client/)
 })
 
 test('new_thread : aucune réaction de Zed => new_thread_failed au timeout', async (t) => {

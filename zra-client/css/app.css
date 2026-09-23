@@ -218,6 +218,20 @@ button { cursor: pointer; }
   color: var(--text-muted); font-weight: 600; }
 .group__meta { font-size: var(--fs-xs); color: var(--text-disabled); }
 
+/* Projet : nom et flèche à gauche (replier), « + » tout à droite. */
+.project__head {
+  display: flex; align-items: center; gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-3) var(--sp-1) var(--sp-4);
+}
+.project__toggle {
+  display: inline-flex; align-items: center; gap: var(--sp-2);
+  min-width: 0; padding: var(--sp-1) var(--sp-2); margin-left: calc(-1 * var(--sp-2));
+  border-radius: var(--radius); color: var(--text-muted);
+}
+.project__toggle:hover { background: var(--ghost-element-hover); color: var(--text); }
+.project__name { font-size: var(--fs-sm); font-weight: 600; }
+.project__chevron { color: var(--icon-muted); flex: none; }
+
 .thread-row {
   display: flex; align-items: flex-start; gap: var(--sp-4);
   width: 100%; text-align: left;

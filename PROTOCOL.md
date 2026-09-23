@@ -179,10 +179,15 @@ l'invente pas. Réponses possibles :
 
 ### `new_thread`
 ```ts
-{ type: 'new_thread', agentId: string }
+{ type: 'new_thread', agentId: string, folderPaths?: string[] }
 ```
-Ouvre une nouvelle session d'agent sur ce poste (§6.7). Réponse : `thread_created`
-puis `threads` à jour, ou `error` `new_thread_failed` (timeout 30 s).
+Ouvre une nouvelle session d'agent sur ce poste (§6.7). Réponse : `threads` à
+jour puis `thread_created`, ou `error` `new_thread_failed` (timeout 30 s).
+
+`folderPaths` : le projet où l'ouvrir — les `folderPaths` d'un thread existant,
+comparés sans casse ni séparateur. Le daemon refuse (`new_thread_failed`) des
+dossiers qu'aucun thread de son index ne porte : le mobile ne fait ouvrir à Zed
+que ce que Zed a déjà ouvert. Absent ⇒ la fenêtre Zed active.
 
 ### `zra/trigger` *(mode bouchon uniquement)*
 ```ts

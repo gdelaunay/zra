@@ -51,6 +51,7 @@
     "enabled": false,
     // "window": "zra",        // fenêtre Zed dont le titre contient ce texte
     // "dryRun": true,         // tout résoudre, ne rien envoyer
+    // "cli": "C:/…/Zed/bin/zed.exe",  // ouvre le projet d'un « + » (défaut : installation standard)
     // "recipes": {            // surcharge des recettes de zra-daemon/zed/driver.js
     //   "openThread": [ { "keys": "ctrl+shift+p" }, { "wait": 400 }, … ]
     // }

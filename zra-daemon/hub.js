@@ -122,7 +122,7 @@ export class Hub {
         return this.respondPermission(conn, msg)
 
       case 'new_thread':
-        return this.newThread(conn, msg.agentId)
+        return this.newThread(conn, msg)
 
       case 'zra/trigger':
         // Marqueur explicite : un daemon réel n'a pas de scénarios à déclencher.
@@ -331,7 +331,7 @@ export class Hub {
    * **après** un `threads` qui contient le thread : sans ça la PWA ouvrirait un
    * écran sans titre (protocole §4).
    */
-  async newThread(conn, agentId) {
+  async newThread(conn, { agentId, folderPaths }) {
     if (!this.zed?.enabled) {
       return this.error(conn, 'new_thread_failed',
         'ouverture de session indisponible : pilotage de Zed désactivé sur ce poste (zedControl.enabled)')
@@ -339,14 +339,39 @@ export class Hub {
     if (typeof agentId !== 'string' || !agentId) {
       return this.error(conn, 'new_thread_failed', 'agent non précisé')
     }
+    let project = null
+    if (folderPaths !== undefined && folderPaths !== null) {
+      project = this.knownProject(folderPaths)
+      if (!project) return this.error(conn, 'new_thread_failed', 'projet inconnu de ce poste : aucun thread ne porte ces dossiers')
+    }
     try {
-      const thread = await this.zed.newThread(agentId)
+      const { thread, cwd } = await this.zed.newThread(agentId, { folderPaths: project })
       conn.send({ type: 'threads', threads: this.threads.threads })
       conn.send({ type: 'thread_created', threadId: thread.threadId, agentId: thread.agentId ?? agentId })
+      // Zed a pu ouvrir la session ailleurs (fenêtre du projet introuvable,
+      // focus volé) : le thread existe, on le dit dans son fil plutôt que de le taire.
+      if (project && cwd && !samePath(cwd, project[0])) {
+        this.publish(thread.threadId, {
+          sessionUpdate: 'zra/notice', level: 'warn',
+          text: `session ouverte dans ${cwd}, pas dans ${project[0]}`,
+        })
+      }
     } catch (err) {
       log.warn(`new_thread ${agentId} :`, err.message)
       this.error(conn, 'new_thread_failed', err.message)
     }
+  }
+
+  /**
+   * Un projet se désigne par les dossiers d'un thread existant, jamais par un
+   * chemin libre : le mobile ne fait ouvrir à Zed que ce que Zed a déjà ouvert.
+   * @returns {string[]|null} les dossiers, tels que l'index les écrit
+   */
+  knownProject(folderPaths) {
+    if (!Array.isArray(folderPaths) || !folderPaths.length || folderPaths.length > 16) return null
+    if (!folderPaths.every((p) => typeof p === 'string' && p)) return null
+    const key = projectKey(folderPaths)
+    return this.threads.threads.find((t) => t.folderPaths?.length && projectKey(t.folderPaths) === key)?.folderPaths ?? null
   }
 
   // ---- sortie --------------------------------------------------------------
@@ -431,4 +456,15 @@ export class Hub {
       if (client.subs.has(threadId)) client.conn.send(msg)
     }
   }
+}
+
+/** Chemins comparés comme Windows les compare : sans casse ni séparateur final. */
+function normPath(p) {
+  return String(p).replace(/[\\/]+/g, '/').replace(/\/$/, '').toLowerCase()
+}
+
+const projectKey = (paths) => paths.map(normPath).join('|')
+
+function samePath(a, b) {
+  return normPath(a) === normPath(b)
 }

@@ -5,6 +5,7 @@
 //   npm run zed -- recipes                     recettes en vigueur (défauts + zra.config.json)
 //   npm run zed -- try newThread               simulation : fenêtre et touches résolues, rien envoyé
 //   npm run zed -- try openThread --candidate --title "Mon thread" --apply
+//   npm run zed -- try newThread --project C:/dev/zra --apply   (le « + » d'un projet)
 //   npm run zed -- try --steps '[{"keys":"ctrl+shift+/"}]' --apply
 //
 // Sans `--apply`, rien n'est envoyé : le script résout la fenêtre et chaque
@@ -14,11 +15,11 @@
 
 import { loadConfig } from '../zra-daemon/config.js'
 import {
-  CANDIDATE_RECIPES, DEFAULT_RECIPES, KeyboardRunner, checkRecipe, expandRecipe,
+  CANDIDATE_RECIPES, DEFAULT_RECIPES, KeyboardRunner, ZedCli, checkRecipe, expandRecipe, projectWindow,
 } from '../zra-daemon/zed/driver.js'
 
 function parseArgs(argv) {
-  const out = { command: argv[0] ?? 'help', recipe: null, apply: false, candidate: false, vars: {}, steps: null, window: undefined }
+  const out = { command: argv[0] ?? 'help', recipe: null, apply: false, candidate: false, vars: {}, steps: null, window: undefined, project: null }
   const rest = argv.slice(1)
   if (out.command === 'try' && rest[0] && !rest[0].startsWith('-')) out.recipe = rest.shift()
   for (let i = 0; i < rest.length; i++) {
@@ -29,6 +30,7 @@ function parseArgs(argv) {
     else if (a === '--agent') { out.vars.agent = rest[++i]; out.vars.agentName = out.vars.agent }
     else if (a === '--text') out.vars.text = rest[++i]
     else if (a === '--window') out.window = rest[++i]
+    else if (a === '--project') out.project = rest[++i]
     else if (a === '--steps') out.steps = JSON.parse(rest[++i])
     else throw new Error(`option inconnue : ${a}`)
   }
@@ -46,6 +48,8 @@ const USAGE = `npm run zed -- <commande>
   --candidate                prendre la piste candidate plutôt que la recette en vigueur
   --title <t> --agent <id> --text <t>   variables de la recette
   --window <texte>           fenêtre Zed dont le titre contient ce texte
+  --project <dossier>        comme le « + » d'un projet : la CLI de Zed ouvre le
+                             dossier (avec --apply), la recette vise sa fenêtre
 `
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
@@ -90,11 +94,17 @@ async function main() {
       steps = opts.candidate ? CANDIDATE_RECIPES[name] : recipes[name]
       if (!steps) throw new Error(`recette « ${name} » ${opts.candidate ? 'sans piste candidate' : 'non établie (essayer --candidate)'}`)
     }
-    const expanded = expandRecipe(checkRecipe(name, steps), { text: 'message de test ZRA', title: '', agent: '', agentName: '', ...opts.vars })
-    console.log(`recette ${name} :`)
+    const project = opts.project ? projectWindow([opts.project]) : null
+    const expanded = expandRecipe(checkRecipe(name, steps), {
+      text: 'message de test ZRA', title: '', agent: '', agentName: '', project: project ?? '', ...opts.vars,
+    })
+    console.log(`recette ${name}${project ? ` dans le projet « ${project} »` : ''} :`)
     for (const s of expanded) console.log(`  ${JSON.stringify(s)}`)
 
-    const request = { op: 'run', steps: expanded, window: opts.window ?? zc.window, stepDelayMs: zc.stepDelayMs }
+    const where = project
+      ? { project, windowWaitMs: zc.windowWaitMs }
+      : { window: opts.window ?? zc.window }
+    const request = { op: 'run', steps: expanded, ...where, stepDelayMs: zc.stepDelayMs }
     const dry = await runner.run({ ...request, dryRun: true })
     console.log(`\n✓ ${dry.log[0]} — touches résolues`)
     if (!opts.apply) return console.log('simulation : rien envoyé. Relancer avec --apply pour envoyer les touches.')
@@ -104,6 +114,10 @@ async function main() {
       await sleep(1000)
     }
     process.stdout.write('\n')
+    if (project) {
+      await new ZedCli(zc.cli ? { command: zc.cli } : {}).open([opts.project])
+      console.log(`✓ CLI de Zed : ${opts.project}`)
+    }
     const res = await runner.run(request)
     console.log(`✓ envoyé :\n  ${res.log.slice(1).join('\n  ')}`)
     return
