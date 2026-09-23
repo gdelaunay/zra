@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { renderMarkdown, inline } from '../js/markdown.js'
+import { renderMarkdown, markdownBlocks, inline } from '../js/markdown.js'
 
 test('titres, paragraphes et listes', () => {
   const html = renderMarkdown('# Titre\n\ntexte\n\n- a\n- b\n')
@@ -76,4 +76,15 @@ test('bloc de code : les chaînes survivent à la coloration des nombres (test r
   assert.match(html, /&quot;zra&quot;/)
   assert.doesNotMatch(html, /\u0001/)
   assert.match(html, /<span class="tok-num">12<\/span>/)
+})
+
+test('rendu par blocs : un élément par bloc de premier niveau, même HTML au total', () => {
+  const src = '# Titre\n\nUn paragraphe.\n\n- a\n- b\n\n```js\nconst x = 1\n```\n\nFin'
+  const blocks = markdownBlocks(src)
+  assert.equal(blocks.length, 5)
+  assert.equal(blocks.join(''), renderMarkdown(src))
+  // En streaming, écrire la suite ne change que le dernier bloc.
+  const next = markdownBlocks(src + ' du message')
+  assert.deepEqual(next.slice(0, 4), blocks.slice(0, 4))
+  assert.notEqual(next[4], blocks[4])
 })

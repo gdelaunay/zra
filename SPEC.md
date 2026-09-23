@@ -646,5 +646,10 @@ généraliser.
   sous l'éditeur de Zed (en alerte à 80 %, en rouge à 95 %) ; le titre annoncé
   par l'agent remplace celui de l'index dans la top bar, sauf si l'utilisateur a
   renommé le thread dans Zed.
-- Le streaming est un peu saccadé — secondaire.
+- ✅ Le streaming est un peu saccadé — secondaire. Cause relevée dans les
+  trames : claude-acp envoie son texte par rafales (jusqu'à 2 000 caractères
+  d'un coup, puis des pauses), et la vue repeignait tout le message à chaque
+  frame. Le message en cours d'écriture est désormais révélé à débit régulier
+  (le retard se résorbe en ~100 ms d'exponentielle, jamais moins de 250
+  caractères/s), et seul son dernier bloc markdown est repeint.
 

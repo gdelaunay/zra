@@ -97,3 +97,35 @@ export function debounce(fn, ms) {
   let t
   return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms) }
 }
+
+/**
+ * Remplit `container` avec des morceaux de HTML, en ne touchant qu'à ceux qui
+ * ont changé depuis le dernier appel. Pendant un streaming, seul le dernier
+ * bloc bouge : le reste du message garde ses nœuds (sélection, défilement,
+ * coût de rendu).
+ * @param {HTMLElement} container
+ * @param {string[]} pieces HTML déjà échappé
+ */
+export function patchHtml(container, pieces) {
+  let prev = container._zraPieces
+  let groups = container._zraGroups
+  if (!prev) {
+    // Premier passage : le contenu vient d'ailleurs (innerHTML d'un rendu complet).
+    container.replaceChildren()
+    prev = []
+    groups = []
+  }
+  let i = 0
+  while (i < pieces.length && i < prev.length && pieces[i] === prev[i]) i++
+  for (let j = i; j < groups.length; j++) for (const n of groups[j]) n.remove()
+  groups.length = i
+  for (let j = i; j < pieces.length; j++) {
+    const t = document.createElement('template')
+    t.innerHTML = pieces[j]
+    const nodes = [...t.content.childNodes]
+    container.append(...nodes)
+    groups.push(nodes)
+  }
+  container._zraPieces = pieces.slice()
+  container._zraGroups = groups
+}

@@ -4,7 +4,7 @@
 
 import { h, button, escapeHtml } from '../dom.js'
 import { icon, toolIcon } from '../icons.js'
-import { renderMarkdown } from '../markdown.js'
+import { markdownBlocks } from '../markdown.js'
 import { lineDiff, collapse } from '../diff.js'
 import { shortPath, relTime } from '../format.js'
 import { settings } from '../settings.js'
@@ -62,13 +62,21 @@ function thoughtMsg(entry) {
 
 /** ContentBlock[] -> HTML. Le markdown n'est appliqué qu'aux blocs texte. */
 export function blocksHtml(blocks, opts = {}) {
+  return blocksPieces(blocks, opts).join('')
+}
+
+/**
+ * Le même rendu en morceaux : un par bloc markdown de premier niveau, un par
+ * ContentBlock non textuel, le curseur à part. C'est ce que `patchHtml`
+ * compare d'un rendu à l'autre.
+ */
+export function blocksPieces(blocks, opts = {}) {
   const parts = []
   const list = blocks || []
-  list.forEach((b, i) => {
-    const last = i === list.length - 1
+  list.forEach((b) => {
     switch (b?.type) {
       case 'text':
-        parts.push(renderMarkdown(b.text || '', { cursor: opts.cursor && last }))
+        parts.push(...markdownBlocks(b.text || ''))
         break
       case 'image':
         parts.push(b.data
@@ -92,8 +100,38 @@ export function blocksHtml(blocks, opts = {}) {
         if (b) parts.push(`<pre class="muted"><code>${escapeHtml(JSON.stringify(b, null, 2))}</code></pre>`)
     }
   })
-  if (!parts.length && opts.cursor) return '<span class="cursor"></span>'
-  return parts.join('')
+  if (opts.cursor) parts.push('<span class="cursor"></span>')
+  return parts
+}
+
+/** Longueur du texte d'un message : ce que le streaming révèle peu à peu. */
+export function textLength(blocks) {
+  let n = 0
+  for (const b of blocks || []) if (b?.type === 'text') n += (b.text || '').length
+  return n
+}
+
+/**
+ * Les blocs d'un message, texte coupé aux `n` premiers caractères. Les blocs
+ * non textuels (image, ressource) paraissent dès que le texte qui les précède
+ * est révélé.
+ */
+export function revealBlocks(blocks, n) {
+  const out = []
+  let left = n
+  for (const b of blocks || []) {
+    if (b?.type !== 'text') { if (left > 0 || !out.length) out.push(b); continue }
+    if (left <= 0) break
+    const text = b.text || ''
+    out.push(text.length <= left ? b : { ...b, text: text.slice(0, left) })
+    left -= text.length
+  }
+  return out
+}
+
+/** Corps markdown d'un message déjà monté : là où le streaming écrit. */
+export function messageBody(node) {
+  return node.querySelector(':scope > .msg__body.md, :scope > .md')
 }
 
 // ---- tool call ----
