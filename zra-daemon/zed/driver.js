@@ -152,6 +152,9 @@ export class KeyboardRunner {
       })
       let out = ''
       let err = ''
+      // Node émet `error` puis `close` quand le shell n'existe pas : `close`
+      // ne doit pas trancher à la place du repli lancé par `error`.
+      let failed = false
       const timer = setTimeout(() => {
         child.kill()
         reject(new ZedControlError('zed_control_failed', `pilotage de Zed : pas de réponse en ${this.timeoutMs} ms`))
@@ -159,6 +162,7 @@ export class KeyboardRunner {
       child.stdout.on('data', (c) => { out += c })
       child.stderr.on('data', (c) => { err += c })
       child.on('error', (e) => {
+        failed = true
         clearTimeout(timer)
         // PowerShell 7 absent : Windows PowerShell 5.1 est toujours là.
         if (e.code === 'ENOENT' && shell === 'pwsh') {
@@ -169,6 +173,7 @@ export class KeyboardRunner {
         reject(new ZedControlError('zed_control_failed', `pilotage de Zed : ${shell} non lançable (${e.message})`))
       })
       child.on('close', (code) => {
+        if (failed) return
         clearTimeout(timer)
         const line = out.trim().split(/\r?\n/).at(-1)
         let res
@@ -184,6 +189,7 @@ export class KeyboardRunner {
         if (!res.ok) reject(new ZedControlError('zed_control_failed', res.error || 'échec du pilotage de Zed'))
         else resolve(res)
       })
+      child.stdin.on('error', () => {}) // shell absent : EPIPE, déjà traité par `error`
       child.stdin.end(JSON.stringify(request), 'utf8')
     })
   }
