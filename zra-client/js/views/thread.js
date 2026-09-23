@@ -1,10 +1,10 @@
 // Écran 2 — un thread : flux d'événements ACP + composer.
 
-import { h, button, clear, rafBatch } from '../dom.js'
+import { h, button, clear, rafBatch, patchHtml } from '../dom.js'
 import { icon, agentIcon } from '../icons.js'
 import { relTime, absTime, shortPath, agentLabel, projectOf, toMs, formatTokens, formatCost } from '../format.js'
 import * as store from '../store.js'
-import { renderEntry } from './entry.js'
+import { renderEntry, blocksPieces, revealBlocks, textLength, messageBody } from './entry.js'
 import { openMenu, toast, switchEl } from '../ui.js'
 import { newSessionButton } from './new-session.js'
 import { settings, update as updateSettings } from '../settings.js'
@@ -14,6 +14,17 @@ import { settings, update as updateSettings } from '../settings.js'
  * menu « ⋯ », quel que soit leur type : la barre du bas ne défile pas.
  */
 const INLINE_OPTIONS = 2
+
+/** Entrées écrites en streaming, révélées peu à peu. */
+const STREAMED = new Set(['agent', 'thought'])
+/**
+ * Le retard se résorbe en exponentielle de constante 100 ms : vite sur une
+ * rafale, en douceur à la fin… Calculé sur le temps écoulé, pas par frame : un
+ * téléphone lent (ou un onglet qui a dormi) rattrape au même rythme.
+ */
+const REVEAL_TAU_MS = 100
+/** … et jamais moins de 250 caractères par seconde, pour que la fin ne traîne pas. */
+const REVEAL_MIN_CPS = 250
 
 /** Icône d'un réglage générique, d'après sa catégorie ACP (indicative, jamais requise). */
 const OPTION_ICONS = { thought_level: 'lightbulb', model_config: 'zap' }
@@ -112,10 +123,13 @@ export function ThreadView({ key, navigate }) {
   function paintAll() {
     clear(feed)
     nodes.clear()
+    // Un rendu complet affiche tout : rien à révéler.
+    reveals.clear()
     const tl = store.ensureTimeline(key)
     const c = ctx()
     tl.entries.forEach((entry, i) => {
       const node = renderEntry(entry, { ...c, isLast: i === tl.entries.length - 1 })
+      node._zraLen = textLength(entry.blocks)
       nodes.set(entry.id, node)
       feed.append(node)
     })
@@ -142,12 +156,87 @@ export function ThreadView({ key, navigate }) {
     if (last) patch({ op: 'update', entry: last })
   }
 
+  // ---- streaming fluide ----
+  //
+  // L'agent envoie son texte par paquets irréguliers (relevé chez claude-acp :
+  // des rafales de 2 000 caractères, puis rien pendant une demi-seconde). Les
+  // afficher tels quels, c'est un texte qui saute. Le message en cours d'écriture
+  // est donc révélé à un débit régulier, qui accélère avec le retard accumulé :
+  // on ne traîne jamais plus de quelques frames derrière l'agent. Et seul son
+  // dernier bloc markdown est repeint (`patchHtml`), pas tout le message.
+
+  /** @type {Map<string, { entry:object, shown:number }>} */
+  const reveals = new Map()
+  let revealing = false
+
+  const isLive = (entry) => STREAMED.has(entry.type) && st.turn === 'busy' &&
+    store.ensureTimeline(key).last()?.id === entry.id
+
+  function reveal(entry, prev) {
+    let r = reveals.get(entry.id)
+    // Premier paquet d'un message déjà peint : on repart de ce qu'il affiche.
+    if (!r) reveals.set(entry.id, (r = { entry, shown: prev?._zraLen ?? 0 }))
+    r.entry = entry
+    if (!revealing) { revealing = true; requestAnimationFrame(revealFrame) }
+  }
+
+  function revealFrame(now = performance.now()) {
+    revealing = false
+    let more = false
+    for (const [id, r] of reveals) {
+      const node = nodes.get(id)
+      if (!node?.isConnected) { reveals.delete(id); continue }
+      const full = textLength(r.entry.blocks)
+      const live = isLive(r.entry)
+      // Premier pas d'une rafale : une frame nominale ; ensuite le temps réel,
+      // borné. L'horloge repart à chaque rafale (`r.at` effacé une fois à jour) :
+      // une pause de l'agent ne doit pas faire tout apparaître d'un coup.
+      const dt = r.at === undefined ? 16 : Math.min(100, Math.max(1, now - r.at))
+      r.at = now
+      if (r.shown < full) {
+        const backlog = full - r.shown
+        const step = Math.max(
+          Math.ceil((REVEAL_MIN_CPS * dt) / 1000),
+          Math.ceil(backlog * (1 - Math.exp(-dt / REVEAL_TAU_MS))),
+        )
+        r.shown = Math.min(full, r.shown + step)
+        patchHtml(messageBody(node), blocksPieces(revealBlocks(r.entry.blocks, r.shown), {
+          cursor: r.entry.type === 'agent' && (live || r.shown < full),
+        }))
+        node._zraLen = r.shown
+      }
+      if (r.shown < full) more = true
+      else r.at = undefined
+      if (r.shown >= full && !live) {
+        // Tout est affiché et l'agent est passé à autre chose : rendu définitif.
+        reveals.delete(id)
+        patch({ op: 'update', entry: r.entry })
+      }
+    }
+    if (more) { revealing = true; requestAnimationFrame(revealFrame) }
+    scrollToEnd()
+  }
+
   function patch(change) {
     const tl = store.ensureTimeline(key)
     const c = ctx()
     const isLast = tl.entries[tl.entries.length - 1]?.id === change.entry.id
-    const node = renderEntry(change.entry, { ...c, isLast })
     const prev = nodes.get(change.entry.id)
+    const pending = reveals.get(change.entry.id)
+    if (isLive(change.entry) || (pending && pending.shown < textLength(change.entry.blocks))) {
+      if (!prev) {
+        // Nouveau message : monté vide, le texte arrive par `revealFrame`.
+        const node = renderEntry({ ...change.entry, blocks: [] }, { ...c, isLast })
+        node._zraLen = 0
+        feed.append(node)
+        nodes.set(change.entry.id, node)
+      }
+      reveal(change.entry, prev)
+      return
+    }
+    reveals.delete(change.entry.id)
+    const node = renderEntry(change.entry, { ...c, isLast })
+    node._zraLen = textLength(change.entry.blocks)
     if (prev) {
       // Conserve l'état d'ouverture des blocs déjà dépliés par l'utilisateur.
       preserveOpen(prev, node)

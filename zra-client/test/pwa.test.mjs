@@ -499,6 +499,37 @@ test('le + d’un thread ouvre la session dans le projet de ce thread', async ()
   await until(() => /Refactor/.test($('.header__title')?.textContent || ''), 3000)
 })
 
+test('streaming : une rafale se révèle peu à peu, le début du message ne bouge pas', async () => {
+  ZRA.navigate('#/t/mock-desk/b7c2e441')
+  await until(() => /tests de la file/.test($('.header__title')?.textContent || ''), 3000, 'thread ouvert')
+  // Pendant le chargement de l'historique, le direct est tamponné puis peint d'un
+  // coup avec lui : c'est le streaming d'après qui nous intéresse.
+  await until(() => ZRA.store.state.threadStates.get('mock-desk/b7c2e441')?.historyComplete, 3000, 'historique')
+  const link = ZRA.store.state.machines.get('mock-desk').link
+  const first = 'Premier paragraphe, déjà là.\n\n'
+  const burst = 'Rafale '.repeat(250).trim()
+  const agentText = () => $$('.msg--agent').pop()?.textContent || ''
+  link.play('b7c2e441', [
+    { at: 10, update: { sessionUpdate: 'user_message_chunk', content: { type: 'text', text: 'Écris beaucoup.' } } },
+    { at: 30, update: { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: first } } },
+    { at: 500, update: { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: burst } } },
+  ])
+  await until(() => agentText().startsWith('Premier paragraphe, déjà là.'), 3000, 'premier paragraphe')
+  const para = $$('.msg--agent').pop().querySelector('p')
+
+  // La rafale de 1 750 caractères arrive d'un bloc : elle ne s'affiche pas d'un bloc.
+  const seen = await until(() => (/Rafale/.test(agentText()) ? agentText() : null), 3000, 'début de la rafale')
+  assert.ok(seen.length < first.trim().length + burst.length, `révélée progressivement (${seen.length} caractères d’abord)`)
+  assert.ok($('.msg--agent .cursor'), 'curseur de frappe pendant l’écriture')
+
+  await until(() => agentText().endsWith('Rafale Rafale'), 4000, 'rafale entièrement affichée')
+  assert.equal($$('.msg--agent').pop().querySelector('p'), para, 'le premier paragraphe garde son nœud')
+
+  // Fin du tour : rendu définitif, sans curseur.
+  await until(() => !$('.msg--agent .cursor'), 3000, 'curseur retiré')
+  assert.ok(agentText().includes(burst))
+})
+
 test('la barre mock est présente et pilote le daemon simulé', async () => {
   assert.ok($('.devbar'), 'barre mock affichée en mode mock')
   const buttons = $$('.devbar .btn')
