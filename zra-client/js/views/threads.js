@@ -108,8 +108,8 @@ function header({ navigate }) {
   el.append(
     h('div.header__title', {}, icon('zap', 'icon--sm'), h('span', { text: 'ZRA' })),
     h('div.header__meta', {}, sub),
-    button('icon-btn', { title: 'Rafraîchir', onclick: () => store.refreshAll() }, icon('refresh', 'icon--sm')),
     newSessionButton(),
+    button('icon-btn', { title: 'Rafraîchir', onclick: () => store.refreshAll() }, icon('refresh', 'icon--sm')),
     button('icon-btn', { title: 'Réglages', onclick: () => openSettings() }, icon('settings', 'icon--sm')),
   )
   const sync = () => {

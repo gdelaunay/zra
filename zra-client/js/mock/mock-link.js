@@ -6,7 +6,7 @@
 
 import { emitter } from '../dom.js'
 import {
-  MACHINES, MODES, MODELS, COMMANDS, historyFor,
+  MACHINES, MODES, MODELS, OPTIONS, COMMANDS, historyFor,
   fullTurn, shortTurn, longTurn, permissionScenario, permissionFollowUp, unknownScenario,
   userChunk,
 } from './scenarios.js'
@@ -163,11 +163,14 @@ export class MockLink {
       case 'set_option': {
         const st = this.turnOf(msg.threadId)
         if (msg.key === 'mode') st.modeId = msg.value
-        if (msg.key === 'model') st.modelId = msg.value
+        else if (msg.key === 'model') st.modelId = msg.value
+        else st.options[msg.key] = msg.value
         this.pushState(msg.threadId)
         this.pushEvent(msg.threadId, msg.key === 'mode'
           ? { sessionUpdate: 'current_mode_update', currentModeId: msg.value }
-          : { sessionUpdate: 'zra/notice', text: `modèle : ${MODELS.find((m) => m.id === msg.value)?.name || msg.value}` })
+          : msg.key === 'model'
+            ? { sessionUpdate: 'zra/notice', text: `modèle : ${MODELS.find((m) => m.id === msg.value)?.name || msg.value}` }
+            : { sessionUpdate: 'zra/notice', text: `${msg.key} : ${String(msg.value)}` })
         break
       }
       // Déclencheur de la barre de dev, reçu comme un message ZRA : le mode
@@ -310,6 +313,7 @@ export class MockLink {
       this.turns.set(threadId, {
         turn: 'idle', queue: [], timers: [],
         modeId: MODES[1].id, modelId: MODELS[0].id,
+        options: Object.fromEntries(OPTIONS.map((o) => [o.id, o.default])),
       })
     }
     return this.turns.get(threadId)
@@ -340,6 +344,7 @@ export class MockLink {
       models: MODELS,
       currentModeId: st.modeId,
       currentModelId: st.modelId,
+      options: OPTIONS.map(({ default: _, ...o }) => ({ ...o, currentValue: st.options[o.id] })),
       commands: COMMANDS,
     })
   }

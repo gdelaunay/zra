@@ -143,6 +143,26 @@ test('projection des options : modes ACP et sélecteur de modèle → contrat PW
   assert.equal(p.currentModelId, 'b')
 })
 
+test('projection des options : les autres sélecteurs passent dans `options`, mode et modèle exclus', () => {
+  const p = projectOptions({
+    configOptions: [
+      { id: 'mode', type: 'select', category: 'mode', currentValue: 'plan', options: [{ value: 'plan', name: 'Plan' }] },
+      { id: 'model', type: 'select', category: 'model', currentValue: 'a', options: [{ value: 'a', name: 'A' }] },
+      { id: 'effort', type: 'select', name: 'Effort', category: 'thought_level', currentValue: 'high',
+        options: [{ value: 'low', name: 'Low' }, { value: 'high', name: 'High' }] },
+      { id: 'fast', type: 'boolean', name: 'Fast mode', category: 'model_config', currentValue: true, description: 'plus vite' },
+      { id: 'futur', type: 'slider', name: 'Inconnu', currentValue: 3 },
+    ],
+  })
+  // Sans `modes`, le mode courant se lit dans son sélecteur.
+  assert.equal(p.currentModeId, 'plan')
+  assert.deepEqual(p.options, [
+    { id: 'effort', name: 'Effort', category: 'thought_level', type: 'select',
+      values: [{ id: 'low', name: 'Low' }, { id: 'high', name: 'High' }], currentValue: 'high' },
+    { id: 'fast', name: 'Fast mode', category: 'model_config', description: 'plus vite', type: 'boolean', currentValue: true },
+  ])
+})
+
 // ---------------------------------------------------------------------------
 // Observation
 // ---------------------------------------------------------------------------
@@ -157,6 +177,7 @@ test("l'initialize et la session sont captés au passage (spec §3.1)", async (t
   assert.equal(st.cwd, process.cwd())
   assert.deepEqual(st.modes, [{ id: 'default', name: 'Normal' }, { id: 'plan', name: 'Plan' }])
   assert.deepEqual(st.models, [{ id: 'rapide', name: 'Rapide' }, { id: 'lent', name: 'Appliqué' }])
+  assert.deepEqual(st.options.map((o) => [o.id, o.type, o.currentValue]), [['effort', 'select', 'medium'], ['fast', 'boolean', false]])
 })
 
 test('un prompt de Zed fait passer le tour de idle à busy, puis revient', async (t) => {
@@ -278,6 +299,26 @@ test('set_option : appliqué tout de suite au repos, différé pendant un tour',
   await turn
   // Retour au repos => l'option différée est appliquée (spec §6.5).
   await until(() => bridge.sessions.get(zed.sessionId).currentModelId === 'lent', { label: 'option différée' })
+})
+
+test('set_option : un réglage générique part sous son id, un booléen avec son type', async (t) => {
+  const { bridge, zed } = await boot(t)
+  const option = (id) => bridge.sessions.get(zed.sessionId).options.find((o) => o.id === id)
+
+  await bridge.setOption(zed.sessionId, 'effort', 'high')
+  assert.equal(option('effort').currentValue, 'high')
+  // Le faux agent refuse un `fast` qui n'arriverait pas typé `boolean`.
+  await bridge.setOption(zed.sessionId, 'fast', true)
+  assert.equal(option('fast').currentValue, true)
+})
+
+test('config_option_update : la liste complète republiée par l’agent remplace la nôtre', async (t) => {
+  const { bridge, zed } = await boot(t)
+  await zed.prompt('effort: à fond')
+  await until(
+    () => bridge.sessions.get(zed.sessionId).options.find((o) => o.id === 'effort').currentValue === 'high',
+    { label: 'effort changé par l’agent' },
+  )
 })
 
 // ---------------------------------------------------------------------------

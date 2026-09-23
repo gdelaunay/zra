@@ -123,6 +123,7 @@ function handle(machine, msg) {
         queue: msg.queue ?? st.queue,
         modes: msg.modes ?? st.modes,
         models: msg.models ?? st.models,
+        options: msg.options ?? st.options,
         currentModeId: msg.currentModeId ?? st.currentModeId,
         currentModelId: msg.currentModelId ?? st.currentModelId,
       })
@@ -238,6 +239,8 @@ export function ensureState(k) {
       queue: [],
       modes: [],
       models: [],
+      /** Sélecteurs de l'agent hors mode/modèle (effort, mode rapide…) — protocole §4. */
+      options: [],
       currentModeId: null,
       currentModelId: null,
       subscribed: false,
@@ -314,7 +317,11 @@ export function setOption(k, optKey, value) {
   m.link.send({ type: 'set_option', threadId: splitKey(k).threadId, key: optKey, value })
   const st = ensureState(k)
   if (optKey === 'mode') st.currentModeId = value
-  if (optKey === 'model') st.currentModelId = value
+  else if (optKey === 'model') st.currentModelId = value
+  else {
+    const option = st.options?.find((o) => o.id === optKey)
+    if (option) option.currentValue = value
+  }
   emit(`state:${k}`, st)
 }
 

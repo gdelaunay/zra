@@ -78,6 +78,24 @@ export const MODELS = [
   { id: 'claude-haiku-4-5', name: 'Claude Haiku 4.5' },
 ]
 
+/** Réglages hors mode/modèle, comme ceux de `claude-agent-acp` (protocole §4 `options`). */
+export const OPTIONS = [
+  {
+    id: 'effort', name: 'Effort', category: 'thought_level', type: 'select',
+    values: [
+      { id: 'default', name: 'Default' },
+      { id: 'low', name: 'Low' },
+      { id: 'medium', name: 'Medium' },
+      { id: 'high', name: 'High' },
+    ],
+    default: 'default',
+  },
+  {
+    id: 'fast', name: 'Fast mode', category: 'model_config', type: 'boolean',
+    description: 'Faster responses on supported models', default: false,
+  },
+]
+
 export const COMMANDS = [
   { name: 'test', description: 'lancer npm test' },
   { name: 'review', description: 'relire le diff courant' },

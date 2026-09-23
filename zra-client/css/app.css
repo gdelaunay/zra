@@ -190,6 +190,15 @@ button { cursor: pointer; }
 }
 .bottombar .input { height: 26px; }
 .bottombar > .grow { flex: 1 1 auto; min-width: 0; display: block; }
+/* Les pastilles rétrécissent (libellé tronqué) plutôt que de déborder. */
+.bottombar .pill { flex: 0 1 auto; min-width: 0; }
+.bottombar__options { display: contents; }
+/* Comme Zed : la valeur seule. Sur un écran étroit, l'icône seule à sa place. */
+.bottombar .pill__icon { display: none; }
+@media (max-width: 480px) {
+  .bottombar .pill__icon { display: block; }
+  .bottombar .pill__label { display: none; }
+}
 
 .scroll {
   flex: 1 1 auto; overflow-y: auto; overflow-x: hidden;
@@ -498,6 +507,21 @@ button { cursor: pointer; }
 }
 .pill:hover { background: var(--ghost-element-hover); color: var(--text); }
 .pill--on { color: var(--text-accent); background: var(--ghost-element-selected); }
+
+.switch {
+  position: relative; flex: none;
+  width: 24px; height: 14px; border-radius: 7px;
+  background: var(--element-background); border: 1px solid var(--border);
+  transition: background .15s, border-color .15s;
+}
+.switch__knob {
+  position: absolute; top: 1px; left: 1px;
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--icon-muted); transition: transform .15s, background .15s;
+}
+.switch--on { background: var(--icon-accent); border-color: var(--icon-accent); }
+.switch--on .switch__knob { transform: translateX(10px); background: var(--text); }
+.menu__switch { margin-left: auto; }
 
 .send-btn {
   display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-2);

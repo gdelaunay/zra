@@ -10,7 +10,8 @@
 //  · le daemon, qui le relance en client ACP pour rejouer un `session/load`.
 //
 // Le scénario se choisit par le **texte du prompt** : c'est ce qui rend les
-// tests lisibles — `prompt('permission: …')` demande une autorisation.
+// tests lisibles — `prompt('permission: …')` demande une autorisation,
+// `prompt('effort: …')` change l'effort côté agent (`config_option_update`).
 //
 //   ZRA_FAKE_NO_LOAD_SESSION=1   ne déclare pas `loadSession` (risque 🟠2)
 //   ZRA_FAKE_SLOW_MS=…           durée d'un tour long (défaut 400 ms)
@@ -67,8 +68,19 @@ function modesOf(session) {
   }
 }
 
+/** Mêmes sélecteurs que `claude-agent-acp` : mode, modèle, effort, mode rapide. */
 function configOf(session) {
   return [{
+    id: 'mode',
+    type: 'select',
+    name: 'Mode',
+    category: 'mode',
+    currentValue: session.modeId,
+    options: [
+      { value: 'default', name: 'Normal' },
+      { value: 'plan', name: 'Plan' },
+    ],
+  }, {
     id: 'model',
     type: 'select',
     name: 'Modèle',
@@ -78,7 +90,28 @@ function configOf(session) {
       { value: 'rapide', name: 'Rapide' },
       { value: 'lent', name: 'Appliqué' },
     ],
+  }, {
+    id: 'effort',
+    type: 'select',
+    name: 'Effort',
+    category: 'thought_level',
+    currentValue: session.effort,
+    options: [
+      { value: 'low', name: 'Low' },
+      { value: 'medium', name: 'Medium' },
+      { value: 'high', name: 'High' },
+    ],
+  }, {
+    id: 'fast',
+    type: 'boolean',
+    name: 'Fast mode',
+    category: 'model_config',
+    currentValue: session.fast,
   }]
+}
+
+function newSession(id, cwd) {
+  return { id, cwd, modeId: 'default', modelId: 'rapide', effort: 'medium', fast: false, cancelled: false }
 }
 
 // ---------------------------------------------------------------------------
@@ -134,6 +167,13 @@ async function runPrompt(session, text) {
     return { stopReason: 'end_turn' }
   }
 
+  if (text.startsWith('effort:')) {
+    // L'agent change lui-même un réglage : il republie la liste complète.
+    session.effort = 'high'
+    update(sessionId, { sessionUpdate: 'config_option_update', configOptions: configOf(session) })
+    return { stopReason: 'end_turn' }
+  }
+
   if (text.startsWith('lent:')) {
     // Tour long : c'est celui qu'on interrompt.
     for (let i = 0; i < 20; i++) {
@@ -184,7 +224,7 @@ async function handle(msg) {
 
     case 'session/new': {
       const sessionId = process.env.ZRA_FAKE_SESSION_ID || `fake-session-${nextSession++}`
-      sessions.set(sessionId, { id: sessionId, cwd: params.cwd, modeId: 'default', modelId: 'rapide', cancelled: false })
+      sessions.set(sessionId, newSession(sessionId, params.cwd))
       return reply(id, { sessionId, modes: modesOf(sessions.get(sessionId)), configOptions: configOf(sessions.get(sessionId)) })
     }
 
@@ -192,7 +232,7 @@ async function handle(msg) {
       if (NO_LOAD_SESSION) return fail(id, 'session/load non supporté', -32601)
       const sessionId = params.sessionId
       const session = sessions.get(sessionId)
-        ?? { id: sessionId, cwd: params.cwd, modeId: 'default', modelId: 'rapide', cancelled: false }
+        ?? newSession(sessionId, params.cwd)
       sessions.set(sessionId, session)
       // Replay : mêmes `session/update` que le live (spec §2.3).
       update(sessionId, { sessionUpdate: 'user_message_chunk', content: { type: 'text', text: 'question archivée' } })
@@ -227,6 +267,12 @@ async function handle(msg) {
       const session = sessions.get(params.sessionId)
       if (!session) return fail(id, 'session inconnue')
       if (params.configId === 'model') session.modelId = params.value
+      else if (params.configId === 'mode') session.modeId = params.value
+      else if (params.configId === 'effort') session.effort = params.value
+      else if (params.configId === 'fast') {
+        if (params.type !== 'boolean' || typeof params.value !== 'boolean') return fail(id, 'fast attend un booléen')
+        session.fast = params.value
+      } else return fail(id, `option inconnue : ${params.configId}`)
       return reply(id, { configOptions: configOf(session) })
     }
 

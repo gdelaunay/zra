@@ -32,6 +32,8 @@ export class SessionState {
     this.currentModelId = null
     /** Id réel du sélecteur de modèle côté agent — souvent `model`, pas toujours. */
     this.modelConfigId = null
+    /** Les autres sélecteurs de l'agent (effort, mode rapide…), projetés par `projectOptions`. */
+    this.options = null
     /** Une interruption est en cours : la réponse au prompt va arriver « cancelled ». */
     this.cancelling = false
     /**
@@ -159,6 +161,7 @@ export class Sessions extends EventEmitter {
       queue: st.queue,
       modes: st.modes,
       models: st.models,
+      options: st.options,
       commands: st.commands,
       currentModeId: st.currentModeId,
       currentModelId: st.currentModelId,

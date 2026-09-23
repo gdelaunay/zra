@@ -7,7 +7,7 @@
 // Ce qu'il en tire :
 //  · les capacités de l'agent, lues à l'`initialize` ;
 //  · les `session_id` créés (`session/new`) ou rechargés (`session/load`), et
-//    leurs modes/modèles ;
+//    leurs options (mode, modèle, et tous les autres sélecteurs) ;
 //  · le tour en cours, déduit des `session/prompt` réellement en vol ;
 //  · les `session/update`, republiés **verbatim** (règle du §1 de la spec) ;
 //  · les demandes de permission en attente, avec leur `id` JSON-RPC ;
@@ -50,10 +50,11 @@ export class ShimError extends Error {
  * Projette les options de session ACP sur le contrat de la PWA.
  *
  * L'ACP moderne expose les modes dans `modes` et **tout le reste** — dont le
- * modèle — dans `configOptions`, un tableau de sélecteurs typés. Le protocole
- * ZRA, lui, ne connaît que `modes` et `models`. On fait donc la projection ici,
- * une fois : le sélecteur de catégorie `model` devient `models`, les autres
- * restent adressables par `set_option` sous leur propre clé.
+ * modèle — dans `configOptions`, un tableau de sélecteurs typés. On fait la
+ * projection ici, une fois : le mode et le modèle — les réglages de base — ont
+ * leurs champs dédiés (`modes`, `models`) ; tous les autres sélecteurs (effort,
+ * mode rapide…) partent tels quels dans `options`, adressables par `set_option`
+ * sous leur propre `id`.
  */
 export function projectOptions({ modes, configOptions } = {}) {
   const out = {}
@@ -69,8 +70,30 @@ export function projectOptions({ modes, configOptions } = {}) {
       out.currentModelId = model.currentValue ?? null
       out.modelConfigId = model.id ?? 'model'
     }
+    // Le mode peut aussi vivre dans `configOptions` ; `modes` fait foi s'il est là.
+    const mode = configOptions.find((o) => o?.category === 'mode' || o?.id === 'mode')
+    if (mode?.currentValue != null && out.currentModeId == null) out.currentModeId = mode.currentValue
+    out.options = configOptions
+      .filter((o) => o && o !== model && o !== mode)
+      .map(projectOption)
+      .filter(Boolean)
   }
   return out
+}
+
+/**
+ * Un sélecteur générique, pour la PWA. Seuls les types connus passent : un
+ * type que l'ACP ajouterait demain est ignoré plutôt que mal rendu.
+ */
+function projectOption(o) {
+  if (typeof o.id !== 'string') return null
+  const base = { id: o.id, name: o.name ?? o.id, category: o.category ?? null }
+  if (o.description) base.description = o.description
+  if (o.type === 'boolean') return { ...base, type: 'boolean', currentValue: o.currentValue === true }
+  if (o.type === 'select' && Array.isArray(o.options)) {
+    return { ...base, type: 'select', values: flattenSelect(o.options), currentValue: o.currentValue ?? null }
+  }
+  return null
 }
 
 /** Les valeurs d'un sélecteur peuvent être groupées : on aplatit pour la PWA. */
@@ -84,6 +107,18 @@ function flattenSelect(options) {
     }
   }
   return out
+}
+
+/** Reporte une projection sur l'état de session : seul ce qu'elle porte change. */
+function assignOptions(st, p) {
+  if (p.modes) st.modes = p.modes
+  if (p.currentModeId != null) st.currentModeId = p.currentModeId
+  if (p.models) {
+    st.models = p.models
+    st.currentModelId = p.currentModelId
+    st.modelConfigId = p.modelConfigId
+  }
+  if (p.options) st.options = p.options
 }
 
 export class AcpBridge extends EventEmitter {
@@ -277,12 +312,7 @@ export class AcpBridge extends EventEmitter {
   openSession(sessionId, { cwd, source, result }) {
     const st = this.sessions.get(sessionId)
     if (cwd) st.cwd = cwd
-    const p = projectOptions(result ?? {})
-    if (p.modes) st.modes = p.modes
-    if (p.models) st.models = p.models
-    if (p.modelConfigId) st.modelConfigId = p.modelConfigId
-    if (p.currentModeId != null) st.currentModeId = p.currentModeId
-    if (p.currentModelId != null) st.currentModelId = p.currentModelId
+    assignOptions(st, projectOptions(result ?? {}))
     this.emit('session', { sessionId, cwd: st.cwd, source, ...this.sessions.snapshot(sessionId) })
     this.sessions.changed(sessionId)
   }
@@ -296,17 +326,14 @@ export class AcpBridge extends EventEmitter {
     if (method === M.sessionSetMode) {
       if (params.modeId) st.currentModeId = params.modeId
     } else if (Array.isArray(result?.configOptions)) {
-      const p = projectOptions({ configOptions: result.configOptions })
-      if (p.models) {
-        st.models = p.models
-        st.currentModelId = p.currentModelId
-        st.modelConfigId = p.modelConfigId
-      }
-      const mode = result.configOptions.find((o) => o?.category === 'mode' || o?.id === 'mode')
-      if (mode?.currentValue != null) st.currentModeId = mode.currentValue
+      assignOptions(st, projectOptions({ configOptions: result.configOptions }))
     } else if (params.configId) {
       if (params.configId === (st.modelConfigId || 'model')) st.currentModelId = params.value
       else if (params.configId === 'mode') st.currentModeId = params.value
+      else {
+        const option = st.options?.find((o) => o.id === params.configId)
+        if (option) option.currentValue = params.value
+      }
     }
     this.sessions.changed(sessionId)
   }
@@ -334,17 +361,14 @@ export class AcpBridge extends EventEmitter {
       case 'current_mode_update':
         if (update.currentModeId) { st.currentModeId = update.currentModeId; this.sessions.changed(sessionId) }
         break
-      case 'config_option_update': {
-        const option = update.configOption ?? update
-        const p = projectOptions({ configOptions: [option] })
-        if (p.models) {
-          st.models = p.models
-          st.currentModelId = p.currentModelId
-          st.modelConfigId = p.modelConfigId
+      // L'agent republie la liste **complète** : un changement de modèle peut
+      // faire apparaître ou disparaître l'effort, on remplace donc tout.
+      case 'config_option_update':
+        if (Array.isArray(update.configOptions)) {
+          assignOptions(st, projectOptions({ configOptions: update.configOptions }))
           this.sessions.changed(sessionId)
         }
         break
-      }
       case 'available_commands_update':
         st.commands = (update.availableCommands ?? []).map((c) => ({ name: c.name, description: c.description ?? null }))
         this.sessions.changed(sessionId)
@@ -610,8 +634,8 @@ export class AcpBridge extends EventEmitter {
 
   /**
    * Change une option de session. `mode` passe par `session/set_mode` ; tout le
-   * reste — dont `model` — par `session/set_config_option`, où l'ACP moderne
-   * range les sélecteurs (spec §6.5).
+   * reste — `model` comme les sélecteurs génériques d'`options`, sous leur `id` —
+   * par `session/set_config_option`, où l'ACP moderne les range (spec §6.5).
    */
   async setOption(sessionId, key, value) {
     const st = this.requireSession(sessionId)

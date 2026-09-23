@@ -6,25 +6,37 @@ import { icon, agentIcon } from './icons.js'
 
 const layer = () => document.getElementById('overlays')
 
-let current = null
+/**
+ * Surcouches ouvertes, de la plus ancienne à celle du dessus. Un menu s'empile
+ * sur ce qui est ouvert (le sélecteur de thème sur la feuille des réglages) ;
+ * une feuille remplace tout.
+ */
+const stack = []
 
+/** Ferme la surcouche du dessus. */
 export function closeOverlay() {
-  if (!current) return
-  current.remove()
-  current = null
-  document.removeEventListener('keydown', onEsc, true)
+  const node = stack.pop()
+  if (!node) return
+  node.remove()
+  if (!stack.length) document.removeEventListener('keydown', onEsc, true)
+}
+
+/** Ferme tout : changement d'écran. */
+export function closeAllOverlays() {
+  while (stack.length) closeOverlay()
 }
 
 function onEsc(ev) {
   if (ev.key === 'Escape') { ev.stopPropagation(); closeOverlay() }
 }
 
-function mount(node) {
-  closeOverlay()
-  current = node
+/** @returns {()=>void} ferme **cette** surcouche, et ce qui s'est empilé dessus. */
+function mount(node, { replace = true } = {}) {
+  if (replace) closeAllOverlays()
+  if (!stack.length) document.addEventListener('keydown', onEsc, true)
+  stack.push(node)
   layer().append(node)
-  document.addEventListener('keydown', onEsc, true)
-  return node
+  return () => { while (stack.includes(node)) closeOverlay() }
 }
 
 /**
@@ -32,9 +44,18 @@ function mount(node) {
  * @param {HTMLElement} anchor
  * @param {{label?:string, items:Array<{label:string, icon?:string, on?:boolean, danger?:boolean, onSelect?:Function, separator?:boolean}>}} opts
  */
+/** Interrupteur visuel ; l'état accessible est porté par l'élément parent. */
+export function switchEl(on, cls = '') {
+  const el = h('span.switch', { 'aria-hidden': 'true' }, h('span.switch__knob'))
+  if (on) el.classList.add('switch--on')
+  if (cls) el.classList.add(cls)
+  return el
+}
+
 export function openMenu(anchor, opts) {
   const wrap = h('div')
-  const scrim = h('div.scrim', { onclick: closeOverlay })
+  let close = () => {}
+  const scrim = h('div.scrim', { onclick: () => close() })
   const menu = h('div.menu', { role: 'menu' })
   if (opts.label) menu.append(h('div.menu__label.label', { text: opts.label }))
   for (const item of opts.items) {
@@ -42,19 +63,23 @@ export function openMenu(anchor, opts) {
     if (item.header) { menu.append(h('div.menu__label.label', { text: item.label })); continue }
     menu.append(button('menu__item', {
       class: item.on ? 'menu__item--on' : '',
-      role: 'menuitem',
+      role: item.toggle !== undefined ? 'menuitemcheckbox' : 'menuitem',
+      'aria-checked': item.toggle !== undefined ? String(item.toggle) : undefined,
       style: item.danger ? { color: 'var(--error)' } : undefined,
-      onclick: () => { closeOverlay(); item.onSelect?.() },
+      onclick: () => { close(); item.onSelect?.() },
     },
       item.agentId ? agentIcon(item.agentId, 'icon--sm')
         : item.icon ? icon(item.icon, 'icon--sm')
           : h('span', { style: { width: '14px' } }),
       h('span.truncate', { text: item.label }),
-      item.on ? icon('check', 'icon--sm') : null,
+      // Un interrupteur se lit à droite, comme la coche d'un choix.
+      item.toggle !== undefined
+        ? switchEl(item.toggle, 'menu__switch')
+        : item.on ? icon('check', 'icon--sm') : null,
     ))
   }
   wrap.append(scrim, menu)
-  mount(wrap)
+  close = mount(wrap, { replace: false })
 
   const r = anchor.getBoundingClientRect()
   const mw = menu.offsetWidth, mh = menu.offsetHeight
@@ -69,19 +94,22 @@ export function openMenu(anchor, opts) {
 /** Feuille ancrée en bas de l'écran (réglages, formulaires). */
 export function openSheet(title, build, { titleIcon } = {}) {
   const wrap = h('div')
-  const scrim = h('div.scrim', { onclick: closeOverlay })
+  // `build` s'exécute avant le montage : on lie la fermeture après coup.
+  let unmount = () => {}
+  const close = () => unmount()
+  const scrim = h('div.scrim', { onclick: close })
   const sheet = h('div.sheet', { role: 'dialog', 'aria-modal': 'true' })
   sheet.append(h('div.sheet__title', {},
     titleIcon ? icon(titleIcon, 'icon--sm') : null,
     h('span', { text: title }),
     h('span.spacer'),
-    button('icon-btn', { onclick: closeOverlay, 'aria-label': 'fermer' }, icon('x', 'icon--sm')),
+    button('icon-btn', { onclick: close, 'aria-label': 'fermer' }, icon('x', 'icon--sm')),
   ))
   const body = h('div')
   sheet.append(body)
-  build(body, { close: closeOverlay, rebuild: () => { clear(body); build(body, { close: closeOverlay }) } })
+  build(body, { close, rebuild: () => { clear(body); build(body, { close }) } })
   wrap.append(scrim, sheet)
-  mount(wrap)
+  unmount = mount(wrap)
   return sheet
 }
 

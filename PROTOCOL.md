@@ -159,7 +159,7 @@ Retire une entrée de la file. Réponse : `thread_state` à jour. `queueId` inco
 
 ### `set_option`
 ```ts
-{ type: 'set_option', threadId: string, key: 'mode' | 'model' | string, value: unknown }
+{ type: 'set_option', threadId: string, key: 'mode' | 'model' | string, value: string | boolean }
 ```
 Change une option de session ACP. Mêmes contraintes de file qu'un message : si le
 tour est en cours, appliquer à la fin. Réponse : `thread_state` à jour, et — si
@@ -246,6 +246,12 @@ affiche les `unknown` grisés et non cliquables — **ne pas les masquer**.
   queue: Array<{ queueId: string, text: string, at?: string }>,
   modes?: Array<{ id: string, name?: string }>,
   models?: Array<{ id: string, name?: string }>,
+  options?: Array<
+    | { id: string, name: string, description?: string, category: string | null,
+        type: 'select', values: Array<{ id: string, name?: string }>, currentValue: string | null }
+    | { id: string, name: string, description?: string, category: string | null,
+        type: 'boolean', currentValue: boolean }
+  >,
   commands?: Array<{ name: string, description?: string }>,
   currentModeId?: string | null,
   currentModelId?: string | null,
@@ -259,6 +265,14 @@ sélecteurs de mode/modèle. `modes`/`models` absents ⇒ sélecteurs grisés, c
 pas une erreur : tant qu'aucun shim n'a lu l'`initialize` de l'agent, le daemon
 ne connaît pas les options de la session. `commands` est mémorisé par la PWA sans
 être affiché en v1.
+
+`options` porte **tous les autres** sélecteurs de l'agent (`configOptions` ACP :
+effort, mode rapide…). Le mode et le modèle — les réglages de base — n'y figurent
+jamais, ils ont leurs champs dédiés. Liste complète à chaque fois : l'agent peut
+en retirer (l'effort disparaît avec un modèle qui ne le gère pas). Seuls les types
+`select` et `boolean` passent ; un type inconnu est écarté par le shim. `category`
+est indicative (`thought_level`, `model_config`, …), jamais requise. On les change
+par `set_option` avec `key` = `id` de l'option (booléen pour un `boolean`).
 
 ### `acp_event`
 ```ts

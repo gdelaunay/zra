@@ -116,6 +116,8 @@ Les variables CSS reprennent les noms de tokens de Zed (`element.hover` →
 
 - `machine.name` / `version` viennent du daemon : la liste des postes affiche
   déjà ce qu'il enverra.
+- `thread_state.options` (effort, mode rapide…) : une pastille par réglage dans
+  la barre du bas, ou toutes dans le menu « ⋯ » au-delà de deux.
 - `thread_state.modes` / `models` alimentent les sélecteurs d'en-tête ; si le
   daemon ne les envoie pas, les sélecteurs se grisent tout seuls.
 - Réponse aux permissions (§6.6) : la PWA envoie `respond_permission` avec

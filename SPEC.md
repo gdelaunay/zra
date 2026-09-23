@@ -286,6 +286,12 @@ Via les options de session ACP. Le shim expose les options disponibles lues à
 l'`initialize` ; la PWA affiche un sélecteur. Mêmes contraintes de file d'attente
 qu'un message (pas de changement en plein tour).
 
+Le mode et le modèle sont les réglages de base, avec leurs sélecteurs dédiés.
+Tous les autres `configOptions` de l'agent (effort, mode rapide…) sont relayés
+génériquement (`thread_state.options`, protocole §4) : liste déroulante pour un
+`select`, interrupteur pour un `boolean`. Au-delà de deux, ils passent tous dans
+un menu « ⋯ » de la barre du bas, qui ne défile jamais.
+
 ---
 
 ### 6.6 Répondre à une demande de permission

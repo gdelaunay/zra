@@ -33,6 +33,8 @@ export class ThreadStates extends EventEmitter {
         queue: [],
         modes: null,
         models: null,
+        /** Sélecteurs hors mode/modèle (effort, mode rapide…), tels que projetés par le shim. */
+        options: null,
         currentModeId: null,
         currentModelId: null,
         commands: null,
@@ -56,6 +58,7 @@ export class ThreadStates extends EventEmitter {
     // erreur : tant qu'aucun shim n'a lu l'`initialize`, on ne les connaît pas.
     if (st.modes) out.modes = st.modes
     if (st.models) out.models = st.models
+    if (st.options) out.options = st.options
     if (st.commands) out.commands = st.commands
     if (st.currentModeId != null) out.currentModeId = st.currentModeId
     if (st.currentModelId != null) out.currentModelId = st.currentModelId
@@ -114,7 +117,10 @@ export class ThreadStates extends EventEmitter {
     const st = this.get(threadId)
     if (key === 'mode') st.currentModeId = value
     else if (key === 'model') st.currentModelId = value
-    else st[key] = value
+    else {
+      const option = st.options?.find((o) => o.id === key)
+      if (option) option.currentValue = value
+    }
     this.changed(threadId)
   }
 
@@ -126,12 +132,13 @@ export class ThreadStates extends EventEmitter {
    * pas `dequeue` ici — le dépilage a déjà eu lieu de l'autre côté ; on se
    * contente de publier un `thread_state` à jour (invariant §6.6 du protocole).
    */
-  mirror(threadId, { turn, queue, modes, models, commands, currentModeId, currentModelId } = {}) {
+  mirror(threadId, { turn, queue, modes, models, options, commands, currentModeId, currentModelId } = {}) {
     const st = this.get(threadId)
     if (turn === 'idle' || turn === 'busy') st.turn = turn
     if (Array.isArray(queue)) st.queue = queue
     if (modes !== undefined) st.modes = modes
     if (models !== undefined) st.models = models
+    if (options !== undefined) st.options = options
     if (commands !== undefined) st.commands = commands
     if (currentModeId !== undefined) st.currentModeId = currentModeId
     if (currentModelId !== undefined) st.currentModelId = currentModelId
@@ -140,10 +147,11 @@ export class ThreadStates extends EventEmitter {
   }
 
   /** Options de session lues à l'`initialize` (lot B). */
-  setCapabilities(threadId, { modes, models, commands, currentModeId, currentModelId } = {}) {
+  setCapabilities(threadId, { modes, models, options, commands, currentModeId, currentModelId } = {}) {
     const st = this.get(threadId)
     if (modes !== undefined) st.modes = modes
     if (models !== undefined) st.models = models
+    if (options !== undefined) st.options = options
     if (commands !== undefined) st.commands = commands
     if (currentModeId !== undefined) st.currentModeId = currentModeId
     if (currentModelId !== undefined) st.currentModelId = currentModelId

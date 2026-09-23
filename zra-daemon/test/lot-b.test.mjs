@@ -210,6 +210,8 @@ test('subscribe : le thread_state porte les modes et modèles lus par le shim', 
   assert.deepEqual(state.models, [{ id: 'rapide', name: 'Rapide' }, { id: 'lent', name: 'Appliqué' }])
   assert.equal(state.currentModeId, 'default')
   assert.equal(state.turn, 'idle')
+  // Les autres réglages de l'agent suivent, le mode et le modèle n'y sont pas répétés.
+  assert.deepEqual(state.options.map((o) => o.id), ['effort', 'fast'])
 })
 
 // ===========================================================================
@@ -349,6 +351,19 @@ test('set_option : le mode change réellement côté agent', async (t) => {
     (m) => m.type === 'thread_state' && m.currentModeId === 'plan',
     { label: 'thread_state à jour' },
   )
+})
+
+test('set_option : un réglage générique (effort, mode rapide) arrive jusqu’à l’agent', async (t) => {
+  await boot(t)
+  await startShim(t)
+  const client = await (await Client.open(t)).hello()
+  await subscribe(client, VIVANT)
+
+  const value = (m, id) => m.options?.find((o) => o.id === id)?.currentValue
+  client.send({ type: 'set_option', threadId: VIVANT, key: 'effort', value: 'low' })
+  await client.until((m) => m.type === 'thread_state' && value(m, 'effort') === 'low', { label: 'effort' })
+  client.send({ type: 'set_option', threadId: VIVANT, key: 'fast', value: true })
+  await client.until((m) => m.type === 'thread_state' && value(m, 'fast') === true, { label: 'mode rapide' })
 })
 
 test('un thread sans session refuse l’écriture (no_session)', async (t) => {

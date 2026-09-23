@@ -142,6 +142,39 @@ test('le retour à la liste se fait depuis la bottombar', async () => {
   assert.ok($('.bottombar .pill'), 'les sélecteurs mode/modèle sont en bas')
 })
 
+test('réglages génériques : en ligne s’ils sont peu nombreux, sinon dans « ⋯ »', async () => {
+  const key = 'mock-desk/a1f39c0b'
+  const st = ZRA.store.ensureState(key)
+  const option = (id) => st.options.find((o) => o.id === id)
+  const pill = (text) => $$('.bottombar__options .pill').find((n) => n.textContent.includes(text))
+
+  // Effort (sélecteur) et mode rapide (interrupteur) : deux pastilles de plus.
+  assert.equal($$('.bottombar .pill').length, 4)
+  click(pill('Fast mode'))
+  await until(() => option('fast').currentValue === true && pill('Fast mode').querySelector('.switch--on'),
+    3000, 'mode rapide allumé')
+
+  click(pill('Default'))
+  click($$('.menu__item').find((n) => n.textContent.trim() === 'High'))
+  await until(() => option('effort').currentValue === 'high' && pill('High'), 3000, 'effort à high')
+
+  // Un réglage de plus : tout part dans le menu « ⋯ », quel que soit le type.
+  const link = ZRA.store.state.machines.get('mock-desk').link
+  const extra = { id: 'verbose', name: 'Verbeux', type: 'boolean', category: null, currentValue: false }
+  link.push({ type: 'thread_state', threadId: 'a1f39c0b', options: [...st.options, extra] })
+  await until(() => $('.bottombar [aria-label="autres réglages"]'), 3000, 'bouton ⋯')
+  assert.equal($$('.bottombar__options .pill').length, 1)
+  click($('.bottombar [aria-label="autres réglages"]'))
+  const items = $$('.menu__item').map((n) => n.textContent.trim())
+  assert.deepEqual(items, ['Fast mode', 'Verbeux', 'Default', 'Low', 'Medium', 'High'])
+  click($$('.menu__item').find((n) => n.textContent.trim() === 'Verbeux'))
+  await until(() => option('verbose').currentValue === true, 3000, 'interrupteur depuis le menu')
+
+  // On rend l'état du mock pour les tests suivants.
+  link.push({ type: 'thread_state', threadId: 'a1f39c0b', options: st.options.filter((o) => o.id !== 'verbose') })
+  await until(() => !$('.bottombar [aria-label="autres réglages"]'), 3000, 'retour en ligne')
+})
+
 test('pendant un tour, Stop apparaît à gauche d’Envoyer sans changer son libellé', async () => {
   const key = 'mock-desk/a1f39c0b'
   const label = () => $('.composer .send-btn:not(.send-btn--stop) span').textContent
@@ -310,6 +343,26 @@ test('retour à la liste et changement de thème', async () => {
   assert.equal(doc.documentElement.dataset.theme, 'one-dark')
   applyTheme(before)
   assert.equal(doc.documentElement.dataset.theme, before)
+})
+
+test('le sélecteur de thème s’ouvre par-dessus les réglages, sans les fermer', async () => {
+  click($('.header [title="Réglages"]'))
+  await until(() => $('.sheet'), 2000, 'feuille des réglages')
+  const btn = $$('.sheet .btn').find((n) => n.querySelector('.icon') && /Thème/.test(n.closest('.field')?.textContent || ''))
+  click(btn)
+  assert.ok($('.menu'), 'menu des thèmes ouvert')
+  assert.ok($('.sheet'), 'les réglages restent ouverts sous le menu')
+  const before = doc.documentElement.dataset.theme
+  click($$('.menu__item').find((n) => !n.classList.contains('menu__item--on')))
+  assert.ok(!$('.menu'), 'le menu se referme au choix')
+  assert.ok($('.sheet'), 'les réglages sont toujours là')
+  assert.notEqual(doc.documentElement.dataset.theme, before)
+  // Échap ferme d'abord le menu, puis la feuille.
+  click(btn)
+  doc.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Escape' }))
+  assert.ok(!$('.menu') && $('.sheet'))
+  doc.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Escape' }))
+  assert.ok(!$('.sheet'))
 })
 
 test('icônes d’agent au lieu des étiquettes texte', async () => {

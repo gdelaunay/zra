@@ -5,9 +5,18 @@ import { icon, agentIcon } from '../icons.js'
 import { relTime, absTime, shortPath, agentLabel } from '../format.js'
 import * as store from '../store.js'
 import { renderEntry } from './entry.js'
-import { openMenu, toast } from '../ui.js'
+import { openMenu, toast, switchEl } from '../ui.js'
 import { newSessionButton } from './new-session.js'
 import { settings, update as updateSettings } from '../settings.js'
+
+/**
+ * Au-delà de ce nombre de réglages hors mode/modèle, ils passent tous dans le
+ * menu « ⋯ », quel que soit leur type : la barre du bas ne défile pas.
+ */
+const INLINE_OPTIONS = 2
+
+/** Icône d'un réglage générique, d'après sa catégorie ACP (indicative, jamais requise). */
+const OPTION_ICONS = { thought_level: 'lightbulb', model_config: 'zap' }
 
 export function ThreadView({ key, navigate }) {
   const st = store.ensureState(key)
@@ -39,6 +48,7 @@ export function ThreadView({ key, navigate }) {
 
   const modeBtn = button('pill', { onclick: (ev) => optionMenu(ev, 'mode') })
   const modelBtn = button('pill', { onclick: (ev) => optionMenu(ev, 'model') })
+  const optionsSlot = h('span.bottombar__options')
 
   const composer = Composer({
     key,
@@ -57,7 +67,7 @@ export function ThreadView({ key, navigate }) {
     banner,
     h('div.thread__wrap', {}, feed, jump),
     composer.el,
-    h('div.bottombar', {}, modeBtn, modelBtn, h('span.spacer'),
+    h('div.bottombar', {}, modeBtn, modelBtn, optionsSlot, h('span.spacer'),
       // Même boîte que le bouton Envoyer : c'est une action, pas un réglage.
       button('send-btn.send-btn--icon', {
         title: 'Liste des threads', 'aria-label': 'liste des threads',
@@ -193,6 +203,7 @@ export function ThreadView({ key, navigate }) {
     const model = st.models?.find((m) => m.id === st.currentModelId)
     setPill(modeBtn, 'shuffle', mode?.name || st.currentModeId || 'mode', Boolean(st.modes?.length))
     setPill(modelBtn, 'sparkles', model?.name || st.currentModelId || agentLabel(summary.agentId), Boolean(st.models?.length))
+    syncOptions()
 
     const m = store.machineOf(key)
     let msg = null, level = ''
@@ -204,9 +215,14 @@ export function ThreadView({ key, navigate }) {
     if (msg) banner.append(icon('alert-triangle', 'icon--sm'), h('span', { text: msg }))
   }
 
+  /**
+   * Comme dans Zed, la pastille porte la valeur, sans icône ; sur un écran
+   * étroit, l'icône remplace la valeur (CSS `.pill__icon` / `.pill__label`).
+   */
   function setPill(btn, iconName, label, enabled) {
     clear(btn)
-    btn.append(icon(iconName, 'icon--sm'), h('span.truncate', { text: label }), icon('chevron-down', 'icon--sm'))
+    btn.title = label
+    btn.append(icon(iconName, 'icon--sm pill__icon'), h('span.truncate.pill__label', { text: label }), icon('chevron-down', 'icon--sm'))
     btn.disabled = !enabled
     btn.style.opacity = enabled ? '' : '.5'
   }
@@ -220,12 +236,76 @@ export function ThreadView({ key, navigate }) {
       items: list.map((o) => ({
         label: o.name || o.id,
         on: o.id === currentId,
-        onSelect: () => {
-          if (st.turn === 'busy') toast('changement appliqué après le tour en cours', { level: 'warn' })
-          store.setOption(key, kind, o.id)
-        },
+        onSelect: () => choose(kind, o.id),
       })),
     })
+  }
+
+  function choose(optKey, value) {
+    if (st.turn === 'busy') toast('changement appliqué après le tour en cours', { level: 'warn' })
+    store.setOption(key, optKey, value)
+  }
+
+  // ---- réglages génériques (effort, mode rapide…) ----
+
+  /** Les réglages hors mode/modèle : en ligne s'ils sont peu nombreux, sinon dans « ⋯ ». */
+  function syncOptions() {
+    clear(optionsSlot)
+    // Le shim ne relaie que ces deux types ; on reste prudent envers un autre daemon.
+    const options = (st.options || []).filter((o) => o.type === 'boolean' || o.type === 'select')
+    if (options.length > INLINE_OPTIONS) {
+      optionsSlot.append(button('pill', {
+        title: 'Autres réglages', 'aria-label': 'autres réglages', onclick: moreMenu,
+      }, icon('more', 'icon--sm')))
+      return
+    }
+    for (const o of options) optionsSlot.append(optionPill(o))
+  }
+
+  function optionPill(o) {
+    const iconName = OPTION_ICONS[o.category] || 'settings'
+    const title = o.description ? `${o.name} — ${o.description}` : o.name
+    if (o.type === 'boolean') {
+      // Un interrupteur, à droite du libellé : c'est lui qui dit l'état.
+      return button('pill', {
+        title, role: 'switch', 'aria-checked': String(o.currentValue), onclick: () => choose(o.id, !o.currentValue),
+      }, icon(iconName, 'icon--sm pill__icon'), h('span.truncate.pill__label', { text: o.name }), switchEl(o.currentValue))
+    }
+    const value = o.values.find((v) => v.id === o.currentValue)
+    return button('pill', { title, onclick: (ev) => selectMenu(ev, o) },
+      icon(iconName, 'icon--sm pill__icon'),
+      h('span.truncate.pill__label', { text: value?.name || o.currentValue || o.name }),
+      icon('chevron-down', 'icon--sm'))
+  }
+
+  function selectMenu(ev, o) {
+    openMenu(ev.currentTarget, {
+      label: o.name,
+      items: o.values.map((v) => ({
+        label: v.name || v.id,
+        on: v.id === o.currentValue,
+        onSelect: () => choose(o.id, v.id),
+      })),
+    })
+  }
+
+  /**
+   * Tous les réglages génériques dans un seul menu : les interrupteurs d'abord,
+   * cochés quand ils sont actifs, puis un intertitre par sélecteur.
+   */
+  function moreMenu(ev) {
+    const options = st.options || []
+    const items = options.filter((o) => o.type === 'boolean').map((o) => ({
+      label: o.name, toggle: o.currentValue, onSelect: () => choose(o.id, !o.currentValue),
+    }))
+    for (const o of options) {
+      if (o.type !== 'select') continue
+      items.push({ header: true, label: o.name })
+      for (const v of o.values) {
+        items.push({ label: v.name || v.id, on: v.id === o.currentValue, onSelect: () => choose(o.id, v.id) })
+      }
+    }
+    openMenu(ev.currentTarget, { items })
   }
 
   function overflowMenu(ev) {

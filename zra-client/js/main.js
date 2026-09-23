@@ -6,7 +6,7 @@ import * as store from './store.js'
 import { ThreadsView } from './views/threads.js'
 import { ThreadView } from './views/thread.js'
 import { DevBar } from './views/devbar.js'
-import { toast, closeOverlay } from './ui.js'
+import { toast, closeAllOverlays } from './ui.js'
 
 const app = document.getElementById('app')
 let currentView = null
@@ -32,7 +32,7 @@ function navigate(hash) {
 }
 
 function render() {
-  closeOverlay()
+  closeAllOverlays()
   currentView?.destroy?.()
   currentDev?.destroy?.()
   currentView = null
