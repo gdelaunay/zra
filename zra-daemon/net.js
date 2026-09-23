@@ -1,23 +1,28 @@
 // Résolution des adresses d'écoute — spec §9.
 //
-// WireGuard est entièrement hors périmètre du code : le tunnel est monté à la
-// main sur le poste et sur le mobile. Le daemon se contente de *lire* l'état des
-// interfaces pour savoir sur quelle IP écouter, et refuse `0.0.0.0`.
+// Le daemon écoute sur trois sortes d'adresses, jamais sur `0.0.0.0` :
+//
+//   - la loopback, toujours : les shims de Zed s'y connectent ;
+//   - le réseau local (IPv4 privées : Wi-Fi, Ethernet) : le téléphone sur le
+//     même réseau joint le poste en direct — et, à distance, à travers un
+//     tunnel « tout le trafic » (wg-easy, AllowedIPs 0.0.0.0/0) qui débouche
+//     sur ce même réseau. Une seule adresse pour les deux cas ;
+//   - l'interface d'un tunnel monté sur le poste lui-même, s'il y en a une.
+//
+// Le réseau local n'est pas un lieu de confiance : toute connexion qui n'est
+// pas la loopback doit être appairée (`auth.js`).
+//
+// WireGuard reste hors du code du daemon : il se contente de *lire* l'état des
+// interfaces, et suit leurs changements (Wi-Fi de la maison puis du bureau,
+// tunnel coupé puis rétabli).
 
 import { networkInterfaces } from 'node:os'
 
 const LOOPBACK = '127.0.0.1'
 const WILDCARD = new Set(['0.0.0.0', '::', '*', ''])
 
-/** Motifs de nom d'adaptateur WireGuard (Windows nomme l'adaptateur d'après le tunnel). */
+/** Motifs de nom d'adaptateur de tunnel (Windows nomme l'adaptateur d'après le tunnel). */
 const TUNNEL_NAME = /wireguard|wg\d*|^wg|zra|tailscale/i
-
-/** Plages privées acceptables pour un tunnel, si la détection passe par l'IP. */
-const PRIVATE = [
-  { base: '10.', test: (ip) => ip.startsWith('10.') },
-  { base: '192.168.', test: (ip) => ip.startsWith('192.168.') },
-  { base: '172.16-31.', test: (ip) => /^172\.(1[6-9]|2\d|3[01])\./.test(ip) },
-]
 
 /** Aplatit `os.networkInterfaces()` en une liste d'IPv4 externes. */
 export function listInterfaces(raw = networkInterfaces()) {
@@ -50,14 +55,19 @@ export function inCidr(ip, cidr) {
 }
 
 /**
+ * Adresse d'un réseau privé : RFC 1918, plus 100.64.0.0/10 (CGNAT, où vivent
+ * les IP de Tailscale). Jamais une IP publique : un poste branché en direct sur
+ * Internet n'exposerait pas son port au monde entier.
+ */
+export function isPrivate(ip) {
+  return ['10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', '100.64.0.0/10'].some((c) => inCidr(ip, c))
+}
+
+/**
  * Trouve l'interface du tunnel, dans cet ordre :
  *   1. nom exact donné par `bindInterface` ;
  *   2. appartenance à `bindCidr` ;
  *   3. nom correspondant à un motif WireGuard connu.
- *
- * Aucune déduction « par plage privée » sans `bindCidr` explicite : le Wi-Fi du
- * bureau est lui aussi en 192.168., et se tromper d'interface reviendrait à
- * exposer le port hors du tunnel.
  */
 export function findTunnel(cfg, interfaces = listInterfaces()) {
   if (cfg.bindInterface) {
@@ -73,16 +83,26 @@ export function findTunnel(cfg, interfaces = listInterfaces()) {
   return hit ? { ...hit, how: 'nom reconnu' } : null
 }
 
+/**
+ * Interfaces du réseau local : IPv4 privées (ou dans `lanCidrs`, pour
+ * restreindre à un réseau précis), hors tunnel.
+ */
+export function findLan(cfg, interfaces = listInterfaces(), tunnel = findTunnel(cfg, interfaces)) {
+  if (cfg.bindLan === false) return []
+  const inLan = cfg.lanCidrs?.length ? (ip) => cfg.lanCidrs.some((c) => inCidr(ip, c)) : isPrivate
+  return interfaces.filter((i) => inLan(i.address) && i.address !== tunnel?.address)
+}
+
 export class TunnelMissingError extends Error {
   constructor(interfaces) {
     const seen = interfaces.length
       ? interfaces.map((i) => `${i.name} (${i.address})`).join(', ')
       : 'aucune interface externe'
     super(
-      "aucune interface WireGuard trouvée : le daemon refuse de démarrer.\n" +
+      "aucune interface de tunnel trouvée, et requireTunnel l'exige : le daemon refuse de démarrer.\n" +
       `  interfaces vues : ${seen}\n` +
       '  → renseigner "bindInterface" ou "bindCidr" dans zra.config.json,\n' +
-      '    ou "requireTunnel": false pour un démarrage en loopback seule (dev).',
+      '    ou "requireTunnel": false (réseau local et loopback suffisent).',
     )
     this.name = 'TunnelMissingError'
     this.code = 'no_tunnel'
@@ -91,46 +111,50 @@ export class TunnelMissingError extends Error {
 }
 
 /**
- * Adresses sur lesquelles écouter. Jamais `0.0.0.0` : chaque adresse est
- * explicite, une par serveur HTTP (Node n'écoute qu'un hôte par `listen`).
+ * Adresses d'écoute d'un état du réseau : loopback, réseau local, tunnel.
+ * Jamais `0.0.0.0` : chaque adresse est explicite, un serveur HTTP par adresse.
  */
-export function resolveBinds(cfg, interfaces = listInterfaces()) {
-  const tunnel = findTunnel(cfg, interfaces)
-  // `waitTunnel` : démarrer en loopback et attendre le tunnel (`TunnelWatch`)
-  // plutôt que refuser — le mode de la tâche planifiée, lancée à l'ouverture
-  // de session, parfois avant que WireGuard ait monté son adaptateur.
-  if (!tunnel && cfg.requireTunnel && !cfg.waitTunnel) throw new TunnelMissingError(interfaces)
-
-  const addresses = bindAddresses(cfg, tunnel)
-  if (!addresses.length) throw new Error('aucune adresse d’écoute : activer bindLoopback ou fournir un tunnel')
-
-  return { addresses, tunnel }
-}
-
-/**
- * Adresses d'écoute pour un tunnel donné (ou absent) : la loopback, plus l'IP
- * du tunnel. Même règle que `resolveBinds`, sans le refus de démarrer.
- */
-export function bindAddresses(cfg, tunnel) {
+export function bindAddresses(cfg, tunnel, lan = []) {
   const addresses = []
-  if (cfg.bindLoopback !== false) addresses.push(LOOPBACK)
-  if (tunnel && !addresses.includes(tunnel.address)) addresses.push(tunnel.address)
+  const add = (a) => { if (a && !addresses.includes(a)) addresses.push(a) }
+  if (cfg.bindLoopback !== false) add(LOOPBACK)
+  for (const i of lan) add(i.address)
+  if (tunnel) add(tunnel.address)
   for (const a of addresses) {
     if (WILDCARD.has(a)) throw new Error(`écoute sur ${a || '(vide)'} interdite (spec §9)`)
   }
   return addresses
 }
 
+/** L'état du réseau vu par le daemon : tunnel, réseau local, adresses d'écoute. */
+export function resolveNetwork(cfg, interfaces = listInterfaces()) {
+  const tunnel = cfg.bindTunnel === false ? null : findTunnel(cfg, interfaces)
+  const lan = findLan(cfg, interfaces, tunnel)
+  return { tunnel, lan, addresses: bindAddresses(cfg, tunnel, lan) }
+}
+
 /**
- * Suit l'interface du tunnel pendant que le daemon tourne. WireGuard pour
- * Windows retire l'adaptateur quand on désactive le tunnel et le recrée à la
- * réactivation ; l'IP peut aussi changer si on réécrit la configuration. Le
+ * Adresses au démarrage. `requireTunnel` refuse de démarrer sans tunnel, sauf
+ * avec `waitTunnel` (la tâche planifiée, lancée parfois avant WireGuard) : on
+ * démarre alors sans, et `NetWatch` l'ajoute dès qu'il apparaît.
+ */
+export function resolveBinds(cfg, interfaces = listInterfaces()) {
+  const net = resolveNetwork(cfg, interfaces)
+  if (!net.tunnel && cfg.requireTunnel && !cfg.waitTunnel) throw new TunnelMissingError(interfaces)
+  if (!net.addresses.length) throw new Error('aucune adresse d’écoute : activer bindLoopback, bindLan ou un tunnel')
+  return net
+}
+
+/**
+ * Suit le réseau pendant que le daemon tourne : tunnel désactivé puis
+ * réactivé, Wi-Fi de la maison puis du bureau, bail DHCP renouvelé. Le
  * daemon, lui, ne s'arrête pas : les shims du poste ont besoin de sa loopback.
  *
- * `onChange(tunnel|null, previous|null)` n'est appelé que sur un vrai changement.
+ * `onChange(next, previous)` n'est appelé que sur un vrai changement des
+ * adresses d'écoute ou du tunnel.
  */
-export class TunnelWatch {
-  constructor(cfg, { intervalMs = 5000, interfaces = () => listInterfaces(), initial = null } = {}) {
+export class NetWatch {
+  constructor(cfg, { intervalMs = 10_000, interfaces = () => listInterfaces(), initial = null } = {}) {
     this.cfg = cfg
     this.intervalMs = intervalMs
     this.interfaces = interfaces
@@ -147,12 +171,12 @@ export class TunnelWatch {
   check() {
     let next
     try {
-      next = findTunnel(this.cfg, this.interfaces())
+      next = resolveNetwork(this.cfg, this.interfaces())
     } catch {
       return this.current
     }
-    const same = (a, b) => (a?.name ?? null) === (b?.name ?? null) && (a?.address ?? null) === (b?.address ?? null)
-    if (!same(next, this.current)) {
+    const key = (n) => n ? `${n.tunnel?.name ?? ''}|${n.tunnel?.address ?? ''}|${n.addresses.join(',')}` : ''
+    if (key(next) !== key(this.current)) {
       const previous = this.current
       this.current = next
       for (const fn of this.listeners) fn(next, previous)

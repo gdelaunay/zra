@@ -31,12 +31,12 @@ sont déjà dans le protocole.
 | ✓ | Changer de modèle / de mode depuis le mobile |
 | ✓ | Répondre aux demandes de permission depuis le mobile |
 | ✓ | Ouvrir une nouvelle session d'agent depuis le mobile |
-| ✓ | Multi-postes via WireGuard |
+| ✓ | Multi-postes, en direct sur le réseau local ou à travers un tunnel |
 | ✓ | Injection ACP + repli UI Automation, commutable par config |
 
 ### Hors périmètre v1 (l'archi doit les accueillir sans refonte)
 
-Auth par token/QR ·
+Comptes et droits fins (v1 : appairage d'appareils, §9) ·
 Web Push actif · édition de code.
 
 ### Non-objectifs
@@ -466,38 +466,47 @@ certificat.
 
 ## 9. Sécurité
 
-Décision v1 : **aucune authentification**, le tunnel WireGuard privé fait foi.
+Décision (révisée après le lot C) : le daemon est joignable **en direct sur le
+réseau local**, sans tunnel, et à distance à travers le tunnel de
+l'utilisateur. Le réseau ne fait donc plus foi : **un appareil s'appaire une
+fois**. Reste un POC : pas de comptes, pas de droits fins, pas de chiffrement
+applicatif (celui du tunnel, ou TLS).
 
-Conséquences à assumer et à câbler quand même :
-
-- Le daemon écoute **exclusivement** sur l'IP du tunnel et `127.0.0.1`. Jamais
-  `0.0.0.0`. Refus de démarrer si l'interface WireGuard est absente. WireGuard
-  lui-même est hors périmètre du code : le tunnel est monté à la main des deux
-  côtés, le daemon ne fait que *lire* l'état des interfaces pour savoir où
-  écouter. Aucune déduction par plage privée sans consigne explicite — le Wi-Fi
-  du bureau est aussi en `192.168.`, et se tromper d'interface exposerait le port.
+- **Écoute.** Jamais `0.0.0.0` : un serveur par adresse, explicite.
+  - la loopback, toujours (les shims de Zed) ;
+  - le **réseau local** : les IPv4 privées du poste (RFC 1918, 100.64/10),
+    jamais une IP publique ; `lanCidrs` pour le restreindre. C'est aussi par là
+    qu'arrive le téléphone à distance quand le tunnel « tout le trafic » de
+    l'utilisateur (wg-easy, `AllowedIPs 0.0.0.0/0`) débouche sur ce réseau :
+    une seule adresse pour les deux cas, rien à basculer ;
+  - l'interface d'un tunnel monté sur le poste lui-même, s'il y en a une.
+  Les adresses sont suivies à chaud (Wi-Fi changé, tunnel coupé puis rétabli).
+  WireGuard est hors du code du daemon : il ne fait que *lire* les interfaces.
+  `requireTunnel` (défaut : non) rétablit l'ancien refus de démarrer sans tunnel.
+- **Appairage.** Hors loopback, rien ne passe avant `hello.token` valide
+  (protocole §3) : le daemon affiche un code à 6 chiffres (journal,
+  `npm run pair`), l'utilisateur le saisit dans la PWA, qui reçoit un jeton et
+  le garde. Code à usage unique, 5 essais par minute et par adresse, changé
+  après 20 échecs. Jetons stockés hachés (`.zra/auth.json`), révocables
+  (`npm run pair -- revoke`), la révocation coupe les connexions ouvertes. Un
+  client non appairé ne reçoit rien, pas même les diffusions.
 - **Allowlist d'`Origin` sur le handshake WebSocket.** Le navigateur n'applique
-  pas la same-origin policy aux WebSockets : pas de préflight, pas de blocage.
-  Sans filtre, n'importe quelle page visitée depuis le tunnel peut ouvrir un WS
-  vers un poste et piloter ses agents — il n'y a aucune auth. L'en-tête `Origin`
-  est posé par le navigateur et le JS d'une page ne peut pas le falsifier ; le
-  daemon refuse toute origine non déclarée. C'est devenu nécessaire dès lors que
-  le client est servi ailleurs (§3.3) : l'origine légitime doit être nommée.
-  Une requête sans `Origin` est acceptée — elle ne vient pas d'une page web, et
-  un client natif forgerait l'en-tête sans effort. Le filtre ferme le
-  *cross-site WebSocket hijacking*, pas l'accès de quelqu'un déjà sur le tunnel.
+  pas la same-origin policy aux WebSockets : sans filtre, une page visitée
+  depuis le réseau pourrait ouvrir un WS vers un poste. L'appairage l'arrête
+  déjà (la page n'a pas le jeton), le filtre reste en seconde ligne. Les
+  origines propres du daemon (ses adresses, les noms de son certificat) sont
+  autorisées d'office ; une requête sans `Origin` est acceptée.
 - TLS optionnel (`tls: { cert, key }`) : absent ⇒ `ws://`, présent ⇒ `wss://`.
-  Nécessaire dès que le client est servi en HTTPS (§8).
+  Nécessaire dès que le client est servi en HTTPS (§8). Sans TLS, le jeton
+  passe en clair sur le Wi-Fi : acceptable sur un réseau domestique, pas sur un
+  Wi-Fi public (le tunnel chiffre, lui).
 - Le texte venu du mobile est **toujours** traité comme un prompt d'agent. Aucune
   interpolation dans un shell, aucun `eval`, jamais.
-- Le point d'extension auth est présent dès la v1 (middleware `authenticate()`
-  qui retourne `true`), pour que le token + QR de la v2 soit un remplissage.
 - Log de toutes les injections (horodatage, thread, texte) dans
   `%LOCALAPPDATA%\zra\injections.log`.
 
-⚠️ Rappel : répondre à un agent, c'est lui faire exécuter du code. Quiconque est
-sur le tunnel peut piloter les postes. Acceptable sur un tunnel strictement privé,
-à revoir avant toute distribution de l'app.
+⚠️ Rappel : répondre à un agent, c'est lui faire exécuter du code. Un appareil
+appairé pilote le poste ; révoquer celui qu'on perd.
 
 ---
 
@@ -596,9 +605,9 @@ technique et leur état d'avancement : `ROADMAP.md`.
 |---|---|
 | Langage | JavaScript ESM + JSDoc, Node ≥ 22, zéro build, zéro dépendance runtime (§11) |
 | Front | Zéro build, ESM natif, **servi indépendamment du daemon** ; le daemon sait les servir en dev/repli |
-| Réseau | WireGuard direct, pas de relais. Le trafic ne passe jamais par l'hébergeur du client |
+| Réseau | Réseau local en direct, et le tunnel existant de l'utilisateur à distance (hors du code). Le trafic ne passe jamais par un hébergeur |
 | TLS | Optionnel : HTTP+`ws` par défaut, HTTPS+`wss` dès qu'on veut l'installabilité (§8) |
-| Auth | Aucune en v1, point d'extension câblé. Allowlist d'`Origin` dès la v1 (§9) |
+| Auth | Appairage par code à usage unique, jeton gardé par la PWA, loopback exemptée ; allowlist d'`Origin` en seconde ligne (§9) |
 | Web Push | Archi prévue, inactif ; exige le HTTPS de la §8 |
 | Injection | `acp` par défaut, `uia` construit dès la v1 |
 | Envoi pendant un tour | File d'attente **et** interruption, au choix dans l'UI |

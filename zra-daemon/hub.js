@@ -6,6 +6,8 @@
 
 import { logger } from './log.js'
 import { InjectionError } from './inject/backend.js'
+import { AuthError } from './auth.js'
+import { isLoopback } from './server.js'
 
 const log = logger('hub')
 
@@ -23,9 +25,11 @@ export class Hub {
    *   loader?: import('./session-loader.js').SessionLoader|null,
    *   zed?: import('./zed/control.js').ZedControl|null,
    *   covers?: (sessionId:string) => boolean,
-   * }} deps
+   *   pairing?: import('./auth.js').Pairing|null,
+   * }} deps `pairing` : absent, aucun appairage exigé (tests, mode dev).
    */
-  constructor({ config, threads, states, rings, shims, backend, machine, recordInjection, loader = null, zed = null, covers = () => false }) {
+  constructor({ config, threads, states, rings, shims, backend, machine, recordInjection, loader = null, zed = null, covers = () => false, pairing = null }) {
+    this.pairing = pairing
     this.zed = zed
     this.covers = covers
     this.config = config
@@ -53,7 +57,9 @@ export class Hub {
   // ---- cycle de vie des clients -------------------------------------------
 
   attach(conn) {
-    const client = { conn, clientId: null, subs: new Set() }
+    // La loopback, c'est le poste lui-même : rien à appairer.
+    const trusted = !this.pairing || (this.config.auth?.exemptLoopback !== false && isLoopback(conn.remoteAddress))
+    const client = { conn, clientId: null, subs: new Set(), authed: trusted, pairedId: null }
     this.clients.set(conn, client)
     log.info(`client ${conn.id} connecté (origin=${conn.origin ?? '—'}, ip=${conn.remoteAddress})`)
 
@@ -77,6 +83,7 @@ export class Hub {
 
   handle(client, msg) {
     const { conn } = client
+    if (!client.authed) return this.handleUnpaired(client, msg)
     if (WRITES.has(msg.type)) {
       this.recordInjection({
         client: client.clientId, ip: conn.remoteAddress, type: msg.type,
@@ -131,6 +138,54 @@ export class Hub {
       default:
         return this.error(conn, 'unknown_message', `message inconnu : ${msg.type}`)
     }
+  }
+
+  // ---- appairage (spec §9) ---------------------------------------------------
+
+  /**
+   * Client pas encore reconnu : seuls `hello` (avec un jeton) et `pair` (avec
+   * le code) passent. Le reste est ignoré sans réponse — une PWA rejoue sa file
+   * à la connexion, on ne l'inonde pas d'erreurs.
+   */
+  handleUnpaired(client, msg) {
+    const { conn } = client
+    if (msg.type === 'hello') {
+      client.clientId = typeof msg.clientId === 'string' ? msg.clientId : null
+      const paired = this.pairing.verify(msg.token)
+      if (paired) return this.admit(client, paired)
+      conn.send({ type: 'auth_required', name: this.machine.name, reason: msg.token ? 'jeton inconnu ou révoqué' : null })
+      return
+    }
+    if (msg.type === 'pair') {
+      try {
+        const label = typeof msg.label === 'string' && msg.label ? msg.label : (client.clientId ?? 'appareil')
+        const { token, client: paired } = this.pairing.pair(msg.code, { label, address: conn.remoteAddress })
+        log.info(`client ${conn.id} appairé (« ${paired.label} », ${conn.remoteAddress}) — nouveau code : ${this.pairing.display}`)
+        conn.send({ type: 'paired', token, clientId: paired.id })
+        this.admit(client, paired)
+      } catch (err) {
+        if (!(err instanceof AuthError)) throw err
+        log.warn(`appairage refusé (${err.code}) depuis ${conn.remoteAddress}`)
+        this.error(conn, err.code, err.message)
+      }
+      return
+    }
+    log.debug(`client ${conn.id} non appairé : ${msg.type} ignoré`)
+  }
+
+  admit(client, paired) {
+    client.authed = true
+    client.pairedId = paired.id
+    this.bootstrap(client)
+  }
+
+  /** Révoque un client appairé et coupe ses connexions ouvertes. */
+  revoke(id) {
+    const done = this.pairing?.revoke(id) ?? false
+    for (const client of this.clients.values()) {
+      if (client.pairedId === id) client.conn.close(4401)
+    }
+    return done
   }
 
   // ---- bootstrap -----------------------------------------------------------
@@ -447,13 +502,14 @@ export class Hub {
     conn.send(msg)
   }
 
+  /** Aux clients reconnus seulement : un client pas encore appairé ne voit rien. */
   broadcast(msg) {
-    for (const { conn } of this.clients.values()) conn.send(msg)
+    for (const client of this.clients.values()) if (client.authed) client.conn.send(msg)
   }
 
   broadcastToSubs(threadId, msg) {
     for (const client of this.clients.values()) {
-      if (client.subs.has(threadId)) client.conn.send(msg)
+      if (client.authed && client.subs.has(threadId)) client.conn.send(msg)
     }
   }
 }

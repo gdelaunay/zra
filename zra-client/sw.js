@@ -30,6 +30,7 @@ const SHELL = [
   './js/views/settings.js',
   './js/views/devbar.js',
   './js/views/new-session.js',
+  './js/views/pair.js',
   './js/mock/mock-link.js',
   './js/mock/scenarios.js',
 ]

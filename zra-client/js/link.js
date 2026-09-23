@@ -15,11 +15,15 @@ export function wsUrl(base) {
 }
 
 export class DaemonLink {
-  /** @param {{id:string, url:string, clientId:string}} opts */
-  constructor({ id, url, clientId }) {
+  /**
+   * @param {{id:string, url:string, clientId:string, token?:()=>string|null}} opts
+   *   `token` : lu à chaque connexion — il arrive après l'appairage.
+   */
+  constructor({ id, url, clientId, token = () => null }) {
     this.id = id
     this.url = url
     this.clientId = clientId
+    this.token = token
     this.status = 'idle' // idle | connecting | online | offline
     this.lastError = null
     this.attempt = 0
@@ -50,7 +54,8 @@ export class DaemonLink {
       this.attempt = 0
       this.lastError = null
       this.setStatus('online')
-      this.send({ type: 'hello', clientId: this.clientId })
+      const token = this.token()
+      this.send(token ? { type: 'hello', clientId: this.clientId, token } : { type: 'hello', clientId: this.clientId })
       const queued = this.pending
       this.pending = []
       for (const msg of queued) this.send(msg)

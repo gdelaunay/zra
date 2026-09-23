@@ -1,176 +1,157 @@
 # ZRA — mise en service sur le téléphone
 
 Jusqu'ici tout tournait en local (`npm run daemon:dev`, PWA sur `localhost`).
-Ce document est le chemin **mobile → poste**, dans l'ordre. Les étapes marquées
-**admin** demandent une PowerShell lancée en administrateur ; les scripts ZRA,
-eux, n'installent jamais rien : ils génèrent des fichiers et affichent les
-commandes.
+Ce document est le chemin **téléphone → poste**, dans l'ordre. Les scripts ZRA
+n'installent jamais rien : ils affichent ce qui serait fait, et agissent avec
+`--apply` ; les étapes marquées **admin** demandent une PowerShell administrateur.
+
+## Le principe : une seule adresse, en local comme à distance
 
 ```
- téléphone ──WireGuard (UDP 51820)──► poste 10.77.0.1
-    │                                   │
-    └── https://zra.exemple.fr:7777 ───►│ zra-daemon : client web + WebSocket
-        (le domaine pointe 10.77.0.1)   │ lancé à l'ouverture de session
+ chez soi, au bureau                      à distance
+ téléphone ── Wi-Fi ──► poste             téléphone ══ tunnel wg-easy ══► homelab ──► réseau local ──► poste
+            http://192.168.1.20:7777                (AllowedIPs 0.0.0.0/0)
 ```
 
-**Choix retenu : le daemon sert lui-même le client**, en HTTPS, sur l'IP du
-tunnel. Pas d'hébergeur à part : la page et le WebSocket ont la même origine,
-que le daemon autorise d'office (il lit les noms de son certificat). Un
-hébergement séparé reste possible (`--no-static` + `allowedOrigins`), il
-n'apporte rien pour un poste.
+Le daemon écoute le **réseau local** du poste (ses IPv4 privées), en plus de la
+loopback. Sur le même Wi-Fi, le téléphone s'y connecte en direct. À distance,
+le tunnel du homelab en mode « tout le trafic » (`AllowedIPs = 0.0.0.0/0, ::/0`,
+config par défaut de wg-easy) fait arriver le téléphone sur ce même réseau :
+**la même adresse marche dans les deux cas**, rien à basculer. WireGuard n'est
+pas l'affaire de ZRA : le tunnel est déjà là, le daemon ne fait que lire les
+interfaces du poste.
+
+Le réseau local n'étant pas un lieu de confiance, **chaque appareil s'appaire
+une fois** avec un code (§2). Le daemon sert lui-même le client web : pas
+d'hébergeur à part, la page et le WebSocket ont la même origine.
 
 ---
 
-## 1. Le tunnel WireGuard
-
-WireGuard pour Windows est déjà installé sur le poste ; sur le téléphone,
-l'appli **WireGuard** (Play Store / App Store).
+## 1. Le daemon, joignable depuis le réseau
 
 ```bash
-npm run wireguard -- init --endpoint <adresse du poste vue du téléphone>
+npm run daemon          # loopback + réseau local (+ tunnel s'il y en a un sur le poste)
+npm run daemon:dev      # loopback seule, pour le dev
 ```
 
-`--endpoint`, c'est l'adresse par laquelle le téléphone joint le poste, en UDP :
+Le journal dit où il écoute et affiche le code d'appairage :
 
-| Où est le téléphone | `--endpoint` |
-|---|---|
-| sur le même Wi-Fi que le poste | l'IP locale du poste (`ipconfig`) |
-| en 4G, poste à la maison | l'IP publique de la box (ou un nom DynDNS) + redirection UDP 51820 → poste |
-| en 4G, poste sur un réseau d'entreprise | voir *Si le poste n'est pas joignable* |
+```
+écoute http://192.168.1.20:7777
+réseau local : Wi-Fi (192.168.1.20)
+appairage : code 482 913 — à saisir dans la PWA
+```
 
-Le script génère, dans `.zra/wireguard/` (ignoré par git) : la configuration du
-poste (`ZRA.conf`), celle du téléphone, et **affiche un QR** à scanner dans
-l'appli (**+ › Scanner un QR code**). Puis il affiche les commandes suivantes,
-à lancer toi-même :
+Il suit les changements d'adresse (Wi-Fi de la maison puis du bureau, bail DHCP
+renouvelé) sans redémarrer. Pour ne l'exposer qu'à un réseau précis :
+`"lanCidrs": ["192.168.1.0/24"]` dans `zra.config.json`.
 
-1. **admin** — monter le tunnel du poste, en service (il redémarre avec Windows) :
-   ```powershell
-   & "C:\Program Files\WireGuard\wireguard.exe" /installtunnelservice "<dépôt>\.zra\wireguard\ZRA.conf"
-   ```
-2. **admin** — pare-feu : WireGuard en entrée, et le daemon **sur l'IP du tunnel seulement** :
-   ```powershell
-   New-NetFirewallRule -DisplayName "ZRA WireGuard" -Direction Inbound -Protocol UDP -LocalPort 51820 -Action Allow
-   New-NetFirewallRule -DisplayName "ZRA daemon (tunnel)" -Direction Inbound -Protocol TCP -LocalPort 7777 -LocalAddress 10.77.0.1 -Action Allow
-   ```
-3. Supprimer `.zra/wireguard/telephone.conf` et `.svg` une fois scannés : ils
-   contiennent la clé privée du téléphone.
+**admin** — pare-feu Windows : au premier lancement, Windows peut demander
+d'autoriser Node sur les réseaux privés ; sinon, une règle explicite, limitée
+aux réseaux privés et au port du daemon :
 
-Le tunnel du téléphone ne route **que** l'IP du poste (`AllowedIPs = 10.77.0.1/32`) :
-le reste de son trafic ne passe pas par le poste.
+```powershell
+New-NetFirewallRule -DisplayName "ZRA daemon" -Direction Inbound -Protocol TCP -LocalPort 7777 -Profile Private,Domain -Action Allow
+```
 
-Un appareil de plus : `npm run wireguard -- add tablette` (il faut réimporter le
-tunnel du poste, le script dit comment). Réafficher un QR : `npm run wireguard -- qr`.
-État : `npm run wireguard`.
+Le Wi-Fi doit être en profil **Privé** (Paramètres › Réseau › Wi-Fi ›
+Propriétés). Sur un poste d'entreprise, une stratégie peut bloquer toute règle
+locale : c'est à voir avec l'informatique.
 
-**Vérification** — tunnel actif des deux côtés, depuis le téléphone :
-`http://10.77.0.1:7777` doit afficher la PWA (en HTTP : pas encore installable,
-c'est l'étape 2). `npm run wireguard` doit voir l'interface `ZRA`.
-
-### Si le poste n'est pas joignable
-
-WireGuard est pair à pair : l'un des deux doit pouvoir recevoir de l'UDP. Un
-téléphone en 4G ne le peut pas, un poste derrière le pare-feu d'une entreprise
-non plus. Deux issues, à décider :
-
-- **ouvrir le chemin** : redirection de port sur la box (poste à la maison), ou
-  demande à l'informatique (poste d'entreprise) ;
-- **un tunnel qui traverse les NAT**, comme Tailscale : même principe
-  (WireGuard, chiffré de bout en bout), mais des relais quand le direct est
-  impossible — ce que la spec écarte (« pas de relais », §13). Le daemon le
-  reconnaît déjà (`bindInterface: "Tailscale"`) ; le reste de ce document vaut
-  tel quel, avec l'IP Tailscale du poste à la place de 10.77.0.1.
+**Vérification** — depuis le téléphone, sur le même Wi-Fi :
+`http://<IP locale du poste>:7777` affiche la PWA, avec « appairage requis ».
 
 ---
 
-## 2. HTTPS : domaine et certificat
+## 2. Appairer le téléphone
 
-Sans HTTPS, tout marche sauf ce que le navigateur réserve aux contextes
-sécurisés : **installation sur l'écran d'accueil**, service worker (l'app qui
-s'ouvre hors tunnel), dictée, Web Push. Pour une IP privée, le chemin praticable :
+Une fois par appareil. La PWA affiche le poste avec **« Saisir le code »** ; le
+code est dans le journal du daemon, ou :
 
-1. **Un nom de domaine** (ou un sous-domaine d'un domaine à toi) avec un
-   enregistrement **A** qui pointe l'IP du tunnel : `zra.exemple.fr → 10.77.0.1`.
-   Une IP privée dans un DNS public est valide ; elle ne mène nulle part hors du
-   tunnel. (Certaines box filtrent ces réponses, « protection DNS rebinding » :
-   sur le Wi-Fi de la maison, il faudra peut-être autoriser le domaine.)
-2. **Un certificat Let's Encrypt par validation DNS-01** : Let's Encrypt ne peut
-   pas joindre 10.77.0.1, il vérifie un enregistrement TXT à la place.
-   `scripts/cert.ps1` s'en charge avec le module Posh-ACME :
-   ```powershell
-   Install-Module Posh-ACME -Scope CurrentUser     # une fois, sans admin
-   pwsh scripts/cert.ps1 -Domain zra.exemple.fr -Contact moi@exemple.fr -Plugin Cloudflare -PluginArgs @{ CFToken = (Read-Host -AsSecureString) }
-   ```
-   `-Plugin` : celui de ton hébergeur DNS (`Get-PAPlugin` les liste : Cloudflare,
-   OVH, Gandi, Infomaniak…). Sans API, `-Plugin Manual` affiche l'enregistrement
-   TXT à créer — mais ce sera à refaire tous les 60 jours. `-Staging` pour un
-   essai sans consommer les quotas de Let's Encrypt.
-3. Le certificat est copié dans `.zra/tls/`. Dans `zra.config.json` :
-   ```jsonc
-   "tls": { "cert": ".zra/tls/zra.crt", "key": ".zra/tls/zra.key" }
-   ```
-4. **Renouvellement** : `pwsh scripts/cert.ps1 -Renew` renouvelle s'il reste
-   moins de 30 jours. À planifier une fois (sans admin) :
-   ```powershell
-   schtasks /Create /TN "ZRA certificat" /SC DAILY /ST 12:00 /TR "pwsh -NoProfile -WindowStyle Hidden -File \"<dépôt>\scripts\cert.ps1\" -Renew"
-   ```
-   Le daemon relit le certificat à chaud, et journalise son échéance (alerte à
-   20 jours).
+```bash
+npm run pair                 # le code, et les appareils déjà appairés
+npm run pair -- rotate       # un autre code
+npm run pair -- revoke <id>  # retirer un appareil (téléphone perdu) : connexion coupée
+```
+
+Le code ne sert qu'une fois ; la PWA reçoit un jeton qu'elle garde, et les
+connexions suivantes se font sans rien saisir. Le poste lui-même (loopback)
+n'a rien à appairer. 5 essais par minute depuis une même adresse, le code
+change après 20 échecs.
 
 ---
 
-## 3. `zra.config.json`
+## 3. Le téléphone
+
+1. Ouvrir `http://<IP locale du poste>:7777` : le poste s'ajoute tout seul (la
+   page vient de lui). Appairer (§2).
+2. À distance : activer le tunnel wg-easy, même adresse.
+3. Un autre poste : Réglages › Ajouter un poste, son IP (le port 7777 est
+   déduit), puis l'appairer.
+
+Un portable qui change de réseau (maison, bureau) change d'IP : dans la PWA,
+ce sont deux adresses, donc deux postes à ajouter — l'un hors ligne quand on
+est sur l'autre réseau.
+
+**Installer sur l'écran d'accueil** demande HTTPS (§4). En HTTP, tout
+fonctionne (lecture, envoi, permissions, streaming) sauf l'installation, l'app
+hors ligne et la dictée.
+
+---
+
+## 4. HTTPS (facultatif) : l'app installée
+
+Pour une IP privée, le chemin praticable : un **nom de domaine** avec un
+enregistrement **A** vers l'IP locale du poste (`zra.exemple.fr → 192.168.1.20`),
+et un certificat **Let's Encrypt par validation DNS-01** (Let's Encrypt ne peut
+pas joindre une IP privée, il vérifie un enregistrement TXT à la place).
+
+```powershell
+Install-Module Posh-ACME -Scope CurrentUser     # une fois, sans admin
+pwsh scripts/cert.ps1 -Domain zra.exemple.fr -Contact moi@exemple.fr -Plugin Cloudflare -PluginArgs @{ CFToken = (Read-Host -AsSecureString) }
+```
+
+`-Plugin` : celui de ton hébergeur DNS (`Get-PAPlugin` : Cloudflare, OVH,
+Gandi, Infomaniak…), ou `Manual` (l'enregistrement TXT à créer à la main, à
+refaire tous les 60 jours). `-Staging` pour un essai sans quota. Le certificat
+arrive dans `.zra/tls/` ; dans `zra.config.json` :
 
 ```jsonc
-{
-  "bindInterface": "ZRA",          // l'adaptateur du tunnel (nom du .conf)
-  "requireTunnel": true,
-  "tls": { "cert": ".zra/tls/zra.crt", "key": ".zra/tls/zra.key" },
-  "serveStatic": true,             // le daemon sert le client
-  "allowedOrigins": [],            // rien à ajouter : l'origine du daemon est autorisée d'office
-  "zedControl": { "enabled": false } // le « + » et la réponse aux threads fermés : round 2
-}
+"tls": { "cert": ".zra/tls/zra.crt", "key": ".zra/tls/zra.key" }
 ```
 
-`allowedOrigins` ne sert que si le client est servi ailleurs, ou pour qu'une
-PWA servie par un poste pilote aussi un **second poste** : sur le second,
-`"allowedOrigins": ["https://zra.exemple.fr:7777"]`.
+Puis `https://zra.exemple.fr:7777` sur le téléphone. Renouvellement, à planifier
+une fois (sans admin) — le daemon relit le certificat à chaud :
+
+```powershell
+schtasks /Create /TN "ZRA certificat" /SC DAILY /ST 12:00 /TR "pwsh -NoProfile -WindowStyle Hidden -File \"<dépôt>\scripts\cert.ps1\" -Renew"
+```
+
+Certaines box filtrent les noms publics qui répondent une IP privée
+(« protection DNS rebinding ») : autoriser le domaine dans la box si la page ne
+se trouve pas depuis la maison.
+
+`scripts/cert.ps1` n'a pas encore été essayé pour de vrai.
 
 ---
 
-## 4. Démarrage automatique
+## 5. Démarrage automatique
 
-Une tâche planifiée **de l'utilisateur** (pas un service Windows) : lancée à
-l'ouverture de session, dans la session interactive — le pilotage de Zed au
-clavier en a besoin —, sans fenêtre, sans élévation, sans mot de passe stocké.
+Une tâche planifiée **de l'utilisateur** : lancée à l'ouverture de session, dans
+la session interactive (le pilotage de Zed au clavier en a besoin), sans
+fenêtre, sans élévation, sans mot de passe stocké.
 
 ```bash
 npm run service -- install            # montre la tâche, ne crée rien
 npm run service -- install --apply    # la crée
 npm run service -- start              # la lance tout de suite
 npm run service                       # état : tâche, daemon, fin du journal
-npm run service -- logs               # journal : .zra/logs/daemon.log
+npm run service -- logs               # journal : .zra/logs/daemon.log (le code d'appairage y est)
 npm run service -- stop | uninstall --apply
 ```
 
-Le daemon y tourne en `--wait-tunnel` : si WireGuard n'est pas encore monté, il
-écoute la loopback (les shims de Zed en ont besoin) et ouvre l'écoute du tunnel
-dès qu'il apparaît ; il suit aussi ses coupures et ses changements d'IP. Il est
-relancé s'il s'arrête sur une erreur. Un daemon de dev déjà lancé
-(`npm run daemon:dev`) tient le port : la tâche réessaie jusqu'à ce qu'il
-s'arrête.
-
----
-
-## 5. Le téléphone
-
-1. Tunnel WireGuard actif.
-2. Ouvrir `https://zra.exemple.fr:7777` : le poste s'ajoute tout seul (la page
-   vient de lui).
-3. **Ajouter à l'écran d'accueil** (Chrome : ⋮ › Installer l'application ;
-   Safari : Partager › Sur l'écran d'accueil).
-
-Un second poste : Réglages › Ajouter un poste, `zra-bureau.exemple.fr` (le
-schéma et le port 7777 sont déduits).
+Le daemon y est relancé s'il s'arrête sur une erreur. Un daemon de dev déjà
+lancé tient le port : la tâche réessaie jusqu'à ce qu'il s'arrête.
 
 ---
 
@@ -178,9 +159,33 @@ schéma et le port 7777 sont déduits).
 
 | Symptôme | Où regarder |
 |---|---|
-| la page ne charge pas | tunnel actif sur le téléphone ? `npm run wireguard` voit `ZRA` ? règle de pare-feu TCP 7777 ? |
-| « poste injoignable » dans la PWA | `npm run service` : le daemon répond-il ? `npm run service -- logs` |
+| la page ne charge pas en local | même Wi-Fi ? profil réseau Privé ? règle de pare-feu (§1) ? |
+| la page ne charge pas à distance | tunnel actif ? en « tout le trafic » ? le homelab voit-il le poste (même réseau) ? |
+| « appairage requis » en boucle | jeton révoqué ou `.zra/auth.json` effacé : ressaisir un code |
+| « code incorrect » | le code a changé (usage unique) : `npm run pair` |
+| « poste injoignable » | `npm run service` : le daemon répond-il ? `npm run service -- logs` |
 | WebSocket refusé (403) | journal : « origine … non autorisée » → `allowedOrigins` |
-| pas d'installation proposée | page en `http://` : certificat absent (§2) |
-| certificat refusé par le téléphone | `zra.exemple.fr` résout bien 10.77.0.1 ? le certificat est-il le bon (`-Staging` ?) |
-| daemon « tunnel absent » en boucle | `bindInterface` = nom exact de l'adaptateur (`Get-NetAdapter`) |
+| pas d'installation proposée | page en `http://` : certificat absent (§4) |
+
+---
+
+## Annexe — générer un tunnel WireGuard (option de secours, non testée)
+
+Pour qui n'a pas déjà de tunnel : `npm run wireguard` fabrique un tunnel
+**entre le poste et le téléphone directement**, le poste servant de serveur.
+Ce n'est pas le chemin retenu (le tunnel existant fait l'affaire) : c'est un
+outil à part, qui ne touche ni au daemon ni à sa configuration, et **n'a pas
+été essayé de bout en bout**.
+
+```bash
+npm run wireguard -- init --endpoint <adresse du poste vue du téléphone>
+```
+
+Il génère dans `.zra/wireguard/` (ignoré par git) les clés, la configuration du
+poste et celle du téléphone, affiche un QR à scanner dans l'appli WireGuard, et
+les commandes **admin** pour monter le tunnel en service et ouvrir le port UDP.
+Il faut en plus que le téléphone puisse joindre le poste en UDP (même réseau,
+ou redirection de port) — c'est tout l'intérêt d'un homelab déjà ouvert. Le
+tunnel monté, le daemon le détecte et l'écoute comme n'importe quelle interface.
+`npm run wireguard -- add <appareil>` pour un appareil de plus, `-- qr` pour
+réafficher un QR.

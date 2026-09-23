@@ -18,10 +18,12 @@ import { logger } from './log.js'
 const log = logger('server')
 
 /**
- * Point d'extension d'authentification — spec §9.
+ * Point d'extension d'authentification au handshake — spec §9.
  *
- * Retourne `true` en v1 : le tunnel WireGuard fait foi. Le token + QR de la v2
- * n'aura qu'à remplir cette fonction, sans toucher au reste.
+ * Retourne `true` : l'appairage se joue dans le protocole, pas ici (un
+ * navigateur ne peut pas poser d'en-tête sur un WebSocket). Le jeton arrive
+ * dans `hello`, le hub le vérifie (`auth.js`). Reste le point d'accroche d'un
+ * contrôle plus tôt, si un jour il en faut un.
  */
 export function authenticate(/* { req, origin } */) {
   return true
@@ -92,7 +94,11 @@ export async function readTls(tls) {
   return { cert, key, names, validTo }
 }
 
-export async function createServers({ config, addresses, onConnection, onShim, status = null }) {
+/**
+ * @param {{ admin?: ((req, res) => boolean) | null }} opts `admin` : routes
+ *        réservées à la loopback (appairage) ; renvoie `true` si elle a répondu.
+ */
+export async function createServers({ config, addresses, onConnection, onShim, status = null, admin = null }) {
   let tls = config.tls ? await readTls(config.tls) : null
 
   const serveStatic = config.serveStatic ? createStaticHandler(config.staticDir) : null
@@ -118,6 +124,7 @@ export async function createServers({ config, addresses, onConnection, onShim, s
       res.end(JSON.stringify(status()))
       return
     }
+    if (admin && isLoopback(req.socket.remoteAddress) && admin(req, res)) return
     if (!serveStatic) {
       // API pure : on répond quelque chose d'explicite plutôt qu'un 404 sec, le
       // premier réflexe de diagnostic étant d'ouvrir l'URL dans un navigateur.

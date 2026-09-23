@@ -317,7 +317,8 @@ export function ThreadView({ key, navigate }) {
 
     const m = store.machineOf(key)
     let msg = null, level = ''
-    if (m.status !== 'online') { msg = `${m.label} hors ligne — reconnexion automatique`; level = 'banner--error' }
+    if (m.status === 'locked') { msg = `${m.label} : appairage requis — depuis la liste des threads`; level = 'banner--error' }
+    else if (m.status !== 'online') { msg = `${m.label} hors ligne — reconnexion automatique`; level = 'banner--error' }
     else if (st.state === 'closed') msg = 'thread fermé — la réponse rouvrira le thread dans Zed (§6.3)'
     else if (st.state === 'unknown') msg = 'thread sans session : lecture et écriture indisponibles'
     banner.className = `banner ${level} ${msg ? '' : 'hidden'}`.trim()

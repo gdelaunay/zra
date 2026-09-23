@@ -1,5 +1,10 @@
 #!/usr/bin/env node
-// Préparer le tunnel WireGuard entre le poste et le téléphone — DEPLOY.md §1.
+// Générer un tunnel WireGuard poste ↔ téléphone — DEPLOY.md, annexe.
+//
+// **Option de secours, non testée de bout en bout.** Le chemin retenu est le
+// tunnel que l'utilisateur a déjà (wg-easy sur un homelab) : ce script n'est
+// utile qu'à qui n'en a pas. Il ne touche ni au daemon ni à sa configuration —
+// le daemon détecte un tunnel monté comme n'importe quelle interface.
 //
 //   npm run wireguard                                    état : fichiers, tunnel détecté
 //   npm run wireguard -- init --endpoint <hôte[:port]>   clés + configurations + QR
@@ -179,9 +184,8 @@ function nextSteps(state, config) {
    UDP ${port ?? state.port} de la box vers ce poste (ou un réseau d'entreprise qui
    l'autorise — sinon, voir DEPLOY.md « Si le poste n'est pas joignable »).
 
-4. zra.config.json :   "bindInterface": "${state.name}"
-   puis dans la PWA, ajouter le poste : http://${state.host.address}:${config.port}
-   (ou https://<domaine>:${config.port} une fois le certificat en place — DEPLOY.md §2)
+4. Le daemon détecte le tunnel tout seul (au besoin : "bindInterface": "${state.name}").
+   Dans la PWA, ajouter le poste : http://${state.host.address}:${config.port}, puis l'appairer (npm run pair).
 
 5. Une fois le QR scanné, supprimer ${join(DIR, '<appareil>.conf')} et .svg :
    ils contiennent la clé privée de l'appareil.`)
@@ -275,7 +279,7 @@ async function main() {
   const tunnel = findTunnel(config, listInterfaces())
   if (tunnel) console.log(`interface du tunnel : ✓ ${tunnel.name} (${tunnel.address}, ${tunnel.how})`)
   else console.log(`interface du tunnel : ✗ aucune${config.bindInterface ? ` nommée « ${config.bindInterface} »` : ''} — tunnel pas encore monté ?`)
-  if (state && !config.bindInterface) console.log(`  zra.config.json : "bindInterface": "${state.name}" recommandé`)
+
 }
 
 // Importé par les tests : ne rien lancer.

@@ -9,7 +9,7 @@ suivant.
 | **A** — daemon | rien | la fixture SQLite seule | ✅ **fait** |
 | **B** — plomberie ACP | un agent ACP | l'agent bouchon, sans Zed | ✅ **fait** |
 | **C** — pont vers Zed | Zed lancé | la machine cible uniquement | 🟨 **code prêt, test réel à faire** |
-| **D** — déploiement mobile | WireGuard, un domaine | le téléphone | 🟨 **outillage prêt, mise en service à faire** (`DEPLOY.md`, `TESTING.md` round 3) |
+| **D** — déploiement mobile | le réseau local, le tunnel existant | le téléphone | 🟨 **prêt : réseau local + appairage, mise en service à faire** (`DEPLOY.md`, `TESTING.md` round 3) |
 
 Si on coupait plutôt « lecture / écriture », l'UI Automation se retrouverait
 mêlée au reste et bloquerait tout un lot sur un risque non testable.

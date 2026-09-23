@@ -8,13 +8,14 @@ Node ≥ 22 fournit SQLite (`node:sqlite`), le serveur HTTP et le test runner, e
 le WebSocket (RFC 6455) tient dans `ws.js`.
 
 ```bash
-npm run daemon          # écoute loopback + tunnel WireGuard
-npm run daemon:dev      # loopback seule, sans exiger de tunnel
+npm run daemon          # écoute loopback + réseau local (+ tunnel s'il y en a un)
+npm run daemon:dev      # loopback seule
+npm run pair            # code d'appairage, appareils appairés
 npm run service         # le daemon en tâche planifiée, à l'ouverture de session
 npm test                # suite complète, sans Zed ni agent
 ```
 
-Mise en service sur le téléphone — tunnel, certificat, démarrage automatique :
+Mise en service sur le téléphone — réseau local, appairage, certificat, démarrage automatique :
 **`DEPLOY.md`** à la racine.
 
 ## État : lots A, B et C
@@ -25,7 +26,8 @@ Mise en service sur le téléphone — tunnel, certificat, démarrage automatiqu
 | ✓ | protocole ZRA complet côté daemon, invariants du `PROTOCOL.md` §6 |
 | ✓ | ring buffer 2000/thread, rejoué au `subscribe` |
 | ✓ | écoute restreinte (loopback + tunnel), allowlist d'`Origin`, TLS optionnel |
-| ✓ | **tunnel suivi à chaud** (`--wait-tunnel`, apparition, coupure, changement d'IP), **TLS relu à chaud**, journal sur disque (`--log`) |
+| ✓ | **réseau local écouté**, **appairage** des appareils (`auth.js`, `npm run pair`) |
+| ✓ | **réseau suivi à chaud** (Wi-Fi changé, tunnel coupé ou rétabli), **TLS relu à chaud**, journal sur disque (`--log`) |
 | ✓ | registry `agent_servers`, présence de Zed, journal d'injections |
 | ✓ | **shims connectés, threads `live`, flux ACP verbatim** |
 | ✓ | **injection ACP : envoi, file d'attente, interruption, options** |
@@ -135,8 +137,9 @@ Le daemon passe alors en `https` + `wss`, sans autre changement.
 
 Le navigateur **n'applique pas** la same-origin policy aux WebSockets : pas de
 préflight CORS, pas de blocage. Sans filtrage, n'importe quelle page ouverte
-depuis le tunnel pourrait faire `new WebSocket('ws://10.0.0.2:7777/ws')` et
-piloter les agents du poste — il n'y a aucune authentification en v1.
+depuis le réseau pourrait faire `new WebSocket('ws://192.168.1.20:7777/ws')`.
+L'appairage l'arrête déjà (la page n'a pas le jeton) ; le filtre reste en
+seconde ligne.
 
 L'en-tête `Origin` est posé par le navigateur et le JS d'une page ne peut pas le
 falsifier : c'est sur lui que repose le filtre.
@@ -148,31 +151,29 @@ falsifier : c'est sur lui que repose le filtre.
 L'origine propre du daemon est ajoutée d'office quand il sert les statiques. Une
 requête **sans** `Origin` est acceptée : elle ne vient pas d'une page web, et un
 client natif forgerait l'en-tête sans effort de toute façon. Le filtre ferme le
-trou le plus large (*cross-site WebSocket hijacking*), pas tous les trous — se
-prémunir de quelqu'un déjà présent sur le tunnel, c'est le rôle du token de v2.
+trou du *cross-site WebSocket hijacking* ; un client quelconque du réseau, lui,
+bute sur l'appairage.
 
-## Écoute
+## Écoute et appairage
 
-WireGuard est hors périmètre du code : le tunnel est monté à la main sur le
-poste et sur le mobile. Le daemon se contente de lire l'état des interfaces
-(`node:os`) pour savoir où écouter, et n'écoute **jamais** sur `0.0.0.0`.
+Jamais `0.0.0.0` : un serveur par adresse, suivi à chaud (`net.js`).
 
-```jsonc
-"bindInterface": "ZRA",        // nom de l'adaptateur WireGuard
-"bindCidr": "10.7.0.0/24",     // repli si le nom varie
-"requireTunnel": true          // refus de démarrer sans tunnel
-```
+| | |
+|---|---|
+| loopback | toujours — les shims de Zed, et le poste lui-même (pas d'appairage) |
+| réseau local | IPv4 privées du poste (`bindLan`, `lanCidrs`) : le téléphone sur le même Wi-Fi, ou à distance par un tunnel « tout le trafic » qui débouche sur ce réseau |
+| tunnel | l'interface d'un tunnel monté sur le poste, s'il y en a une (`bindInterface`, `bindCidr`, sinon détection par nom) |
 
-Le tunnel est suivi pendant que le daemon tourne (sondage toutes les 5 s) :
-WireGuard pour Windows retire l'adaptateur quand on désactive le tunnel et le
-recrée à la réactivation. L'écoute du tunnel s'ouvre et se ferme en conséquence,
-la loopback reste. `--wait-tunnel` (la tâche planifiée) démarre sans tunnel au
-lieu de refuser.
+WireGuard est hors du code : le daemon lit les interfaces (`node:os`), et suit
+leurs changements (Wi-Fi changé, tunnel coupé puis rétabli) sans redémarrer.
+`requireTunnel: true` rétablit le refus de démarrer sans tunnel, `--wait-tunnel`
+l'attend.
 
-Sans consigne explicite, la détection se fait par motif de nom
-(`wg0`, `WireGuard`, `ZRA`…). Aucune déduction par plage privée : le Wi-Fi du
-bureau est lui aussi en `192.168.`, et se tromper d'interface exposerait le port
-hors du tunnel.
+Hors loopback, un client s'appaire une fois (`auth.js`) : le daemon affiche un
+code à 6 chiffres au démarrage (et `npm run pair`), la PWA l'échange contre un
+jeton gardé ensuite. Jetons hachés dans `.zra/auth.json`, révocables. Avant
+l'appairage, rien ne passe et rien n'est diffusé au client. `/pair` (loopback
+seulement) sert à `npm run pair`.
 
 ## Fichiers
 
@@ -181,7 +182,9 @@ hors du tunnel.
 | `index.js` | entrée CLI, signaux, options |
 | `daemon.js` | assemblage, exporté pour les tests en process |
 | `config.js` | `zra.config.json` + variables d'environnement |
-| `server.js` | HTTP/HTTPS, upgrade WS, allowlist d'`Origin`, `authenticate()` |
+| `server.js` | HTTP/HTTPS, upgrade WS, allowlist d'`Origin`, écoutes ouvertes et fermées à chaud |
+| `net.js` | adresses d'écoute : loopback, réseau local, tunnel ; suivi du réseau |
+| `auth.js` | appairage : code, jetons hachés, révocation |
 | `ws.js` | WebSocket RFC 6455 (fragmentation, ping/pong, fermeture) |
 | `static.js` | statiques, mode dev/repli |
 | `hub.js` | routage du protocole, diffusion, invariants |

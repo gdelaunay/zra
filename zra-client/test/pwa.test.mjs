@@ -547,6 +547,46 @@ test('streaming : une rafale se révèle peu à peu, le début du message ne bou
   assert.ok(agentText().includes(burst))
 })
 
+test('appairage : poste verrouillé, code saisi, jeton gardé, poste déverrouillé', async () => {
+  ZRA.navigate('#/')
+  await until(() => $$('.thread-row').length >= 7, 3000)
+  const m = ZRA.store.state.machines.get('mock-laptop')
+  const sent = []
+  const send = m.link.send.bind(m.link)
+  m.link.send = (msg) => { sent.push(msg); return send(msg) }
+  try {
+    // Le daemon ne reconnaît pas ce téléphone.
+    m.link.emit('message', { type: 'auth_required', name: 'LAPTOP-ZED' })
+    await until(() => /appairage requis/.test(doc.body.textContent), 2000, 'poste verrouillé')
+    assert.ok(!$$('.thread-row__title').some((n) => /Portage du daemon/.test(n.textContent)), 'ses threads ne s’affichent plus')
+
+    click($$('.btn').find((b) => /Saisir le code/.test(b.textContent)))
+    await until(() => $('.sheet .pair__code'), 2000, 'feuille d’appairage')
+    const input = $('.pair__code')
+    input.value = '482 913'
+    input.dispatchEvent(new win.Event('input', { bubbles: true }))
+    const pair = sent.find((x) => x.type === 'pair')
+    assert.equal(pair?.code, '482913', 'six chiffres : envoyé tout seul, espaces retirés')
+    assert.ok(pair.label, 'l’appareil se nomme, pour npm run pair')
+
+    // Le daemon accepte : jeton gardé, feuille fermée, liste resynchronisée.
+    m.link.emit('message', { type: 'paired', token: 'jeton-de-test-assez-long-pour-passer', clientId: 'ab12cd34' })
+    await until(() => !$('.sheet'), 2000, 'feuille fermée')
+    assert.equal(ZRA.settings.tokens[m.url], 'jeton-de-test-assez-long-pour-passer')
+    assert.equal(m.status, 'online')
+    assert.ok(sent.some((x) => x.type === 'list_threads'), 'resynchronisation après appairage')
+    await until(() => $$('.thread-row__title').some((n) => /Portage du daemon/.test(n.textContent)), 2000, 'threads de retour')
+
+    // Jeton refusé plus tard (révoqué) : oublié, le poste redemande le code.
+    m.link.emit('message', { type: 'auth_required', name: 'LAPTOP-ZED', reason: 'jeton inconnu ou révoqué' })
+    await until(() => ZRA.settings.tokens[m.url] === undefined, 2000, 'jeton oublié')
+  } finally {
+    m.link.send = send
+    m.link.emit('message', { type: 'paired', token: 'x'.repeat(40), clientId: 'zz' })
+    ZRA.settings.tokens = {}
+  }
+})
+
 test('la barre mock est présente et pilote le daemon simulé', async () => {
   assert.ok($('.devbar'), 'barre mock affichée en mode mock')
   const buttons = $$('.devbar .btn')

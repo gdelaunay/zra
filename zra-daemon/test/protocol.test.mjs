@@ -30,6 +30,8 @@ async function boot(t, overrides = {}) {
     overrides: {
       port: PORT,
       requireTunnel: false,
+      bindLan: false,
+      bindTunnel: false,
       zedDb: FIXTURE,
       zedSettings: null,
       pollMs: 50,
