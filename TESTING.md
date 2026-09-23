@@ -155,3 +155,31 @@ Puis, une fois les recettes reportées dans `zra.config.json` :
 `npm run daemon:dev -- --zed-control-dry-run` fait tourner le daemon avec le
 pilotage actif mais simulé : les recettes sont résolues et journalisées, aucune
 touche ne part.
+
+---
+
+## Round 3 — le téléphone, pour de vrai
+
+> Procédure complète : **`DEPLOY.md`**. Ici, seulement ce qu'il faut vérifier
+> et me rapporter à chaque étape.
+
+1. **Tunnel** — `npm run wireguard -- init --endpoint …`, QR scanné, tunnel
+   monté des deux côtés. `npm run wireguard` voit l'interface `ZRA` ; depuis le
+   téléphone, `http://10.77.0.1:7777` affiche la PWA. En 4G aussi, pas
+   seulement sur le Wi-Fi.
+2. **Daemon en mode normal** — `"bindInterface": "ZRA"`, `npm run daemon` :
+   le journal annonce l'écoute sur `10.77.0.1`. Désactiver puis réactiver le
+   tunnel dans WireGuard : « tunnel disparu », puis « tunnel apparu », sans
+   redémarrer le daemon.
+3. **HTTPS** — domaine → 10.77.0.1, `scripts/cert.ps1` (d'abord `-Staging`),
+   `tls` dans `zra.config.json`. `https://zra.exemple.fr:7777` sans alerte de
+   certificat ; **installation sur l'écran d'accueil** proposée ; l'app installée
+   s'ouvre tunnel coupé (service worker) et affiche « poste injoignable ».
+4. **Démarrage automatique** — `npm run service -- install --apply`, fermer la
+   session, la rouvrir : `npm run service` montre le daemon, **aucune fenêtre**
+   à l'écran. Le téléphone s'y connecte sans rien toucher au poste.
+5. **À l'usage** — liste groupée par projet, streaming fluide, consommation sous
+   le composer, envoi depuis le téléphone, réponse à une permission.
+
+À me rapporter : ce qui a bloqué, le journal (`npm run service -- logs`) et,
+s'il y a une fenêtre qui clignote à l'ouverture de session, combien de temps.
