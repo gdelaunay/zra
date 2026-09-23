@@ -357,7 +357,7 @@ test('new_thread : session ouverte mais jamais indexée => raison explicite', as
   const keyboard = fakeKeyboard(async (recipe) => {
     if (recipe === 'newThread') setTimeout(() => startShim(t, { sessionId: 'lotc-jamais-indexee' }), 20)
   })
-  await boot(t, { keyboard, timeoutMs: 1500 })
+  await boot(t, { keyboard, timeoutMs: 4000 }) // large : un shim lancé sous charge met du temps à s’annoncer
   const client = await Client.open(t)
   client.send({ type: 'new_thread', agentId: 'fake-zra' })
   const err = await client.until((m) => m.type === 'error', { label: 'erreur' })
@@ -433,6 +433,8 @@ test('uia : Zed émet le message tapé, le shim en apporte la preuve', async (t)
   client.send({ type: 'send', threadId: VIVANT, text: 'tapé au clavier', mode: 'queue' })
   await client.until((m) => m.type === 'acp_event' && m.update.content?.text === 'reçu : tapé au clavier', { label: 'réponse' })
   // Le prompt a bien été émis par Zed (id numérique), pas injecté par le shim.
+  // La réponse lui parvient par son propre tuyau, sans ordre garanti avec le mobile.
+  for (let i = 0; i < 200 && !zed.messages.some((m) => m.result && m.id === 3); i++) await wait(10)
   assert.ok(zed.messages.some((m) => m.result && m.id === 3), 'réponse au prompt de Zed')
   assert.equal(client.messages.filter((m) => m.type === 'error').length, 0)
   assert.deepEqual(keyboard.calls.map((c) => c.steps[0].keys ?? 'texte'), ['ctrl+o', 'texte'])

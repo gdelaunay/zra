@@ -302,7 +302,10 @@ test('permission : répondue depuis le mobile, le tour reprend', async () => {
 
   const allow = $$('.perm__options .btn').find((b) => /une fois/i.test(b.textContent))
   click(allow)
-  await until(() => /réponse envoyée/.test($('.perm__note').textContent), 2000, 'verrouillage optimiste')
+  // Verrouillage optimiste, peint à la frame suivante. Le bouchon confirme
+  // presque aussitôt : sous charge, on peut ne voir que l'état d'après.
+  await until(() => /réponse envoyée|répondu depuis le mobile/.test($('.perm__note').textContent), 2000, 'verrouillage optimiste')
+  assert.ok(ZRA.store.ensureTimeline(key).entries.some((e) => e.type === 'permission' && e.pendingOptionId === 'allow-once'))
   await until(() => /répondu depuis le mobile/.test($('.perm__note').textContent), 3000, 'confirmation du daemon')
   assert.ok($$('.perm__options .btn').every((b) => b.disabled || /une fois/i.test(b.textContent)))
 
@@ -517,12 +520,26 @@ test('streaming : une rafale se révèle peu à peu, le début du message ne bou
   await until(() => agentText().startsWith('Premier paragraphe, déjà là.'), 3000, 'premier paragraphe')
   const para = $$('.msg--agent').pop().querySelector('p')
 
+  // Chaque état affiché, relevé à chaque mutation du DOM : ne dépend pas du
+  // rythme de sondage du test (une machine chargée en sauterait).
+  const lengths = []
+  const cursors = []
+  const observer = new win.MutationObserver(() => {
+    const text = agentText()
+    if (/Rafale/.test(text)) { lengths.push(text.length); cursors.push(Boolean($('.msg--agent .cursor'))) }
+  })
+  observer.observe($('.thread__scroll'), { childList: true, subtree: true, characterData: true })
+  try {
+    await until(() => agentText().endsWith('Rafale Rafale'), 4000, 'rafale entièrement affichée')
+  } finally {
+    observer.disconnect()
+  }
   // La rafale de 1 750 caractères arrive d'un bloc : elle ne s'affiche pas d'un bloc.
-  const seen = await until(() => (/Rafale/.test(agentText()) ? agentText() : null), 3000, 'début de la rafale')
-  assert.ok(seen.length < first.trim().length + burst.length, `révélée progressivement (${seen.length} caractères d’abord)`)
-  assert.ok($('.msg--agent .cursor'), 'curseur de frappe pendant l’écriture')
-
-  await until(() => agentText().endsWith('Rafale Rafale'), 4000, 'rafale entièrement affichée')
+  const full = first.trim().length + burst.length
+  const partial = [...new Set(lengths)].filter((n) => n < full)
+  assert.ok(partial.length >= 2, `révélée en plusieurs fois (états vus : ${[...new Set(lengths)].join(', ')})`)
+  assert.ok(partial.every((n, i) => i === 0 || n > partial[i - 1]), 'toujours en avançant')
+  assert.ok(cursors[0], 'curseur de frappe pendant l’écriture')
   assert.equal($$('.msg--agent').pop().querySelector('p'), para, 'le premier paragraphe garde son nœud')
 
   // Fin du tour : rendu définitif, sans curseur.

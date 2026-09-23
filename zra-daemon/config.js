@@ -33,6 +33,14 @@ export const DEFAULTS = {
   bindLoopback: true,
   /** Refus de démarrer si aucune interface de tunnel n'est trouvée. */
   requireTunnel: true,
+  /**
+   * Plutôt que refuser : démarrer en loopback et écouter le tunnel dès qu'il
+   * apparaît. Le mode de la tâche planifiée (`npm run service`), lancée à
+   * l'ouverture de session, parfois avant que WireGuard ait monté l'adaptateur.
+   */
+  waitTunnel: false,
+  /** Sondage des interfaces : tunnel apparu, disparu, changé d'IP. */
+  tunnelPollMs: 5000,
 
   // --- client web -----------------------------------------------------------
   /**
@@ -109,6 +117,8 @@ export const DEFAULTS = {
 
   /** Journal d'injections (spec §9). */
   logFile: join(LOCALAPPDATA, 'zra', 'injections.log'),
+  /** Journal du daemon sur disque, en plus de la console (`--log`). `null` : console seule. */
+  daemonLogFile: null,
   /** Nom du poste affiché dans la PWA. `null` => hostname. */
   machineName: null,
 }
@@ -120,6 +130,7 @@ function envOverrides() {
   if (e.ZRA_BIND_INTERFACE) out.bindInterface = e.ZRA_BIND_INTERFACE
   if (e.ZRA_BIND_CIDR) out.bindCidr = e.ZRA_BIND_CIDR
   if (e.ZRA_REQUIRE_TUNNEL) out.requireTunnel = e.ZRA_REQUIRE_TUNNEL !== '0'
+  if (e.ZRA_WAIT_TUNNEL) out.waitTunnel = e.ZRA_WAIT_TUNNEL !== '0'
   if (e.ZRA_SERVE_STATIC) out.serveStatic = e.ZRA_SERVE_STATIC !== '0'
   if (e.ZRA_STATIC_DIR) out.staticDir = e.ZRA_STATIC_DIR
   if (e.ZRA_ALLOWED_ORIGINS) out.allowedOrigins = e.ZRA_ALLOWED_ORIGINS.split(',').map((s) => s.trim()).filter(Boolean)
@@ -128,6 +139,7 @@ function envOverrides() {
   if (e.ZRA_POLL_MS) out.pollMs = Number(e.ZRA_POLL_MS)
   if (e.ZRA_INJECTION) out.injection = e.ZRA_INJECTION
   if (e.ZRA_LOG_FILE) out.logFile = e.ZRA_LOG_FILE || null
+  if (e.ZRA_DAEMON_LOG) out.daemonLogFile = e.ZRA_DAEMON_LOG
   if (e.ZRA_MACHINE_NAME) out.machineName = e.ZRA_MACHINE_NAME
   return out
 }
@@ -157,6 +169,7 @@ export async function loadConfig({ file = process.env.ZRA_CONFIG || join(ROOT, '
   cfg.zedSettings = abs(cfg.zedSettings) || ZED.settings
   cfg.staticDir = abs(cfg.staticDir)
   cfg.logFile = cfg.logFile === null ? null : abs(cfg.logFile)
+  cfg.daemonLogFile = cfg.daemonLogFile ? abs(cfg.daemonLogFile) : null
   cfg.allowedOrigins = (cfg.allowedOrigins || []).map((o) => String(o).replace(/\/+$/, ''))
   cfg.configFile = existsSync(file) ? file : null
 

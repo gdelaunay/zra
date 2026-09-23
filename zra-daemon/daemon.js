@@ -2,6 +2,7 @@
 // en process, sans passer par la ligne de commande.
 
 import { readFile } from 'node:fs/promises'
+import { unwatchFile, watchFile } from 'node:fs'
 import { join } from 'node:path'
 
 import { ROOT } from './config.js'
@@ -16,7 +17,7 @@ import { SessionLoader } from './session-loader.js'
 import { ZedDriver, KeyboardRunner, ZedCli } from './zed/driver.js'
 import { ZedControl } from './zed/control.js'
 import { createServers } from './server.js'
-import { resolveBinds } from './net.js'
+import { TunnelWatch, bindAddresses, resolveBinds } from './net.js'
 import { ZedPresence, machineName, osLabel, readAgents } from './agents.js'
 import { injectionLog, logger } from './log.js'
 
@@ -59,7 +60,8 @@ class Machine {
 
 /** @param {object} config résultat de `loadConfig()` */
 export async function startDaemon(config) {
-  const { addresses, tunnel } = resolveBinds(config)
+  // `config.interfaces` : interfaces factices, pour les tests du suivi du tunnel.
+  const { addresses, tunnel } = resolveBinds(config, config.interfaces?.())
 
   const shims = new ShimRegistry()
   const threads = new ThreadsIndex({ file: config.zedDb, pollMs: config.pollMs, shims })
@@ -191,10 +193,39 @@ export async function startDaemon(config) {
 
   const scheme = servers.secure ? 'https' : 'http'
   const wsScheme = servers.secure ? 'wss' : 'ws'
+  const announce = (a) => log.info(`écoute ${scheme}://${a}:${config.port}  (${wsScheme}://${a}:${config.port}/ws)`)
   log.info(`poste « ${machine.name} » — ${threads.threads.length} thread(s) dans l'index`)
-  for (const a of addresses) log.info(`écoute ${scheme}://${a}:${config.port}  (${wsScheme}://${a}:${config.port}/ws)`)
+  for (const a of addresses) announce(a)
   if (tunnel) log.info(`tunnel : ${tunnel.name} (${tunnel.address}, ${tunnel.how})`)
+  else if (config.requireTunnel) log.warn('tunnel absent : écoute en loopback seule en attendant WireGuard (--wait-tunnel)')
   else log.warn('aucun tunnel : écoute en loopback seule — mode dev')
+
+  // Le tunnel vit sa vie : désactivé, réactivé, réécrit. Le daemon suit, sans
+  // jamais s'arrêter — les shims du poste ont besoin de sa loopback.
+  const watch = new TunnelWatch(config, { intervalMs: config.tunnelPollMs, initial: tunnel, interfaces: config.interfaces })
+  let rebinding = Promise.resolve()
+  watch.onChange((next, previous) => {
+    rebinding = rebinding.then(async () => {
+      if (next) log.info(`tunnel ${previous ? 'changé' : 'apparu'} : ${next.name} (${next.address}, ${next.how})`)
+      else log.warn(`tunnel ${previous?.name ?? ''} disparu : écoute en loopback seule jusqu'à son retour`)
+      try {
+        const { opened, closed } = await servers.setAddresses(bindAddresses(config, next))
+        for (const a of closed) log.info(`écoute ${a} fermée`)
+        for (const a of opened) announce(a)
+      } catch (err) {
+        log.warn(`écoute du tunnel impossible : ${err.message}`)
+      }
+      hub.broadcast({ type: 'machine', ...machine.describe() })
+    })
+  })
+  // En dev (`--no-tunnel`), rien à suivre ; et lire les interfaces n'est pas
+  // gratuit sous Windows (25 à 60 ms, synchrone).
+  if (config.requireTunnel || config.waitTunnel || config.bindInterface || config.bindCidr) watch.start()
+
+  // Certificat : renouvelé tous les 60 à 90 jours (Let's Encrypt). Relu à chaud,
+  // et son échéance surveillée : un certificat expiré, c'est une PWA qui ne
+  // s'ouvre plus du tout.
+  const tlsWatch = config.tls ? watchTls({ config, servers }) : null
   log.info(`injection : backend ${backend.name}${backend.ownsQueue ? ' (file tenue par le shim)' : ''}`)
   if (driver.enabled) {
     log.warn(`pilotage de Zed au clavier ACTIVÉ${driver.dryRun ? ' (simulation, aucune touche envoyée)' : ''} — ` +
@@ -214,10 +245,13 @@ export async function startDaemon(config) {
   return {
     config, hub, threads, states, rings, shims, backend, servers, machine, presence,
     host, loader, control, driver,
-    addresses, tunnel,
+    addresses, tunnel, watch,
     port: config.port,
 
     async close() {
+      watch.stop()
+      tlsWatch?.stop()
+      await rebinding
       clearInterval(agentsTimer)
       presence.stop()
       threads.stop()
@@ -226,6 +260,52 @@ export async function startDaemon(config) {
       backend.close?.()
       for (const client of hub.clients.values()) client.conn.close(1001)
       await servers.close()
+    },
+  }
+}
+
+/** Jours restants avant expiration en deçà desquels le journal alerte. */
+const TLS_WARN_DAYS = 20
+
+function checkExpiry(tls) {
+  if (!tls?.validTo) return
+  const days = Math.floor((tls.validTo.getTime() - Date.now()) / 86_400_000)
+  const names = tls.names.join(', ') || 'certificat'
+  if (days < 0) log.error(`${names} : certificat EXPIRÉ depuis ${-days} j — la PWA ne s'ouvrira plus en HTTPS`)
+  else if (days < TLS_WARN_DAYS) log.warn(`${names} : certificat valable encore ${days} j — le renouveler (DEPLOY.md)`)
+  else log.info(`${names} : certificat valable jusqu'au ${tls.validTo.toISOString().slice(0, 10)}`)
+}
+
+/**
+ * Relit le certificat quand ses fichiers changent (sondage : `fs.watch` perd
+ * les remplacements de fichier sous Windows), et vérifie chaque jour l'échéance.
+ */
+function watchTls({ config, servers, intervalMs = 30_000 }) {
+  checkExpiry(servers.tls)
+  let pending = null
+  const reload = () => {
+    clearTimeout(pending)
+    // Clé et certificat sont écrits l'un après l'autre : on laisse finir.
+    pending = setTimeout(async () => {
+      try {
+        const tls = await servers.reloadTls()
+        log.info('certificat rechargé')
+        checkExpiry(tls)
+      } catch (err) {
+        log.warn(`certificat illisible, l'ancien reste en place : ${err.message}`)
+      }
+    }, 2000)
+    pending.unref?.()
+  }
+  const files = [config.tls.cert, config.tls.key]
+  for (const f of files) watchFile(f, { interval: intervalMs }, reload)
+  const daily = setInterval(() => checkExpiry(servers.tls), 86_400_000)
+  daily.unref?.()
+  return {
+    stop() {
+      for (const f of files) unwatchFile(f, reload)
+      clearInterval(daily)
+      clearTimeout(pending)
     },
   }
 }

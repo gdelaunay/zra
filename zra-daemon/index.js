@@ -10,7 +10,7 @@
 
 import { loadConfig } from './config.js'
 import { startDaemon } from './daemon.js'
-import { setLevel, logger } from './log.js'
+import { setLevel, setLogFile, logger } from './log.js'
 import { TunnelMissingError } from './net.js'
 
 const log = logger('daemon')
@@ -23,6 +23,8 @@ function parseArgs(argv) {
     else if (a === '--interface') out.bindInterface = argv[++i]
     else if (a === '--cidr') out.bindCidr = argv[++i]
     else if (a === '--no-tunnel') out.requireTunnel = false
+    else if (a === '--wait-tunnel') out.waitTunnel = true
+    else if (a === '--log') out.daemonLogFile = argv[++i]
     else if (a === '--no-static') out.serveStatic = false
     else if (a === '--static-dir') out.staticDir = argv[++i]
     else if (a === '--origin') (out.allowedOrigins ??= []).push(argv[++i])
@@ -44,6 +46,9 @@ function usage() {
   --interface <nom>    adaptateur WireGuard à utiliser
   --cidr <plage>       repli de détection du tunnel, ex. 10.0.0.0/24
   --no-tunnel          démarrer en loopback seule (dev)
+  --wait-tunnel        tunnel absent : démarrer en loopback et l'attendre
+                       (au lieu de refuser — mode de la tâche planifiée)
+  --log <fichier>      journal aussi dans ce fichier (rotation à 5 Mo)
   --no-static          ne pas servir le client web (API pure)
   --static-dir <chem>  dossier du client web (défaut zra-client/)
   --origin <url>       origine autorisée à ouvrir le WebSocket (répétable)
@@ -61,9 +66,11 @@ const overrides = parseArgs(process.argv.slice(2))
 let daemon
 try {
   const config = await loadConfig({ overrides })
+  if (config.daemonLogFile) setLogFile(config.daemonLogFile)
   daemon = await startDaemon(config)
 } catch (err) {
-  if (err instanceof TunnelMissingError) log.error(err.message)
+  // Erreurs attendues (tunnel absent, port pris) : le message suffit.
+  if (err instanceof TunnelMissingError || err.code === 'port_in_use') log.error(err.message)
   else log.error(err.stack || err.message)
   process.exit(1)
 }

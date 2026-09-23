@@ -208,9 +208,12 @@ export function ThreadView({ key, navigate }) {
       if (r.shown < full) more = true
       else r.at = undefined
       if (r.shown >= full && !live) {
-        // Tout est affiché et l'agent est passé à autre chose : rendu définitif.
+        // Tout est affiché et l'agent est passé à autre chose : rendu définitif,
+        // sur place — le message garde ses nœuds, seul le curseur s'en va.
         reveals.delete(id)
-        patch({ op: 'update', entry: r.entry })
+        patchHtml(messageBody(node), blocksPieces(r.entry.blocks))
+        node.dataset.rev = r.entry.rev
+        node._zraLen = full
       }
     }
     if (more) { revealing = true; requestAnimationFrame(revealFrame) }
