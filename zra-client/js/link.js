@@ -4,6 +4,14 @@
 import { emitter } from './dom.js'
 
 const BACKOFF = [500, 1000, 2000, 4000, 8000, 15000]
+/** Un `ping` applicatif à cet intervalle : le navigateur n'expose pas ceux du protocole. */
+const HEARTBEAT_MS = 15000
+/** Sans aucune trame reçue dans ce délai après un `ping`, la connexion est morte. */
+const PONG_TIMEOUT_MS = 6000
+/** Au retour au premier plan, on veut savoir vite. */
+const PROBE_TIMEOUT_MS = 3000
+/** Silence au-delà duquel une connexion « ouverte » est suspecte avant un envoi. */
+const STALE_MS = HEARTBEAT_MS + PONG_TIMEOUT_MS
 
 export function wsUrl(base) {
   const u = new URL(base, location.href)
@@ -30,6 +38,12 @@ export class DaemonLink {
     this.ws = null
     this.closedByUs = false
     this.pending = []
+    /** Dernière trame reçue (ms) : toute trame prouve que la connexion vit. */
+    this.lastRx = 0
+    /** Sonde en cours : les envois attendent sa réponse (voir `send`). */
+    this.probing = false
+    /** Threads auxquels la connexion courante s'est abonnée (voir `subscribedHere`). */
+    this.subs = new Set()
     const e = emitter()
     this.on = e.on
     this.emit = e.emit
@@ -53,28 +67,78 @@ export class DaemonLink {
     ws.onopen = () => {
       this.attempt = 0
       this.lastError = null
-      this.setStatus('online')
+      this.lastRx = Date.now()
+      this.probing = false
+      this.subs.clear()
+      // `hello` d'abord : un poste qui exige l'appairage ignore tout ce qui le
+      // précède. Le passage à `online` déclenche le réabonnement (store), qui
+      // doit donc arriver après.
       const token = this.token()
       this.send(token ? { type: 'hello', clientId: this.clientId, token } : { type: 'hello', clientId: this.clientId })
-      const queued = this.pending
-      this.pending = []
-      for (const msg of queued) this.send(msg)
+      this.flush()
+      this.startHeartbeat()
+      this.setStatus('online')
     }
 
     ws.onmessage = (ev) => {
+      this.lastRx = Date.now()
+      if (this.probing) { this.probing = false; this.flush() }
+      clearTimeout(this.pongTimer)
       let msg
       try { msg = JSON.parse(ev.data) } catch { return console.warn('[link] trame illisible', ev.data) }
+      if (msg?.type === 'pong') return
+      // Poste d'avant le heartbeat : il ne connaît pas `ping`, mais répond — ça suffit.
+      if (msg?.type === 'error' && msg.code === 'unknown_message' && /\bping\b/.test(msg.message || '')) return
       this.emit('message', msg)
     }
 
     ws.onerror = () => { this.lastError = 'connexion impossible' }
 
-    ws.onclose = () => {
-      this.ws = null
-      if (this.closedByUs) { this.setStatus('idle'); return }
-      this.setStatus('offline')
-      this.scheduleRetry()
-    }
+    ws.onclose = () => this.lost(ws)
+  }
+
+  /**
+   * Connexion perdue, ou tenue pour morte. Sur mobile, une socket peut rester
+   * `OPEN` alors que plus rien ne passe (onglet gelé, changement de réseau) ;
+   * `close()` n'y changerait rien avant longtemps : on l'abandonne tout de suite.
+   */
+  lost(ws, reason) {
+    if (ws !== this.ws) return
+    this.stopHeartbeat()
+    this.probing = false
+    ws.onopen = ws.onmessage = ws.onerror = ws.onclose = null
+    try { ws.close() } catch { /* déjà fermée */ }
+    this.ws = null
+    if (this.closedByUs) { this.setStatus('idle'); return }
+    if (reason) this.lastError = reason
+    this.setStatus('offline')
+    this.scheduleRetry()
+  }
+
+  startHeartbeat() {
+    this.stopHeartbeat()
+    this.heartbeat = setInterval(() => this.probe(PONG_TIMEOUT_MS), HEARTBEAT_MS)
+  }
+
+  stopHeartbeat() {
+    clearInterval(this.heartbeat)
+    clearTimeout(this.pongTimer)
+  }
+
+  /** `ping` ; sans aucune trame en retour dans `timeout` ms, la connexion est abandonnée. */
+  probe(timeout = PROBE_TIMEOUT_MS) {
+    const ws = this.ws
+    if (ws?.readyState !== WebSocket.OPEN) return
+    this.probing = true
+    clearTimeout(this.pongTimer)
+    this.pongTimer = setTimeout(() => this.lost(ws, 'le poste ne répond plus'), timeout)
+    try { ws.send(JSON.stringify({ type: 'ping' })) } catch { this.lost(ws, 'connexion coupée') }
+  }
+
+  flush() {
+    const queued = this.pending
+    this.pending = []
+    for (const msg of queued) this.send(msg)
   }
 
   scheduleRetry() {
@@ -91,17 +155,31 @@ export class DaemonLink {
     this.scheduleRetry()
   }
 
-  /** Reconnexion immédiate (retour au premier plan, bouton « réessayer »). */
+  /**
+   * Retour au premier plan, réseau revenu, bouton « réessayer ». En ligne, on
+   * vérifie que la connexion vit encore ; sinon, reconnexion immédiate.
+   */
   wake() {
-    if (this.status === 'online' || this.status === 'connecting') return
+    if (this.status === 'online') return this.probe()
+    if (this.status === 'connecting') return
     clearTimeout(this.retryTimer)
     this.attempt = 0
     this.connect()
   }
 
   send(msg) {
+    // Connexion silencieuse depuis trop longtemps (onglet gelé en arrière-plan) :
+    // on s'assure qu'elle vit avant de lui confier un message, qui serait perdu
+    // sans erreur sur une socket morte. Il part à la réponse, ou à la reconnexion.
+    if (!this.probing && msg.type !== 'hello' && Date.now() - this.lastRx > STALE_MS) this.probe()
+    if (this.probing && msg.type !== 'hello') {
+      this.pending.push(msg)
+      return false
+    }
     if (this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(msg))
+      if (msg.type === 'subscribe') this.subs.add(msg.threadId)
+      else if (msg.type === 'unsubscribe') this.subs.delete(msg.threadId)
       return true
     }
     // Les intentions utilisateur (envoi, abonnement) sont rejouées à la reconnexion.
@@ -109,9 +187,13 @@ export class DaemonLink {
     return false
   }
 
+  /** L'abonnement est déjà parti sur cette connexion (file d'attente vidée à l'ouverture). */
+  subscribedHere(threadId) { return this.subs.has(threadId) }
+
   close() {
     this.closedByUs = true
     clearTimeout(this.retryTimer)
+    this.stopHeartbeat()
     this.ws?.close()
     this.ws = null
     this.setStatus('idle')

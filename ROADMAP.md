@@ -415,7 +415,7 @@ champ est vide à la prise de focus ») est fausse. Il faut vider le filtre avan
 de taper, avec une touche à éprouver par `npm run zed -- try --steps`, puisque
 `ctrl+a` risque d'agir sur la liste plutôt que sur le champ.
 
-### Réouverture : dernier message de l'agent parfois manquant ✅ corrigé, à confirmer à l'usage
+### Réouverture : dernier message de l'agent parfois manquant ✅ confirmé à l'usage
 
 **Fait**, deux causes trouvées dans `zra-daemon/session-loader.js` :
 - le replay d'un thread fermé restait en cache 10 min et n'était invalidé qu'à
@@ -499,7 +499,7 @@ Au-dessus de l'input, la file des messages en attente (`.composer__queue`,
 Les marges haut et bas du composer ne sont donc plus symétriques. Il faut
 masquer ou annuler ce bloc quand il n'y a aucun message en file.
 
-### Mobile : bande grise entre la command bar et le clavier ✅ corrigé, à vérifier sur le téléphone
+### Mobile : bande grise entre la command bar et le clavier ✅ vérifié sur le téléphone
 
 **Fait**, sur les deux pistes les plus probables : la marge de sécurité du bas
 (`--safe-bottom`) tombe à 0 quand un champ a le focus sur écran tactile
@@ -536,7 +536,7 @@ autres :
 - mise en page des réflexions ;
 - l'icône définitive de l'indicateur de tour (`loader` en attendant).
 
-### Options de session : mode et modèle codés en dur ✅ corrigé, à vérifier avec pi
+### Options de session : mode et modèle codés en dur ✅ vérifié avec pi
 
 **Fait** : la PWA n'affiche plus de pastille mode ou modèle quand l'agent n'en
 annonce pas (au lieu d'une pastille grisée). Côté shim (`projectOptions`),
@@ -570,20 +570,32 @@ par défaut des nouveaux blocs.
 La mise en page des réflexions est aussi à reprendre, au moment du polish du
 front.
 
-### Désynchronisation mobile
+### Désynchronisation mobile ✅ corrigé, à confirmer à l'usage
 
-**Symptôme** : sur mobile, la conversation se désynchronise du daemon :
-- Le message envoyé reste bloqué en état "envoi en cours"
-- La réponse du LLM ne stream pas dans la PWA
-- Dans Zed tout tourne normalement côté thread
-- Workaround actuel : refresh manuel de la conversation
+**Symptôme** (Edge mobile) : le stream s'arrête, un message reste « envoi en
+cours », alors que Zed tourne normalement. Un refresh relance tout. Rien sur
+desktop.
 
-**Contexte** : ne se produit pas sur le client web desktop (qui reste synchronisé).
+**Causes**, dans `zra-client/js/link.js` et `store.js` :
+- à la reconnexion, le réabonnement partait *avant* `hello`. Un poste qui exige
+  l'appairage l'ignorait : connecté, mais abonné à rien ;
+- aucun heartbeat : une socket morte (onglet gelé, changement de réseau)
+  restait `OPEN` côté navigateur. Rien n'arrivait, les envois se perdaient sans
+  erreur, et le retour au premier plan ne faisait rien puisque le lien se
+  croyait en ligne ;
+- ce qui passait pendant la coupure n'était jamais rattrapé, et le rejeu du
+  ring au `subscribe` se superposait à la timeline déjà affichée.
 
-**Pistes** : 
-- Problème de reconnexion WebSocket (le mobile met le tab en background → connexion drop → pas de re-subscribe au stream)
-- Service worker qui intercepte / coupe les connexions WS en background ?
-- Manque de mécanisme de re-sync (request replay du thread state depuis le ring buffer du daemon)
+**Fait** :
+- `hello` part en premier, puis la file d'attente, puis le réabonnement ;
+- `ping` / `pong` applicatif (PROTOCOL §1, §3) toutes les 15 s, et une sonde
+  de 3 s au retour au premier plan ou au retour du réseau. Sans réponse, la
+  socket est abandonnée et le lien reconnecte ; les envois attendent la sonde,
+  donc rien ne part sur une socket morte ;
+- à la reconnexion, chaque thread ouvert repart de l'historique
+  (`subscribe` + `load_history`), comme au refresh ;
+- tests : `zra-client/test/link.test.mjs`, `store.test.mjs`,
+  `zra-daemon/test/protocol.test.mjs`.
 
 -----
 

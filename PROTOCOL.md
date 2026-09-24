@@ -53,7 +53,12 @@ modules ne chargent pas : `.js → text/javascript`, `.css → text/css`,
    pas arrivé.
 3. À toute coupure, la PWA reconnecte avec backoff (0,5 s → 15 s, jitter). À la
    reconnexion elle renvoie `hello`, puis `list_threads`, puis un `subscribe`
-   pour chaque thread qu'elle avait ouvert.
+   et un `load_history` pour chaque thread qu'elle avait ouvert : ce qui est
+   passé pendant la coupure n'est pas rejoué autrement.
+4. Toutes les 15 s, et au retour au premier plan, la PWA envoie `ping`. Sans
+   aucune trame en retour (6 s, 3 s au premier plan), elle tient la connexion
+   pour morte et reconnecte : sur mobile, une socket peut rester ouverte sans
+   que plus rien ne passe. Les envois attendent la réponse à ce `ping`.
 
 > **Le daemon ne conserve aucun état par client.** Un client qui revient doit
 > pouvoir tout reconstruire avec `hello` + `list_threads` + `subscribe`.
@@ -106,6 +111,15 @@ espaces tolérés), `label` nomme l'appareil (« Android · Chrome »). Réponse
 **Avant l'appairage**, le daemon ignore tout sauf `hello` et `pair`, sans
 répondre (la file rejouée par la PWA à la connexion ne produit pas une rafale
 d'erreurs), et n'envoie aucune diffusion. La loopback est exemptée.
+
+### `ping`
+
+```ts
+{ type: 'ping' }
+```
+
+Heartbeat (§1). Le daemon répond `{ type: 'pong' }`, appairé ou non, sans rien
+d'autre.
 
 ### `list_threads`
 ```ts

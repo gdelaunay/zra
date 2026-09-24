@@ -85,6 +85,9 @@ export class MockLink {
     switch (msg.type) {
       case 'hello':
         break
+      case 'ping':
+        this.push({ type: 'pong' })
+        break
       case 'list_threads':
         this.push({ type: 'threads', threads: this.threads })
         break

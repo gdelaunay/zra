@@ -83,6 +83,8 @@ export class Hub {
 
   handle(client, msg) {
     const { conn } = client
+    // Heartbeat de la PWA : sans lui, une socket morte côté mobile passe pour vivante.
+    if (msg.type === 'ping') return conn.send({ type: 'pong' })
     if (!client.authed) return this.handleUnpaired(client, msg)
     if (WRITES.has(msg.type)) {
       this.recordInjection({
