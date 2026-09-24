@@ -8,7 +8,7 @@ suivant.
 |---|---|---|---|
 | **A** — daemon | rien | la fixture SQLite seule | ✅ **fait** |
 | **B** — plomberie ACP | un agent ACP | l'agent bouchon, sans Zed | ✅ **fait** |
-| **C** — pont vers Zed | Zed lancé | la machine cible uniquement | 🟨 **code prêt, test réel à faire** |
+| **C** — pont vers Zed | Zed lancé | la machine cible uniquement | 🟨 **round 2 fait** : réouverture ✅, écho vers Zed ✅, `new_thread` à corriger |
 | **D** — déploiement mobile | le réseau local, le tunnel existant | le téléphone | 🟨 **prêt : réseau local + appairage, mise en service à faire** (`DEPLOY.md`, `TESTING.md` round 3) |
 
 Si on coupait plutôt « lecture / écriture », l'UI Automation se retrouverait
@@ -378,9 +378,9 @@ réseau local. Clic sur **+** → nouveau thread (claude) :
   type d'agent ouvert depuis Zed : le choix d'agent n'est pas transmis à la
   recette `newThread`.
 
-### Réouverture d'un thread fermé : filtre du sidebar jamais vidé ✅ corrigé, à retester
+### Réouverture d'un thread fermé : filtre du sidebar jamais vidé ✅
 
-Corrigé : la recette fait `ctrl+a` + `backspace` avant de taper le titre.
+Corrigé et retesté : la recette fait `ctrl+a` + `backspace` avant de taper le titre, plusieurs threads se rouvrent d'affilée.
 
 
 Round 2. La réouverture d'un thread fermé depuis la PWA marche, mais une seule
@@ -391,6 +391,24 @@ deux titres et ne trouve rien. L'hypothèse du commentaire de la recette (« le
 champ est vide à la prise de focus ») est fausse. Il faut vider le filtre avant
 de taper, avec une touche à éprouver par `npm run zed -- try --steps`, puisque
 `ctrl+a` risque d'agir sur la liste plutôt que sur le champ.
+
+### Réouverture : dernier message de l'agent parfois manquant 🟠
+
+De temps en temps, en rouvrant un thread dans la PWA, toute la session se
+charge **sauf** le tout dernier message de l'agent. Pas encore de condition
+reproductible identifiée. Pistes à vérifier, sans a priori : le filtrage par
+`seq` / `until` entre l'historique et le rejeu du ring, la révélation à débit
+régulier du message en cours (un dernier bloc jamais vidé), ou un
+`session/load` dont la fin du replay arrive après le `history`. Les trames de
+`.zra/records/` diront laquelle.
+
+### Pilotage de Zed : aucun retour pendant l'attente 🟠
+
+Rouvrir un thread fermé ou en ouvrir un nouveau fait jouer une recette clavier
+à Zed, puis attendre le shim. Ça prend plusieurs secondes, et la PWA n'affiche
+rien pendant ce temps. Il **faut** une animation de chargement (« Zed ouvre le
+thread… ») depuis l'envoi de la demande jusqu'au `thread_created`, au premier
+événement du thread rouvert, ou à l'erreur.
 
 ### v2 — projet non ouvert dans Zed 🟡
 

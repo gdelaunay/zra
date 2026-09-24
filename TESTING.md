@@ -104,7 +104,13 @@ npm run setup -- uninstall --apply   # le settings.json redevient ce qu'il étai
 
 ---
 
-## Round 2 — pilotage de Zed au clavier (lot C)
+## Round 2 — pilotage de Zed au clavier (lot C) ✅
+
+> **Fait** : `openThread` rouvre des threads fermés depuis la PWA, plusieurs
+> d'affilée (après correction du filtre du sidebar), et le message part.
+> Risque 🟠6 levé par l'écho du message mobile vers Zed. `newThread` ouvre bien
+> un thread dans Zed, mais avec deux bugs connus (session non rattachée,
+> agent choisi ignoré) : `ROADMAP.md`, « Problèmes connus ».
 
 > Des **frappes réelles** envoyées à la fenêtre Zed. Pendant ces essais, ne pas
 > toucher au clavier : si la fenêtre Zed perd le premier plan, la recette
