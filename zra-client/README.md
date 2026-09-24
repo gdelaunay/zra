@@ -19,7 +19,7 @@ zra-client/
 ## Lancer sans Zed, sans daemon, sans agent
 
 ```bash
-npm test            # 73 tests : markdown, diff, réduction ACP, daemon bouchon, PWA headless
+npm test            # toute la suite, dont la PWA : markdown, diff, réduction ACP, daemon bouchon, PWA headless
 npm run mock        # http://127.0.0.1:7777 (DESK-ZED) + :7778 (LAPTOP-ZED)
 ```
 

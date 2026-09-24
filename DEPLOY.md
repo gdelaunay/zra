@@ -95,7 +95,7 @@ est sur l'autre réseau.
 
 **Installer sur l'écran d'accueil** demande HTTPS (§4). En HTTP, tout
 fonctionne (lecture, envoi, permissions, streaming) sauf l'installation, l'app
-hors ligne et la dictée.
+hors ligne.
 
 ---
 

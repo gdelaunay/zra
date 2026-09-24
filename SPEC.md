@@ -451,7 +451,6 @@ Deux montages tiennent, et le daemon accepte les deux :
 | Service worker (l'app s'ouvre hors tunnel) | ✗ | ✓ |
 | Installation sur l'écran d'accueil | ✗ | ✓ |
 | Web Push (v2) | ✗ | ✓ |
-| `SpeechRecognition` (bouton dictée) | ✗, repli micro clavier | ✓ |
 
 En HTTPS, le navigateur refuse un `ws://` depuis une page `https://` (contenu
 mixte) : le daemon doit donc servir `wss://`, avec un certificat. Le chemin
@@ -562,7 +561,8 @@ zra/
                  shim-registry.js  shim-link.js  session-loader.js
                  acp-client.js  agent-commands.js
                  agents.js  jsonc.js  net.js  log.js
-                 inject/   backend.js  mock.js  acp.js  [uia.js  uia.ps1]
+                 inject/   backend.js  mock.js  acp.js  uia.js  auto.js
+                 zed/      driver.js  control.js  keyboard.ps1
                  test/     unit  threads-index  protocol  lot-b  fixtures/
   zra-shim/      index.js  proxy.js  framing.js  acp.js  queue.js
                  daemon-link.js  record.js  log.js
@@ -594,7 +594,7 @@ logon (optionnelle, script d'install fourni). Le shim n'est jamais lancé à la 
 normalement à travers lui ? → (2) les trames arrivent-elles au daemon ? →
 (3) l'injection ACP est-elle acceptée ? → (4) `session/load` fonctionne-t-il ?
 
-Le découpage de l'implémentation en trois lots, leur contenu fonctionnel et
+Le découpage de l'implémentation en lots, leur contenu fonctionnel et
 technique et leur état d'avancement : `ROADMAP.md`.
 
 ---
