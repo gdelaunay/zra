@@ -67,11 +67,6 @@
     // }
   },
 
-  // Risque 🟠6, expérimental : le message envoyé du mobile est aussi annoncé à
-  // Zed (user_message_chunk), pour qu'il apparaisse dans son panneau. false :
-  // le shim est entièrement transparent, ZRA n'écrit rien vers Zed.
-  "mirrorToZed": false,
-
   // Comment lancer un agent, quand le registry de Zed ne suffit pas à le dire.
   // Sert au shim (quel binaire envelopper) comme au relecteur de threads fermés.
   // Les agents installés par Zed depuis son registry sont résolus tout seuls.

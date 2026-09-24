@@ -378,6 +378,34 @@ réseau local. Clic sur **+** → nouveau thread (claude) :
   type d'agent ouvert depuis Zed : le choix d'agent n'est pas transmis à la
   recette `newThread`.
 
+### Réouverture d'un thread fermé : filtre du sidebar jamais vidé ✅ corrigé, à retester
+
+Corrigé : la recette fait `ctrl+a` + `backspace` avant de taper le titre.
+
+
+Round 2. La réouverture d'un thread fermé depuis la PWA marche, mais une seule
+fois. La recette `openThread` (`zra-daemon/zed/driver.js`) tape le titre dans
+le filtre du sidebar des threads sans le vider d'abord. Le texte de la première
+recherche y reste. Au deuxième thread, Zed cherche donc la concaténation des
+deux titres et ne trouve rien. L'hypothèse du commentaire de la recette (« le
+champ est vide à la prise de focus ») est fausse. Il faut vider le filtre avant
+de taper, avec une touche à éprouver par `npm run zed -- try --steps`, puisque
+`ctrl+a` risque d'agir sur la liste plutôt que sur le champ.
+
+### v2 — projet non ouvert dans Zed 🟡
+
+Réouvrir un thread ou en créer un suppose que son projet est ouvert dans une
+fenêtre Zed. Rien ne le vérifie aujourd'hui pour la réouverture, et rien
+n'ouvre le projet automatiquement s'il ne l'est pas (`new_thread` passe par la
+CLI de Zed, pas `openThread`). À traiter en v2 : détecter les fenêtres et
+projets ouverts, et ouvrir le projet avant de jouer la recette.
+
+### Changements de mode affichés dans la discussion 🟡
+
+Les `current_mode_update` s'affichent dans le fil comme une ligne système
+(« mode : acceptEdits »). Il ne faut plus les afficher dans la discussion : le
+mode courant se lit déjà dans la command bar.
+
 ### Tour en cours : indicateur mal placé 🟡
 
 Pendant un tour, le composer affiche « tour en cours — le message part en

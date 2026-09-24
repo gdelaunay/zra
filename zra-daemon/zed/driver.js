@@ -45,8 +45,8 @@ export class ZedControlError extends Error {
  *
  * `openThread` passe par `multi workspace: focus workspace sidebar` (éprouvé) :
  * le focus arrive dans le sidebar des threads, ouvert ou non ; taper filtre la
- * liste, `enter` ouvre le premier résultat. Pas de `ctrl+a` : le champ est vide
- * à la prise de focus, et dans une liste il ferait autre chose.
+ * liste, `enter` ouvre le premier résultat. Le filtre garde la recherche
+ * précédente (éprouvé) : `ctrl+a` + `backspace` le vident avant de taper.
  *
  * Variables : `{agent}` (id Zed), `{agentName}`, `{title}` (titre du thread),
  * `{text}` (message), `{project}` (dossier du projet visé par `newThread`).
@@ -67,6 +67,7 @@ export const DEFAULT_RECIPES = {
     { keys: 'ctrl+shift+p' }, { wait: 400 },
     { text: 'multi workspace: focus workspace sidebar' }, { wait: 400 },
     { keys: 'enter' }, { wait: 400 },
+    { keys: 'ctrl+a' }, { keys: 'backspace' }, { wait: 150 },
     { text: '{title}' }, { wait: 600 },
     { keys: 'enter' }, { wait: 800 },
   ],

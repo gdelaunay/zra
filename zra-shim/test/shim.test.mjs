@@ -22,7 +22,7 @@ const HERE = dirname(fileURLToPath(import.meta.url))
 const FAKE_AGENT = join(HERE, 'fake-agent.mjs')
 
 /** Monte un shim entre un faux Zed (en mémoire) et l'agent bouchon (un vrai processus). */
-async function boot(t, { zed = {}, env = {}, mirrorToZed = false } = {}) {
+async function boot(t, { zed = {}, env = {} } = {}) {
   const agent = spawn(process.execPath, [FAKE_AGENT], {
     stdio: ['pipe', 'pipe', 'pipe'],
     env: { ...process.env, ...env },
@@ -39,7 +39,6 @@ async function boot(t, { zed = {}, env = {}, mirrorToZed = false } = {}) {
     agentId: 'fake-acp',
     daemonUrl: null,
     cancelTimeoutMs: 2000,
-    mirrorToZed,
   })
 
   const fakeZed = new FakeZed({ toShim: zedIn, fromShim: zedOut, ...zed })
@@ -229,8 +228,8 @@ test('un prompt injecté part vers l’agent sans que Zed voie la requête', asy
   assert.ok(!zed.messages.some((m) => typeof m.id === 'string' && m.id.startsWith('zra-')))
 })
 
-test('mirrorToZed : le message du mobile est annoncé à Zed avant la réponse (🟠6)', async (t) => {
-  const { bridge, zed } = await boot(t, { mirrorToZed: true })
+test('le message du mobile est annoncé à Zed avant la réponse (🟠6)', async (t) => {
+  const { bridge, zed } = await boot(t)
   await bridge.prompt(zed.sessionId, 'depuis le mobile')
   await until(() => zed.updates.some((u) => u.content?.text === 'reçu : depuis le mobile'), { label: 'réponse de l’agent' })
 
@@ -241,10 +240,9 @@ test('mirrorToZed : le message du mobile est annoncé à Zed avant la réponse (
   assert.equal(zed.updates[echo]._meta?.zra?.synthetic, true)
 })
 
-test('sans mirrorToZed, ZRA n’écrit rien vers Zed', async (t) => {
-  const { bridge, zed } = await boot(t)
-  await bridge.prompt(zed.sessionId, 'depuis le mobile')
-  await until(() => zed.updates.some((u) => u.content?.text === 'reçu : depuis le mobile'), { label: 'réponse de l’agent' })
+test('un message tapé dans Zed ne lui est jamais renvoyé', async (t) => {
+  const { zed } = await boot(t)
+  await zed.prompt('depuis Zed')
   assert.ok(!zed.updates.some((u) => u._meta?.zra?.synthetic), 'aucune trame fabriquée par ZRA')
 })
 

@@ -234,10 +234,10 @@ interface InjectionBackend {
 Le shim émet lui-même un `session/prompt` vers l'agent, comme s'il venait de Zed.
 
 - Rapide, robuste, aucune dépendance à l'état de la fenêtre Zed.
-- **Limite connue et assumée** : Zed n'ayant pas émis ce prompt, le message de
-  l'utilisateur n'apparaîtra pas dans son panel. La réponse de l'agent, elle,
-  transite par le shim et s'affiche normalement. Divergence cosmétique côté
-  desktop uniquement ; le mobile reste fidèle.
+- Zed n'ayant pas émis ce prompt, il ne le connaît pas : le shim le lui
+  annonce en `user_message_chunk` (marqué `_meta.zra.synthetic`), comme
+  l'agent le ferait au `session/load`. Le message s'affiche donc aussi dans
+  le panel de Zed (risque 🟠6, levé au round 2).
 
 ### 6.2 Backend `uia` (repli, câblé dès la v1)
 
@@ -587,7 +587,7 @@ logon (optionnelle, script d'install fourni). Le shim n'est jamais lancé à la 
 | 🟠 3 | L'arbre UIA de Zed n'expose pas le composer | Sonde UIA (`npm run zed -- probe`) | **Avéré au lot C** : arbre vide, 0 élément. Pilotage au clavier (`SendInput`) de la fenêtre Zed, par recettes |
 | 🟡 4 | Zed lance un agent par fenêtre, pas par thread | Observer les `session_id` d'un même shim | Le registre shim→sessions est déjà multi-sessions |
 | 🟡 5 | Schéma `sidebar_threads` modifié par une mise à jour de Zed | Vérification des colonnes au démarrage | Message d'erreur explicite, dégradation en « live seul » |
-| 🟠 6 | Message utilisateur invisible dans le panel Zed (§6.1) | **Avéré au test réel** : la réponse de l'agent s'affiche dans Zed, le message envoyé depuis le mobile non | **À investiguer à fond** (§14) avant tout choix : le repli clavier n'est pas une solution satisfaisante |
+| ✅ 6 | Message utilisateur invisible dans le panel Zed (§6.1) | **Avéré au test réel** : la réponse de l'agent s'affiche dans Zed, le message envoyé depuis le mobile non | **Levé au round 2** : le shim annonce à Zed le message du mobile en `user_message_chunk`. Il s'affiche dans le panneau, et reste affiché une seule fois après un redémarrage de Zed (§14.1) |
 | 🟡 7 | Séparateur de `folder_paths` inconnu pour un thread multi-dossiers | Aucun thread multi-dossiers sur la machine cible ; `folder_paths_order` est une liste d'indices séparés par des virgules | On ne découpe que si l'ordre annonce plusieurs entrées **et** que le découpage retombe sur le bon compte — sinon chemin unique. Un chemin Windows peut contenir une virgule |
 
 **Ordre d'attaque au test réel** : (1) le shim est-il transparent — Zed fonctionne-t-il
@@ -622,7 +622,13 @@ technique et leur état d'avancement : `ROADMAP.md`.
 
 Relevées au round 1 (`TESTING.md`), sur la machine cible.
 
-### 14.1 Le message mobile absent du panel Zed (risque 🟠6) — à investiguer à fond
+### 14.1 Le message mobile absent du panel Zed (risque 🟠6) — ✅ levé
+
+> **Résultat du round 2** : la première piste suffit. Le message envoyé du
+> mobile s'affiche dans le panneau de Zed. Après fermeture et réouverture de
+> Zed, il est toujours là, une seule fois. C'est désormais le comportement du
+> shim, sans option pour le désactiver. Les autres pistes ne sont plus
+> nécessaires.
 
 C'est la limite qui pèsera le plus à l'usage : on écrit depuis le mobile, on
 revient au poste, et la conversation affichée par Zed a un trou — la réponse de
@@ -634,8 +640,7 @@ généraliser.
 
 - ce que Zed fait d'un `user_message_chunk` émis par l'agent pendant un tour
   qu'il n'a pas lancé : l'affiche-t-il ? l'ignore-t-il ? (le shim peut en
-  émettre un, synthétique, vers Zed) — **prêt à essayer** : `"mirrorToZed": true`
-  dans `zra.config.json` (ou `ZRA_MIRROR_TO_ZED=1`), relu au lancement du shim ;
+  émettre un, synthétique, vers Zed) — ✅ **retenu** : Zed l'affiche ;
 - ce que Zed relit à la réouverture d'un thread : s'il rejoue `session/load`,
   le message injecté apparaît-il alors, puisque l'agent l'a bien reçu ?
 - les points d'entrée de Zed lui-même : actions, extensions, URL `zed://`,

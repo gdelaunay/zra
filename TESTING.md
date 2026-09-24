@@ -148,10 +148,9 @@ Puis, avec `"zedControl": { "enabled": true }` dans `zra.config.json` :
 - si le risque 🔴1 s'est avéré au round 1 : `"injection": "auto"` et refaire la
   vérification 3.
 
-**Risque 🟠6** — `"mirrorToZed": true` dans `zra.config.json`, puis rouvrir le
-thread dans Zed (le shim relit la config à son lancement). Envoyer un message
-depuis la PWA : apparaît-il dans le panneau de Zed, avant la réponse ? Et après
-un redémarrage de Zed, est-il affiché une seule fois ?
+**Risque 🟠6** ✅ — le message envoyé depuis la PWA apparaît dans le panneau de
+Zed, avant la réponse, et une seule fois après un redémarrage de Zed. L'écho
+vers Zed est désormais toujours actif (plus d'option `mirrorToZed`).
 
 `npm run daemon:dev -- --zed-control-dry-run` fait tourner le daemon avec le
 pilotage actif mais simulé : les recettes sont résolues et journalisées, aucune
