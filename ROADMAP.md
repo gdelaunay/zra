@@ -569,3 +569,77 @@ par défaut des nouveaux blocs.
 
 La mise en page des réflexions est aussi à reprendre, au moment du polish du
 front.
+
+### Désynchronisation mobile
+
+**Symptôme** : sur mobile, la conversation se désynchronise du daemon :
+- Le message envoyé reste bloqué en état "envoi en cours"
+- La réponse du LLM ne stream pas dans la PWA
+- Dans Zed tout tourne normalement côté thread
+- Workaround actuel : refresh manuel de la conversation
+
+**Contexte** : ne se produit pas sur le client web desktop (qui reste synchronisé).
+
+**Pistes** : 
+- Problème de reconnexion WebSocket (le mobile met le tab en background → connexion drop → pas de re-subscribe au stream)
+- Service worker qui intercepte / coupe les connexions WS en background ?
+- Manque de mécanisme de re-sync (request replay du thread state depuis le ring buffer du daemon)
+
+-----
+
+# Roadmap / Idées d'architecture
+
+## Problème central
+
+Le daemon est couplé à un desktop éveillé avec Zed ouvert. Ça limite les cas d'usage : pas de live si le PC dort.
+
+## Version 1 — Homelab (choix actuel, pragmatique)
+
+L'audience cible = les gens qui ont déjà un homelab. Le "probleme" du desktop awake se contourne ainsi :
+
+- PWA hostée sur le homelab (Nginx/Caddy + HTTPS)
+- Homelab peut **wake** le desktop via Wake-on-LAN
+- Desktop au réveil : daemon systemd → lance Zed → shim enregistre les agents
+- Accès via WireGuard (LAN virtualisé, pas d'exposition publique)
+
+Ça marche chez moi. C'est pas universel, mais c'est exactement le profil des gens qui veulent ça.
+
+## Version 2 — Broker (LE vrai workaround)
+
+> Le daemon cloud ne fait **pas** tourner Zed. Il fait tourner un **proxy de sessions ACP**.
+
+Principe :
+- L'ACP est un duplex client (Zed) ↔ serveur (l'agent)
+- Un **broker** intercepte ce duplex côté serveur
+- Il reçoit le prompt depuis n'importe quel device
+- Il lance l'agent lui-même (worker cloud ou local, peu importe)
+- Il **diffuse** la réponse en push vers tous les devices abonnés
+- Si Zed est ouvert sur le desktop, il **rejoint** le flux au lieu de le posséder
+
+### Pourquoi c'est pas un SaaS dégueulasse
+
+- C'est exactement ce que font Conductor / Cursor background agents
+- Sauf que **self-hosted** et open-source
+- L'agent tourne sur ton serveur, tes clés API sur ton serveur
+- Zed devient un client optionnel parmi d'autres (PWA, TUI, API…)
+
+### Les deux versions se touchent
+
+| V1 (homelab) | V2 (broker) |
+|---|---|
+| Zed possède l'agent, daemon observe | Broker possède l'agent, Zed observe |
+| Desktop obligé (WOL pour réveiller) | Pas de desktop requis |
+| PWA + daemon local | PWA + broker sur VPS ou homelab |
+| Faisable ce weekend | Vrai projet d'infra |
+
+Les deux partagent :
+- Le même protocole WS (PROTOCOL.md)
+- La même PWA zra-client
+- Les mêmes agents ACP (shim devient optionnel en V2)
+- Le même modèle d'auth (pairing)
+
+**V1 → V2** c'est la même vision, deux niveaux de décentralisation. V1 prouve le concept, V2 libère du desktop.
+
+## Pour montrer à Zed
+
+Le tweet/issue à l'équipe Zed dit : "ACP est portable sur mobile en ~1000 lignes vanilla JS". La V1 suffit. La V2, c'est la suite si ils veulent. 🚀
