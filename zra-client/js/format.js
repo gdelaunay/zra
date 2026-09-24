@@ -28,6 +28,15 @@ export function absTime(value) {
   })
 }
 
+/** Durée écoulée, compacte : "8 s", "1 min 05 s", "1 h 02 min". */
+export function formatDuration(ms) {
+  const s = Math.max(0, Math.floor(ms / 1000))
+  if (s < 60) return `${s} s`
+  const pad = (n) => String(n).padStart(2, '0')
+  if (s < 3600) return `${Math.floor(s / 60)} min ${pad(s % 60)} s`
+  return `${Math.floor(s / 3600)} h ${pad(Math.floor((s % 3600) / 60))} min`
+}
+
 export function toMs(value) {
   if (value === null || value === undefined || value === '') return null
   if (typeof value === 'number') return value

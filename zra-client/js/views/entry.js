@@ -22,7 +22,6 @@ export function renderEntry(entry, ctx = {}) {
       case 'tool': return toolCall(entry, ctx)
       case 'plan': return planCard(entry)
       case 'permission': return permissionCard(entry, ctx)
-      case 'mode': return sysLine(`mode : ${entry.modeId}`)
       case 'notice': return sysLine(entry.text, entry.level)
       case 'raw': return rawCard(entry)
       default: return rawCard({ ...entry, kind: entry.type })
@@ -51,13 +50,29 @@ function agentMsg(entry, ctx) {
   )
 }
 
+/**
+ * Une réflexion se replie d'un clic sur sa ligne de titre, comme un tool call.
+ * `showThoughts` n'est que l'état par défaut ; le choix de l'utilisateur vit
+ * sur l'entrée, et survit donc aux re-rendus du streaming.
+ */
 function thoughtMsg(entry) {
-  const el = h('div.thought',
-    h('div.thought__head', icon('lightbulb', 'icon--sm'), 'réflexion'),
-    h('div.md', { html: blocksHtml(entry.blocks) }),
+  const open = entry.open ?? settings.showThoughts
+  const root = h('div.thought', { class: open ? 'is-open' : '' })
+  const head = button('thought__head', {
+    'aria-expanded': String(open),
+    onclick: () => {
+      entry.open = !root.classList.contains('is-open')
+      root.classList.toggle('is-open')
+      head.setAttribute('aria-expanded', String(entry.open))
+    },
+  },
+    icon('chevron-right', 'thought__chevron icon--sm'),
+    icon('lightbulb', 'icon--sm'),
+    h('span', { text: 'réflexion' }),
   )
-  if (!settings.showThoughts) el.classList.add('hidden')
-  return el
+  // `.md` reste enfant direct : c'est là que le streaming écrit (`messageBody`).
+  root.append(head, h('div.md', { html: blocksHtml(entry.blocks) }))
+  return root
 }
 
 /** ContentBlock[] -> HTML. Le markdown n'est appliqué qu'aux blocs texte. */

@@ -421,13 +421,17 @@ n'ouvre le projet automatiquement s'il ne l'est pas (`new_thread` passe par la
 CLI de Zed, pas `openThread`). À traiter en v2 : détecter les fenêtres et
 projets ouverts, et ouvrir le projet avant de jouer la recette.
 
-### Changements de mode affichés dans la discussion 🟡
+### Changements de mode affichés dans la discussion ✅
+
+**Fait** : ni `current_mode_update` ni `config_option_update` (par lequel l'ACP moderne annonce aussi les changements de mode) ne produisent d'entrée dans la timeline (`zra-client/js/acp.js`). Les autres événements non reconnus restent affichés en bloc brut.
 
 Les `current_mode_update` s'affichent dans le fil comme une ligne système
 (« mode : acceptEdits »). Il ne faut plus les afficher dans la discussion : le
 mode courant se lit déjà dans la command bar.
 
-### Tour en cours : indicateur mal placé 🟡
+### Tour en cours : indicateur mal placé ✅
+
+**Fait** : le texte du composer a disparu. Pendant un tour, une ligne `.turn` suit le dernier message : icône `loader` provisoire et durée depuis le début du tour (`st.turnSince`, noté par le client au passage `busy`, faute de date dans le protocole).
 
 Pendant un tour, le composer affiche « tour en cours — le message part en
 file » (`composer__hint`, `zra-client/js/views/thread.js`). Ça n'a rien à faire
@@ -438,7 +442,9 @@ de chargement (à choisir plus tard) et, à sa droite, la durée du tour en cour
 Les deux n'apparaissent que pendant que l'agent travaille et disparaissent dès
 qu'il a répondu.
 
-### Bouton micro du composer : à retirer 🟡
+### Bouton micro du composer : retiré ✅
+
+**Fait** : bouton retiré ; `dictate()` reste exportée par `views/thread.js`, branchée nulle part.
 
 Le bouton « Dictée » du composer (`dictate()`, `zra-client/js/views/thread.js`)
 utilise la Web Speech API (`SpeechRecognition`, `fr-FR`). Elle n'existe que
@@ -449,7 +455,9 @@ Décision : retirer le bouton, la dictée native du clavier du téléphone suffi
 Garder `dictate()` en réserve, débranché, au cas où on voudrait la réactiver
 (en HTTPS par exemple).
 
-### Composer : marge de la file d'attente vide 🟡
+### Composer : marge de la file d'attente vide ✅
+
+**Fait** : la file est masquée quand elle est vide.
 
 Au-dessus de l'input, la file des messages en attente (`.composer__queue`,
 `zra-client/css/app.css`) garde son `margin-bottom` même quand elle est vide.
@@ -466,17 +474,26 @@ fait environ 1,75 fois la hauteur de la command bar. Pistes à creuser :
 clavier est ouvert, la hauteur de la vue en `vh` au lieu de `dvh`, ou la
 meta `viewport` (`interactive-widget`), avec un contrôle par `visualViewport`.
 
-### Composer : brouillon perdu en quittant le thread 🟡
+### Composer : brouillon perdu en quittant le thread ✅
+
+**Fait** : un brouillon par thread, en `localStorage` (`zra.drafts.v1`), effacé à l'envoi.
 
 Le texte tapé dans l'input d'un thread est perdu quand on revient à la liste
 puis qu'on rouvre le thread. Il faudrait garder un brouillon par thread, côté
 client uniquement (en mémoire, voire en `localStorage` comme `settings.js`),
 et l'effacer à l'envoi.
 
-### Revue visuelle des composants de discussion 🟡
+### Retouches d'interface restantes 🟡
 
-À reprendre : forme et couleurs des commandes, des messages, etc. (lié au
-polish du front, voir aussi les réflexions plus bas).
+Le premier lot de retouches est fait (indicateur de tour, micro, file,
+brouillon, changements de mode, réflexions). Il en reste d'autres, entre
+autres :
+
+- **tool calls** : leur dépliement / repliement et leur affichage (en-tête,
+  corps, entrées et sorties brutes) ;
+- forme et couleurs des commandes, des messages, etc. ;
+- mise en page des réflexions ;
+- l'icône définitive de l'indicateur de tour (`loader` en attendant).
 
 ### Options de session : mode et modèle codés en dur 🟠
 
@@ -491,7 +508,9 @@ Piste : ne plus présumer de mode ni de modèle, et afficher les `configOptions`
 telles que l'agent les annonce, chacune une seule fois (dédoublonnage par `id`).
 Mode et modèle ne gardent une place privilégiée que s'ils existent vraiment.
 
-### Réflexions : pas de repli individuel 🟡
+### Réflexions : pas de repli individuel ✅
+
+**Fait** : chaque réflexion se replie sur sa ligne de titre ; l'état vit sur l'entrée et survit au streaming. `showThoughts` devient l'état par défaut (« Déplier les réflexions par défaut »), et le menu « ⋯ » replie ou déplie tout.
 
 Les blocs « réflexion » ne se masquent qu'en bloc, par le réglage
 `showThoughts` (réglages ou menu « ⋯ » du thread). Il faut pouvoir replier et
