@@ -35,7 +35,7 @@ Mise en service sur le téléphone — réseau local, appairage, certificat, dé
 | ✓ | **historique d'un thread fermé par `session/load`, cache 10 min** |
 | ✓ | backends d'injection `acp` (défaut), `uia`, `auto` et `mock` |
 | ✓ | **pilotage de Zed au clavier : `new_thread`, réouverture d'un thread fermé** — désactivé par défaut |
-| … | recettes clavier à valider au test réel (`TESTING.md`, round 2) |
+| ✓ | recettes clavier validées au test réel (`TESTING.md`, round 2) ; `new_thread` : deux bugs connus (`ROADMAP.md`) |
 
 Tant que le pilotage est désactivé, `new_thread` répond `new_thread_failed` et
 écrire à un thread fermé répond `inject_failed`, chacun avec sa raison.
@@ -117,7 +117,6 @@ que le navigateur réserve aux *contextes sécurisés* :
 | Service worker (cache de coquille) | ✗ | ✓ |
 | Installation sur l'écran d'accueil | ✗ | ✓ |
 | Web Push (v2) | ✗ | ✓ |
-| `SpeechRecognition` (bouton dictée) | ✗ (repli micro clavier) | ✓ |
 
 `localhost` compte comme contexte sécurisé : en dev sur le poste, tout marche
 sans certificat.

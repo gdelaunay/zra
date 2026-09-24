@@ -1,8 +1,8 @@
 # ZRA — test réel sur la machine cible
 
-Deux rounds, dans cet ordre. Le premier valide les lots A et B **sans une seule
+Trois rounds, dans cet ordre. Le premier valide les lots A et B **sans une seule
 frappe clavier** ; le second met au point le pilotage de Zed (lot C), et son
-contenu dépend du résultat du premier.
+contenu dépend du résultat du premier ; le troisième passe au téléphone (lot D).
 
 Tout ce que ZRA produit pendant les tests reste dans le dépôt, sous `.zra/`
 (ignoré par git) :
@@ -30,7 +30,7 @@ Le journal d'injections du daemon reste à `%LOCALAPPDATA%\zra\injections.log`
 ### Préparation
 
 ```bash
-npm test                          # 216 tests, sans Zed ni agent
+npm test                          # toute la suite, sans Zed ni agent
 npm run daemon:dev                # terminal dédié : loopback seule, PWA sur http://localhost:7777
 npm run setup install              # montre les entrées qui seraient ajoutées (tous les agents lançables), n’écrit rien
 npm run setup install apply        # écrit (sauvegarde dans .zra/backups/) ; « apply » sans tirets, npm avale --apply

@@ -9,13 +9,13 @@ suivant.
 | **A** — daemon | rien | la fixture SQLite seule | ✅ **fait** |
 | **B** — plomberie ACP | un agent ACP | l'agent bouchon, sans Zed | ✅ **fait** |
 | **C** — pont vers Zed | Zed lancé | la machine cible uniquement | 🟨 **round 2 fait** : réouverture ✅, écho vers Zed ✅, `new_thread` à corriger |
-| **D** — déploiement mobile | le réseau local, le tunnel existant | le téléphone | 🟨 **prêt : réseau local + appairage, mise en service à faire** (`DEPLOY.md`, `TESTING.md` round 3) |
+| **D** — déploiement mobile | le réseau local, le tunnel existant | le téléphone | 🟨 **réseau local + appairage en service** ; tunnel, changement de réseau, démarrage auto et HTTPS à tester (`DEPLOY.md`, `TESTING.md` round 3) |
 
 Si on coupait plutôt « lecture / écriture », l'UI Automation se retrouverait
 mêlée au reste et bloquerait tout un lot sur un risque non testable.
 
 Le client PWA (`zra-client/`) est hors de ce découpage : il est **livré**, et
-couvre déjà les trois lots — il parle tout le protocole, y compris ce que les
+couvre déjà les lots A à C — il parle tout le protocole, y compris ce que les
 lots B et C brancheront derrière.
 
 ---
@@ -70,8 +70,9 @@ client WebSocket ; le serveur WebSocket tient dans `ws.js`.
    fonctionne intégralement mais perd service worker, installabilité, Web Push
    et `SpeechRecognition` — toutes réservées aux contextes sécurisés.
 3. **Allowlist d'`Origin`.** Le navigateur n'applique pas la same-origin policy
-   aux WebSockets ; sans auth en v1, c'est le seul garde-fou contre une page
-   quelconque du tunnel qui piloterait un poste.
+   aux WebSockets : sans filtre, une page quelconque du tunnel pourrait piloter
+   un poste. Seul garde-fou au lot A ; depuis, l'appairage des appareils
+   (`SPEC.md` §9) passe en première ligne, le filtre reste en seconde.
 4. **JavaScript ESM + JSDoc** plutôt que TypeScript (`SPEC.md` §11) : zéro build
    des deux côtés, et `ws` disparaît des dépendances.
 5. **Fixture synthétique** plutôt qu'anonymisée : aucun risque de fuite, et on
@@ -79,7 +80,8 @@ client WebSocket ; le serveur WebSocket tient dans `ws.js`.
 
 ### Vérifications
 
-`npm test` → **127 tests verts** (73 client + 54 daemon), sans Zed ni agent.
+À la fin du lot, `npm test` → **127 tests verts** (73 client + 54 daemon), sans
+Zed ni agent.
 
 - `test/unit.test.mjs` — JSONC, détection de tunnel, codec WebSocket,
   normalisation des dates, découpage des chemins, ring buffer, machine à états,
@@ -101,7 +103,7 @@ plutôt que d'échouer en silence :
 |---|---|---|---|
 | `load_history` | `history_unavailable` | lot B | ✅ levé |
 | `respond_permission` | `permission_expired` | lot B | ✅ levé |
-| `new_thread` | `new_thread_failed` | lot C | 🟨 câblé, recette clavier à valider |
+| `new_thread` | `new_thread_failed` | lot C | 🟨 fonctionne, deux bugs connus |
 
 Et tout thread était `closed` ou `unknown` : sans shim, rien n'était `live`.
 
@@ -177,8 +179,8 @@ Node ≥ 24, et le JSON-RPC sur stdio tient dans `framing.js`.
 
 ### Vérifications
 
-`npm test` → **174 tests verts** (73 client + 79 daemon + 22 shim), sans Zed et
-sans le vrai agent.
+À la fin du lot, `npm test` → **174 tests verts** (73 client + 79 daemon + 22
+shim), sans Zed et sans le vrai agent.
 
 - `zra-shim/test/shim.test.mjs` — transparence du proxy (octets entrants ≡
   octets sortants, y compris sur une trame illisible), tour, file, interruption,
@@ -227,10 +229,11 @@ Le risque 🔴1 — un agent qui refuserait un `session/prompt` ne venant pas de
 Isolé en dernier volontairement : seul lot fragile (fenêtre, langue, version de
 Zed) et seul lot qui ne se valide que sur la machine cible.
 
-**État** : tout ce qui ne dépend pas du test réel est écrit et testé
-(`npm test` → 216 verts). Reste le test réel, en deux
-rounds décrits dans `TESTING.md` : le premier valide les lots A et B sans une
-frappe clavier, le second met au point les recettes clavier.
+**État** : écrit, testé (`npm test`, sans Zed ni agent), et passé au test
+réel en deux rounds (`TESTING.md`). Le premier a validé les lots A et B sans
+une frappe clavier, le second a mis au point les recettes clavier. Reste
+`new_thread`, qui ouvre bien un thread mais avec deux bugs connus (« Problèmes
+connus »).
 
 ### Constat qui a changé le plan
 
@@ -251,7 +254,7 @@ Les raccourcis viennent de la keymap Windows embarquée dans le binaire de Zed.
 | `zra-daemon/inject/uia.js` | backend clavier : Zed émet le prompt, le shim confirme par le tour `busy` |
 | `zra-daemon/inject/auto.js` | `acp`, repli clavier sur **refus explicite** de l'agent |
 | `scripts/zed.mjs` | `npm run zed` : sonde, recettes, essais — simulation sans `--apply` |
-| `TESTING.md` | les deux rounds du test réel |
+| `TESTING.md` | les rounds du test réel |
 
 Et en appui : le shim journalise dans un fichier (`ZRA_LOG_FILE`), le daemon
 expose `GET /status` en loopback, une entrée ZRA se résout vers l'agent
@@ -312,19 +315,28 @@ Relevé, à traiter :
     n'observait que ses propres changements. Il suit désormais ceux de Zed ;
   - l'agent bouchon renvoyait le message utilisateur, le vrai non : c'est ce
     qui masquait les deux premiers bugs. Il est désormais fidèle ;
-- **risque 🟠6 à investiguer à fond** (`SPEC.md` §14.1) ;
+- **risque 🟠6 à investiguer à fond** (`SPEC.md` §14.1) — levé au round 2 ;
 - évolutions de la PWA (`SPEC.md` §14.2).
 
 Conséquence pour le round 2 : 🔴1 levé, le clavier ne sert plus à envoyer des
 messages. Il ne reste que l'ouverture d'une session et la réouverture d'un
 thread fermé.
 
-### Reste — dépend du test réel
+### Test réel — round 2 ✅
 
-- les recettes `newThread`, `openThread` (et `submit`, seulement si 🟠6 finit par l'exiger) ;
-- le moment où Zed écrit un thread neuf dans `sidebar_threads` (à la création,
-  ou au premier message ?) — `new_thread` en dépend ;
-- la tâche planifiée au logon, à faire une fois le fonctionnement validé.
+| | Résultat |
+|---|---|
+| `openThread` | ✅ un thread fermé se rouvre depuis la PWA et le message part, plusieurs d'affilée une fois le filtre du sidebar vidé avant la saisie |
+| risque 🟠6 | ✅ **levé** : le shim annonce à Zed le message du mobile (`user_message_chunk` synthétique). Il s'affiche dans le panneau, une seule fois après un redémarrage de Zed. Toujours actif, sans option |
+| `newThread` | 🟨 Zed ouvre bien le thread, mais la session n'est pas rattachée et l'agent choisi est ignoré (« Problèmes connus ») |
+| `submit` | inutile : 🔴1 et 🟠6 levés, aucun message ne passe par le clavier |
+
+### Reste
+
+- corriger `new_thread` ; il en dépend aussi de savoir à quel moment Zed écrit
+  un thread neuf dans `sidebar_threads` (à la création, ou au premier
+  message ?) ;
+- la tâche planifiée au logon (`TESTING.md`, round 3).
 
 ### Fonctionnellement
 
@@ -336,10 +348,10 @@ thread fermé.
 
 | Composant | Contenu |
 |---|---|
-| `inject/uia.js` + `uia.ps1` | UI Automation par PowerShell : sonde au démarrage, focus, composer, validation ; repli `SendKeys` (risque 🟠3) |
+| `inject/uia.js` + `zed/keyboard.ps1` | pilotage **au clavier** (`SendInput`) par recettes : l'arbre UI Automation de Zed est vide (risque 🟠3) |
 | `new_thread` | palette de commandes → attente d'un shim (timeout 30 s) → `thread_created`, sinon `new_thread_failed` |
-| thread fermé | même voie, puis injection normale — une seule session, aucune divergence |
-| mode `auto` | `acp` d'abord, bascule `uia` après échec ou timeout de 5 s |
+| thread fermé | recette `openThread` (sidebar des threads, filtre par titre), puis injection normale — une seule session, aucune divergence |
+| mode `auto` | `acp` d'abord, bascule clavier sur **refus explicite** de l'agent |
 | installation | entrée `agent_servers` pointant le shim, tâche planifiée au logon, script d'install |
 
 ### Ce que le lot A a déjà préparé
@@ -348,15 +360,6 @@ thread fermé.
 la PWA sait l'afficher derrière le **+** — il ne manque que l'action.
 
 ---
-
-## Ordre d'attaque au test réel
-
-Inchangé par rapport à la `SPEC.md` §12 :
-
-1. le shim est-il transparent — Zed fonctionne-t-il normalement à travers lui ?
-2. les trames arrivent-elles au daemon ?
-3. l'injection ACP est-elle acceptée (risque 🔴1) ?
-4. `session/load` fonctionne-t-il (risque 🟠2) ?
 
 ## Problèmes connus
 
