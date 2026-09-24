@@ -136,7 +136,12 @@ export async function startDaemon(config) {
     zed: control, covers: (sessionId) => host.covers(sessionId), pairing,
   })
 
-  host.on('update', ({ threadId, update, at }) => hub.publish(threadId, update, at))
+  host.on('update', ({ threadId, update, at }) => {
+    hub.publish(threadId, update, at)
+    // Le thread avance en direct : son replay en cache est déjà en retard.
+    const sessionId = threads.get(threadId)?.sessionId
+    if (sessionId) loader.invalidate(sessionId)
+  })
   host.on('permission_resolved', (p) => hub.permissionResolved(p.threadId, p))
   host.on('permission_expired', ({ threadId, requestId }) => hub.permissionExpired(threadId, requestId))
   // Un thread qui reprend vie a pu changer depuis sa mise en cache.

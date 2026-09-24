@@ -77,9 +77,22 @@ export function projectOptions({ modes, configOptions } = {}) {
       .filter((o) => o && o !== model && o !== mode)
       .map(projectOption)
       .filter(Boolean)
+
+    // Un agent sans vrai mode peut habiller un autre réglage en « modes » (pi :
+    // ses niveaux de réflexion), qu'il annonce aussi en sélecteur typé. Mêmes
+    // valeurs ⇒ le même réglage : on ne garde que le sélecteur, une seule fois,
+    // et on ne présume pas d'un mode qui n'existe pas.
+    const modeIds = out.modes?.map((m) => m.id)
+      ?? (Array.isArray(mode?.options) ? flattenSelect(mode.options).map((v) => v.id) : null)
+    if (modeIds?.length && out.options.some((o) => o.type === 'select' && sameIds(o.values.map((v) => v.id), modeIds))) {
+      out.modes = []
+      out.currentModeId = null
+    }
   }
   return out
 }
+
+const sameIds = (a, b) => a.length === b.length && a.every((id) => b.includes(id))
 
 /**
  * Un sélecteur générique, pour la PWA. Seuls les types connus passent : un
@@ -113,6 +126,8 @@ function flattenSelect(options) {
 function assignOptions(st, p) {
   if (p.modes) st.modes = p.modes
   if (p.currentModeId != null) st.currentModeId = p.currentModeId
+  // Plus de mode (alias écarté) : plus de mode courant non plus.
+  if (p.modes && !p.modes.length) st.currentModeId = null
   if (p.models) {
     st.models = p.models
     st.currentModelId = p.currentModelId

@@ -39,26 +39,37 @@ export class SessionLoader {
    *   ttlMs?: number, timeoutMs?: number,
    * }} opts
    */
-  constructor({ threads, settingsFile = null, agentCommands = {}, ttlMs = 10 * 60_000, timeoutMs = 60_000 }) {
+  constructor({ threads, settingsFile = null, agentCommands = {}, ttlMs = 10 * 60_000, timeoutMs = 60_000, settleMs = 150 }) {
     this.threads = threads
     this.settingsFile = settingsFile
     this.agentCommands = agentCommands
     this.ttlMs = ttlMs
     this.timeoutMs = timeoutMs
-    /** `sessionId` → `{ at, payload }`. */
+    /** Silence attendu après la réponse à `session/load` : la fin du replay peut la suivre. */
+    this.settleMs = settleMs
+    /** `sessionId` → `{ at, updatedAt, payload }`. */
     this.cache = new Map()
     /** Relectures en cours, pour ne pas lancer deux agents pour le même thread. */
     this.inFlight = new Map()
   }
 
-  cached(sessionId) {
-    const hit = this.cache.get(sessionId)
+  /**
+   * Un replay en cache n'est rendu que si le thread n'a pas bougé depuis : même
+   * `updated_at` dans l'index. Sans ça, un thread qui a reçu un message après
+   * sa mise en cache se rouvrait sans ce message.
+   */
+  cached(thread) {
+    const hit = this.cache.get(thread.sessionId)
     if (!hit) return null
-    if (Date.now() - hit.at > this.ttlMs) {
-      this.cache.delete(sessionId)
+    if (Date.now() - hit.at > this.ttlMs || hit.updatedAt !== thread.updatedAt) {
+      this.cache.delete(thread.sessionId)
       return null
     }
     return hit.payload
+  }
+
+  remember(thread, payload) {
+    this.cache.set(thread.sessionId, { at: Date.now(), updatedAt: thread.updatedAt, payload })
   }
 
   /**
@@ -71,7 +82,7 @@ export class SessionLoader {
     if (!thread.sessionId) throw new HistoryError('no_session', 'thread sans session : historique indisponible')
 
     if (!refresh) {
-      const hit = this.cached(thread.sessionId)
+      const hit = this.cached(thread)
       if (hit) return hit
     }
 
@@ -104,8 +115,12 @@ export class SessionLoader {
     const client = new AcpClient({ command: agent.command, args: agent.args, cwd, env: agent.env })
     /** @type {object[]} */
     const updates = []
+    let lastUpdateAt = 0
     client.onNotification = (params) => {
-      if (params?.sessionId === thread.sessionId && params.update) updates.push(params.update)
+      if (params?.sessionId === thread.sessionId && params.update) {
+        updates.push(params.update)
+        lastUpdateAt = Date.now()
+      }
     }
 
     const guard = setTimeout(() => client.kill(), this.timeoutMs)
@@ -121,8 +136,15 @@ export class SessionLoader {
       }
 
       await client.loadSession({ sessionId: thread.sessionId, cwd })
+      // Un agent peut répondre au `session/load` avant d'avoir fini d'émettre
+      // son replay : on attend un court silence (borné) avant de tuer l'instance,
+      // sans quoi le dernier message pouvait manquer.
+      const deadline = Date.now() + 10 * this.settleMs
+      while (Date.now() < deadline && Date.now() - lastUpdateAt < this.settleMs) {
+        await new Promise((r) => setTimeout(r, this.settleMs / 3))
+      }
       const payload = { updates, complete: true }
-      this.cache.set(thread.sessionId, { at: Date.now(), payload })
+      this.remember(thread, payload)
       log.info(`relecture de ${thread.threadId} : ${updates.length} événement(s)`)
       return payload
     } catch (err) {
@@ -132,7 +154,7 @@ export class SessionLoader {
       if (updates.length) {
         log.warn(`relecture partielle de ${thread.threadId} : ${err.message}`)
         const payload = { updates, complete: false }
-        this.cache.set(thread.sessionId, { at: Date.now(), payload })
+        this.remember(thread, payload)
         return payload
       }
       const detail = client.stderr.trim().split('\n').at(-1)

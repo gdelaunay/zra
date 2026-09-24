@@ -131,6 +131,17 @@ export function toast(message, { level = 'info', ms = 3200 } = {}) {
   return el
 }
 
+/**
+ * Toast d'attente : icône qui tourne, sans échéance, jusqu'à `done()`. Pour ce
+ * qui prend quelques secondes sans rien montrer d'autre — Zed piloté au clavier.
+ * `maxMs` : filet, jamais affiché indéfiniment si la réponse se perd.
+ */
+export function activity(message, { maxMs = 45_000 } = {}) {
+  const el = toast(message, { ms: maxMs })
+  el.querySelector('svg')?.replaceWith(icon('loader', 'icon--sm spin'))
+  return { done: () => el.remove() }
+}
+
 /** Confirmation simple, sans dépendre de `confirm()` (bloqué en PWA standalone). */
 export function confirmSheet(title, message, onYes, { danger = false, yes = 'Confirmer' } = {}) {
   openSheet(title, (body, { close }) => {

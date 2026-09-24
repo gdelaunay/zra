@@ -69,9 +69,31 @@ export function ThreadView({ key, navigate }) {
 
   const composer = Composer({
     key,
-    onSend: (text, mode) => store.sendMessage(key, text, mode),
+    onSend: (text, mode) => {
+      // Répondre à un thread fermé : Zed le rouvre au clavier, ce qui prend
+      // quelques secondes. Le bandeau le dit jusqu'au retour du thread (ou l'échec).
+      if (st.state === 'closed') startReopen()
+      store.sendMessage(key, text, mode)
+    },
     onStop: stopTurn,
   })
+
+  /** Zed est en train de rouvrir ce thread (spec §6.3) : `null`, ou l'instant de la demande. */
+  let reopening = null
+  let reopenTimer = null
+  function startReopen() {
+    reopening = Date.now()
+    clearTimeout(reopenTimer)
+    // Filet : le daemon abandonne à 30 s, l'erreur arrive d'elle-même.
+    reopenTimer = setTimeout(endReopen, 45_000)
+    syncHeader()
+  }
+  function endReopen() {
+    if (reopening === null) return
+    reopening = null
+    clearTimeout(reopenTimer)
+    syncHeader()
+  }
 
   const el = h('div.view',
     h('div.header', {},
@@ -339,14 +361,17 @@ export function ThreadView({ key, navigate }) {
     syncOptions()
 
     const m = store.machineOf(key)
+    if (st.state === 'live') endReopen()
     let msg = null, level = ''
     if (m.status === 'locked') { msg = `${m.label} : appairage requis — depuis la liste des threads`; level = 'banner--error' }
     else if (m.status !== 'online') { msg = `${m.label} hors ligne — reconnexion automatique`; level = 'banner--error' }
+    else if (reopening !== null) msg = 'Zed rouvre le thread…'
     else if (st.state === 'closed') msg = 'thread fermé — la réponse rouvrira le thread dans Zed (§6.3)'
     else if (st.state === 'unknown') msg = 'thread sans session : lecture et écriture indisponibles'
     banner.className = `banner ${level} ${msg ? '' : 'hidden'}`.trim()
     clear(banner)
-    if (msg) banner.append(icon('alert-triangle', 'icon--sm'), h('span', { text: msg }))
+    const waiting = reopening !== null && m.status === 'online'
+    if (msg) banner.append(icon(waiting ? 'loader' : 'alert-triangle', waiting ? 'icon--sm spin' : 'icon--sm'), h('span', { text: msg }))
   }
 
   /**
@@ -357,8 +382,9 @@ export function ThreadView({ key, navigate }) {
     clear(btn)
     btn.title = label
     btn.append(icon(iconName, 'icon--sm pill__icon'), h('span.truncate.pill__label', { text: label }), icon('chevron-down', 'icon--sm'))
-    btn.disabled = !enabled
-    btn.style.opacity = enabled ? '' : '.5'
+    // On ne présume ni d'un mode ni d'un modèle : sans sélecteur annoncé par
+    // l'agent (pi n'a pas de mode ; thread fermé, rien d'annoncé), pas de pastille.
+    btn.classList.toggle('hidden', !enabled)
   }
 
   function optionMenu(ev, kind) {
@@ -482,6 +508,8 @@ export function ThreadView({ key, navigate }) {
     store.on(`state:${key}`, onState),
     store.on('machines', () => { syncHeader(); repaintPermissions() }),
     store.on('threads', () => { syncHeader() }),
+    // Zed n'a pas rouvert le thread : le bandeau d'attente s'efface, le toast d'erreur dit pourquoi.
+    store.on('error', (e) => { if (e.threadId === store.splitKey(key).threadId && e.machineId === store.splitKey(key).machineId) endReopen() }),
   ]
 
   paintAll()
@@ -496,6 +524,7 @@ export function ThreadView({ key, navigate }) {
     destroy() {
       offs.forEach((off) => off())
       clearInterval(turnTimer)
+      clearTimeout(reopenTimer)
       store.closeThread(key)
     },
   }

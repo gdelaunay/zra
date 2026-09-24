@@ -18,6 +18,7 @@ import { agentLabel } from '../agents.js'
 import { checkOrigin, selfOrigins, authenticate, isLoopback } from '../server.js'
 import { ShimHost } from '../shim-link.js'
 import { resolveAgentCommand, packageName, discoverAgents } from '../agent-commands.js'
+import { SessionLoader } from '../session-loader.js'
 
 /** Dossier de travail des fixtures fabriquées à la volée. */
 const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), 'fixtures')
@@ -509,4 +510,19 @@ test('agent-commands : le nom de paquet se lit sans sa version', () => {
   assert.equal(packageName('@agentclientprotocol/claude-agent-acp@0.80.0'), '@agentclientprotocol/claude-agent-acp')
   assert.equal(packageName('vibe-acp@2.25.5'), 'vibe-acp')
   assert.equal(packageName('@scope/sans-version'), '@scope/sans-version')
+})
+
+test('relecture en cache : rendue tant que le thread n’a pas bougé, jamais après', async () => {
+  const thread = { threadId: 't1', sessionId: 's1', agentId: 'a', folderPaths: ['C:/x'], updatedAt: '2026-01-01T00:00:00.000Z' }
+  const loader = new SessionLoader({ threads: { get: () => thread } })
+  let replays = 0
+  loader.replay = async (t) => { replays++; const p = { updates: [replays], complete: true }; loader.remember(t, p); return p }
+
+  assert.deepEqual((await loader.load('t1')).updates, [1])
+  assert.deepEqual((await loader.load('t1')).updates, [1], 'même updated_at : le cache sert')
+  // Un message est arrivé depuis : l'index a avancé, le cache est périmé.
+  thread.updatedAt = '2026-01-01T00:05:00.000Z'
+  assert.deepEqual((await loader.load('t1')).updates, [2])
+  loader.invalidate('s1')
+  assert.deepEqual((await loader.load('t1')).updates, [3], 'invalidé en direct par le daemon')
 })

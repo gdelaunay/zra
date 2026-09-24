@@ -292,7 +292,7 @@ L'état vivant d'un thread. À envoyer : au bootstrap, sur `subscribe`, et à
 **chaque** transition `idle ⇄ busy`, changement de file, d'option ou d'état.
 
 C'est ce message qui pilote l'UI : bouton Stop, entrées en file annulables,
-sélecteurs de mode/modèle. `modes`/`models` absents ⇒ sélecteurs grisés, ce n'est
+sélecteurs de mode/modèle. `modes`/`models` absents ou vides ⇒ pas de sélecteur, ce n'est
 pas une erreur : tant qu'aucun shim n'a lu l'`initialize` de l'agent, le daemon
 ne connaît pas les options de la session. `commands` est mémorisé par la PWA sans
 être affiché en v1.

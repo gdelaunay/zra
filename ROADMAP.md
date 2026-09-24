@@ -363,7 +363,27 @@ la PWA sait l'afficher derrière le **+** — il ne manque que l'action.
 
 ## Problèmes connus
 
-### Nouveau thread depuis le mobile : session non rattachée 🟠
+### Nouveau thread depuis le mobile : session non rattachée 🟨 en partie corrigé
+
+**Diagnostic** : le symptôme principal vient du troisième point. La recette
+`newThread` ouvre un thread avec le dernier agent utilisé dans Zed. Si ce n'est
+pas l'entrée ZRA, aucun shim ne s'annonce, d'où « aucune session en 30 s ».
+« à venir » venait de l'horloge du téléphone, en retard de quelques secondes
+sur celle du poste : un thread tout neuf semblait daté du futur.
+
+**Fait** :
+- `relTime()` affiche « à l'instant » pour une date dans le futur ;
+- un thread neuf d'un autre agent dans l'index fait échouer `new_thread` tout
+  de suite, avec la raison (« Zed a ouvert le thread avec « claude-acp »… »),
+  et le message du délai dépassé le suggère aussi ;
+- la PWA affiche un toast d'attente jusqu'au `thread_created` ou à l'échec.
+
+**Reste** : transmettre l'agent choisi à Zed. Deux pistes, à essayer dans Zed :
+une touche liée dans la keymap de Zed à `agent::NewExternalAgentThread` avec
+l'agent en paramètre (installée et retirée par `npm run setup`), ou le menu
+`agent: toggle new thread menu` parcouru au clavier. **Retenue : la keymap**
+(à faire plus tard, avec un essai dans Zed pour caler la forme du paramètre
+`agent`).
 
 Constaté sur le poste de dev, daemon en mode normal (pas dev), mobile sur le
 réseau local. Clic sur **+** → nouveau thread (claude) :
@@ -395,7 +415,16 @@ champ est vide à la prise de focus ») est fausse. Il faut vider le filtre avan
 de taper, avec une touche à éprouver par `npm run zed -- try --steps`, puisque
 `ctrl+a` risque d'agir sur la liste plutôt que sur le champ.
 
-### Réouverture : dernier message de l'agent parfois manquant 🟠
+### Réouverture : dernier message de l'agent parfois manquant ✅ corrigé, à confirmer à l'usage
+
+**Fait**, deux causes trouvées dans `zra-daemon/session-loader.js` :
+- le replay d'un thread fermé restait en cache 10 min et n'était invalidé qu'à
+  l'ouverture d'une session. Un thread qui avançait ensuite se rouvrait sans
+  ses derniers messages. Le cache n'est plus rendu si l'`updated_at` de
+  l'index a changé, et chaque événement en direct l'invalide ;
+- l'instance de relecture était tuée dès la réponse au `session/load`. Elle
+  attend maintenant un court silence (150 ms, borné à 1,5 s), au cas où la fin
+  du replay suivrait la réponse.
 
 De temps en temps, en rouvrant un thread dans la PWA, toute la session se
 charge **sauf** le tout dernier message de l'agent. Pas encore de condition
@@ -405,7 +434,13 @@ régulier du message en cours (un dernier bloc jamais vidé), ou un
 `session/load` dont la fin du replay arrive après le `history`. Les trames de
 `.zra/records/` diront laquelle.
 
-### Pilotage de Zed : aucun retour pendant l'attente 🟠
+### Pilotage de Zed : aucun retour pendant l'attente ✅
+
+**Fait** : nouveau thread, un toast avec une icône qui tourne
+(`activity()`, `zra-client/js/ui.js`) jusqu'au `thread_created` ou à
+`new_thread_failed`. Réponse à un thread fermé : le bandeau du thread devient
+« Zed rouvre le thread… », avec l'icône qui tourne, jusqu'à ce que le thread
+passe `live` ou qu'une erreur arrive. Filet de 45 s dans les deux cas.
 
 Rouvrir un thread fermé ou en ouvrir un nouveau fait jouer une recette clavier
 à Zed, puis attendre le shim. Ça prend plusieurs secondes, et la PWA n'affiche
@@ -464,7 +499,13 @@ Au-dessus de l'input, la file des messages en attente (`.composer__queue`,
 Les marges haut et bas du composer ne sont donc plus symétriques. Il faut
 masquer ou annuler ce bloc quand il n'y a aucun message en file.
 
-### Mobile : bande grise entre la command bar et le clavier 🟠
+### Mobile : bande grise entre la command bar et le clavier ✅ corrigé, à vérifier sur le téléphone
+
+**Fait**, sur les deux pistes les plus probables : la marge de sécurité du bas
+(`--safe-bottom`) tombe à 0 quand un champ a le focus sur écran tactile
+(`zra-client/css/app.css`), et la meta `viewport` demande
+`interactive-widget=resizes-content`, pour que la page se redimensionne
+au-dessus du clavier (Chrome Android).
 
 La command bar du bas est bien collée en bas de l'écran. Mais au focus de
 l'input, quand le clavier du téléphone s'ouvre, une bande grise vide apparaît
@@ -495,7 +536,14 @@ autres :
 - mise en page des réflexions ;
 - l'icône définitive de l'indicateur de tour (`loader` en attendant).
 
-### Options de session : mode et modèle codés en dur 🟠
+### Options de session : mode et modèle codés en dur ✅ corrigé, à vérifier avec pi
+
+**Fait** : la PWA n'affiche plus de pastille mode ou modèle quand l'agent n'en
+annonce pas (au lieu d'une pastille grisée). Côté shim (`projectOptions`),
+des « modes » dont les valeurs sont exactement celles d'un autre sélecteur
+sont traités comme un alias de ce sélecteur : il ne reste que le sélecteur,
+affiché une seule fois. C'est le cas supposé de pi (ses niveaux de réflexion en
+modes), à confirmer sur ses trames.
 
 La command bar réserve deux places fixes, **mode** puis **modèle**, et affiche
 ensuite les autres `configOptions` (effort de réflexion…). Tous les agents

@@ -7,7 +7,8 @@ export function relTime(value, now = Date.now()) {
   const t = toMs(value)
   if (t === null) return ''
   const d = now - t
-  if (d < 0) return 'à venir'
+  // Une date « dans le futur » n'est qu'une horloge de téléphone en retard de
+  // quelques secondes sur celle du poste : un thread tout neuf est à l'instant.
   if (d < 45_000) return "à l'instant"
   if (d < HOUR) return `${Math.round(d / MIN)} min`
   if (d < DAY) return `${Math.floor(d / HOUR)} h`
