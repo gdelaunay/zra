@@ -457,3 +457,11 @@ test('chemin inconnu : pas d’upgrade ailleurs que sur /ws (§1)', async (t) =>
   })
   assert.match(line, /404/)
 })
+
+test('ping → pong, même avant hello : le heartbeat de la PWA (§3)', async (t) => {
+  await boot(t)
+  const c = await Client.open(t)
+  c.send({ type: 'ping' })
+  await c.until((m) => m.type === 'pong', { label: 'pong' })
+  assert.deepEqual(c.messages.map((m) => m.type), ['pong'], 'ni erreur, ni bootstrap')
+})

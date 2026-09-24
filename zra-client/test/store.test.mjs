@@ -78,3 +78,34 @@ test('Zed recharge la session : historique vide, puis le replay remplit sans dou
   deliver({ type: 'acp_event', threadId: 'thread-replay', seq: 32, update: chunk('avant') })
   assert.deepEqual(texts(k), ['user:question archivée', 'agent:avant'])
 })
+
+test('reconnexion : le thread ouvert repart de l’historique, sans doublon du rejeu', () => {
+  const k = 'mock-desk/thread-coupure'
+  const st = store.ensureState(k)
+  st.subscribed = true
+  st.historyComplete = true
+  deliver({ type: 'acp_event', threadId: 'thread-coupure', seq: 21, update: chunk('avant la coupure') })
+
+  const sent = []
+  const send = machine.link.send
+  machine.link.send = (msg) => { sent.push(msg); return true }
+  try {
+    machine.link.emit('status', 'online')
+  } finally {
+    machine.link.send = send
+  }
+  assert.deepEqual(
+    sent.filter((m) => m.threadId === 'thread-coupure').map((m) => m.type),
+    ['subscribe', 'load_history'],
+  )
+  assert.equal(st.historyPending, true)
+
+  // Rejeu du ring, puis l'historique qui le couvre, plus un événement de la coupure.
+  deliver({ type: 'acp_event', threadId: 'thread-coupure', seq: 21, update: chunk('avant la coupure') })
+  deliver({ type: 'acp_event', threadId: 'thread-coupure', seq: 22, update: chunk(' et après') })
+  deliver({
+    type: 'history', threadId: 'thread-coupure', complete: true, until: 22,
+    updates: [chunk('avant la coupure'), chunk(' et après')],
+  })
+  assert.deepEqual(texts(k), ['agent:avant la coupure et après'])
+})

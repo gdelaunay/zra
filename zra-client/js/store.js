@@ -92,10 +92,18 @@ function wire(machine) {
 /** Liste et abonnements, après une reconnexion ou un appairage. */
 function resync(machine) {
   machine.link.send({ type: 'list_threads' })
-  // Réabonnement des threads déjà ouverts après une coupure.
+  // Réabonnement des threads déjà ouverts après une coupure. Ce qui est passé
+  // pendant la coupure est perdu, et le rejeu du ring se superposerait à ce qui
+  // est déjà affiché : on repart de l'historique, comme un rechargement.
   for (const [k, st] of state.threadStates) {
     const { machineId, threadId } = splitKey(k)
-    if (machineId === machine.id && st.subscribed) machine.link.send({ type: 'subscribe', threadId })
+    if (machineId !== machine.id || !st.subscribed) continue
+    // Ouvert pendant la coupure : sa demande vient de partir avec la file d'attente.
+    if (machine.link.subscribedHere?.(threadId)) continue
+    st.buffer = []
+    st.historyPending = false
+    machine.link.send({ type: 'subscribe', threadId })
+    loadHistory(k)
   }
 }
 
@@ -117,6 +125,8 @@ function handle(machine, msg) {
       machine.error = null
       emit('machines')
       emit('paired', { machineId: machine.id })
+      // Ce qui est parti avant l'appairage a été ignoré par le poste.
+      machine.link.subs?.clear()
       resync(machine)
       break
 
@@ -186,6 +196,9 @@ function handle(machine, msg) {
         if (until !== null && typeof ev.seq === 'number' && ev.seq <= until) continue
         tl.apply(ev.update, { at: ev.at })
       }
+      // Les échos locaux pointaient dans l'ancienne timeline : le message
+      // publié par le shim est dans l'historique, ou arrivera en direct.
+      st.localEchoes = []
       emit(`timeline:${k}`, { reset: true })
       emit(`state:${k}`, st)
       break
