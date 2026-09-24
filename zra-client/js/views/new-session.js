@@ -9,7 +9,7 @@ import { button } from '../dom.js'
 import { icon } from '../icons.js'
 import { agentLabel } from '../format.js'
 import * as store from '../store.js'
-import { openMenu, toast } from '../ui.js'
+import { openMenu, toast, activity } from '../ui.js'
 
 const FALLBACK_AGENTS = [{ id: 'claude-acp', name: 'Claude' }]
 
@@ -62,8 +62,16 @@ export function openAgentMenu(anchor, { machineId, project }) {
     label: agent.name,
     agentId: agent.id,
     onSelect: () => {
+      // Zed est piloté au clavier : plusieurs secondes sans rien voir. Le toast
+      // tourne jusqu'au `thread_created` (la PWA y navigue) ou à l'échec.
+      const wait = activity(`Zed ouvre une session ${agent.name}${where ? ` dans ${where}` : ''}…`)
+      const offs = [
+        store.on('thread_created', (e) => { if (e.machineId === m.id) end() }),
+        store.on('error', (e) => { if (e.machineId === m.id && e.code === 'new_thread_failed') end() }),
+      ]
+      const timer = setTimeout(end, 45_000)
+      function end() { clearTimeout(timer); wait.done(); offs.forEach((off) => off()) }
       store.newThread(m.id, agent.id, where ? project.folderPaths : undefined)
-      toast(`nouvelle session ${agent.name}${where ? ` dans ${where}` : ''}…`)
     },
   }))
   return openMenu(anchor, { label: where ? `Nouveau thread · ${where}` : 'Nouveau thread', items })

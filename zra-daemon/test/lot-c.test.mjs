@@ -59,11 +59,11 @@ function freshFixture() {
 }
 
 /** Zed écrit la ligne d'un thread neuf dans son index, avec un temps de retard. */
-function indexRow(threadId, sessionId) {
+function indexRow(threadId, sessionId, agentId = 'fake-zra') {
   const db = new DatabaseSync(FIXTURE)
   db.prepare(`insert into sidebar_threads (thread_id, session_id, agent_id, title, updated_at, folder_paths, folder_paths_order)
-    values (?, ?, 'fake-zra', 'Nouveau thread', ?, ?, '0')`)
-    .run(Buffer.from(threadId, 'hex'), sessionId, new Date().toISOString(), CWD)
+    values (?, ?, ?, 'Nouveau thread', ?, ?, '0')`)
+    .run(Buffer.from(threadId, 'hex'), sessionId, agentId, new Date().toISOString(), CWD)
   db.close()
 }
 
@@ -363,6 +363,21 @@ test('new_thread : aucune réaction de Zed => new_thread_failed au timeout', asy
   const err = await client.until((m) => m.type === 'error', { label: 'erreur' })
   assert.equal(err.code, 'new_thread_failed')
   assert.match(err.message, /aucune session/)
+})
+
+test('new_thread : Zed ouvre un autre agent (le dernier utilisé) => échec immédiat et explicite', async (t) => {
+  const keyboard = fakeKeyboard(async (recipe) => {
+    // Zed ouvre le thread avec son dernier agent, qui ne passe pas par ZRA : aucun shim, une ligne d'un autre agent.
+    if (recipe === 'newThread') setTimeout(() => indexRow('c00000000000000000000000000000ad', 'lotc-autre-agent', 'fake-acp'), 30)
+  })
+  await boot(t, { keyboard, timeoutMs: 20_000 })
+  const client = await Client.open(t)
+  const t0 = Date.now()
+  client.send({ type: 'new_thread', agentId: 'fake-zra' })
+  const err = await client.until((m) => m.type === 'error', { label: 'erreur' })
+  assert.equal(err.code, 'new_thread_failed')
+  assert.match(err.message, /« fake-acp »/)
+  assert.ok(Date.now() - t0 < 10_000, 'sans attendre le délai')
 })
 
 test('new_thread : session ouverte mais jamais indexée => raison explicite', async (t) => {

@@ -119,7 +119,7 @@ Les variables CSS reprennent les noms de tokens de Zed (`element.hover` →
 - `thread_state.options` (effort, mode rapide…) : une pastille par réglage dans
   la barre du bas, ou toutes dans le menu « ⋯ » au-delà de deux.
 - `thread_state.modes` / `models` alimentent les sélecteurs d'en-tête ; si le
-  daemon ne les envoie pas, les sélecteurs se grisent tout seuls.
+  daemon ne les envoie pas (ou l'agent n'en a pas), les sélecteurs disparaissent.
 - Réponse aux permissions (§6.6) : la PWA envoie `respond_permission` avec
   l'`optionId` choisi et verrouille l'encart en attendant `permission_resolved`.
   Côté daemon, il faudra que le shim garde l'`id` JSON-RPC de la requête et

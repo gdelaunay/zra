@@ -109,6 +109,16 @@ export class ZedControl {
           const thread = this.threads.getBySession(sessionId)
           if (thread) return { thread, cwd }
         }
+        // La recette ouvre un thread avec le **dernier agent utilisé** dans Zed,
+        // pas forcément celui demandé. Un thread neuf d'un autre agent dans
+        // l'index, c'est ce cas-là : on le dit tout de suite, sans attendre 30 s.
+        if (agent.wraps !== undefined && !fresh.size) {
+          const other = this.threads.threads.find((t) => !known.has(t.threadId) && t.agentId && t.agentId !== agent.id)
+          if (other) {
+            throw new ZedControlError('new_thread_failed',
+              `Zed a ouvert le thread avec « ${other.agentId} » (le dernier agent utilisé dans Zed), pas « ${agent.id} »`)
+          }
+        }
         // Agent sans shim (entrée qui ne passe pas par ZRA) : seule l'apparition
         // d'une ligne neuve pour cet agent dit que Zed a ouvert quelque chose.
         if (agent.wraps === undefined) {
@@ -119,7 +129,7 @@ export class ZedControl {
       }, {
         onTimeout: () => new ZedControlError('new_thread_failed', fresh.size
           ? "Zed a ouvert la session, mais le thread n'est pas encore dans son index (il n'y entre peut-être qu'au premier message)"
-          : `Zed n'a ouvert aucune session en ${Math.round(this.timeoutMs / 1000)} s`),
+          : `Zed n'a ouvert aucune session ${agent.id} en ${Math.round(this.timeoutMs / 1000)} s — il ouvre le dernier agent utilisé dans Zed : était-ce bien celui-là ?`),
       })
 
       try {

@@ -34,6 +34,15 @@
   :root { --fs-sm: 12.5px; --fs-md: 14px; --fs-lg: 15px; }
 }
 
+/*
+ * Clavier du téléphone ouvert (un champ a le focus) : il couvre la barre de
+ * navigation du système, et la marge de sécurité du bas ne fait plus que creuser
+ * une bande vide entre la bottom bar et le clavier.
+ */
+@media (pointer: coarse) {
+  :root:has(input:focus, textarea:focus) { --safe-bottom: 0px; }
+}
+
 * { box-sizing: border-box; }
 
 html, body {

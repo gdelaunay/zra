@@ -163,6 +163,33 @@ test('projection des options : les autres sélecteurs passent dans `options`, mo
   ])
 })
 
+test('projection des options : des « modes » qui doublent un sélecteur disparaissent (pi)', () => {
+  const levels = ['off', 'low', 'high']
+  const p = projectOptions({
+    modes: { currentModeId: 'low', availableModes: levels.map((id) => ({ id, name: id })) },
+    configOptions: [
+      { id: 'thinking', type: 'select', name: 'Réflexion', category: 'thought_level', currentValue: 'low',
+        options: levels.map((value) => ({ value, name: value })) },
+    ],
+  })
+  // Un seul réglage, affiché une fois : le sélecteur typé, pas un faux mode.
+  assert.deepEqual(p.modes, [])
+  assert.equal(p.currentModeId, null)
+  assert.deepEqual(p.options.map((o) => o.id), ['thinking'])
+})
+
+test('projection des options : de vrais modes restent des modes (claude)', () => {
+  const p = projectOptions({
+    modes: { currentModeId: 'plan', availableModes: [{ id: 'default' }, { id: 'plan' }] },
+    configOptions: [
+      { id: 'effort', type: 'select', category: 'thought_level', currentValue: 'low',
+        options: [{ value: 'default' }, { value: 'low' }] },
+    ],
+  })
+  assert.deepEqual(p.modes.map((m) => m.id), ['default', 'plan'])
+  assert.equal(p.currentModeId, 'plan')
+})
+
 // ---------------------------------------------------------------------------
 // Observation
 // ---------------------------------------------------------------------------
