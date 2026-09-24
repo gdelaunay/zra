@@ -134,11 +134,20 @@ test('sortie de terminal accumulée et rattachée au tool call', () => {
   assert.equal(changes.length, 1, 'le tool call concerné est repeint')
 })
 
-test('mode courant suivi', () => {
+test('mode courant suivi, sans ligne dans le fil', () => {
   const tl = new Timeline()
-  tl.apply({ sessionUpdate: 'current_mode_update', currentModeId: 'plan' })
+  const changes = tl.apply({ sessionUpdate: 'current_mode_update', currentModeId: 'plan' })
   assert.equal(tl.currentModeId, 'plan')
-  assert.equal(tl.entries[0].type, 'mode')
+  assert.deepEqual(changes, [])
+  assert.equal(tl.entries.length, 0)
+})
+
+test('config_option_update : silencieux, jamais un bloc brut', () => {
+  const tl = new Timeline()
+  const changes = tl.apply({ sessionUpdate: 'config_option_update', configOptions: [{ id: 'mode', currentValue: 'plan' }] })
+  assert.deepEqual(changes, [])
+  assert.equal(tl.entries.length, 0)
+  assert.equal(tl.stats.unknown, 0)
 })
 
 test('usage_update : état de la session, jamais une entrée du fil', () => {

@@ -141,6 +141,7 @@ function handle(machine, msg) {
     case 'thread_state': {
       const k = key(machine.id, msg.threadId)
       const st = ensureState(k)
+      const wasBusy = st.turn === 'busy'
       Object.assign(st, {
         state: msg.state ?? st.state,
         turn: msg.turn ?? st.turn,
@@ -151,6 +152,10 @@ function handle(machine, msg) {
         currentModeId: msg.currentModeId ?? st.currentModeId,
         currentModelId: msg.currentModelId ?? st.currentModelId,
       })
+      // Début du tour, vu d'ici : un tour déjà en cours à la connexion part de
+      // maintenant, faute de mieux — le protocole ne le date pas.
+      if (st.turn !== 'busy') st.turnSince = null
+      else if (!wasBusy || !st.turnSince) st.turnSince = Date.now()
       if (st.summary) st.summary = { ...st.summary, state: st.state }
       emit(`state:${k}`, st)
       emit('threads')
@@ -260,6 +265,8 @@ export function ensureState(k) {
       summary: null,
       state: 'closed',
       turn: 'idle',
+      /** Instant où le tour en cours a commencé (ms), `null` hors tour. */
+      turnSince: null,
       queue: [],
       modes: [],
       models: [],
@@ -286,6 +293,28 @@ export function ensureTimeline(k) {
 }
 
 export function machineOf(k) { return state.machines.get(splitKey(k).machineId) }
+
+// ---- brouillons du composer ----
+//
+// Un par thread, gardés en `localStorage` : on quitte un thread, on y revient,
+// le texte commencé est toujours là — même si le navigateur a déchargé la page
+// entre-temps, ce qu'un téléphone fait volontiers.
+
+const DRAFTS_KEY = 'zra.drafts.v1'
+const drafts = (() => {
+  try {
+    const raw = JSON.parse(globalThis.localStorage?.getItem(DRAFTS_KEY) || 'null')
+    return raw && typeof raw === 'object' ? raw : {}
+  } catch { return {} }
+})()
+
+export const getDraft = (k) => drafts[k] ?? ''
+
+export function setDraft(k, text) {
+  if (text) drafts[k] = text
+  else delete drafts[k]
+  try { globalThis.localStorage?.setItem(DRAFTS_KEY, JSON.stringify(drafts)) } catch { /* mode privé : en mémoire */ }
+}
 
 // ---- actions ----
 

@@ -83,7 +83,7 @@ function themeSection() {
 function displaySection(api) {
   return h('section.field', {},
     h('span.label', { text: 'Affichage' }),
-    toggle('Afficher les réflexions de l’agent', 'showThoughts'),
+    toggle('Déplier les réflexions par défaut', 'showThoughts'),
     toggle('Déplier les outils par défaut', 'expandTools'),
     toggle('Mode mock (daemon simulé)', 'mock', () => {
       confirmSheet('Recharger ?', 'Le mode mock change la source de données : la PWA doit être rechargée.',

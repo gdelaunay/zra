@@ -2,7 +2,7 @@
 
 import { h, button, clear, rafBatch, patchHtml } from '../dom.js'
 import { icon, agentIcon } from '../icons.js'
-import { relTime, absTime, shortPath, agentLabel, projectOf, toMs, formatTokens, formatCost } from '../format.js'
+import { relTime, absTime, shortPath, agentLabel, projectOf, toMs, formatTokens, formatCost, formatDuration } from '../format.js'
 import * as store from '../store.js'
 import { renderEntry, blocksPieces, revealBlocks, textLength, messageBody } from './entry.js'
 import { openMenu, toast, switchEl } from '../ui.js'
@@ -49,6 +49,12 @@ export function ThreadView({ key, navigate }) {
   const jump = button('jump.hidden', {
     onclick: () => { stick = true; scrollToEnd(); jump.classList.add('hidden') },
   }, icon('arrow-down', 'icon--sm'), 'Dernier message')
+
+  // Tour en cours : sous le dernier message, une icône de chargement (à choisir
+  // plus tard) et la durée du tour. Absent du fil hors tour.
+  const turnTime = h('span.turn__time')
+  const turnLine = h('div.turn', {}, icon('loader', 'icon--sm spin'), turnTime)
+  let turnTimer = null
 
   const banner = h('div.banner.hidden')
   const title = h('span.truncate')
@@ -134,7 +140,22 @@ export function ThreadView({ key, navigate }) {
       feed.append(node)
     })
     paintStatusLines()
+    syncTurn()
     scrollToEnd(true)
+  }
+
+  /** L'indicateur de tour : toujours en dernier dans le fil, et seulement pendant un tour. */
+  function syncTurn() {
+    const busy = st.turn === 'busy' && Boolean(st.turnSince)
+    if (!busy) {
+      turnLine.remove()
+      clearInterval(turnTimer)
+      turnTimer = null
+      return
+    }
+    turnTime.textContent = formatDuration(Date.now() - st.turnSince)
+    if (turnLine.parentNode !== feed || turnLine.nextSibling) { feed.append(turnLine); scrollToEnd() }
+    turnTimer ??= setInterval(syncTurn, 1000)
   }
 
   function paintStatusLines() {
@@ -270,6 +291,7 @@ export function ThreadView({ key, navigate }) {
     }
     if (tl.entries.length) feed.querySelector('.thread__status')?.remove()
     if (meta) syncMeta()
+    syncTurn()
     scrollToEnd()
   })
 
@@ -285,6 +307,7 @@ export function ThreadView({ key, navigate }) {
     paintStatusLines()
     repaintLast()
     repaintPermissions()
+    syncTurn()
   }
 
   /** Les encarts de permission dépendent de l'état du thread, pas d'un événement. */
@@ -423,8 +446,8 @@ export function ThreadView({ key, navigate }) {
     openMenu(ev.currentTarget, {
       items: [
         { label: 'Recharger l’historique', icon: 'refresh', onSelect: () => { st.historyComplete = false; store.loadHistory(key) } },
-        { label: settings.showThoughts ? 'Masquer les réflexions' : 'Afficher les réflexions', icon: 'lightbulb',
-          onSelect: () => { updateSettings({ showThoughts: !settings.showThoughts }); paintAll() } },
+        { label: settings.showThoughts ? 'Replier les réflexions' : 'Déplier les réflexions', icon: 'lightbulb',
+          onSelect: toggleThoughts },
         { label: settings.expandTools ? 'Replier les outils' : 'Déplier les outils', icon: 'wrench',
           onSelect: () => { updateSettings({ expandTools: !settings.expandTools }); paintAll() } },
         { separator: true },
@@ -432,6 +455,13 @@ export function ThreadView({ key, navigate }) {
           onSelect: () => copy(store.splitKey(key).threadId) },
       ],
     })
+  }
+
+  /** Toutes les réflexions d'un coup : le nouvel état par défaut efface les choix un à un. */
+  function toggleThoughts() {
+    updateSettings({ showThoughts: !settings.showThoughts })
+    for (const entry of store.ensureTimeline(key).entries) if (entry.type === 'thought') delete entry.open
+    paintAll()
   }
 
   // ---- défilement ----
@@ -465,6 +495,7 @@ export function ThreadView({ key, navigate }) {
     el,
     destroy() {
       offs.forEach((off) => off())
+      clearInterval(turnTimer)
       store.closeThread(key)
     },
   }
@@ -487,13 +518,47 @@ function copy(text) {
 
 // ---- composer ----
 
+/**
+ * Dictée par la Web Speech API — **en réserve, branchée nulle part**. Le bouton
+ * micro a été retiré : `SpeechRecognition` n'existe qu'en contexte sécurisé, et
+ * sur le réseau local en `http://` il ne donnait qu'une erreur. La dictée du
+ * clavier du téléphone fait le travail. À rebrancher sur un bouton du composer
+ * (en HTTPS) si on la veut de nouveau.
+ *
+ * @param {HTMLTextAreaElement} input
+ * @param {{ onChange?:()=>void, onActive?:(on:boolean)=>void }} [hooks]
+ */
+export function dictate(input, { onChange, onActive } = {}) {
+  const Rec = window.SpeechRecognition || window.webkitSpeechRecognition
+  if (!Rec) {
+    input.focus()
+    toast('utilise le micro du clavier de ton téléphone', { level: 'warn' })
+    return
+  }
+  const rec = new Rec()
+  rec.lang = 'fr-FR'
+  rec.interimResults = true
+  rec.continuous = false
+  const base = input.value
+  onActive?.(true)
+  rec.onresult = (ev) => {
+    let text = ''
+    for (const r of ev.results) text += r[0].transcript
+    input.value = base ? `${base} ${text}` : text
+    onChange?.()
+  }
+  rec.onend = () => onActive?.(false)
+  rec.onerror = () => { onActive?.(false); toast('dictée indisponible', { level: 'error' }) }
+  rec.start()
+}
+
 function Composer({ key, onSend, onStop }) {
   const input = h('textarea.composer__input', {
     rows: 1,
     placeholder: 'Répondre à l’agent…',
     enterkeyhint: 'send',
     autocapitalize: 'sentences',
-    oninput: autoGrow,
+    oninput: () => { autoGrow(); store.setDraft(key, input.value) },
     // Entrée envoie ; Maj+Entrée et Ctrl+Entrée sautent une ligne (SPEC §14.2).
     // Pendant une composition (IME, accents morts), Entrée appartient à la saisie.
     onkeydown: (ev) => {
@@ -515,8 +580,6 @@ function Composer({ key, onSend, onStop }) {
     'aria-label': 'interrompre',
   }, icon('stop', 'icon--sm'))
 
-  const micBtn = button('icon-btn', { title: 'Dictée', onclick: dictate }, icon('mic', 'icon--sm'))
-  const hint = h('span.composer__hint')
   // Consommation du contexte, comme sous l'éditeur de Zed : « 27k / 1M ».
   const usage = h('span.usage.hidden')
 
@@ -524,9 +587,13 @@ function Composer({ key, onSend, onStop }) {
     queueBox,
     h('div.composer__box', {},
       input,
-      h('div.composer__row', {}, micBtn, hint, h('span.spacer'), usage, stopBtn, sendBtn),
+      h('div.composer__row', {}, h('span.spacer'), usage, stopBtn, sendBtn),
     ),
   )
+
+  // Le brouillon de ce thread, s'il y en a un.
+  input.value = store.getDraft(key)
+  if (input.value) queueMicrotask(autoGrow)
 
   /** Ctrl+Entrée n'insère rien de lui-même dans un textarea : on le fait. */
   function newline() {
@@ -534,6 +601,7 @@ function Composer({ key, onSend, onStop }) {
     input.value = value.slice(0, a) + '\n' + value.slice(b)
     input.selectionStart = input.selectionEnd = a + 1
     autoGrow()
+    store.setDraft(key, input.value)
   }
 
   function autoGrow() {
@@ -546,43 +614,21 @@ function Composer({ key, onSend, onStop }) {
     if (!text) return
     onSend(text, mode)
     input.value = ''
+    store.setDraft(key, '')
     autoGrow()
   }
 
   // Stop ne touche pas au champ de saisie : ce qui y est écrit y reste.
   function stop() { onStop?.() }
 
-  function dictate() {
-    const Rec = window.SpeechRecognition || window.webkitSpeechRecognition
-    if (!Rec) {
-      input.focus()
-      toast('utilise le micro du clavier de ton téléphone', { level: 'warn' })
-      return
-    }
-    const rec = new Rec()
-    rec.lang = 'fr-FR'
-    rec.interimResults = true
-    rec.continuous = false
-    const base = input.value
-    micBtn.classList.add('is-active')
-    rec.onresult = (ev) => {
-      let text = ''
-      for (const r of ev.results) text += r[0].transcript
-      input.value = base ? `${base} ${text}` : text
-      autoGrow()
-    }
-    rec.onend = () => micBtn.classList.remove('is-active')
-    rec.onerror = () => { micBtn.classList.remove('is-active'); toast('dictée indisponible', { level: 'error' }) }
-    rec.start()
-  }
-
   function sync(st) {
     const busy = st.turn === 'busy'
     stopBtn.classList.toggle('hidden', !busy)
     el.classList.toggle('is-disabled', st.state === 'unknown')
-    hint.textContent = busy ? 'tour en cours — le message part en file' : ''
 
     clear(queueBox)
+    // Vide, la file ne prend aucune place : marges du composer symétriques.
+    queueBox.classList.toggle('hidden', !st.queue?.length)
     for (const q of st.queue || []) {
       queueBox.append(h('div.queued', {},
         icon('clock', 'icon--sm'),

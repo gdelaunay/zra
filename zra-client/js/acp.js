@@ -59,11 +59,18 @@ export class Timeline {
         this.availableCommands = update.availableCommands || update.commands || []
         return []
 
+      // État de la session, pas un message : ni bulle ni ligne dans le fil.
+      // Le mode courant se lit dans la command bar.
       case 'current_mode_update':
         this.currentModeId = update.currentModeId ?? update.modeId ?? null
-        return [this.push({ type: 'mode', modeId: this.currentModeId, at: meta.at })]
+        return []
+      // L'ACP moderne annonce les changements d'options (mode compris) par ce
+      // biais. Le shim les suit déjà et les republie dans `thread_state` : ici,
+      // silence plutôt qu'un bloc brut à chaque changement de mode.
+      case 'config_option_update':
+        return []
 
-      // État de la session, pas un message : ni bulle ni ligne dans le fil.
+      // Idem.
       // Le changement `meta` dit à la vue de repeindre ce qui en dépend.
       case 'usage_update':
         return this.usageUpdate(update)
