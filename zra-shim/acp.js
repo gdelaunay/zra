@@ -123,13 +123,12 @@ function assignOptions(st, p) {
 
 export class AcpBridge extends EventEmitter {
   /**
-   * @param {{ toAgent:(raw:Buffer)=>void, toZed?:(raw:Buffer)=>void, mirrorToZed?:boolean, log?:object, cancelTimeoutMs?:number }} opts
+   * @param {{ toAgent:(raw:Buffer)=>void, toZed?:(raw:Buffer)=>void, log?:object, cancelTimeoutMs?:number }} opts
    */
-  constructor({ toAgent, toZed = null, mirrorToZed = false, log = null, cancelTimeoutMs = 5000 }) {
+  constructor({ toAgent, toZed = null, log = null, cancelTimeoutMs = 5000 }) {
     super()
     this.toAgent = toAgent
     this.toZed = toZed
-    this.mirrorToZed = Boolean(mirrorToZed && toZed)
     this.log = log
     this.cancelTimeoutMs = cancelTimeoutMs
 
@@ -444,13 +443,13 @@ export class AcpBridge extends EventEmitter {
   }
 
   /**
-   * Risque 🟠6, expérimental (`mirrorToZed`) : le message du mobile, que Zed
-   * n'a pas émis, lui est annoncé comme l'agent le ferait au `session/load`.
-   * Reste à voir au test réel si Zed l'affiche dans le panneau. Désactivé, la
-   * transparence est entière : ZRA n'écrit rien vers Zed.
+   * Risque 🟠6, levé au round 2 : le message du mobile, que Zed n'a pas émis,
+   * lui est annoncé comme l'agent le ferait au `session/load`. Zed l'affiche
+   * dans son panneau, et une seule fois après un redémarrage (l'agent ne le
+   * rejoue qu'une fois).
    */
   mirrorUserMessage(sessionId, prompt) {
-    if (!this.mirrorToZed || !Array.isArray(prompt)) return
+    if (!this.toZed || !Array.isArray(prompt)) return
     for (const block of prompt) {
       if (!block || typeof block !== 'object') continue
       const msg = {

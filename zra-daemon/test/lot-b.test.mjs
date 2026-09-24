@@ -590,8 +590,9 @@ test('le message utilisateur est publié par le shim, qu’il vienne de Zed ou d
   client.send({ type: 'send', threadId: VIVANT, text: 'depuis le mobile', mode: 'queue' })
   const duMobile = await client.until((m) => m.type === 'acp_event' && m.update.content?.text === 'depuis le mobile', { label: 'message du mobile' })
   assert.equal(duMobile.update._meta.zra.origin, 'mobile')
-  // Rien de fabriqué ne part vers Zed.
-  assert.ok(!zed.updates.some((u) => u?.sessionUpdate === 'user_message_chunk'))
+  // Vers Zed ne part que le message du mobile (risque 🟠6), une fois ; le sien ne lui revient jamais.
+  const versZed = zed.updates.filter((u) => u?.sessionUpdate === 'user_message_chunk')
+  assert.deepEqual(versZed.map((u) => u.content?.text), ['depuis le mobile'])
 })
 
 test('load_history sur un thread live : le ring, sans relancer l’agent, borné par until', async (t) => {
