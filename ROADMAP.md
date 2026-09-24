@@ -360,6 +360,75 @@ Inchangé par rapport à la `SPEC.md` §12 :
 
 ## Problèmes connus
 
+### Nouveau thread depuis le mobile : session non rattachée 🟠
+
+Constaté sur le poste de dev, daemon en mode normal (pas dev), mobile sur le
+réseau local. Clic sur **+** → nouveau thread (claude) :
+
+- Zed ouvre bien une nouvelle session et un nouveau thread, mais le daemon
+  journalise quand même `new_thread claude-zra : Zed n'a ouvert aucune session
+  en 30 s` : la session ouverte n'est pas reconnue comme la réponse à la
+  demande (`zed/control.js`).
+- La PWA affiche le nouveau thread, mais avec la date « à venir » et non
+  cliquable. « à venir » n'est pas un état : c'est `relTime()`
+  (`zra-client/js/format.js`) quand la date du thread est dans le futur
+  (horloges PC/mobile décalées, ou date provisoire mal posée). Le « non
+  cliquable » vient probablement de la session non rattachée.
+- Quel que soit l'agent choisi dans la liste, Zed ouvre toujours le dernier
+  type d'agent ouvert depuis Zed : le choix d'agent n'est pas transmis à la
+  recette `newThread`.
+
+### Tour en cours : indicateur mal placé 🟡
+
+Pendant un tour, le composer affiche « tour en cours — le message part en
+file » (`composer__hint`, `zra-client/js/views/thread.js`). Ça n'a rien à faire
+dans la zone de saisie : à retirer.
+
+À la place : sous le dernier message de la conversation, à gauche, une icône
+de chargement (à choisir plus tard) et, à sa droite, la durée du tour en cours.
+Les deux n'apparaissent que pendant que l'agent travaille et disparaissent dès
+qu'il a répondu.
+
+### Bouton micro du composer : à retirer 🟡
+
+Le bouton « Dictée » du composer (`dictate()`, `zra-client/js/views/thread.js`)
+utilise la Web Speech API (`SpeechRecognition`, `fr-FR`). Elle n'existe que
+dans un contexte sécurisé. Sur le réseau local en `http://`, un clic ne donne
+qu'une erreur (« dictée indisponible »).
+
+Décision : retirer le bouton, la dictée native du clavier du téléphone suffit.
+Garder `dictate()` en réserve, débranché, au cas où on voudrait la réactiver
+(en HTTPS par exemple).
+
+### Composer : marge de la file d'attente vide 🟡
+
+Au-dessus de l'input, la file des messages en attente (`.composer__queue`,
+`zra-client/css/app.css`) garde son `margin-bottom` même quand elle est vide.
+Les marges haut et bas du composer ne sont donc plus symétriques. Il faut
+masquer ou annuler ce bloc quand il n'y a aucun message en file.
+
+### Mobile : bande grise entre la command bar et le clavier 🟠
+
+La command bar du bas est bien collée en bas de l'écran. Mais au focus de
+l'input, quand le clavier du téléphone s'ouvre, une bande grise vide apparaît
+entre la command bar et le clavier, et tout le reste remonte d'autant. Elle
+fait environ 1,75 fois la hauteur de la command bar. Pistes à creuser :
+`--safe-bottom` (`env(safe-area-inset-bottom)`) toujours appliqué alors que le
+clavier est ouvert, la hauteur de la vue en `vh` au lieu de `dvh`, ou la
+meta `viewport` (`interactive-widget`), avec un contrôle par `visualViewport`.
+
+### Composer : brouillon perdu en quittant le thread 🟡
+
+Le texte tapé dans l'input d'un thread est perdu quand on revient à la liste
+puis qu'on rouvre le thread. Il faudrait garder un brouillon par thread, côté
+client uniquement (en mémoire, voire en `localStorage` comme `settings.js`),
+et l'effacer à l'envoi.
+
+### Revue visuelle des composants de discussion 🟡
+
+À reprendre : forme et couleurs des commandes, des messages, etc. (lié au
+polish du front, voir aussi les réflexions plus bas).
+
 ### Options de session : mode et modèle codés en dur 🟠
 
 La command bar réserve deux places fixes, **mode** puis **modèle**, et affiche
