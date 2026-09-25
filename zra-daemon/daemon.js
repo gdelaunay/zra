@@ -68,7 +68,8 @@ export async function startDaemon(config) {
   const { addresses, tunnel, lan } = resolveBinds(config, config.interfaces?.())
 
   const shims = new ShimRegistry()
-  const threads = new ThreadsIndex({ file: config.zedDb, pollMs: config.pollMs, shims })
+  // `machine` n'existe qu'à la ligne d'après ; lu au premier `refresh`, pas avant.
+  const threads = new ThreadsIndex({ file: config.zedDb, pollMs: config.pollMs, shims, zedRunning: () => Boolean(machine.zedRunning) })
   const states = new ThreadStates()
   const rings = new RingBuffers({ size: config.ringSize })
   const record = injectionLog(config.logFile)
@@ -156,6 +157,8 @@ export async function startDaemon(config) {
   presence.onChange((running) => {
     machine.zedRunning = running
     log.info(running ? 'Zed est lancé' : 'Zed est fermé')
+    // Zed fermé : plus aucun projet ouvert, quoi que garde sa base.
+    threads.refresh()
     hub.broadcast({ type: 'machine', ...machine.describe() })
   })
   presence.start()

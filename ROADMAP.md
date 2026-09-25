@@ -103,7 +103,7 @@ plutôt que d'échouer en silence :
 |---|---|---|---|
 | `load_history` | `history_unavailable` | lot B | ✅ levé |
 | `respond_permission` | `permission_expired` | lot B | ✅ levé |
-| `new_thread` | `new_thread_failed` | lot C | 🟨 fonctionne, deux bugs connus |
+| `new_thread` | `new_thread_failed` | lot C | ✅ levé |
 
 Et tout thread était `closed` ou `unknown` : sans shim, rien n'était `live`.
 
@@ -216,10 +216,11 @@ l'historique des threads fermés est jouable sans repli. Le chemin
 La sonde tourne avec une URL de daemon volontairement injoignable : elle vérifie
 donc aussi le fail-open du shim.
 
-### Ce qui reste à vérifier au test réel
+### Vérifié ensuite au test réel
 
 Le risque 🔴1 — un agent qui refuserait un `session/prompt` ne venant pas de Zed
-— ne se lève que face au vrai agent. Le repli est le backend `uia` du lot C.
+— ne pouvait se lever que face au vrai agent : **levé au round 1** du lot C,
+claude-acp accepte le prompt injecté. Le backend `uia` reste câblé en repli.
 
 ## Lot C — le pont vers Zed 🟨
 
@@ -444,14 +445,6 @@ de taper, avec une touche à éprouver par `npm run zed -- try --steps`, puisque
   attend maintenant un court silence (150 ms, borné à 1,5 s), au cas où la fin
   du replay suivrait la réponse.
 
-De temps en temps, en rouvrant un thread dans la PWA, toute la session se
-charge **sauf** le tout dernier message de l'agent. Pas encore de condition
-reproductible identifiée. Pistes à vérifier, sans a priori : le filtrage par
-`seq` / `until` entre l'historique et le rejeu du ring, la révélation à débit
-régulier du message en cours (un dernier bloc jamais vidé), ou un
-`session/load` dont la fin du replay arrive après le `history`. Les trames de
-`.zra/records/` diront laquelle.
-
 ### Pilotage de Zed : aucun retour pendant l'attente ✅
 
 **Fait** : nouveau thread, un toast avec une icône qui tourne
@@ -460,19 +453,52 @@ régulier du message en cours (un dernier bloc jamais vidé), ou un
 « Zed rouvre le thread… », avec l'icône qui tourne, jusqu'à ce que le thread
 passe `live` ou qu'une erreur arrive. Filet de 45 s dans les deux cas.
 
-Rouvrir un thread fermé ou en ouvrir un nouveau fait jouer une recette clavier
-à Zed, puis attendre le shim. Ça prend plusieurs secondes, et la PWA n'affiche
-rien pendant ce temps. Il **faut** une animation de chargement (« Zed ouvre le
-thread… ») depuis l'envoi de la demande jusqu'au `thread_created`, au premier
-événement du thread rouvert, ou à l'erreur.
-
-### v2 — projet non ouvert dans Zed 🟡
+### Projet non ouvert dans Zed ✅ vérifié dans Zed
 
 Réouvrir un thread ou en créer un suppose que son projet est ouvert dans une
-fenêtre Zed. Rien ne le vérifie aujourd'hui pour la réouverture, et rien
-n'ouvre le projet automatiquement s'il ne l'est pas (`new_thread` passe par la
-CLI de Zed, pas `openThread`). À traiter en v2 : détecter les fenêtres et
-projets ouverts, et ouvrir le projet avant de jouer la recette.
+fenêtre Zed. Rien ne le vérifiait pour la réouverture, et rien n'ouvrait le
+projet s'il ne l'était pas.
+
+**Fait** :
+- projets ouverts relevés dans la base de Zed (`threads-index.js`,
+  `readOpenProjects`) : `kv_store.session_id` est la session en cours, et
+  chaque fenêtre ouverte est une ligne de `workspaces` qui la porte. Une
+  fenêtre fermée perd son `session_id`, et Zed fermé, rien n'est ouvert.
+  Publié par thread (`projectOpen`, PROTOCOL §4) ;
+- la réouverture passe par la CLI de Zed comme `new_thread` : le projet est
+  ouvert ou ramené au premier plan, et la recette vise sa fenêtre
+  (`zed/driver.js`, `openThread`). Un thread d'un autre projet que la
+  fenêtre active se rouvre donc aussi ;
+- PWA : un point par projet, plein s'il est ouvert dans Zed, cerclé sinon.
+  Pas de blocage, le daemon ouvre le projet à la demande ;
+- projet fermé : sa propre fenêtre. Zed 1.21 range par défaut un dossier
+  ouvert en ligne de commande comme espace de travail de plus dans la fenêtre
+  existante ; l'option cachée `--classic` de sa CLI (« new window for
+  directories ») lui donne une fenêtre. Refusée par une autre version :
+  relancé sans.
+
+Vérifié dans Zed : un thread d'un projet fermé se rouvre dans une nouvelle
+fenêtre, et le message part.
+
+### Threads créés hors ZRA : réouverture impossible ✅ lecture seule
+
+Relevé au test : rouvrir un thread `claude-acp` (créé avant ZRA, 50 sur le
+poste contre 7 `claude-zra`) échouait au bout de 30 s, et laissait le message
+« en cours d'envoi ». Le journal de Zed le montre : Zed le recharge bien, mais
+avec l'agent d'origine, sans shim, et ZRA ne le voit jamais revenir. Même cause
+pour un tel thread « déjà ouvert » dans Zed : il y tourne, mais hors ZRA.
+
+**Fait** : le daemon refuse tout de suite l'écriture dans un thread fermé d'un
+agent que ZRA n'enveloppe pas (`not_zra_thread`, sans une touche). La PWA met
+son composer en lecture seule, avec la raison. Un message refusé par le daemon
+passe « non envoyé » au lieu de rester en attente.
+
+**Idée, plus tard** : que `npm run setup` fasse passer l'entrée d'origine
+(`claude-acp`) elle-même par le shim, plutôt que d'ajouter `claude-zra` à côté.
+Tous les threads, anciens compris, deviendraient pilotables, et il n'y aurait
+plus deux familles d'agents. À peser : on touche l'agent d'origine, et Zed
+pourrait ne plus le mettre à jour lui-même (entrée `registry` remplacée par une
+commande).
 
 ### Changements de mode affichés dans la discussion ✅
 
@@ -560,19 +586,8 @@ autres :
 annonce pas (au lieu d'une pastille grisée). Côté shim (`projectOptions`),
 des « modes » dont les valeurs sont exactement celles d'un autre sélecteur
 sont traités comme un alias de ce sélecteur : il ne reste que le sélecteur,
-affiché une seule fois. C'est le cas supposé de pi (ses niveaux de réflexion en
-modes), à confirmer sur ses trames.
-
-La command bar réserve deux places fixes, **mode** puis **modèle**, et affiche
-ensuite les autres `configOptions` (effort de réflexion…). Tous les agents
-n'exposent pas ces deux-là. Avec **pi** (pi-acp), il n'y a pas de mode : l'effort
-de réflexion vient occuper sa place (alias « mode » ? à vérifier dans ce qu'annonce
-pi-acp), **et** il s'affiche aussi en troisième position. Résultat : l'effort de
-réflexion apparaît deux fois dans la command bar.
-
-Piste : ne plus présumer de mode ni de modèle, et afficher les `configOptions`
-telles que l'agent les annonce, chacune une seule fois (dédoublonnage par `id`).
-Mode et modèle ne gardent une place privilégiée que s'ils existent vraiment.
+affiché une seule fois. C'est le cas de pi : ses niveaux de réflexion,
+annoncés aussi en modes.
 
 ### Réflexions : pas de repli individuel ✅
 

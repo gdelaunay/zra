@@ -234,6 +234,11 @@ export function defaultZedCli() {
  * `zed <dossiers>` : Zed amène au premier plan la fenêtre qui a déjà ces
  * dossiers, ou en ouvre une. Les chemins passent en arguments, jamais par un
  * shell : aucune interprétation possible.
+ *
+ * Projet fermé, `newWindow` : Zed 1.21 range par défaut un dossier ouvert en
+ * ligne de commande comme espace de travail de plus dans la fenêtre existante.
+ * `--classic` (option cachée de sa CLI : « new window for directories ») lui
+ * donne sa propre fenêtre. Refusée par une autre version : relancé sans.
  */
 export class ZedCli {
   constructor({ command = defaultZedCli(), timeoutMs = 15_000 } = {}) {
@@ -241,10 +246,19 @@ export class ZedCli {
     this.timeoutMs = timeoutMs
   }
 
-  open(folderPaths) {
+  async open(folderPaths, { newWindow = false } = {}) {
     if (UNDER_TEST) return refuseUnderTest('CLI de Zed réelle')
+    if (newWindow) {
+      try {
+        return await this.exec(['--classic', ...folderPaths])
+      } catch { /* option inconnue de cette version : ouverture par défaut */ }
+    }
+    return this.exec(folderPaths)
+  }
+
+  exec(args) {
     return new Promise((resolve, reject) => {
-      execFile(this.command, folderPaths, { timeout: this.timeoutMs, windowsHide: true }, (err) => {
+      execFile(this.command, args, { timeout: this.timeoutMs, windowsHide: true }, (err) => {
         if (err) reject(new ZedControlError('zed_control_failed', `CLI de Zed (${this.command}) : ${err.message}`))
         else resolve()
       })
@@ -319,19 +333,19 @@ export class ZedDriver {
   }
 
   /** Amène au premier plan la fenêtre des dossiers donnés, ou en ouvre une. */
-  async openWorkspace(folderPaths) {
+  async openWorkspace(folderPaths, { newWindow = false } = {}) {
     this.assertEnabled()
     this.log?.info(`projet ${folderPaths.join(', ')}${this.dryRun ? ' (simulation, CLI non lancée)' : ''}`)
-    if (!this.dryRun) await this.cli.open(folderPaths)
+    if (!this.dryRun) await this.cli.open(folderPaths, { newWindow })
   }
 
   /**
    * Nouvelle session. Avec `folderPaths`, dans ce projet : sa fenêtre est
    * ouverte ou ramenée au premier plan, puis la recette y est jouée.
    */
-  async newThread(agent, { folderPaths = null } = {}) {
+  async newThread(agent, { folderPaths = null, newWindow = false } = {}) {
     const project = projectWindow(folderPaths)
-    if (project) await this.openWorkspace(folderPaths)
+    if (project) await this.openWorkspace(folderPaths, { newWindow })
     const vars = { agent: agent.id, agentName: agent.name ?? agent.id, project: project ?? '' }
     // Relu à chaque fois : `npm run setup` peut l'avoir posée daemon lancé.
     const key = this.has('newThreadKey') ? await readAgentKey(this.keymapFile, agent.id) : null
@@ -340,8 +354,16 @@ export class ZedDriver {
     return this.play('newThread', vars, { project })
   }
 
-  openThread(thread) {
-    return this.play('openThread', { title: thread.title ?? '', agent: thread.agentId ?? '' })
+  /**
+   * Rouvre un thread fermé. Le sidebar de Zed ne montre que les threads du
+   * projet de sa fenêtre : celle du projet du thread est ouverte, ou ramenée
+   * au premier plan, avant la recette — même chemin que `newThread`.
+   */
+  async openThread(thread) {
+    const project = projectWindow(thread.folderPaths)
+    // Projet fermé dans Zed : sa propre fenêtre, pas un espace de travail de plus.
+    if (project) await this.openWorkspace(thread.folderPaths, { newWindow: thread.projectOpen === false })
+    return this.play('openThread', { title: thread.title ?? '', agent: thread.agentId ?? '' }, { project })
   }
 
   submit(text) {

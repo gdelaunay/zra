@@ -229,6 +229,7 @@ function handle(machine, msg) {
       if (k) {
         const st = ensureState(k)
         if (st.historyPending) { st.historyPending = false; st.historyError = msg.message }
+        failEchoes(k, st)
         emit(`state:${k}`, st)
       }
       emit('error', { ...msg, machineId: machine.id, machineLabel: machine.label })
@@ -268,6 +269,37 @@ function reconcileLocalEcho(k, tl, update) {
     tl.entries.splice(pos, 1)
     emit(`timeline:${k}`, { removed: [echo] })
   }
+}
+
+/**
+ * Le daemon a refusé l'écriture (réouverture ratée, thread hors ZRA…) : les
+ * messages encore en attente ne partiront pas. Ils le disent, au lieu de rester
+ * « en cours d'envoi » pour toujours.
+ */
+function failEchoes(k, st) {
+  const changes = []
+  for (const entry of st.localEchoes) {
+    if (!entry.pending) continue
+    entry.pending = false
+    entry.failed = true
+    entry.rev++
+    changes.push({ op: 'update', entry })
+  }
+  st.localEchoes = st.localEchoes.filter((e) => !e.failed)
+  if (changes.length) emit(`timeline:${k}`, { changes })
+}
+
+/**
+ * Agent du thread, s'il n'est **pas** une entrée ZRA du poste (`wraps`) : son
+ * id (« claude-acp »), sinon `null`. Un thread vivant reste inscriptible.
+ */
+export function foreignAgent(k) {
+  const st = state.threadStates.get(k)
+  const m = machineOf(k)
+  const agentId = st?.summary?.agentId
+  const agents = m?.info?.agents
+  if (!agentId || !Array.isArray(agents) || st.state === 'live') return null
+  return agents.some((a) => a.id === agentId && a.wraps) ? null : agentId
 }
 
 export function ensureState(k) {

@@ -94,7 +94,7 @@ export function ThreadsView({ navigate }) {
       for (const group of byProject(rows)) {
         // Une recherche montre ses résultats, même dans un projet replié.
         const open = Boolean(query) || !isCollapsed(m, group.project)
-        list.append(projectHead(m, group.project, open, () => { toggleProject(m, group.project); paint() }))
+        list.append(projectHead(m, group.project, open, () => { toggleProject(m, group.project); paint() }, projectState(group.threads)))
         if (open) for (const t of group.threads) list.append(threadRow(m, t, navigate))
       }
     }
@@ -178,14 +178,29 @@ function toggleProject(m, project) {
   updateSettings({ collapsedProjects: rest.length === settings.collapsedProjects.length ? [...rest, k] : rest })
 }
 
+/**
+ * Projet ouvert dans une fenêtre Zed (`live`) ou non (`closed`), d'après
+ * `projectOpen` de ses threads ; `null` quand le poste ne le dit pas.
+ */
+function projectState(threads) {
+  if (threads.some((t) => t.projectOpen === true)) return 'live'
+  if (threads.some((t) => t.projectOpen === false)) return 'closed'
+  return null
+}
+
 /** Ligne de titre d'un projet : toute la ligne replie/déplie (comme Zed), « + » à droite. */
-function projectHead(m, project, open, onToggle) {
+function projectHead(m, project, open, onToggle, state = null) {
   return h('div.project__head', {},
     button('project__toggle', {
       'aria-expanded': String(open),
       title: project.folderPaths.join('\n') || project.name,
       onclick: onToggle,
     },
+      state
+        ? h(`span.dot.dot--${state}.project__dot`, {
+          title: state === 'live' ? 'ouvert dans Zed' : 'fermé dans Zed : il s’ouvrira à la demande',
+        })
+        : null,
       h('span.project__name.truncate', { text: project.name }),
       icon(open ? 'chevron-down' : 'chevron-right', 'icon--sm project__chevron'),
     ),

@@ -109,3 +109,40 @@ test('reconnexion : le thread ouvert repart de l’historique, sans doublon du r
   })
   assert.deepEqual(texts(k), ['agent:avant la coupure et après'])
 })
+
+test('écriture refusée par le daemon : le message en attente passe « non envoyé »', () => {
+  const k = 'mock-desk/thread-refus'
+  store.ensureState(k)
+  const send = machine.link.send
+  machine.link.send = () => true
+  try {
+    store.sendMessage(k, 'coucou')
+  } finally {
+    machine.link.send = send
+  }
+  const [echo] = store.ensureTimeline(k).entries
+  assert.equal(echo.pending, true)
+  deliver({ type: 'error', code: 'not_zra_thread', message: 'hors ZRA', threadId: 'thread-refus' })
+  assert.equal(echo.pending, false)
+  assert.equal(echo.failed, true)
+  assert.equal(store.ensureState(k).localEchoes.length, 0)
+})
+
+test('thread d’un agent hors ZRA : lecture seule, sauf s’il est vivant', () => {
+  const k = 'mock-desk/thread-etranger'
+  const st = store.ensureState(k)
+  const info = machine.info
+  machine.info = { agents: [{ id: 'claude-zra', wraps: 'claude-acp' }, { id: 'claude-acp' }] }
+  try {
+    st.summary = { agentId: 'claude-acp' }
+    st.state = 'closed'
+    assert.equal(store.foreignAgent(k), 'claude-acp')
+    st.state = 'live'
+    assert.equal(store.foreignAgent(k), null)
+    st.summary = { agentId: 'claude-zra' }
+    st.state = 'closed'
+    assert.equal(store.foreignAgent(k), null)
+  } finally {
+    machine.info = info
+  }
+})

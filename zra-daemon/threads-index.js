@@ -49,9 +49,21 @@ export function splitFolderPaths(raw, order) {
   const text = String(raw)
   const count = order ? String(order).split(',').filter((x) => x.trim() !== '').length : 1
   if (count <= 1) return [text]
-  const parts = text.split(',').map((p) => p.trim()).filter(Boolean)
-  return parts.length === count ? parts : [text]
+  // Saut de ligne d'abord : aucun chemin n'en contient.
+  for (const sep of ['\n', ',']) {
+    const parts = text.split(sep).map((p) => p.trim()).filter(Boolean)
+    if (parts.length === count) return parts
+  }
+  return [text]
 }
+
+/** Chemin comparable : Windows ne distingue ni la casse ni les séparateurs. */
+export function normPath(p) {
+  return String(p).replace(/[\\/]+/g, '/').replace(/\/$/, '').toLowerCase()
+}
+
+/** Identité d'un projet : ses dossiers, dans l'ordre. */
+export const projectKey = (paths) => paths.map(normPath).join('|')
 
 function hex(value) {
   if (value === null || value === undefined) return null
@@ -61,11 +73,14 @@ function hex(value) {
 
 export class ThreadsIndex extends EventEmitter {
   /**
-   * @param {{ file:string, pollMs?:number, shims?:import('./shim-registry.js').ShimRegistry }} opts
+   * @param {{ file:string, pollMs?:number, shims?:import('./shim-registry.js').ShimRegistry,
+   *   zedRunning?:()=>boolean }} opts `zedRunning` : Zed fermé, aucun projet
+   *   n'est ouvert, quoi que dise la base (elle garde la dernière session).
    */
-  constructor({ file, pollMs = 2000, shims = null }) {
+  constructor({ file, pollMs = 2000, shims = null, zedRunning = () => true }) {
     super()
     this.file = file
+    this.zedRunning = zedRunning
     this.pollMs = pollMs
     this.shims = shims
     this.db = null
@@ -103,6 +118,9 @@ export class ThreadsIndex extends EventEmitter {
       // fichier littéral => « unable to open database file ».
       this.db = new DatabaseSync(this.file, { readOnly: true })
       this.columns = this.readColumns()
+      // De quoi savoir quels projets sont ouverts ; décidé ici, pas selon que Zed tourne.
+      const tables = new Set(this.db.prepare("select name from sqlite_master where type='table'").all().map((r) => r.name))
+      this.noWorkspaces = !(tables.has('kv_store') && tables.has('workspaces'))
       const missing = REQUIRED.filter((c) => !this.columns.includes(c))
       if (missing.length) {
         this.close()
@@ -144,6 +162,8 @@ export class ThreadsIndex extends EventEmitter {
 
   /** Lit toutes les lignes et les projette en `ThreadSummary` (protocole §4). */
   read() {
+    // Arrêté : un rappel tardif (présence de Zed) ne doit pas rouvrir la base.
+    if (this.stopped) return this.threads
     if (!this.open()) return []
     const cols = [...REQUIRED, ...OPTIONAL].filter((c) => this.columns.includes(c))
     let rows
@@ -163,6 +183,7 @@ export class ThreadsIndex extends EventEmitter {
     }
 
     const live = this.shims ? this.shims.liveSessionIds() : new Set()
+    const open = this.readOpenProjects()
 
     const threads = rows.map((r) => {
       const threadId = hex(r.thread_id)
@@ -180,6 +201,8 @@ export class ThreadsIndex extends EventEmitter {
         updatedAt: toIso(r.updated_at),
         createdAt: toIso(r.created_at),
         archived: Boolean(r.archived),
+        // Projet ouvert dans une fenêtre Zed ; `null` si la base ne le dit pas.
+        projectOpen: open ? open.has(projectKey(splitFolderPaths(r.folder_paths, r.folder_paths_order))) : null,
         // `unknown` = session_id NULL (thread avorté) : affiché grisé, jamais masqué.
         state: !sessionId ? 'unknown' : live.has(sessionId) ? 'live' : 'closed',
       }
@@ -187,6 +210,31 @@ export class ThreadsIndex extends EventEmitter {
 
     threads.sort((a, b) => String(b.updatedAt ?? '').localeCompare(String(a.updatedAt ?? '')))
     return threads
+  }
+
+  /**
+   * Projets ouverts dans Zed, relevés dans sa base : `kv_store.session_id` est
+   * la session de Zed en cours, et chaque fenêtre ouverte est une ligne de
+   * `workspaces` qui la porte (une fenêtre fermée perd son `session_id`).
+   * @returns {Set<string>|null} clés `projectKey`, `null` si la base ne le dit pas
+   */
+  readOpenProjects() {
+    // Tables absentes (autre version de Zed), ou illisibles : on ne devine pas.
+    if (this.noWorkspaces) return null
+    if (!this.zedRunning()) return new Set()
+    try {
+      const session = this.db.prepare("select value from kv_store where key = 'session_id'").get()?.value
+      if (!session) return new Set()
+      const rows = this.db.prepare(
+        'select paths, paths_order from workspaces where session_id = ? and remote_connection_id is null',
+      ).all(session)
+      return new Set(rows.map((r) => splitFolderPaths(r.paths, r.paths_order)).filter((p) => p.length).map(projectKey))
+    } catch (err) {
+      // Schéma d'une autre version de Zed : on ne sait pas, on ne devine pas.
+      log.debug('projets ouverts illisibles :', err.message)
+      this.noWorkspaces = true
+      return null
+    }
   }
 
   /** Relit et n'émet `change` que si la projection a bougé. */
@@ -211,6 +259,7 @@ export class ThreadsIndex extends EventEmitter {
   }
 
   stop() {
+    this.stopped = true
     clearInterval(this.timer)
     this.timer = null
     this.shims?.off('change', this.onShims)
