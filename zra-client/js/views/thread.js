@@ -507,7 +507,7 @@ export function ThreadView({ key, navigate }) {
     store.on(`timeline:${key}`, onTimeline),
     store.on(`state:${key}`, onState),
     store.on('machines', () => { syncHeader(); repaintPermissions() }),
-    store.on('threads', () => { syncHeader() }),
+    store.on('threads', () => { syncHeader(); composer.sync(st) }),
     // Zed n'a pas rouvert le thread : le bandeau d'attente s'efface, le toast d'erreur dit pourquoi.
     store.on('error', (e) => { if (e.threadId === store.splitKey(key).threadId && e.machineId === store.splitKey(key).machineId) endReopen() }),
   ]
@@ -654,6 +654,14 @@ function Composer({ key, onSend, onStop }) {
     const busy = st.turn === 'busy'
     stopBtn.classList.toggle('hidden', !busy)
     el.classList.toggle('is-disabled', st.state === 'unknown')
+
+    // Thread d'un agent que ZRA n'enveloppe pas : Zed le rouvrirait sans shim.
+    const foreign = store.foreignAgent(key)
+    input.disabled = Boolean(foreign)
+    sendBtn.disabled = Boolean(foreign)
+    input.placeholder = foreign
+      ? `Lecture seule : thread « ${foreign} », créé hors ZRA — répondre dans Zed`
+      : 'Répondre à l’agent…'
 
     clear(queueBox)
     // Vide, la file ne prend aucune place : marges du composer symétriques.

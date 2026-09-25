@@ -440,7 +440,8 @@ test('thread fermé : Zed le rouvre, le shim le recharge, le message part par AC
     assert.equal(text, 'Thread fermé', 'la recette reçoit le titre du thread')
     setTimeout(() => startShim(t, { sessionId: SESSION_FERME, resume: true }), 30)
   })
-  await boot(t, { keyboard })
+  const cli = fakeCli()
+  await boot(t, { keyboard, cli })
   const client = await Client.open(t)
   client.send({ type: 'subscribe', threadId: FERME })
 
@@ -448,6 +449,9 @@ test('thread fermé : Zed le rouvre, le shim le recharge, le message part par AC
   await client.until(live(FERME), { label: 'thread rouvert' })
   await client.until((m) => m.type === 'acp_event' && m.update.content?.text === 'reçu : on reprend ?', { label: 'réponse' })
   assert.equal(client.messages.filter((m) => m.type === 'error').length, 0)
+  // Le projet du thread est ouvert (ou ramené devant) avant la recette, qui vise sa fenêtre.
+  assert.deepEqual(cli.calls, [[CWD]])
+  assert.equal(keyboard.calls[0].project, 'zra')
 })
 
 test('thread fermé sans recette openThread : inject_failed, aucune touche', async (t) => {

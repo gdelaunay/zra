@@ -293,6 +293,8 @@ button { cursor: pointer; }
   padding: var(--sp-4) var(--sp-5);
 }
 .msg--user.is-pending .msg__body { opacity: .6; border-style: dashed; }
+.msg--user.is-failed .msg__body { opacity: .6; border-color: var(--error); }
+.msg__status { margin-top: 2px; font-size: var(--fs-xs); color: var(--error); text-align: right; }
 .msg--agent .msg__body { padding: 0 var(--sp-1); }
 
 /* tour en cours : sous le dernier message, à gauche */

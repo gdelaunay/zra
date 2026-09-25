@@ -38,8 +38,9 @@ export function renderEntry(entry, ctx = {}) {
 function userMsg(entry) {
   // Pas d'en-tête « vous », comme dans Zed : la bulle suffit. Un message pas
   // encore confirmé est seulement estompé.
-  return h('div.msg.msg--user', { class: entry.pending ? 'is-pending' : '' },
+  return h('div.msg.msg--user', { class: entry.pending ? 'is-pending' : entry.failed ? 'is-failed' : '' },
     h('div.msg__body.md', { html: blocksHtml(entry.blocks) }),
+    entry.failed ? h('div.msg__status', { text: 'non envoyé' }) : null,
   )
 }
 

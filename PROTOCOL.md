@@ -271,6 +271,7 @@ type ThreadSummary = {
   createdAt?: string | null // informatif, la PWA ne s'en sert pas en v1
   archived: boolean
   state: 'live' | 'closed' | 'unknown'
+  projectOpen?: boolean | null // projet du thread ouvert dans une fenêtre Zed ; null : inconnu
 }
 ```
 **Liste complète à chaque fois**, pas un delta : la PWA remplace. À envoyer au
@@ -280,6 +281,12 @@ bootstrap, sur `list_threads`, et spontanément quand l'index change (poll 2 s s
 `state` : `live` = un shim est connecté pour ce `session_id` ; `closed` = connu
 de l'index sans shim ; `unknown` = `session_id` NULL (thread avorté). La PWA
 affiche les `unknown` grisés et non cliquables — **ne pas les masquer**.
+
+`projectOpen` : relevé dans la base de Zed — `kv_store.session_id` est la session
+en cours, et chaque fenêtre ouverte est une ligne de `workspaces` qui la porte.
+Zed fermé : `false` partout. `null` si la base n'a pas ces tables. La PWA en tire
+un point par projet ; un projet fermé reste utilisable, le daemon l'ouvre dans
+Zed à la demande.
 
 ### `thread_state`
 ```ts

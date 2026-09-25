@@ -112,19 +112,9 @@ Les variables CSS reprennent les noms de tokens de Zed (`element.hover` →
 `--element-hover`), donc ajouter un thème = ajouter une ligne dans
 `scripts/gen-themes.mjs`. Huit thèmes livrés, **Gruvbox Dark par défaut**.
 
-## Ce qui reste à câbler quand le daemon existera
+## Branché sur le daemon
 
-- `machine.name` / `version` viennent du daemon : la liste des postes affiche
-  déjà ce qu'il enverra.
-- `thread_state.options` (effort, mode rapide…) : une pastille par réglage dans
-  la barre du bas, ou toutes dans le menu « ⋯ » au-delà de deux.
-- `thread_state.modes` / `models` alimentent les sélecteurs d'en-tête ; si le
-  daemon ne les envoie pas (ou l'agent n'en a pas), les sélecteurs disparaissent.
-- Réponse aux permissions (§6.6) : la PWA envoie `respond_permission` avec
-  l'`optionId` choisi et verrouille l'encart en attendant `permission_resolved`.
-  Côté daemon, il faudra que le shim garde l'`id` JSON-RPC de la requête et
-  réponde à l'agent ; si le poste a déjà tranché, renvoyer
-  `permission_resolved` avec `by: "desktop"`, ou une `error`
-  `permission_expired`. Les deux cas sont déjà rendus.
-- Web Push : `sw.js` gère déjà `push` et `notificationclick`, aucun abonnement
-  n'est demandé en v1.
+Tout le protocole est câblé contre le vrai daemon : identité du poste, modes,
+modèles et autres réglages de l'agent, permissions (y compris la course avec le
+poste). Seul reste en attente **Web Push** : `sw.js` gère déjà `push` et
+`notificationclick`, aucun abonnement n'est demandé en v1.

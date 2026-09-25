@@ -8,6 +8,7 @@ import { logger } from './log.js'
 import { InjectionError } from './inject/backend.js'
 import { AuthError } from './auth.js'
 import { isLoopback } from './server.js'
+import { normPath, projectKey } from './threads-index.js'
 
 const log = logger('hub')
 
@@ -269,6 +270,15 @@ export class Hub {
     // Thread fermé : Zed le rouvre, un shim le recharge, puis injection normale
     // — une seule session, aucune divergence (spec §6.3).
     if (!this.shims.hasSession(thread.sessionId) && this.zed?.canReopen && this.backend.name !== 'mock') {
+      // Thread d'un agent que ZRA n'enveloppe pas (créé avant ZRA, avec
+      // « claude-acp ») : Zed le rouvrirait sans shim, rien ne le verrait
+      // revenir. On le dit tout de suite, sans une touche ni 30 s d'attente.
+      const agent = this.machine.agents?.find((a) => a.id === thread.agentId)
+      if (!agent?.wraps) {
+        return this.error(conn, 'not_zra_thread',
+          `thread ouvert avec « ${thread.agentId ?? '?'} », hors ZRA : lecture seule depuis le mobile. Répondre dans Zed, ou ouvrir un thread ZRA`,
+          msg.threadId)
+      }
       try {
         await this.zed.reopen(thread)
       } catch (err) {
@@ -402,7 +412,10 @@ export class Hub {
       if (!project) return this.error(conn, 'new_thread_failed', 'projet inconnu de ce poste : aucun thread ne porte ces dossiers')
     }
     try {
-      const { thread, cwd } = await this.zed.newThread(agentId, { folderPaths: project })
+      // Projet fermé dans Zed : il s'ouvre dans sa propre fenêtre.
+      const key = project ? projectKey(project) : null
+      const newWindow = Boolean(key) && this.threads.threads.some((t) => t.projectOpen === false && t.folderPaths?.length && projectKey(t.folderPaths) === key)
+      const { thread, cwd } = await this.zed.newThread(agentId, { folderPaths: project, newWindow })
       conn.send({ type: 'threads', threads: this.threads.threads })
       conn.send({ type: 'thread_created', threadId: thread.threadId, agentId: thread.agentId ?? agentId })
       // Zed a pu ouvrir la session ailleurs (fenêtre du projet introuvable,
@@ -517,12 +530,6 @@ export class Hub {
 }
 
 /** Chemins comparés comme Windows les compare : sans casse ni séparateur final. */
-function normPath(p) {
-  return String(p).replace(/[\\/]+/g, '/').replace(/\/$/, '').toLowerCase()
-}
-
-const projectKey = (paths) => paths.map(normPath).join('|')
-
 function samePath(a, b) {
   return normPath(a) === normPath(b)
 }

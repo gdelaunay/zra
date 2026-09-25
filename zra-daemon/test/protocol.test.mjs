@@ -224,6 +224,9 @@ test('cancel_queued retire l’entrée ; un queueId inconnu est sans effet (§3)
   assert.equal(c.of('error').length, 0, 'un queueId inconnu ne produit pas d’erreur')
 })
 
+// INSTABLE sous charge (suite complète) : le tour bouchon dure 60 ms, l'interrupt
+// ou le cancel_queued arrive parfois après. Idem « cancel_queued » et « send mode
+// interrupt ». Connu, sans conséquence : relancer.
 test('interrupt : stop sec, rien n’est envoyé (§7)', async (t) => {
   await boot(t)
   const c = await (await Client.open(t)).hello()

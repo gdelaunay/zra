@@ -18,3 +18,4 @@ zra-daemon/test/fixtures/lot-c.sqlite*
 zra-daemon/test/fixtures/settings-lot-c.json
 zra-daemon/test/fixtures/deploy/
 zra-daemon/test/fixtures/keymap/
+zra-daemon/test/fixtures/open-projects/

@@ -3,9 +3,10 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { DatabaseSync } from 'node:sqlite'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { copyFileSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 import { ThreadsIndex } from '../threads-index.js'
 import { ShimRegistry } from '../shim-registry.js'
@@ -106,4 +107,51 @@ test('index : schéma inattendu => « live seul » annoncé (risque 🟡5)', (t)
   const index = open(t, { file })
   assert.deepEqual(index.threads, [])
   assert.match(index.degraded, /colonnes manquantes.*session_id/s)
+})
+
+// ---------------------------------------------------------------------------
+// Projets ouverts dans Zed (`kv_store.session_id` × `workspaces`)
+// ---------------------------------------------------------------------------
+
+test('projets ouverts : fenêtres de la session Zed en cours, et rien quand Zed est fermé', (t) => {
+  const dir = join(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'open-projects')
+  mkdirSync(dir, { recursive: true })
+  const file = join(dir, 'db.sqlite')
+  rmSync(file, { force: true })
+  copyFileSync(FIXTURE, file)
+
+  const probe = new ThreadsIndex({ file })
+  const paths = probe.read().map((x) => x.folderPaths)
+  probe.close()
+  const [a, b] = [...new Map(paths.filter((p) => p.length).map((p) => [p.join('|'), p])).values()]
+  assert.ok(a && b, 'la fixture a au moins deux projets')
+
+  const db = new DatabaseSync(file)
+  db.exec(`create table kv_store (key text primary key, value text);
+    create table workspaces (workspace_id integer primary key, paths text, paths_order text,
+      remote_connection_id integer, session_id text, timestamp text)`)
+  db.prepare("insert into kv_store values ('session_id', 'en-cours')").run()
+  const ws = db.prepare('insert into workspaces (paths, paths_order, session_id) values (?, ?, ?)')
+  // Projet a : ouvert maintenant, chemin écrit autrement (casse, séparateurs).
+  ws.run(a.join('\n').replace(/\\/g, '/').toUpperCase(), a.map((_, i) => i).join(','), 'en-cours')
+  // Projet b : resté d'une session précédente — fermé.
+  ws.run(b.join('\n'), b.map((_, i) => i).join(','), 'ancienne')
+  db.close()
+
+  let running = true
+  const index = new ThreadsIndex({ file, zedRunning: () => running })
+  t.after(() => { index.stop(); rmSync(file, { force: true }) })
+  index.refresh({ force: true })
+  const stateOf = (p) => index.threads.find((x) => x.folderPaths.join('|') === p.join('|')).projectOpen
+  assert.equal(stateOf(a), true)
+  assert.equal(stateOf(b), false)
+
+  running = false
+  index.refresh()
+  assert.equal(stateOf(a), false, 'Zed fermé : la base garde la dernière session, pas nous')
+})
+
+test('projets ouverts : base sans ces tables (autre version de Zed) => projectOpen null', (t) => {
+  const index = open(t)
+  assert.ok(index.threads.every((x) => x.projectOpen === null))
 })
