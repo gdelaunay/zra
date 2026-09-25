@@ -8,7 +8,7 @@ suivant.
 |---|---|---|---|
 | **A** — daemon | rien | la fixture SQLite seule | ✅ **fait** |
 | **B** — plomberie ACP | un agent ACP | l'agent bouchon, sans Zed | ✅ **fait** |
-| **C** — pont vers Zed | Zed lancé | la machine cible uniquement | 🟨 **round 2 fait** : réouverture ✅, écho vers Zed ✅, `new_thread` à corriger |
+| **C** — pont vers Zed | Zed lancé | la machine cible uniquement | 🟨 **round 2 fait** : réouverture ✅, écho vers Zed ✅, `new_thread` ✅ |
 | **D** — déploiement mobile | le réseau local, le tunnel existant | le téléphone | 🟨 **réseau local + appairage en service** ; tunnel, changement de réseau, démarrage auto et HTTPS à tester (`DEPLOY.md`, `TESTING.md` round 3) |
 
 Si on coupait plutôt « lecture / écriture », l'UI Automation se retrouverait
@@ -333,9 +333,6 @@ thread fermé.
 
 ### Reste
 
-- corriger `new_thread` ; il en dépend aussi de savoir à quel moment Zed écrit
-  un thread neuf dans `sidebar_threads` (à la création, ou au premier
-  message ?) ;
 - la tâche planifiée au logon (`TESTING.md`, round 3).
 
 ### Fonctionnellement
@@ -349,10 +346,10 @@ thread fermé.
 | Composant | Contenu |
 |---|---|
 | `inject/uia.js` + `zed/keyboard.ps1` | pilotage **au clavier** (`SendInput`) par recettes : l'arbre UI Automation de Zed est vide (risque 🟠3) |
-| `new_thread` | palette de commandes → attente d'un shim (timeout 30 s) → `thread_created`, sinon `new_thread_failed` |
+| `new_thread` | touche de l'agent dans le `keymap.json` (palette en repli) → attente d'un shim (timeout 30 s) → `thread_created`, sinon `new_thread_failed` |
 | thread fermé | recette `openThread` (sidebar des threads, filtre par titre), puis injection normale — une seule session, aucune divergence |
 | mode `auto` | `acp` d'abord, bascule clavier sur **refus explicite** de l'agent |
-| installation | entrée `agent_servers` pointant le shim, tâche planifiée au logon, script d'install |
+| installation | entrée `agent_servers` pointant le shim, touche « nouveau thread » par agent dans le `keymap.json`, tâche planifiée au logon, script d'install |
 
 ### Ce que le lot A a déjà préparé
 
@@ -363,7 +360,7 @@ la PWA sait l'afficher derrière le **+** — il ne manque que l'action.
 
 ## Problèmes connus
 
-### Nouveau thread depuis le mobile : session non rattachée 🟨 en partie corrigé
+### Nouveau thread depuis le mobile : session non rattachée ✅ vérifié dans Zed
 
 **Diagnostic** : le symptôme principal vient du troisième point. La recette
 `newThread` ouvre un thread avec le dernier agent utilisé dans Zed. Si ce n'est
@@ -378,12 +375,33 @@ sur celle du poste : un thread tout neuf semblait daté du futur.
   et le message du délai dépassé le suggère aussi ;
 - la PWA affiche un toast d'attente jusqu'au `thread_created` ou à l'échec.
 
-**Reste** : transmettre l'agent choisi à Zed. Deux pistes, à essayer dans Zed :
-une touche liée dans la keymap de Zed à `agent::NewExternalAgentThread` avec
-l'agent en paramètre (installée et retirée par `npm run setup`), ou le menu
-`agent: toggle new thread menu` parcouru au clavier. **Retenue : la keymap**
-(à faire plus tard, avec un essai dans Zed pour caler la forme du paramètre
-`agent`).
+**Fait ensuite** : l'agent choisi est transmis à Zed par la keymap.
+- `npm run setup -- install` pose en tête du `keymap.json` de Zed un bloc
+  encadré de deux commentaires repères : une touche par entrée ZRA
+  (Ctrl+Alt+Shift+F1, F2…) liée à `agent::NewExternalAgentThread`.
+  `uninstall` le retire, le fichier revient à l'identique
+  (`zra-daemon/zed-keymap.js`) ;
+- forme du paramètre relevée dans le code de Zed (`crates/agent_ui`,
+  `deserialize_external_agent_id`) : un id en chaîne, ou
+  `{ "custom": { "name": id } }`. On écrit la seconde, acceptée aussi par les
+  versions plus anciennes ;
+- le pilote joue la touche de l'agent (recette `newThreadKey`), relue dans le
+  `keymap.json` à chaque demande. Sans touche pour cet agent, repli sur la
+  palette, avec le dernier agent utilisé.
+
+Vérifié dans Zed : la touche ouvre bien l'agent choisi.
+
+**Thread neuf grisé, « pas encore dans son index »** : relevé dans la base de
+Zed, la ligne du thread neuf est écrite **tout de suite**, mais avec un
+`session_id` NULL, rempli seulement au premier message. Le daemon attendait ce
+`session_id` : délai dépassé, et la ligne restait `unknown` (grisée, non
+cliquable). **Fait** : le shim a vu passer la session. `zed/control.js`
+rattache la ligne neuve sans session de cet agent à la dernière session neuve
+(`threads-index.js`, `bindSession`). Le thread est `live` et cliquable tout
+de suite, et le rattachement est oublié dès que Zed écrit son `session_id`.
+
+Vérifié dans Zed : le thread neuf s'ouvre depuis le mobile avec l'agent choisi,
+cliquable tout de suite, et le premier message part.
 
 Constaté sur le poste de dev, daemon en mode normal (pas dev), mobile sur le
 réseau local. Clic sur **+** → nouveau thread (claude) :

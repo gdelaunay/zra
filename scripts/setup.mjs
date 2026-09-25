@@ -12,6 +12,11 @@
 // (`claude-acp`). L'agent d'origine n'est pas touché : ses threads continuent
 // de marcher sans ZRA, et retirer l'entrée ramène le fichier à l'identique.
 //
+// Et **un** bloc en tête du `keymap.json` : une touche par entrée ZRA
+// (Ctrl+Alt+Shift+F1…) liée à `agent::NewExternalAgentThread`, que le daemon
+// joue pour ouvrir un thread avec l'agent choisi sur le mobile. Encadré de
+// deux commentaires repères, retiré tel quel par `uninstall`.
+//
 // Tout ce que le shim produit reste dans le dépôt, sous `.zra/` (ignoré par
 // git) : journal, enregistrements de trames, sauvegardes du settings.json.
 //
@@ -20,13 +25,14 @@
 
 import { existsSync, statSync } from 'node:fs'
 import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises'
-import { dirname, join, resolve } from 'node:path'
+import { basename, dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { loadConfig } from '../zra-daemon/config.js'
 import { parseJsonc } from '../zra-daemon/jsonc.js'
 import { discoverAgents, isShimEntry, resolveAgentCommand, wrappedAgentId } from '../zra-daemon/agent-commands.js'
 import { assertParsable, removeAgentServer, upsertAgentServer } from '../zra-daemon/zed-settings.js'
+import { assignKeys, readZraKeys, removeZraKeymap, upsertZraKeymap } from '../zra-daemon/zed-keymap.js'
 import { npmSafeArgs } from './lib/args.mjs'
 import { daemonStatus } from './lib/daemon-status.mjs'
 
@@ -154,24 +160,59 @@ async function readSettings(file) {
   return { text, parsed, mtimeMs: statSync(file).mtimeMs }
 }
 
-/** Écrit après sauvegarde, en vérifiant que Zed n'a pas réécrit le fichier entre-temps. */
-async function writeSettings(file, before, next) {
-  if (statSync(file).mtimeMs !== before.mtimeMs) {
-    throw new Error('settings.json modifié pendant l’opération (par Zed ?) : rien écrit, relancer la commande')
+/**
+ * Écrit après sauvegarde, en vérifiant que Zed n'a pas réécrit le fichier
+ * entre-temps. Un fichier qui n'existait pas (`mtimeMs: null`) est créé, sans
+ * sauvegarde puisqu'il n'y a rien à sauver.
+ * @returns {Promise<string|null>} chemin de la sauvegarde
+ */
+async function writeZedFile(file, before, next) {
+  const name = basename(file)
+  const exists = existsSync(file)
+  if ((exists ? statSync(file).mtimeMs : null) !== before.mtimeMs) {
+    throw new Error(`${name} modifié pendant l’opération (par Zed ?) : rien écrit, relancer la commande`)
   }
   assertParsable(next)
-  const backups = join(STATE, 'backups')
-  await mkdir(backups, { recursive: true })
-  const backup = join(backups, `settings.${new Date().toISOString().replace(/[:.]/g, '-')}.json`)
-  await copyFile(file, backup)
+  let backup = null
+  if (exists) {
+    const backups = join(STATE, 'backups')
+    await mkdir(backups, { recursive: true })
+    backup = join(backups, `${name.replace(/\.json$/, '')}.${new Date().toISOString().replace(/[:.]/g, '-')}.json`)
+    await copyFile(file, backup)
+  }
   await writeFile(file, next, 'utf8')
   // Relecture : ce qui est sur le disque doit être exactement ce qu'on a voulu.
   const written = await readFile(file, 'utf8')
   if (written !== next) {
-    await copyFile(backup, file)
-    throw new Error('relecture différente de l’écriture : fichier restauré depuis la sauvegarde')
+    if (backup) await copyFile(backup, file)
+    throw new Error(`relecture différente de l’écriture${backup ? ' : fichier restauré depuis la sauvegarde' : ''}`)
   }
   return backup
+}
+
+async function readKeymap(file) {
+  if (!existsSync(file)) return { text: null, mtimeMs: null }
+  const text = await readFile(file, 'utf8')
+  try {
+    parseJsonc(text)
+  } catch (err) {
+    throw new Error(`keymap.json de Zed illisible, on n'y touche pas : ${err.message}`)
+  }
+  return { text, mtimeMs: statSync(file).mtimeMs }
+}
+
+/**
+ * Le bloc de touches qui va avec ces réglages : une par entrée ZRA, celles
+ * déjà posées gardées. Plus d'entrée ZRA, plus de bloc.
+ */
+export function keymapFor(settingsText, keymapText) {
+  const servers = parseJsonc(settingsText)?.agent_servers ?? {}
+  const names = Object.keys(servers).filter((k) => isShimEntry(servers[k]))
+  if (!names.length) {
+    return keymapText ? removeZraKeymap(keymapText) : { text: keymapText, action: 'absent' }
+  }
+  const keys = assignKeys(names, readZraKeys(keymapText ?? ''))
+  return { ...upsertZraKeymap(keymapText, keys), keys }
 }
 
 async function status(opts, config) {
@@ -180,6 +221,7 @@ async function status(opts, config) {
   const { parsed } = await readSettings(file)
   const servers = parsed?.agent_servers ?? {}
   const zra = Object.entries(servers).filter(([, v]) => isShimEntry(v))
+  const keys = readZraKeys((await readKeymap(config.zedKeymap)).text ?? '')
 
   if (!zra.length) {
     console.log('  ✗ aucune entrée ZRA — `npm run setup -- install` pour voir ce qui serait ajouté')
@@ -190,6 +232,9 @@ async function status(opts, config) {
     console.log(`  ✓ entrée « ${id} » → enveloppe « ${entry.env?.ZRA_AGENT_ID ?? '?'} »` +
       `${entry.env?.ZRA_RECORD === '1' ? ', enregistrement des trames' : ''}` +
       `${upToDate ? '' : '  ⚠ chemins différents de ce dépôt : relancer install'}`)
+    console.log(keys.has(id)
+      ? `      nouveau thread : ${keys.get(id)} (keymap.json)`
+      : '      ⚠ pas de touche dans keymap.json : le mobile ouvrirait le dernier agent utilisé — relancer install')
   }
 
   // Tous les agents du poste : enveloppés ou pas, lançables ou pas.
@@ -265,20 +310,38 @@ async function install(opts, config) {
     console.log(`  ${res.action === 'unchanged' ? '✓' : '+'} ${name} → ${id} (${source})${res.action === 'unchanged' ? ' — déjà à jour' : ''}`)
     if (res.action !== 'unchanged') changes.push(name)
   }
-  if (!changes.length) {
+  const kmFile = config.zedKeymap
+  const kmBefore = await readKeymap(kmFile)
+  const km = keymapFor(text, kmBefore.text)
+  const kmChanged = km.action === 'added' || km.action === 'replaced' || km.action === 'removed'
+  for (const [name, key] of km.keys ?? []) console.log(`  ${kmChanged ? '+' : '✓'} ${key} → nouveau thread ${name}`)
+
+  if (!changes.length && !kmChanged) {
     console.log('✓ rien à faire')
     return
   }
 
-  console.log(`\n${changes.map((n) => `agent_servers.${n}`).join(', ')} dans ${file} :\n`)
-  console.log(lineDiff(before.text, text))
+  if (changes.length) {
+    console.log(`\n${changes.map((n) => `agent_servers.${n}`).join(', ')} dans ${file} :\n`)
+    console.log(lineDiff(before.text, text))
+  }
+  if (kmChanged) {
+    console.log(`\nraccourcis « nouveau thread » dans ${kmFile}${kmBefore.text === null ? ' (créé)' : ''} :\n`)
+    console.log(lineDiff(kmBefore.text ?? '', km.text))
+  }
   if (!opts.apply) {
     console.log('\nsimulation : rien n’a été écrit. Relancer avec --apply (ou « apply » tout court) pour appliquer.')
     return
   }
-  const backup = await writeSettings(file, before, text)
-  console.log(`\n✓ écrit. Sauvegarde : ${backup}`)
-  console.log(`  Zed recharge settings.json à chaud : les agents « (ZRA) » apparaissent dans le menu des nouveaux threads.`)
+  if (changes.length) {
+    const backup = await writeZedFile(file, before, text)
+    console.log(`\n✓ settings.json écrit. Sauvegarde : ${backup}`)
+    console.log(`  Zed recharge settings.json à chaud : les agents « (ZRA) » apparaissent dans le menu des nouveaux threads.`)
+  }
+  if (kmChanged) {
+    const backup = await writeZedFile(kmFile, kmBefore, km.text)
+    console.log(`\n✓ keymap.json écrit.${backup ? ` Sauvegarde : ${backup}` : ''}`)
+  }
 }
 
 async function uninstall(opts, config) {
@@ -286,24 +349,42 @@ async function uninstall(opts, config) {
   const before = await readSettings(file)
   const servers = before.parsed?.agent_servers ?? {}
   const names = opts.name && servers[opts.name] ? [opts.name] : Object.keys(servers).filter((k) => isShimEntry(servers[k]))
-  if (!names.length) {
-    console.log('✓ aucune entrée ZRA dans settings.json : rien à retirer')
-    return
-  }
   let text = before.text
   for (const name of names) {
     if (!isShimEntry(servers[name])) throw new Error(`« ${name} » n'est pas une entrée ZRA : on n'y touche pas`)
     text = removeAgentServer(text, name).text
   }
-  console.log(`\nretrait de ${names.map((n) => `agent_servers.${n}`).join(', ')} dans ${file} :\n`)
-  console.log(lineDiff(before.text, text))
+  // Les touches suivent les entrées qui restent ; plus aucune, plus de bloc.
+  const kmFile = config.zedKeymap
+  const kmBefore = await readKeymap(kmFile)
+  const km = keymapFor(text, kmBefore.text)
+  const kmChanged = km.action === 'removed' || km.action === 'replaced'
+
+  if (!names.length && !kmChanged) {
+    console.log('✓ aucune entrée ZRA dans settings.json ni dans keymap.json : rien à retirer')
+    return
+  }
+  if (names.length) {
+    console.log(`\nretrait de ${names.map((n) => `agent_servers.${n}`).join(', ')} dans ${file} :\n`)
+    console.log(lineDiff(before.text, text))
+  }
+  if (kmChanged) {
+    console.log(`\nraccourcis ZRA dans ${kmFile} :\n`)
+    console.log(lineDiff(kmBefore.text, km.text))
+  }
   if (!opts.apply) {
     console.log('\nsimulation : rien n’a été écrit. Relancer avec --apply (ou « apply » tout court) pour appliquer.')
     return
   }
-  const backup = await writeSettings(file, before, text)
-  console.log(`\n✓ retiré. Sauvegarde : ${backup}`)
-  console.log('  Les threads ouverts avec cette entrée restent dans le sidebar de Zed, sans agent pour les rouvrir.')
+  if (names.length) {
+    const backup = await writeZedFile(file, before, text)
+    console.log(`\n✓ retiré. Sauvegarde : ${backup}`)
+    console.log('  Les threads ouverts avec cette entrée restent dans le sidebar de Zed, sans agent pour les rouvrir.')
+  }
+  if (kmChanged) {
+    const backup = await writeZedFile(kmFile, kmBefore, km.text)
+    console.log(`\n✓ raccourcis retirés du keymap.json. Sauvegarde : ${backup}`)
+  }
 }
 
 // ---------------------------------------------------------------------------

@@ -20,6 +20,9 @@ export const ZED = {
   settings: join(APPDATA, 'Zed', 'settings.json'),
 }
 
+/** `keymap.json` de Zed : à côté de son `settings.json`. */
+export const keymapBeside = (settingsFile) => join(dirname(settingsFile), 'keymap.json')
+
 export const DEFAULTS = {
   /** Port unique : statiques (si activées) + WebSocket `/ws`. */
   port: 7777,
@@ -85,6 +88,8 @@ export const DEFAULTS = {
   // --- sources --------------------------------------------------------------
   zedDb: null,
   zedSettings: null,
+  /** `null` => à côté de `zedSettings`. Porte les raccourcis « nouveau thread » de ZRA. */
+  zedKeymap: null,
   /** Poll de l'index des threads (spec §3.2). */
   pollMs: 2000,
   /** Poll de présence de Zed. */
@@ -158,6 +163,7 @@ function envOverrides() {
   if (e.ZRA_ALLOWED_ORIGINS) out.allowedOrigins = e.ZRA_ALLOWED_ORIGINS.split(',').map((s) => s.trim()).filter(Boolean)
   if (e.ZRA_ZED_DB) out.zedDb = e.ZRA_ZED_DB
   if (e.ZRA_ZED_SETTINGS) out.zedSettings = e.ZRA_ZED_SETTINGS
+  if (e.ZRA_ZED_KEYMAP) out.zedKeymap = e.ZRA_ZED_KEYMAP
   if (e.ZRA_POLL_MS) out.pollMs = Number(e.ZRA_POLL_MS)
   if (e.ZRA_INJECTION) out.injection = e.ZRA_INJECTION
   if (e.ZRA_LOG_FILE) out.logFile = e.ZRA_LOG_FILE || null
@@ -195,6 +201,7 @@ export async function loadConfig({ file = process.env.ZRA_CONFIG || (UNDER_TEST 
 
   cfg.zedDb = abs(cfg.zedDb) || ZED.db
   cfg.zedSettings = abs(cfg.zedSettings) || ZED.settings
+  cfg.zedKeymap = abs(cfg.zedKeymap) || keymapBeside(cfg.zedSettings)
   cfg.staticDir = abs(cfg.staticDir)
   cfg.logFile = cfg.logFile === null ? null : abs(cfg.logFile)
   cfg.daemonLogFile = cfg.daemonLogFile ? abs(cfg.daemonLogFile) : null

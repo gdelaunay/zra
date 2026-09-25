@@ -296,6 +296,35 @@ test('new_thread : Zed ouvre la session, threads puis thread_created', async (t)
   assert.equal(keyboard.calls.length, 1)
 })
 
+test('new_thread : Zed écrit le thread sans session_id (avant le 1er message), ZRA le rattache', async (t) => {
+  const NOUVEAU = 'c00000000000000000000000000000ae'
+  const keyboard = fakeKeyboard(async (recipe) => {
+    if (recipe !== 'newThread') return
+    // Relevé sur le poste : la ligne arrive tout de suite, session_id NULL.
+    setTimeout(async () => {
+      indexRow(NOUVEAU, null)
+      await startShim(t, { sessionId: 'lotc-session-brouillon' })
+    }, 30)
+  })
+  const daemon = await boot(t, { keyboard })
+  const client = await Client.open(t)
+
+  client.send({ type: 'new_thread', agentId: 'fake-zra' })
+  const created = await client.until((m) => m.type === 'thread_created', { label: 'thread_created' })
+  assert.equal(created.threadId, NOUVEAU)
+  const listed = client.messages.slice(0, client.index((m) => m.type === 'thread_created')).filter((m) => m.type === 'threads').at(-1)
+  const row = listed.threads.find((x) => x.threadId === NOUVEAU)
+  assert.equal(row.state, 'live', 'cliquable, pas grisé')
+
+  // Premier message : Zed écrit enfin le session_id, le même.
+  const db = new DatabaseSync(FIXTURE)
+  db.prepare('update sidebar_threads set session_id = ? where thread_id = ?').run('lotc-session-brouillon', Buffer.from(NOUVEAU, 'hex'))
+  db.close()
+  daemon.threads.refresh()
+  assert.equal(daemon.threads.get(NOUVEAU).sessionId, 'lotc-session-brouillon')
+  assert.equal(daemon.threads.provisional.has(NOUVEAU), false, 'rattachement oublié : Zed a la main')
+})
+
 test('new_thread dans un projet : Zed ouvre ses dossiers, la recette vise sa fenêtre', async (t) => {
   const NOUVEAU = 'c00000000000000000000000000000ab'
   const keyboard = fakeKeyboard(async (recipe) => {

@@ -20,7 +20,7 @@ export class SettingsEditError extends Error {}
 // ---------------------------------------------------------------------------
 
 /** Jetons significatifs : les blancs et les commentaires sont sautés. */
-function tokenize(text) {
+export function tokenize(text) {
   const tokens = []
   let i = 0
   const n = text.length
@@ -130,12 +130,12 @@ function lineIndent(text, pos) {
 }
 
 /** Unité d'indentation du fichier : celle de sa première ligne indentée. */
-function indentUnit(text) {
+export function indentUnit(text) {
   const m = /\n([ \t]+)\S/.exec(text)
   return m ? m[1] : '  '
 }
 
-function eol(text) {
+export function eol(text) {
   return text.includes('\r\n') ? '\r\n' : '\n'
 }
 
