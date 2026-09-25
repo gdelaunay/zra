@@ -15,6 +15,8 @@ import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { readAgentKey, toChord } from '../zed-keymap.js'
+
 const HERE = dirname(fileURLToPath(import.meta.url))
 export const KEYBOARD_SCRIPT = join(HERE, 'keyboard.ps1')
 
@@ -38,10 +40,12 @@ export class ZedControlError extends Error {
  *   ctrl-f / ctrl-g     agents_sidebar::FocusSidebarFilter / ToggleThreadHistory
  *   enter               agent::Chat                        (composer)
  *
- * `newThread` passe par la palette, qui ne dépend d'aucun focus préalable.
- * `agent: new thread` ouvre un thread avec le **dernier agent choisi** dans le
- * panneau : si ce n'est pas l'agent ZRA, aucun shim ne s'annonce et l'ouverture
- * échoue proprement au bout du délai (le thread vide reste dans Zed).
+ * `newThreadKey` : la touche que `npm run setup` a liée, dans le `keymap.json`
+ * de Zed, à `agent::NewExternalAgentThread` pour cet agent (`zed-keymap.js`).
+ * Seule voie qui choisit l'agent. Sans elle (setup d'avant), repli sur
+ * `newThread`, par la palette : `agent: new thread` ouvre un thread avec le
+ * **dernier agent choisi** dans le panneau ; si ce n'est pas l'agent ZRA, aucun
+ * shim ne s'annonce et l'ouverture échoue proprement au bout du délai.
  *
  * `openThread` passe par `multi workspace: focus workspace sidebar` (éprouvé) :
  * le focus arrive dans le sidebar des threads, ouvert ou non ; taper filtre la
@@ -49,7 +53,8 @@ export class ZedControlError extends Error {
  * précédente (éprouvé) : `ctrl+a` + `backspace` le vident avant de taper.
  *
  * Variables : `{agent}` (id Zed), `{agentName}`, `{title}` (titre du thread),
- * `{text}` (message), `{project}` (dossier du projet visé par `newThread`).
+ * `{text}` (message), `{project}` (dossier du projet visé par `newThread`),
+ * `{agentKey}` (touche de l'agent, seule variable admise dans `keys`).
  *
  * **Le projet.** Une session s'ouvre dans un projet (le « + » de sa ligne sur
  * le mobile). Avant la recette, le pilote demande à la CLI de Zed d'ouvrir ce
@@ -58,6 +63,9 @@ export class ZedControlError extends Error {
  * (« zra — fichier »), plutôt que la fenêtre la plus récente.
  */
 export const DEFAULT_RECIPES = {
+  newThreadKey: [
+    { keys: '{agentKey}' }, { wait: 800 },
+  ],
   newThread: [
     { keys: 'ctrl+shift+p' }, { wait: 400 },
     { text: 'agent: new thread' }, { wait: 400 },
@@ -87,11 +95,19 @@ export const CANDIDATE_RECIPES = {
   ],
 }
 
-/** Substitue les variables dans les étapes `text` (jamais dans les touches). */
+/** Variables admises dans les touches : posées par ZRA, jamais par l'utilisateur. */
+const KEY_VARS = new Set(['agentKey'])
+
+/**
+ * Substitue les variables dans les étapes `text`. Dans les touches, seulement
+ * `KEY_VARS` : un titre de thread n'a pas à devenir un accord de touches.
+ */
 export function expandRecipe(steps, vars = {}) {
+  const sub = (s, allowed) => s.replace(/\{(\w+)\}/g, (m, k) => (k in vars && allowed(k) ? String(vars[k] ?? '') : m))
   return steps.map((step) => {
+    if (typeof step.keys === 'string') return { keys: sub(step.keys, (k) => KEY_VARS.has(k)) }
     if (typeof step.text !== 'string') return { ...step }
-    return { text: step.text.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? String(vars[k] ?? '') : m)) }
+    return { text: sub(step.text, () => true) }
   })
 }
 
@@ -252,9 +268,10 @@ export class ZedDriver {
    */
   constructor({
     runner = new KeyboardRunner(), enabled = false, window = null, stepDelayMs = 120, recipes = {},
-    dryRun = false, log = null, cli = new ZedCli(), windowWaitMs = 8000,
+    dryRun = false, log = null, cli = new ZedCli(), windowWaitMs = 8000, keymapFile = null,
   } = {}) {
     this.runner = runner
+    this.keymapFile = keymapFile
     this.cli = cli
     this.windowWaitMs = windowWaitMs
     this.enabled = enabled
@@ -315,7 +332,12 @@ export class ZedDriver {
   async newThread(agent, { folderPaths = null } = {}) {
     const project = projectWindow(folderPaths)
     if (project) await this.openWorkspace(folderPaths)
-    return this.play('newThread', { agent: agent.id, agentName: agent.name ?? agent.id, project: project ?? '' }, { project })
+    const vars = { agent: agent.id, agentName: agent.name ?? agent.id, project: project ?? '' }
+    // Relu à chaque fois : `npm run setup` peut l'avoir posée daemon lancé.
+    const key = this.has('newThreadKey') ? await readAgentKey(this.keymapFile, agent.id) : null
+    if (key) return this.play('newThreadKey', { ...vars, agentKey: toChord(key) }, { project })
+    this.log?.info(`aucune touche pour ${agent.id} dans le keymap.json de Zed (npm run setup -- install) : repli sur le dernier agent utilisé`)
+    return this.play('newThread', vars, { project })
   }
 
   openThread(thread) {

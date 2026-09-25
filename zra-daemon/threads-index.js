@@ -76,6 +76,14 @@ export class ThreadsIndex extends EventEmitter {
     this.degraded = null
     this.timer = null
     this.snapshot = ''
+    /**
+     * Sessions rattachées par ZRA à un thread neuf. Zed écrit la ligne dès la
+     * création, mais son `session_id` reste NULL jusqu'au premier message ;
+     * le shim, lui, a vu passer la session. `threadId` → `sessionId`, oublié
+     * dès que Zed écrit le sien.
+     * @type {Map<string, string>}
+     */
+    this.provisional = new Map()
 
     // Un shim qui apparaît ou disparaît change l'état `live` sans toucher à la
     // base : il faut re-projeter immédiatement, sans attendre le poll.
@@ -157,9 +165,11 @@ export class ThreadsIndex extends EventEmitter {
     const live = this.shims ? this.shims.liveSessionIds() : new Set()
 
     const threads = rows.map((r) => {
-      const sessionId = r.session_id ?? null
+      const threadId = hex(r.thread_id)
+      if (r.session_id) this.provisional.delete(threadId)
+      const sessionId = r.session_id ?? this.provisional.get(threadId) ?? null
       return {
-        threadId: hex(r.thread_id),
+        threadId,
         sessionId,
         agentId: r.agent_id ?? null,
         title: (r.title_override ?? r.title ?? '').toString(),
@@ -209,6 +219,12 @@ export class ThreadsIndex extends EventEmitter {
 
   get(threadId) {
     return this.threads.find((t) => t.threadId === threadId) || null
+  }
+
+  /** Rattache une session à un thread que Zed a écrit sans (voir `provisional`). */
+  bindSession(threadId, sessionId) {
+    this.provisional.set(threadId, sessionId)
+    this.refresh()
   }
 
   /**

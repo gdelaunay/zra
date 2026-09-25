@@ -13,7 +13,7 @@ ZRA relaie le flux ACP tel quel : ce que Zed affiche, la PWA l'affiche.
 **Prérequis** : Windows, Zed, Node ≥ 24. Aucune dépendance runtime.
 
 ```sh
-npm run setup install apply          # une entrée ZRA par agent de Zed (claude-zra, qwen-code-zra…)
+npm run setup install apply          # une entrée ZRA par agent de Zed (claude-zra, qwen-code-zra…) + sa touche « nouveau thread » dans keymap.json
 npm run daemon                       # affiche l'adresse et le code d'appairage
 npm run service -- install --apply   # démarrage à l'ouverture de session
 npm run pair                         # appareils appairés (revoke <id>)

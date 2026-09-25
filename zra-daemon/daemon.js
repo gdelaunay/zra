@@ -106,6 +106,7 @@ export async function startDaemon(config) {
     // `cli` : chemin de la CLI de Zed (config), ou lanceur factice (tests).
     cli: typeof zc.cli === 'object' && zc.cli ? zc.cli : new ZedCli(zc.cli ? { command: zc.cli } : {}),
     windowWaitMs: zc.windowWaitMs,
+    keymapFile: config.zedKeymap,
     log: logger('zed'),
   })
   const control = new ZedControl({

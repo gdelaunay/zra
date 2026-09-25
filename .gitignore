@@ -17,3 +17,4 @@ zra-daemon/test/fixtures/shim-state/
 zra-daemon/test/fixtures/lot-c.sqlite*
 zra-daemon/test/fixtures/settings-lot-c.json
 zra-daemon/test/fixtures/deploy/
+zra-daemon/test/fixtures/keymap/

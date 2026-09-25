@@ -109,6 +109,19 @@ export class ZedControl {
           const thread = this.threads.getBySession(sessionId)
           if (thread) return { thread, cwd }
         }
+        // Zed écrit la ligne du thread neuf tout de suite, mais sans session_id :
+        // il ne le remplit qu'au premier message. La session, le shim l'a vue :
+        // on rattache la ligne neuve de cet agent à la dernière session neuve.
+        if (fresh.size) {
+          const draft = this.threads.threads.find((t) => !known.has(t.threadId) && !t.sessionId && t.agentId === agent.id)
+          if (draft) {
+            const [sessionId, cwd] = [...fresh].at(-1)
+            this.log?.info(`thread ${draft.threadId} sans session dans l'index de Zed : rattaché à ${sessionId}`)
+            this.threads.bindSession(draft.threadId, sessionId)
+            const thread = this.threads.getBySession(sessionId)
+            if (thread) return { thread, cwd }
+          }
+        }
         // La recette ouvre un thread avec le **dernier agent utilisé** dans Zed,
         // pas forcément celui demandé. Un thread neuf d'un autre agent dans
         // l'index, c'est ce cas-là : on le dit tout de suite, sans attendre 30 s.
