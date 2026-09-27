@@ -1,7 +1,8 @@
 # zra-client — la PWA
 
 Front de ZRA. **Zéro build** : HTML + CSS + ESM natifs, servis tels quels par
-`zra-daemon`. Aucune dépendance runtime, aucun bundler, aucun framework.
+`zra-daemon` ou par n'importe quel serveur statique (`DEPLOY.md` §4.1). Aucune
+dépendance runtime, aucun bundler, aucun framework.
 
 ```
 zra-client/
@@ -10,7 +11,7 @@ zra-client/
   js/    main.js store.js link.js settings.js acp.js markdown.js diff.js
          dom.js icons.js format.js ui.js
          themes.js + agent-icons.js (générés depuis Zed)
-         views/  threads.js thread.js entry.js settings.js new-session.js devbar.js
+         views/  threads.js thread.js entry.js settings.js new-session.js pair.js devbar.js
          mock/   mock-link.js scenarios.js
   tools/ mock-server.mjs
   test/  *.test.mjs
@@ -83,7 +84,7 @@ de l'ACP :
 - `zra/notice` — `{ text, level }`, pour les messages du daemon (tour interrompu,
   file perdue…).
 
-Le daemon devra les émettre, ou la PWA se contentera de ce que l'ACP contient.
+Le shim les émet ; la PWA ne s'en sert que s'ils arrivent.
 
 ## Icônes d'agents
 
@@ -116,5 +117,7 @@ Les variables CSS reprennent les noms de tokens de Zed (`element.hover` →
 
 Tout le protocole est câblé contre le vrai daemon : identité du poste, modes,
 modèles et autres réglages de l'agent, permissions (y compris la course avec le
-poste). Seul reste en attente **Web Push** : `sw.js` gère déjà `push` et
-`notificationclick`, aucun abonnement n'est demandé en v1.
+poste), appairage. Adresse d'un poste sans port : 7777 en `http://`, 443 en
+`https://` (derrière un reverse proxy). Seul reste en attente **Web Push** :
+`sw.js` gère déjà `push` et `notificationclick`, aucun abonnement n'est demandé
+en v1.
