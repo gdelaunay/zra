@@ -35,7 +35,7 @@ Mise en service sur le téléphone — réseau local, appairage, certificat, dé
 | ✓ | **historique d'un thread fermé par `session/load`, cache 10 min** |
 | ✓ | backends d'injection `acp` (défaut), `uia`, `auto` et `mock` |
 | ✓ | **pilotage de Zed au clavier : `new_thread`, réouverture d'un thread fermé** — désactivé par défaut |
-| ✓ | recettes clavier validées au test réel (`TESTING.md`, round 2) ; `new_thread` : deux bugs connus (`ROADMAP.md`) |
+| ✓ | recettes clavier validées au test réel (`new_thread`, réouverture, projets fermés) |
 
 Tant que le pilotage est désactivé, `new_thread` répond `new_thread_failed` et
 écrire à un thread fermé répond `inject_failed`, chacun avec sa raison.

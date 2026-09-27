@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Sonde un agent ACP réel à travers le shim — première étape de l'ordre
-// d'attaque du `SPEC.md` §12 : « le shim est-il transparent ? »
+// Sonde un agent ACP réel à travers le shim — première étape du re-test
+// (`SPEC.md` §12) : « le shim est-il transparent ? »
 //
 //   node scripts/probe-agent.mjs claude-acp
 //

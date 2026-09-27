@@ -25,8 +25,7 @@ Configuration : `zra.config.json` (commenté).
 
 | Doc | Contenu |
 |---|---|
-| `SPEC.md` | spécification |
+| `SPEC.md` | spécification, risques, check-list de re-test |
 | `PROTOCOL.md` | protocole PWA ↔ daemon |
-| `ROADMAP.md` | lots et état |
+| `ROADMAP.md` | état, ce qui reste ouvert, idées |
 | `DEPLOY.md` | mise en service sur le téléphone |
-| `TESTING.md` | tests réels : rounds 1 ✅, 2 ✅, 3 ✅ |
