@@ -87,7 +87,7 @@ change après 20 échecs.
    page vient de lui). Appairer (§2).
 2. À distance : activer le tunnel wg-easy, même adresse.
 3. Un autre poste : Réglages › Ajouter un poste, son IP (le port 7777 est
-   déduit), puis l'appairer.
+   déduit en `http://`, 443 en `https://`), puis l'appairer.
 
 Un portable qui change de réseau (maison, bureau) change d'IP : dans la PWA,
 ce sont deux adresses, donc deux postes à ajouter — l'un hors ligne quand on
@@ -100,6 +100,32 @@ hors ligne.
 ---
 
 ## 4. HTTPS (facultatif) : l'app installée
+
+Une page chargée en `https://` ne peut ouvrir que des `wss://` : c'est une
+règle du navigateur (contenu mixte bloqué). Client en HTTPS ⇒ chaque daemon
+joint en HTTPS aussi. Deux façons d'y arriver.
+
+### 4.1 Derrière un reverse proxy (recommandé avec un homelab)
+
+Le homelab porte le HTTPS, les postes restent en HTTP sur le réseau local ou
+le tunnel. Exemple avec Nginx Proxy Manager et un certificat wildcard déjà en
+place, **un seul domaine** pour le client et tous les postes :
+
+- Proxy host `zra.exemple.fr` → le client statique servi sur le homelab
+  (`python3 -m http.server 8080 --directory zra-client`, ou n'importe quel
+  serveur statique), SSL forcé ;
+- sur ce même proxy host, une **Custom Location par poste** :
+  `/pc/dell/` → `http://192.168.1.20:7777/`, **Websockets Support activé** ;
+- dans le `zra.config.json` de chaque poste :
+  `"allowedOrigins": ["https://zra.exemple.fr"]`, puis relancer le daemon ;
+- dans la PWA : Réglages › Ajouter un poste › `https://zra.exemple.fr/pc/dell`
+  (en `https://` sans port, c'est 443), puis appairer (§2).
+
+Un poste de plus = une Custom Location de plus. Aucun certificat sur les
+postes. Limite : le proxy vise une IP fixe. Si le poste change de réseau, son
+adresse `http://` directe reste utilisable.
+
+### 4.2 Certificat sur le daemon
 
 Pour une IP privée, le chemin praticable : un **nom de domaine** avec un
 enregistrement **A** vers l'IP locale du poste (`zra.exemple.fr → 192.168.1.20`),

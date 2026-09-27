@@ -50,8 +50,9 @@ export function update(patch) {
  * Normalise une saisie utilisateur : "10.77.0.1" -> "http://10.77.0.1:7777".
  *
  * Sans schéma, on prend celui de la page : une PWA servie en HTTPS ne peut
- * ouvrir qu'un `wss://` (contenu mixte bloqué). Sans port, celui du daemon,
- * 7777, en HTTP comme en HTTPS — un port explicite est toujours respecté.
+ * ouvrir qu'un `wss://` (contenu mixte bloqué). Sans port : en HTTP celui du
+ * daemon, 7777 ; en HTTPS le port standard, 443 — le daemon est alors derrière
+ * un reverse proxy (DEPLOY.md §4). Un port explicite est toujours respecté.
  */
 export function normalizeUrl(input, pageProtocol = globalThis.location?.protocol) {
   let s = String(input || '').trim()
@@ -60,7 +61,7 @@ export function normalizeUrl(input, pageProtocol = globalThis.location?.protocol
   const explicitPort = /^https?:\/\/(\[[^\]]*\]|[^/:]*):\d+/i.test(s)
   let u
   try { u = new URL(s) } catch { return null }
-  if (!explicitPort) u.port = '7777'
+  if (!explicitPort && u.protocol === 'http:') u.port = '7777'
   u.pathname = u.pathname.replace(/\/+$/, '')
   return u.origin + (u.pathname === '/' ? '' : u.pathname)
 }

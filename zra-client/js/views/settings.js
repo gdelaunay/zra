@@ -54,7 +54,7 @@ function machinesSection(api) {
     h('span.label', { text: 'Postes' }),
     list,
     h('div.row', {}, h('span', { style: { flex: 1 } }, input), button('btn', { onclick: add }, icon('plus', 'icon--sm'), 'Ajouter')),
-    h('span.composer__hint', { text: 'Adresse du daemon sur le tunnel WireGuard. Port 7777 par défaut.' }),
+    h('span.composer__hint', { text: 'Adresse du daemon. Port 7777 par défaut en http, 443 en https (derrière un reverse proxy).' }),
   )
 }
 

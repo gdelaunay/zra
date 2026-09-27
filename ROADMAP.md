@@ -9,7 +9,7 @@ suivant.
 | **A** — daemon | rien | la fixture SQLite seule | ✅ **fait** |
 | **B** — plomberie ACP | un agent ACP | l'agent bouchon, sans Zed | ✅ **fait** |
 | **C** — pont vers Zed | Zed lancé | la machine cible uniquement | 🟨 **round 2 fait** : réouverture ✅, écho vers Zed ✅, `new_thread` ✅ |
-| **D** — déploiement mobile | le réseau local, le tunnel existant | le téléphone | 🟨 **réseau local + appairage en service** ; tunnel, changement de réseau, démarrage auto et HTTPS à tester (`DEPLOY.md`, `TESTING.md` round 3) |
+| **D** — déploiement mobile | le réseau local, le tunnel existant | le téléphone | 🟨 **round 3** : réseau local, appairage et révocation, tunnel wg-easy en 5G, changement de réseau du poste, démarrage auto ✅ ; HTTPS et usage à tester (`DEPLOY.md`, `TESTING.md` round 3) |
 
 Si on coupait plutôt « lecture / écriture », l'UI Automation se retrouverait
 mêlée au reste et bloquerait tout un lot sur un risque non testable.
@@ -630,9 +630,50 @@ desktop.
 - tests : `zra-client/test/link.test.mjs`, `store.test.mjs`,
   `zra-daemon/test/protocol.test.mjs`.
 
+### Poste en HTTPS : port 7777 imposé ✅
+
+Round 3. Derrière un reverse proxy (`DEPLOY.md` §4.1), le daemon se joint en
+`https://` sur le port 443. La PWA ajoutait pourtant `:7777` à toute adresse
+sans port, y compris en `https://`. **Fait** : `normalizeUrl()`
+(`zra-client/js/settings.js`) ne déduit 7777 qu'en `http://` ; en `https://`
+sans port, c'est 443. Un port explicite est toujours respecté.
+
+### Démarrage automatique : une fenêtre PowerShell reste ouverte
+
+Round 3. La tâche planifiée « ZRA daemon » démarre bien le daemon, mais une
+fenêtre PowerShell s'ouvre à l'ouverture de session et **reste affichée**. Le
+lanceur est `powershell.exe -WindowStyle Hidden` (`scripts/service.mjs`).
+Cause probable : quand Windows Terminal est le terminal par défaut, il ouvre la
+console et ignore `-WindowStyle Hidden`. Pistes : `conhost.exe --headless`, un
+lanceur `wscript` (`.vbs`), ou lancer `node` directement, sans PowerShell.
+Si on ne peut pas la masquer proprement, mieux vaut une fenêtre qui reste
+affichée qu'une fenêtre qui flashe.
+
 -----
 
 # Roadmap / Idées d'architecture
+
+## Portabilité Linux (priorité)
+
+ZRA ne tourne aujourd'hui que sous Windows. Le protocole, la PWA, le shim et
+le cœur du daemon sont du Node pur. Ce qui est propre à Windows :
+
+- **chemins de Zed** : base, `settings.json`, `keymap.json`, registry des
+  agents sous `%LOCALAPPDATA%` / `%APPDATA%` (`zra-daemon/config.js`,
+  `agent-commands.js`, `zed/driver.js`, `zra-shim/record.js`). Sous Linux :
+  `~/.local/share/zed`, `~/.config/zed` ;
+- **pilotage clavier** : `zed/keyboard.ps1` (`SendInput`). À remplacer, par
+  exemple par `xdotool` (X11) ou `ydotool` / `wtype` (Wayland), ce qui est plus
+  délicat. À voir d'abord : la CLI de Zed pourrait suffire (elle ouvre déjà
+  les projets) ;
+- **démarrage automatique** : tâche planifiée (`scripts/service.mjs`). Sous
+  Linux : un service `systemd --user` (déjà envisagé en V1) ;
+- **certificat** : `scripts/cert.ps1` (Posh-ACME). Sous Linux : `certbot` ou
+  `acme.sh` en DNS-01 ;
+- à vérifier : la résolution des agents du registry (`agent-commands.js`,
+  `process.platform`) et la détection de Zed lancé (`agents.js`).
+
+
 
 ## Problème central
 
