@@ -29,4 +29,4 @@ Configuration : `zra.config.json` (commenté).
 | `PROTOCOL.md` | protocole PWA ↔ daemon |
 | `ROADMAP.md` | lots et état |
 | `DEPLOY.md` | mise en service sur le téléphone |
-| `TESTING.md` | tests réels : rounds 1 ✅, 2 ✅, 3 à faire |
+| `TESTING.md` | tests réels : rounds 1 ✅, 2 ✅, 3 ✅ |

@@ -9,7 +9,7 @@ suivant.
 | **A** — daemon | rien | la fixture SQLite seule | ✅ **fait** |
 | **B** — plomberie ACP | un agent ACP | l'agent bouchon, sans Zed | ✅ **fait** |
 | **C** — pont vers Zed | Zed lancé | la machine cible uniquement | 🟨 **round 2 fait** : réouverture ✅, écho vers Zed ✅, `new_thread` ✅ |
-| **D** — déploiement mobile | le réseau local, le tunnel existant | le téléphone | 🟨 **round 3** : réseau local, appairage et révocation, tunnel wg-easy en 5G, changement de réseau du poste, démarrage auto ✅ ; HTTPS et usage à tester (`DEPLOY.md`, `TESTING.md` round 3) |
+| **D** — déploiement mobile | le réseau local, le tunnel existant | le téléphone | ✅ **round 3 fait** : réseau local, appairage et révocation, tunnel wg-easy en 5G, changement de réseau du poste, démarrage auto, HTTPS derrière reverse proxy, PWA installée et hors ligne, usage complet (`DEPLOY.md`, `TESTING.md`) |
 
 Si on coupait plutôt « lecture / écriture », l'UI Automation se retrouverait
 mêlée au reste et bloquerait tout un lot sur un risque non testable.
@@ -580,6 +580,16 @@ autres :
 - mise en page des réflexions ;
 - l'icône définitive de l'indicateur de tour (`loader` en attendant).
 
+Relevé au round 3, à l'usage :
+
+- **auto-scroll** : à l'envoi d'un message, descendre en bas du fil pour que
+  le stream défile sous les yeux ;
+- **permission** : le bouton « Yes, and don't ask again for … » déborde de son
+  bloc parent ;
+- **titre des threads** : il déborde, le texte n'est pas coupé proprement ;
+- **permission tranchée** : retirer le libellé « répondu depuis le mobile : … ».
+  L'origine de la réponse n'intéresse personne, seule la réponse compte.
+
 ### Options de session : mode et modèle codés en dur ✅ vérifié avec pi
 
 **Fait** : la PWA n'affiche plus de pastille mode ou modèle quand l'agent n'en
@@ -638,6 +648,14 @@ sans port, y compris en `https://`. **Fait** : `normalizeUrl()`
 (`zra-client/js/settings.js`) ne déduit 7777 qu'en `http://` ; en `https://`
 sans port, c'est 443. Un port explicite est toujours respecté.
 
+### Derrière un proxy HTTPS : avertissement « HTTP en clair » trompeur
+
+Round 3. Au démarrage, le daemon sans `tls` avertit « HTTP en clair : pas de
+service worker, pas d'installation PWA… ». C'est faux quand il est derrière un
+reverse proxy HTTPS (`DEPLOY.md` §4.1) : la PWA s'installe et fonctionne hors
+ligne. À reformuler, ou à taire quand `allowedOrigins` contient une origine
+`https://`.
+
 ### Démarrage automatique : une fenêtre PowerShell reste ouverte
 
 Round 3. La tâche planifiée « ZRA daemon » démarre bien le daemon, mais une
@@ -678,6 +696,26 @@ le cœur du daemon sont du Node pur. Ce qui est propre à Windows :
 ## Problème central
 
 Le daemon est couplé à un desktop éveillé avec Zed ouvert. Ça limite les cas d'usage : pas de live si le PC dort.
+
+## Relais HTTPS livré avec le client
+
+Round 3. Un client servi en `https://` ne peut ouvrir que des `wss://`
+(contenu mixte bloqué) : aujourd'hui, chaque poste a besoin de son propre
+proxy host HTTPS (`DEPLOY.md` §4.1). Le but de départ était de taper
+seulement une IP.
+
+Idée : livrer le client **avec un relais**. Un petit serveur Node qui sert les
+statiques et relaie `wss://zra.exemple.fr/to/<ip>/ws` vers
+`ws://<ip>:7777/ws`.
+
+- une seule config HTTPS, celle du client ; un poste de plus = son IP, rien
+  d'autre ;
+- le client construit la route tout seul à partir de l'IP saisie ;
+- relais limité aux IP privées (réseau local, tunnel), sinon c'est un proxy
+  ouvert ;
+- l'appairage reste de bout en bout, entre la PWA et le daemon : le relais ne
+  voit passer que des trames ;
+- premier pas vers le broker de la V2.
 
 ## Version 1 — Homelab (choix actuel, pragmatique)
 
