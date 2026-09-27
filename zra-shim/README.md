@@ -51,10 +51,11 @@ de Zed, même si elle utilise les mêmes entiers.
 ```bash
 npm run setup install              # montre les entrées, n’écrit rien (agents nommés : install qwen-code pi-acp)
 npm run setup install apply        # les ajoute (sauvegarde dans .zra/backups/)
-npm run setup -- uninstall --apply # la retire, et elle seule
+npm run setup -- uninstall --apply # les retire, et elles seules
 ```
 
-C'est une entrée `custom` **de plus** dans le `settings.json` de Zed : l'agent
+Par agent, une entrée `custom` **de plus** dans le `settings.json` de Zed, et sa
+touche « nouveau thread » dans le `keymap.json`. L'agent
 d'origine n'est pas touché. Le shim retrouve ensuite le vrai agent tout seul, à
 partir de son `id` dans le registry de Zed. Ce que `setup` pose, en substance :
 
@@ -95,9 +96,10 @@ L'agent enveloppé se désigne, par ordre de priorité :
 | `ZRA_LOG_LEVEL` | `debug` `info` `warn` `error` |
 | `ZRA_LOG_FILE` | double le journal dans ce fichier (`setup` : `.zra/logs/shim.log`) |
 
-`ZRA_RECORD=1` est **la première chose à activer au test réel** : une session
-enregistrée devient une fixture de non-régression, et c'est le seul moyen de
-voir ce que Zed et l'agent se disent vraiment.
+`npm run setup` active `ZRA_RECORD` d'office, vers `.zra/records/`
+(`--no-record` pour s'en passer) : c'est le seul moyen de voir ce que Zed et
+l'agent se disent vraiment, et une session enregistrée devient une fixture de
+non-régression.
 
 ## Tests
 

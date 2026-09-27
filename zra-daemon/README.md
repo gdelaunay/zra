@@ -15,37 +15,33 @@ npm run service         # le daemon en tâche planifiée, à l'ouverture de sess
 npm test                # suite complète, sans Zed ni agent
 ```
 
-Mise en service sur le téléphone — réseau local, appairage, certificat, démarrage automatique :
+Mise en service sur le téléphone — réseau local, appairage, HTTPS, démarrage automatique :
 **`DEPLOY.md`** à la racine.
 
-## État : lots A, B et C
+## Ce qu'il fait
 
-| | |
-|---|---|
-| ✓ | index `sidebar_threads` en lecture seule, poll 2 s, diff |
-| ✓ | protocole ZRA complet côté daemon, invariants du `PROTOCOL.md` §6 |
-| ✓ | ring buffer 2000/thread, rejoué au `subscribe` |
-| ✓ | écoute restreinte (loopback + tunnel), allowlist d'`Origin`, TLS optionnel |
-| ✓ | **réseau local écouté**, **appairage** des appareils (`auth.js`, `npm run pair`) |
-| ✓ | **réseau suivi à chaud** (Wi-Fi changé, tunnel coupé ou rétabli), **TLS relu à chaud**, journal sur disque (`--log`) |
-| ✓ | registry `agent_servers`, présence de Zed, journal d'injections |
-| ✓ | **shims connectés, threads `live`, flux ACP verbatim** |
-| ✓ | **injection ACP : envoi, file d'attente, interruption, options** |
-| ✓ | **permissions répondables depuis le mobile, course avec le poste** |
-| ✓ | **historique d'un thread fermé par `session/load`, cache 10 min** |
-| ✓ | backends d'injection `acp` (défaut), `uia`, `auto` et `mock` |
-| ✓ | **pilotage de Zed au clavier : `new_thread`, réouverture d'un thread fermé** — désactivé par défaut |
-| ✓ | recettes clavier validées au test réel (`new_thread`, réouverture, projets fermés) |
+- lit l'index `sidebar_threads` de Zed en lecture seule (poll 2 s, diff) ;
+- relaie le flux ACP des shims **verbatim** aux clients, avec un ring buffer
+  de 2000 événements par thread, rejoué au `subscribe` ;
+- injecte depuis le mobile : envoi, file d'attente, interruption, options,
+  permissions (backends `acp` par défaut, `uia`, `auto`, `mock`) ;
+- relit un thread fermé par `session/load`, cache 10 min ;
+- pilote Zed au clavier pour ouvrir un thread ou rouvrir un thread fermé ;
+- écoute la loopback, le réseau local et le tunnel, suivis à chaud, avec
+  appairage des appareils et TLS optionnel relu à chaud.
 
-Tant que le pilotage est désactivé, `new_thread` répond `new_thread_failed` et
-écrire à un thread fermé répond `inject_failed`, chacun avec sa raison.
-
-## Pilotage de Zed (lot C)
+## Pilotage de Zed
 
 Zed n'expose rien à UI Automation (arbre vide) : le daemon le pilote au
 clavier, par **recettes** — suites de touches, de textes et de pauses — que
 `zed/keyboard.ps1` exécute sur la fenêtre Zed. Le texte est saisi en Unicode
 (presse-papiers intact), et la recette s'arrête net si Zed perd le premier plan.
+
+- **nouveau thread** : la touche de l'agent posée par `npm run setup` dans le
+  `keymap.json` de Zed (palette en repli), dans la fenêtre du projet, ouverte
+  au besoin par la CLI de Zed ;
+- **thread fermé** : la CLI de Zed ouvre son projet, puis la recette
+  `openThread` le retrouve par son titre dans le sidebar.
 
 ```jsonc
 "zedControl": { "enabled": true, "recipes": { "openThread": [ … ] } }
@@ -55,6 +51,10 @@ La preuve que Zed a obéi ne vient jamais d'un délai mais du **shim** : une
 session neuve (`new_thread`), le rechargement du bon `session_id` (thread
 fermé), le tour qui passe `busy` (backend `uia`). Mise au point des recettes :
 `npm run zed -- probe | recipes | try <recette> [--apply]`.
+
+Pilotage désactivé (défaut de `config.js`, activé dans le `zra.config.json`
+du dépôt) : `new_thread` répond `new_thread_failed` et écrire à un thread
+fermé répond `inject_failed`, chacun avec sa raison.
 
 ## Diagnostic
 
@@ -90,21 +90,20 @@ mobile en est averti par un `zra/notice` explicite.
 
 ## Où est servi le client web
 
-Le daemon et le client PWA sont **décorrélés**. Le trafic ne transite jamais par
-l'hébergeur du client : le navigateur télécharge des fichiers statiques d'un
-côté, puis ouvre un WebSocket **directement** vers le daemon à travers le tunnel.
+Le daemon et le client PWA sont **décorrélés**. Le daemon sert le client
+lui-même (`serveStatic`, défaut), sur le même port que le WebSocket : un poste
+se suffit à lui-même. Mais le client peut venir de n'importe quel serveur
+statique, par exemple un homelab qui sert un seul client pour tous les postes.
+Le navigateur télécharge les statiques d'un côté, puis ouvre un WebSocket
+**directement** vers chaque daemon. `--no-static` : le daemon n'est qu'une API.
 
 ```
   téléphone                       hébergeur (n'importe où)
      │ ── GET html/css/js ──────────►   statiques, une fois
      │
-     │ ── WebSocket ────────────────►   daemon (10.x.x.x:7777)
-                                          via WireGuard
+     │ ── WebSocket ────────────────►   daemon (192.168.x.x:7777)
+                                          réseau local ou tunnel
 ```
-
-`serveStatic` reste activé par défaut : servir le client en local coûte peu et
-rend un poste testable seul. En production, `--no-static` et le daemon n'est
-qu'une API.
 
 ### HTTP ou HTTPS
 
@@ -121,16 +120,14 @@ que le navigateur réserve aux *contextes sécurisés* :
 `localhost` compte comme contexte sécurisé : en dev sur le poste, tout marche
 sans certificat.
 
-Pour du HTTPS sur une IP de tunnel, le chemin praticable est un vrai domaine
-avec un enregistrement A pointant l'IP privée et un certificat Let's Encrypt
-obtenu par challenge **DNS-01** (l'IP n'a pas besoin d'être joignable depuis
-Internet). Puis :
+Une page `https://` ne peut ouvrir que des `wss://` (contenu mixte bloqué) :
+client en HTTPS ⇒ chaque daemon joint en HTTPS. Deux montages (`DEPLOY.md` §4) :
 
-```jsonc
-"tls": { "cert": "C:/certs/zra.crt", "key": "C:/certs/zra.key" }
-```
-
-Le daemon passe alors en `https` + `wss`, sans autre changement.
+- **reverse proxy** HTTPS devant le daemon, qui reste en HTTP (validé) :
+  ajouter l'origine du client à `allowedOrigins` ;
+- **certificat sur le daemon** (Let's Encrypt DNS-01, `scripts/cert.ps1`, non
+  essayé) : `"tls": { "cert": "…", "key": "…" }`, et le daemon passe en
+  `https` + `wss`.
 
 ### Allowlist d'Origin
 
@@ -200,6 +197,7 @@ seulement) sert à `npm run pair`.
 | `inject/` | interface d'injection + backends `acp`, `uia`, `auto`, `mock` |
 | `zed/` | pilotage clavier de Zed : `keyboard.ps1`, recettes, `new_thread`, réouverture |
 | `zed-settings.js` | édition chirurgicale du `settings.json` de Zed (`npm run setup`) |
+| `zed-keymap.js` | bloc ZRA du `keymap.json` de Zed : une touche « nouveau thread » par entrée ZRA |
 
 ## Tests
 

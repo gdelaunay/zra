@@ -41,7 +41,10 @@ Relevé au round 3, à l'usage :
   bloc parent ;
 - **titre des threads** : il déborde, le texte n'est pas coupé proprement ;
 - **permission tranchée** : retirer le libellé « répondu depuis le mobile : … ».
-  L'origine de la réponse n'intéresse personne, seule la réponse compte.
+  L'origine de la réponse n'intéresse personne, seule la réponse compte ;
+- **postes repliables** : dans la liste, la ligne d'un poste se replie et masque
+  tous ses projets et threads, exactement comme la ligne d'un projet (même
+  interaction, même rendu, état mémorisé).
 
 ### Démarrage automatique : une fenêtre PowerShell reste ouverte
 
