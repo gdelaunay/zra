@@ -588,7 +588,7 @@ function Composer({ key, onSend, onStop }) {
     enterkeyhint: 'send',
     autocapitalize: 'sentences',
     oninput: () => { autoGrow(); store.setDraft(key, input.value) },
-    // Entrée envoie ; Maj+Entrée et Ctrl+Entrée sautent une ligne (SPEC §14.2).
+    // Entrée envoie ; Maj+Entrée et Ctrl+Entrée sautent une ligne (SPEC §8).
     // Pendant une composition (IME, accents morts), Entrée appartient à la saisie.
     onkeydown: (ev) => {
       if (ev.key !== 'Enter' || ev.isComposing) return

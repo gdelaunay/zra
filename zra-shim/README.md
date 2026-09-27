@@ -109,7 +109,7 @@ npm run probe:agent claude-acp    # contre le vrai agent, sans ouvrir de session
 `probe:agent` lance l'agent réel à travers le shim et ne fait qu'un
 `initialize` : la résolution de la commande, la transparence de la poignée de
 main et les capacités annoncées (dont `loadSession`) en un seul coup d'œil.
-C'est la première étape de l'ordre d'attaque du `SPEC.md` §12.
+C'est la première étape du re-test (`SPEC.md` §12).
 
 Le shim est monté entre un faux Zed (`test/fake-zed.mjs`, spec §10.2) et un
 agent ACP bouchon (`test/fake-agent.mjs`, spec §10.1) qui parle le vrai

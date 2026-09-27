@@ -1,8 +1,8 @@
 # ZRA — Zed Remote Agent
 
-Spec d'implémentation v1. Rédigée pour être exécutée d'une traite, sans aller-retour :
-toute décision est tranchée, et les points non vérifiables sans Zed en face sont
-explicitement listés au §12 avec leur stratégie de repli.
+Spec d'implémentation v1, implémentée et validée au test réel. Les risques
+identifiés au départ et leur issue sont au §12, avec la check-list de re-test
+sur une nouvelle machine.
 
 ---
 
@@ -32,7 +32,7 @@ sont déjà dans le protocole.
 | ✓ | Répondre aux demandes de permission depuis le mobile |
 | ✓ | Ouvrir une nouvelle session d'agent depuis le mobile |
 | ✓ | Multi-postes, en direct sur le réseau local ou à travers un tunnel |
-| ✓ | Injection ACP + repli UI Automation, commutable par config |
+| ✓ | Injection ACP + repli clavier, commutable par config |
 
 ### Hors périmètre v1 (l'archi doit les accueillir sans refonte)
 
@@ -126,7 +126,7 @@ enveloppe l'agent ainsi résolu.
 │            zra-daemon  ──────────────┼───────────────────►  PWA
 │             · index threads (ro)     │   ws(s) :7777          ▲
 │             · session/load           │                        │
-│             · injection ACP / UIA    │                        │ statiques
+│             · injection ACP / clavier│                        │ statiques
 └──────────────────────────────────────┘                   ┌────┴─────┐
                                                            │ hébergeur│
                                                            └──────────┘
@@ -239,30 +239,37 @@ Le shim émet lui-même un `session/prompt` vers l'agent, comme s'il venait de Z
   l'agent le ferait au `session/load`. Le message s'affiche donc aussi dans
   le panel de Zed (risque 🟠6, levé au round 2).
 
-### 6.2 Backend `uia` (repli, câblé dès la v1)
+### 6.2 Backend `uia` (repli clavier)
 
-Pilotage de Zed par Windows UI Automation : focus de la fenêtre, saisie dans le
-composer du panel agent, validation.
+Zed dessine lui-même son interface (GPUI) : son arbre UI Automation est vide
+(risque 🟠3). Le backend `uia` pilote donc la fenêtre Zed **au clavier**
+(`SendInput`, texte en Unicode), par recettes de touches (`zra-daemon/zed/`),
+surchargeables dans `zra.config.json`. Arrêt immédiat si Zed perd le premier
+plan. Désactivé par défaut (`zedControl.enabled`).
 
-- Implémentation : script PowerShell utilisant `UIAutomationClient`, invoqué par le
-  daemon. Aucune dépendance native à compiler. Repli clavier (`SendKeys`) si
-  l'élément n'est pas résoluble par l'arbre UIA.
 - **Fidélité parfaite** : c'est Zed qui émet le prompt, donc tout apparaît des deux côtés.
-- Fragile : dépend de la fenêtre, de la langue, de la version de Zed.
+- Fragile : dépend de la fenêtre, de la keymap, de la version de Zed.
+- Pas de file d'attente : la file du shim dépile par ACP, mélanger les deux
+  voies enverrait les messages par deux chemins.
 
-Le mode `auto` tente `acp`, bascule sur `uia` après échec ou timeout de 5 s.
+Le mode `auto` tente `acp` et ne bascule sur le clavier que sur un **refus
+explicite** de l'agent : un silence ne prouve pas que le message est perdu, et
+le renvoyer au clavier le doublerait.
 
-*Précisé au lot C* : l'arbre UIA de Zed est vide (risque 🟠3 avéré), le backend
-`uia` est donc un pilotage **au clavier** par recettes de touches
-(`zra-daemon/zed/`), désactivé par défaut (`zedControl.enabled`). Et `auto` ne
-bascule que sur un **refus explicite** de l'agent : un silence de 5 s ne prouve
-pas que le message est perdu, et le renvoyer au clavier le doublerait.
+Avec claude-acp, `acp` suffit (risque 🔴1 levé) : aucun message ne passe par le
+clavier. Le clavier ne sert qu'à ouvrir ou rouvrir un thread (§6.3, §6.7).
 
 ### 6.3 Répondre à un thread fermé
 
-Le daemon demande à Zed d'ouvrir le thread (UIA : palette de commandes → sélection
-dans le sidebar), attend qu'un shim se connecte pour ce `session_id` (timeout 30 s),
-puis injecte normalement. Une seule session, aucune divergence.
+Le daemon ouvre le projet du thread par la CLI de Zed (fenêtre ramenée au
+premier plan, ou nouvelle fenêtre si le projet est fermé), puis joue la recette
+`openThread` dans cette fenêtre : focus du sidebar des threads, filtre vidé,
+titre tapé, `enter`. Il attend qu'un shim se connecte pour ce `session_id`
+(timeout 30 s), puis injecte normalement. Une seule session, aucune divergence.
+
+Seuls les threads d'un agent que ZRA enveloppe se rouvrent ainsi : les autres,
+Zed les recharge sans shim. Le daemon les refuse d'emblée (`not_zra_thread`),
+et la PWA les affiche en lecture seule.
 
 ### 6.4 File d'attente et interruption
 
@@ -318,10 +325,13 @@ au daemon avec son `id` JSON-RPC.
 Le daemon expose le registry `agent_servers` de `settings.json` dans le message
 `machine` (`agents[]`). La PWA affiche ces agents derrière le bouton **+**.
 
-`new_thread` demande à Zed d'ouvrir un thread avec l'agent choisi — même voie
-que le §6.3, la palette de commandes par UIA. Dès qu'un shim se connecte avec un
-`session_id` neuf, le daemon renvoie `thread_created`. Timeout 30 s ⇒ `error`
-`new_thread_failed`.
+`new_thread` demande à Zed d'ouvrir un thread avec l'agent choisi : `npm run
+setup` pose dans le `keymap.json` de Zed une touche par entrée ZRA
+(`agent::NewExternalAgentThread`), que le pilote joue. Sans touche pour cet
+agent, repli sur la palette, avec le dernier agent utilisé. Dès qu'un shim se
+connecte avec un `session_id` neuf, le daemon renvoie `thread_created`, et
+rattache la ligne neuve de l'index (écrite par Zed sans `session_id` jusqu'au
+premier message) à cette session. Timeout 30 s ⇒ `error` `new_thread_failed`.
 
 Une session s'ouvre **dans un projet** : le **+** vit sur la ligne de chaque
 projet de la liste (et dans la top bar d'un thread, pour son projet), jamais au
@@ -408,10 +418,13 @@ cadre ne bouge jamais d'un écran à l'autre :
 L'état courant de l'app est **le thread**, pas la liste : on navigue vers la
 liste par un bouton de la bottom bar, il n'y a pas de bouton « précédent ».
 
-**Écran 1 — threads.** Top bar : identité, compteur de postes, **+** (nouvelle
-session), réglages. Liste groupée par machine, puis par récence : pastille d'état
-(live plein / fermé creux / inconnu grisé), titre, chemin du dossier abrégé, date
-relative, icône de l'agent. Bottom bar : filtre texte et filtre d'état.
+**Écran 1 — threads.** Top bar : identité, compteur de postes, réglages. Liste
+groupée par poste, puis **par projet** (dossier du thread, nommé d'après son
+dernier segment), puis par récence. La ligne d'un projet se replie (mémorisé),
+porte le **+** du projet (§6.7) et un point plein s'il est ouvert dans Zed,
+cerclé sinon. Par thread : pastille d'état (live plein / fermé creux / inconnu
+grisé), titre, date relative, icône de l'agent. Bottom bar : filtre texte et
+filtre d'état.
 
 **Écran 2 — thread.** Top bar : icône de l'agent, titre, puis — en retrait —
 chemin du projet et date ; à droite **+** et réglages. Bottom bar : sélecteurs
@@ -425,9 +438,17 @@ d'événements rendu par type :
   et cliquables ; l'encart se verrouille dès qu'une réponse est partie et
   affiche qui a tranché (mobile ou poste).
 
-**Composer.** Zone de texte, dictée vocale native (`input` mobile), et un bouton
+Les états de session ne sont pas des messages : la consommation
+(`usage_update`) vit sous le composer, comme sous l'éditeur de Zed (alerte à
+80 %, rouge à 95 %) ; le titre annoncé par l'agent (`session_info_update`)
+remplace celui de l'index dans la top bar, sauf si le thread a été renommé dans
+Zed ; les changements de mode ne s'affichent pas dans le fil, le mode se lit
+dans la bottom bar.
+
+**Composer.** Zone de texte, dictée native du clavier du téléphone, et un bouton
 **Envoyer** qui ne change jamais : pendant un tour, envoyer met simplement en
-file. Quand `turn === "busy"`, un bouton **Stop** (icône seule, rouge) apparaît à
+file. **Entrée** envoie ; **Maj+Entrée** et **Ctrl+Entrée** sautent une ligne.
+Un brouillon par thread, gardé jusqu'à l'envoi. Quand `turn === "busy"`, un bouton **Stop** (icône seule, rouge) apparaît à
 sa gauche. Stop coupe le tour ; s'il y a un message **en file d'attente**, il part
 dans la foulée — c'est le « stop et envoie » sans bouton supplémentaire. Le texte
 en cours de saisie n'est jamais envoyé par Stop : seul **Envoyer** envoie.
@@ -453,10 +474,10 @@ Deux montages tiennent, et le daemon accepte les deux :
 | Web Push (v2) | ✗ | ✓ |
 
 En HTTPS, le navigateur refuse un `ws://` depuis une page `https://` (contenu
-mixte) : le daemon doit donc servir `wss://`, avec un certificat. Le chemin
-praticable pour une IP de tunnel est un vrai domaine dont l'enregistrement A
-pointe l'IP privée, et un certificat Let's Encrypt obtenu en **DNS-01** — le
-challenge ne requiert aucune joignabilité depuis Internet.
+mixte) : chaque daemon doit donc être joint en `wss://`. Deux montages
+(`DEPLOY.md` §4) : un **reverse proxy** HTTPS devant chaque daemon, qui reste
+en HTTP (validé au round 3), ou un certificat sur le daemon lui-même, par un
+vrai domaine pointant l'IP privée et Let's Encrypt en **DNS-01** (non essayé).
 
 `localhost` étant un contexte sécurisé, le dev sur le poste a tout sans
 certificat.
@@ -532,7 +553,7 @@ donc être vérifiable sans Zed ni agent.
    (octets entrants ≡ octets sortants sur un corpus de trames), lecteur d'index,
    résolution d'état des threads.
 6. **Backend d'injection bouchon** — `"injection": "mock"` pour valider toute la
-   chaîne mobile → daemon → backend sans UIA ni agent.
+   chaîne mobile → daemon → backend sans clavier ni agent.
 
 Critère de sortie : `npm test` vert et la PWA pilotable de bout en bout contre
 l'agent bouchon, **sans Zed lancé**.
@@ -578,7 +599,7 @@ logon (optionnelle, script d'install fourni). Le shim n'est jamais lancé à la 
 
 ---
 
-## 12. Risques — à lever au test réel
+## 12. Risques et re-test
 
 | # | Risque | Détection | Repli |
 |---|---|---|---|
@@ -587,15 +608,41 @@ logon (optionnelle, script d'install fourni). Le shim n'est jamais lancé à la 
 | 🟠 3 | L'arbre UIA de Zed n'expose pas le composer | Sonde UIA (`npm run zed -- probe`) | **Avéré au lot C** : arbre vide, 0 élément. Pilotage au clavier (`SendInput`) de la fenêtre Zed, par recettes |
 | 🟡 4 | Zed lance un agent par fenêtre, pas par thread | Observer les `session_id` d'un même shim | Le registre shim→sessions est déjà multi-sessions |
 | 🟡 5 | Schéma `sidebar_threads` modifié par une mise à jour de Zed | Vérification des colonnes au démarrage | Message d'erreur explicite, dégradation en « live seul » |
-| ✅ 6 | Message utilisateur invisible dans le panel Zed (§6.1) | **Avéré au test réel** : la réponse de l'agent s'affiche dans Zed, le message envoyé depuis le mobile non | **Levé au round 2** : le shim annonce à Zed le message du mobile en `user_message_chunk`. Il s'affiche dans le panneau, et reste affiché une seule fois après un redémarrage de Zed (§14.1) |
+| ✅ 6 | Message utilisateur invisible dans le panel Zed (§6.1) | **Avéré au test réel** : la réponse de l'agent s'affiche dans Zed, le message envoyé depuis le mobile non | **Levé au round 2** : le shim annonce à Zed le message du mobile en `user_message_chunk`. Il s'affiche dans le panneau, et reste affiché une seule fois après un redémarrage de Zed |
 | 🟡 7 | Séparateur de `folder_paths` inconnu pour un thread multi-dossiers | Aucun thread multi-dossiers sur la machine cible ; `folder_paths_order` est une liste d'indices séparés par des virgules | On ne découpe que si l'ordre annonce plusieurs entrées **et** que le découpage retombe sur le bon compte — sinon chemin unique. Un chemin Windows peut contenir une virgule |
 
-**Ordre d'attaque au test réel** : (1) le shim est-il transparent — Zed fonctionne-t-il
-normalement à travers lui ? → (2) les trames arrivent-elles au daemon ? →
-(3) l'injection ACP est-elle acceptée ? → (4) `session/load` fonctionne-t-il ?
+### Re-test sur une nouvelle machine
 
-Le découpage de l'implémentation en lots, leur contenu fonctionnel et
-technique et leur état d'avancement : `ROADMAP.md`.
+Après un portage, une nouvelle version de Zed ou un nouvel agent. Dans l'ordre :
+chaque étape suppose la précédente. Tout ce que ZRA produit reste sous `.zra/`
+(ignoré par git) : `logs/shim.log` (**le premier endroit à lire**),
+`logs/daemon.log`, `records/*.jsonl` (trames Zed ↔ agent), `backups/`
+(`settings.json` et `keymap.json` de Zed avant modification).
+
+1. **Sans Zed** : `npm test` vert ; `npm run probe:agent <agent>` fait la
+   poignée de main avec le vrai agent à travers le shim, sans session.
+2. **Installation** : `npm run setup install apply`, puis `npm run setup` :
+   entrées ZRA ✓, agents résolus, touches « nouveau thread » dans la keymap.
+3. **Shim transparent** : dans Zed, un thread avec l'entrée ZRA se comporte
+   comme avec l'agent d'origine (réponse, modes, modèle, outils, permissions).
+4. **Trames au daemon** : `npm run daemon:dev`, le thread est **live** dans la
+   PWA (`http://localhost:7777`), un prompt envoyé depuis Zed y streame.
+5. **Injection** : un message envoyé depuis la PWA part, la réponse s'affiche
+   des deux côtés, et le message aussi dans le panneau de Zed.
+6. **Historique** : un thread fermé s'ouvre dans la PWA avec son historique.
+7. **Dans un thread live** : file d'attente pendant un tour, interruption,
+   changement de mode et de modèle, permission tranchée depuis la PWA puis
+   depuis Zed.
+8. **Pilotage de Zed** (`zedControl.enabled`) : `npm run zed -- probe`, puis
+   le **+** d'un projet ouvre un thread avec l'agent choisi, cliquable tout de
+   suite ; un thread fermé se rouvre et le message part, y compris d'un projet
+   fermé et plusieurs d'affilée. Mise au point des recettes :
+   `npm run zed -- try <recette> [--apply]`, lancé hors de Zed.
+9. **Téléphone** (`DEPLOY.md`) : réseau local et appairage, révocation, tunnel
+   à distance, changement de réseau du poste sans redémarrage, service au
+   logon, HTTPS, PWA installée et ouverte hors ligne.
+
+Le découpage de l'implémentation en lots et leur état : `ROADMAP.md`.
 
 ---
 
@@ -615,56 +662,3 @@ technique et leur état d'avancement : `ROADMAP.md`.
 | Agents | Tous, sans adapter — conséquence de la règle du §1 |
 | Permissions | Affichées **et répondables** depuis le mobile dès la v1 (§6.6) |
 | Nom | ZRA |
-
----
-
-## 14. Notes du test réel — à traiter
-
-Relevées au round 1 (`TESTING.md`), sur la machine cible.
-
-### 14.1 Le message mobile absent du panel Zed (risque 🟠6) — ✅ levé
-
-> **Résultat du round 2** : la première piste suffit. Le message envoyé du
-> mobile s'affiche dans le panneau de Zed. Après fermeture et réouverture de
-> Zed, il est toujours là, une seule fois. C'est désormais le comportement du
-> shim, sans option pour le désactiver. Les autres pistes ne sont plus
-> nécessaires.
-
-C'est la limite qui pèsera le plus à l'usage : on écrit depuis le mobile, on
-revient au poste, et la conversation affichée par Zed a un trou — la réponse de
-l'agent sans la question. Le repli clavier (backend `uia`) la contourne, mais
-taper dans la fenêtre de l'utilisateur n'est pas une solution qu'on veut
-généraliser.
-
-À explorer **en profondeur** avant de trancher, sans a priori :
-
-- ce que Zed fait d'un `user_message_chunk` émis par l'agent pendant un tour
-  qu'il n'a pas lancé : l'affiche-t-il ? l'ignore-t-il ? (le shim peut en
-  émettre un, synthétique, vers Zed) — ✅ **retenu** : Zed l'affiche ;
-- ce que Zed relit à la réouverture d'un thread : s'il rejoue `session/load`,
-  le message injecté apparaît-il alors, puisque l'agent l'a bien reçu ?
-- les points d'entrée de Zed lui-même : actions, extensions, URL `zed://`,
-  canal CLI — une voie officielle pour poser un message dans un thread ;
-- en dernier recours seulement, le clavier.
-
-### 14.2 PWA
-
-- ✅ **Composer** : **Entrée envoie** ; **Maj+Entrée** et **Ctrl+Entrée** sautent
-  une ligne.
-- ✅ **Threads regroupés par projet** dans la liste, sous chaque poste — c'est
-  ainsi que l'utilisateur pense ses threads. Projet = dossier du thread, nommé
-  d'après son dernier segment ; sa ligne se replie (mémorisé) et porte le **+**
-  du projet. Plus de **+** global dans la liste (§6.7).
-- ✅ Événements ACP à rendre proprement plutôt qu'en bloc générique : `usage_update`
-  (consommation), `session_info_update` (titre, métadonnées). Ce sont des états
-  de la session, pas des messages : la consommation vit sous le composer, comme
-  sous l'éditeur de Zed (en alerte à 80 %, en rouge à 95 %) ; le titre annoncé
-  par l'agent remplace celui de l'index dans la top bar, sauf si l'utilisateur a
-  renommé le thread dans Zed.
-- ✅ Le streaming est un peu saccadé — secondaire. Cause relevée dans les
-  trames : claude-acp envoie son texte par rafales (jusqu'à 2 000 caractères
-  d'un coup, puis des pauses), et la vue repeignait tout le message à chaque
-  frame. Le message en cours d'écriture est désormais révélé à débit régulier
-  (le retard se résorbe en ~100 ms d'exponentielle, jamais moins de 250
-  caractères/s), et seul son dernier bloc markdown est repeint.
-
