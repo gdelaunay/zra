@@ -183,8 +183,10 @@ touche ne part.
 5. **Démarrage automatique** — `npm run service -- install --apply`, fermer la
    session, la rouvrir : `npm run service` montre le daemon, **aucune fenêtre**
    à l'écran.
-6. **HTTPS** (si le temps le permet) — domaine, `scripts/cert.ps1 -Staging`
-   d'abord, puis l'installation sur l'écran d'accueil.
+6. **HTTPS** — client sur le homelab derrière le reverse proxy (`DEPLOY.md`
+   §4.1), poste ajouté en `https://…/pc/<poste>`, appairage, puis
+   l'installation sur l'écran d'accueil. (`scripts/cert.ps1`, §4.2, reste
+   non essayé.)
 7. **À l'usage** — liste groupée par projet, streaming fluide, consommation sous
    le composer, envoi depuis le téléphone, réponse à une permission.
 
