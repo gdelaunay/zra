@@ -30,7 +30,7 @@
   // n'applique pas la same-origin policy aux WebSockets, donc sans cette liste
   // n'importe quelle page visitée depuis le tunnel pourrait piloter le poste.
   // L'origine propre du daemon est ajoutée d'office quand il sert les statiques.
-  "allowedOrigins": [],
+  "allowedOrigins": ["https://zra.gdelaunay.fr"],
 
   // TLS. Absent => HTTP + ws:// : l'app fonctionne, mais le navigateur refuse
   // le service worker, l'installation sur l'écran d'accueil et le Web Push.
