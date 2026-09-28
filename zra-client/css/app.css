@@ -217,11 +217,20 @@ button { cursor: pointer; }
 
 /* ---------- ecran 1 : threads ---------- */
 
+/* Poste : toute la ligne replie/déplie, comme un projet. */
 .group__head {
   display: flex; align-items: center; gap: var(--sp-3);
-  padding: var(--sp-5) var(--sp-4) var(--sp-2);
+  width: 100%; text-align: left;
+  padding: var(--sp-5) var(--sp-4) var(--sp-3);
   position: sticky; top: 0; z-index: 2;
   background: var(--panel-background);
+}
+.group__head:hover { background: var(--ghost-element-hover); }
+.group__head:hover .group__name { color: var(--text); }
+.group__chevron { color: var(--icon-muted); flex: none; }
+/* Flèche au survol seulement, comme pour un projet — sauf sur écran tactile. */
+@media (hover: hover) {
+  .group__head:not(:hover) .group__chevron { visibility: hidden; }
 }
 .group__name { font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .06em;
   color: var(--text-muted); font-weight: 600; }

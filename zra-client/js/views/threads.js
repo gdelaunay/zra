@@ -1,8 +1,9 @@
 // Écran 1 — liste des threads, calquée sur le sidebar de Zed :
 // groupée par poste puis par projet, triée par récence, pastille d'état.
 //
-// Un projet se replie (sa ligne de titre seule reste) et porte son propre « + » :
-// une session s'ouvre toujours dans un projet, jamais « quelque part ».
+// Un poste se replie comme un projet (sa ligne de titre seule reste). Un projet
+// porte son propre « + » : une session s'ouvre toujours dans un projet, jamais
+// « quelque part ».
 //
 // Ossature commune aux deux écrans : .header (haut) · .scroll · .bottombar (bas).
 
@@ -71,7 +72,10 @@ export function ThreadsView({ navigate }) {
         .sort((a, b) => (toMs(b.updatedAt) ?? 0) - (toMs(a.updatedAt) ?? 0))
       total += rows.length
 
-      list.append(machineHead(m))
+      // Une recherche montre ses résultats, même dans un poste replié.
+      const machineOpen = Boolean(query) || !settings.collapsedMachines.includes(m.id)
+      list.append(machineHead(m, machineOpen, () => { toggleMachine(m); paint() }))
+      if (!machineOpen) continue
       if (m.status === 'locked') {
         // Le poste répond, mais ne parle qu'aux appareils appairés (spec §9).
         list.append(h('div.empty', { style: { padding: '12px' } },
@@ -140,18 +144,25 @@ function header({ navigate }) {
   return el
 }
 
-function machineHead(m) {
+/** Ligne de titre d'un poste : toute la ligne replie/déplie, comme un projet. */
+function machineHead(m, open, onToggle) {
   const status = m.status === 'online' ? 'en ligne'
     : m.status === 'connecting' ? 'connexion…'
       : m.status === 'locked' ? 'appairage requis' : 'hors ligne'
-  return h('div.group__head', {},
+  return button('group__head', { 'aria-expanded': String(open), onclick: onToggle },
     h(`span.dot.dot--${m.status === 'online' ? 'live' : 'unknown'}`),
     h('span.group__name', { text: m.info?.name || m.label || m.url }),
     h('span.group__meta', { text: `· ${status}` }),
     m.info?.zedRunning === false ? h('span.group__meta', { text: '· Zed fermé' }) : null,
     h('span.spacer'),
     h('span.group__meta', { text: m.threads.length ? `${m.threads.length}` : '' }),
+    icon(open ? 'chevron-down' : 'chevron-right', 'icon--sm group__chevron'),
   )
+}
+
+function toggleMachine(m) {
+  const rest = settings.collapsedMachines.filter((x) => x !== m.id)
+  updateSettings({ collapsedMachines: rest.length === settings.collapsedMachines.length ? [...rest, m.id] : rest })
 }
 
 /**

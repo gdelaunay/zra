@@ -24,6 +24,8 @@ function load() {
     lastThread: s.lastThread || null,
     /** Projets repliés dans la liste, clé `${machineId}|${projectKey}`. */
     collapsedProjects: Array.isArray(s.collapsedProjects) ? s.collapsedProjects.filter((k) => typeof k === 'string') : [],
+    /** Postes repliés dans la liste, par `machineId`. */
+    collapsedMachines: Array.isArray(s.collapsedMachines) ? s.collapsedMachines.filter((k) => typeof k === 'string') : [],
     /** Jetons d'appairage, par adresse de poste (spec §9). */
     tokens: s.tokens && typeof s.tokens === 'object' ? s.tokens : {},
   }
@@ -32,10 +34,10 @@ function load() {
 export const settings = load()
 
 function persist() {
-  const { machines, theme, clientId, defaultSendMode, showThoughts, expandTools, mock, lastThread, collapsedProjects, tokens } = settings
+  const { machines, theme, clientId, defaultSendMode, showThoughts, expandTools, mock, lastThread, collapsedProjects, collapsedMachines, tokens } = settings
   try {
     localStorage.setItem(KEY, JSON.stringify({
-      machines, theme, clientId, defaultSendMode, showThoughts, expandTools, mock, lastThread, collapsedProjects, tokens,
+      machines, theme, clientId, defaultSendMode, showThoughts, expandTools, mock, lastThread, collapsedProjects, collapsedMachines, tokens,
     }))
   } catch { /* mode privé : on tourne en mémoire */ }
 }

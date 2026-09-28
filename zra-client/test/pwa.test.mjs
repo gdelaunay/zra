@@ -456,6 +456,23 @@ test('un projet se replie sur sa ligne de titre, et le reste après un rendu', a
   assert.equal(ZRA.settings.collapsedProjects.length, 0)
 })
 
+test('un poste se replie sur sa ligne de titre, et le reste après un rendu', async () => {
+  const head = () => $$('.group__head').find((n) => n.textContent.includes('DESK-ZED'))
+  assert.equal(head().getAttribute('aria-expanded'), 'true')
+  click(head())
+  assert.equal(head().getAttribute('aria-expanded'), 'false')
+  assert.equal(projectHead('DESK-ZED', 'zra'), null, 'ni projets ni threads sous le poste replié')
+  assert.ok(projectHead('LAPTOP-ZED', 'zra'), 'l’autre poste reste déplié')
+  assert.deepEqual(ZRA.settings.collapsedMachines, ['mock-desk'], 'repli mémorisé')
+
+  ZRA.render()
+  assert.equal(head().getAttribute('aria-expanded'), 'false')
+
+  click(head())
+  assert.ok(projectHead('DESK-ZED', 'zra'), 'déplié à nouveau')
+  assert.equal(ZRA.settings.collapsedMachines.length, 0)
+})
+
 test('pas de « + » global : la liste n’en a qu’un par projet', () => {
   assert.ok(!$('.header [aria-label="nouvelle session"]'), 'plus de + dans la top bar de la liste')
   const heads = $$('.project__head')
