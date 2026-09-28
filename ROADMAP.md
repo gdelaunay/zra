@@ -2,22 +2,11 @@
 
 ## État
 
-Quatre lots, découpés selon la **dépendance externe** : chaque lot se teste
-avec strictement moins d'environnement que le suivant. Tous sont faits, et
-validés au test réel sur la machine cible.
-
-| Lot | Contenu | Testable avec | État |
-|---|---|---|---|
-| **A** — daemon | index des threads, protocole, WebSocket, config | la fixture SQLite seule | ✅ |
-| **B** — plomberie ACP | shim, streaming, injection, file, permissions, `session/load` | l'agent bouchon, sans Zed | ✅ risques 🔴1 et 🟠2 levés |
-| **C** — pont vers Zed | installation, pilotage clavier, `new_thread`, réouverture, projets fermés | la machine cible | ✅ rounds 1 et 2 ; risques 🟠3 (avéré, contourné) et 🟠6 levés |
-| **D** — déploiement mobile | réseau local, appairage, tunnel, service au logon, HTTPS | le téléphone | ✅ round 3 : tunnel en 5G, changement de réseau, HTTPS derrière reverse proxy, PWA installée et hors ligne, usage complet |
-
-La PWA (`zra-client/`) couvre tout le protocole. Le détail de chaque lot (fichiers,
-décisions, vérifications) et le journal des problèmes corrigés sont dans
-l'historique git : `ROADMAP.md` au commit `ab52aca`. Les décisions qui
-engagent la suite sont dans `SPEC.md` §13, la check-list de re-test dans
-`SPEC.md` §12.
+La v1 est terminée : tout le périmètre de `SPEC.md` §1 fonctionne, vérifié sur
+un poste Windows avec Zed et un téléphone Android, en local, à distance et en
+HTTPS. Les décisions qui engagent la suite sont dans `SPEC.md` §13, la
+check-list de re-test au §12. L'historique détaillé du développement est dans
+git (`ROADMAP.md` au commit `ab52aca`).
 
 ---
 
@@ -33,7 +22,7 @@ Pour coller au plus près du panneau agent de Zed :
 - mise en page des réflexions ;
 - l'icône définitive de l'indicateur de tour (`loader` en attendant).
 
-Relevé au round 3, à l'usage :
+Relevé à l'usage :
 
 - **auto-scroll** : à l'envoi d'un message, descendre en bas du fil pour que
   le stream défile sous les yeux ;
@@ -118,7 +107,7 @@ Le daemon est couplé à un desktop éveillé avec Zed ouvert. Ça limite les ca
 
 ## Relais HTTPS livré avec le client
 
-Round 3. Un client servi en `https://` ne peut ouvrir que des `wss://`
+Un client servi en `https://` ne peut ouvrir que des `wss://`
 (contenu mixte bloqué) : aujourd'hui, chaque poste a besoin de son propre
 proxy host HTTPS (`DEPLOY.md` §4.1). Le but de départ était de taper
 seulement une IP.
@@ -135,6 +124,15 @@ statiques et relaie `wss://zra.exemple.fr/to/<ip>/ws` vers
 - l'appairage reste de bout en bout, entre la PWA et le daemon : le relais ne
   voit passer que des trames ;
 - premier pas vers le broker de la V2.
+
+## Tailscale : réseau et HTTPS sans configuration
+
+Joindre un poste hors du réseau local demande aujourd'hui WireGuard, un
+proxy HTTPS par poste et du routage Docker (`DEPLOY.md` §3.1, §4.1). Tailscale
+donnerait tout ça d'office : IP fixe par appareil, aucun port ouvert, et des
+certificats HTTPS (`*.ts.net`, `tailscale serve` devant `:7777`), ce qui règle
+le contenu mixte sans reverse proxy. À essayer, puis à proposer comme chemin
+par défaut dans `DEPLOY.md`.
 
 ## Version 1 — Homelab (choix actuel, pragmatique)
 
