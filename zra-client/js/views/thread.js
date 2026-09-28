@@ -60,6 +60,7 @@ export function ThreadView({ key, navigate }) {
   const title = h('span.truncate')
   const subtitle = h('span', { title: '' })
   const dot = h('span.dot')
+  const lock = h('span.lock-dot.hidden', { title: 'lecture seule : créé hors ZRA, répondre dans Zed' }, icon('lock', 'icon--sm'))
   const agentSlot = h('span.header__agent')
   const pathLabel = h('span.path.truncate')
 
@@ -101,7 +102,7 @@ export function ThreadView({ key, navigate }) {
   const el = h('div.view',
     h('div.header', {},
       agentSlot,
-      h('div.header__title', {}, dot, title),
+      h('div.header__title', {}, dot, lock, title),
       h('div.header__meta', {}, pathLabel, h('span', { text: '·' }), subtitle),
       // Nouveau thread dans le projet de celui-ci.
       newSessionButton({
@@ -348,7 +349,10 @@ export function ThreadView({ key, navigate }) {
     // Le titre que l'agent annonce en direct devance l'index de Zed (poll 2 s),
     // sauf si l'utilisateur a renommé le thread : son choix prime.
     title.textContent = (!summary.titleOverridden && info.title) || summary.title || 'thread'
-    dot.className = `dot dot--${st.turn === 'busy' ? 'busy' : st.state || 'closed'}`
+    // Comme dans la liste : cadenas à la place de la pastille si lecture seule.
+    const readOnly = Boolean(store.foreignAgent(key))
+    dot.className = `dot dot--${st.turn === 'busy' ? 'busy' : st.state || 'closed'}${readOnly ? ' hidden' : ''}`
+    lock.classList.toggle('hidden', !readOnly)
     const updatedAt = (toMs(info.updatedAt) ?? 0) > (toMs(summary.updatedAt) ?? 0) ? info.updatedAt : summary.updatedAt
     subtitle.textContent = relTime(updatedAt)
     subtitle.title = absTime(updatedAt)
@@ -369,7 +373,8 @@ export function ThreadView({ key, navigate }) {
     if (m.status === 'locked') { msg = `${m.label} : appairage requis — depuis la liste des threads`; level = 'banner--error' }
     else if (m.status !== 'online') { msg = `${m.label} hors ligne — reconnexion automatique`; level = 'banner--error' }
     else if (reopening !== null) msg = 'Zed rouvre le thread…'
-    else if (st.state === 'closed') msg = 'thread fermé — la réponse rouvrira le thread dans Zed (§6.3)'
+    else if (store.foreignAgent(key)) msg = 'lecture seule : thread créé hors ZRA — répondre dans Zed'
+    else if (st.state === 'closed') msg = 'thread fermé — ta réponse le rouvrira dans Zed'
     else if (st.state === 'unknown') msg = 'thread sans session : lecture et écriture indisponibles'
     banner.className = `banner ${level} ${msg ? '' : 'hidden'}`.trim()
     clear(banner)
@@ -662,9 +667,8 @@ function Composer({ key, onSend, onStop }) {
     const foreign = store.foreignAgent(key)
     input.disabled = Boolean(foreign)
     sendBtn.disabled = Boolean(foreign)
-    input.placeholder = foreign
-      ? `Lecture seule : thread « ${foreign} », créé hors ZRA — répondre dans Zed`
-      : 'Répondre à l’agent…'
+    // Le bandeau et le cadenas disent déjà pourquoi : champ grisé, sans texte.
+    input.placeholder = foreign ? '' : 'Répondre à l’agent…'
 
     clear(queueBox)
     // Vide, la file ne prend aucune place : marges du composer symétriques.

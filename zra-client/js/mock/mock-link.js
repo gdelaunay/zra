@@ -14,10 +14,13 @@ import {
 // Libellés renvoyés avec `permission_resolved`, comme le ferait un vrai daemon
 // qui relit les `options` de l'agent.
 // Registry `agent_servers` simulé, tel que le daemon le lira dans settings.json.
+// `claude-zra` passe par le shim, `claude-acp` non : ses threads fermés sont en
+// lecture seule. Gemini et Codex sont simulés comme enveloppés, eux aussi.
 const AGENTS = [
+  { id: 'claude-zra', name: 'Claude (ZRA)', wraps: 'claude-acp' },
   { id: 'claude-acp', name: 'Claude' },
-  { id: 'gemini-acp', name: 'Gemini' },
-  { id: 'codex-acp', name: 'Codex' },
+  { id: 'gemini-acp', name: 'Gemini', wraps: 'gemini-acp' },
+  { id: 'codex-acp', name: 'Codex', wraps: 'codex-acp' },
 ]
 
 const PERMISSION_LABELS = {
@@ -294,7 +297,7 @@ export class MockLink {
         const n = this.threads.length + 1
         const t = {
           threadId: `new${n}${Math.random().toString(36).slice(2, 6)}`,
-          sessionId: `sess-new-${n}`, agentId: 'claude-acp',
+          sessionId: `sess-new-${n}`, agentId: 'claude-zra',
           title: `Thread ouvert depuis Zed #${n}`,
           folderPaths: this.threads[0].folderPaths,
           updatedAt: new Date().toISOString(), archived: false, state: 'live',

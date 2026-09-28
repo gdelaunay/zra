@@ -459,6 +459,23 @@ test('un projet se replie sur sa ligne de titre, et le reste après un rendu', a
   assert.equal(ZRA.settings.collapsedProjects.length, 0)
 })
 
+test('thread créé hors ZRA : cadenas dans la liste, bandeau et composer en lecture seule', async () => {
+  ZRA.navigate('#/')
+  const row = await until(() => $$('.thread-row').find((n) => /avant ZRA/.test(n.textContent)), 3000, 'thread hors ZRA')
+  assert.ok(row.querySelector('.thread-row__lock'), 'cadenas à la place de la pastille')
+  assert.ok(!row.disabled, 'reste consultable')
+  const zraRow = $$('.thread-row').find((n) => /encodage UTF-8/.test(n.textContent))
+  assert.ok(!zraRow.querySelector('.thread-row__lock'), 'un thread ZRA fermé garde sa pastille')
+
+  ZRA.navigate('#/t/mock-laptop/bb88cc11')
+  await until(() => /lecture seule/.test($('.banner')?.textContent || ''), 3000, 'bandeau lecture seule')
+  assert.ok($('.header__title .lock-dot:not(.hidden)'), 'cadenas dans la top bar')
+  assert.ok($('.header__title .dot').classList.contains('hidden'), 'à la place de la pastille')
+  assert.ok($('.composer textarea').disabled)
+  ZRA.navigate('#/')
+  await until(() => $$('.group__head').length === 2, 3000, 'retour à la liste')
+})
+
 test('un poste se replie sur sa ligne de titre, et le reste après un rendu', async () => {
   const head = () => $$('.group__head').find((n) => n.textContent.includes('DESK-ZED'))
   assert.equal(head().getAttribute('aria-expanded'), 'true')

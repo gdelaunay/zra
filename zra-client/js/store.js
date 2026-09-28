@@ -295,10 +295,14 @@ function failEchoes(k, st) {
  */
 export function foreignAgent(k) {
   const st = state.threadStates.get(k)
-  const m = machineOf(k)
-  const agentId = st?.summary?.agentId
+  return st?.summary ? foreignAgentOf(machineOf(k), { ...st.summary, state: st.state }) : null
+}
+
+/** Même règle, sur une ligne de la liste (`threads` du poste). */
+export function foreignAgentOf(m, thread) {
+  const agentId = thread?.agentId
   const agents = m?.info?.agents
-  if (!agentId || !Array.isArray(agents) || st.state === 'live') return null
+  if (!agentId || !Array.isArray(agents) || thread.state === 'live') return null
   return agents.some((a) => a.id === agentId && a.wraps) ? null : agentId
 }
 

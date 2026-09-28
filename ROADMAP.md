@@ -22,16 +22,6 @@ Pour coller au plus près du panneau agent de Zed :
 - mise en page des réflexions ;
 - l'icône définitive de l'indicateur de tour (`loader` en attendant).
 
-Relevé à l'usage :
-
-- **threads en lecture seule** : dans la liste, rien ne distingue un thread
-  `claude-acp` natif (lecture seule une fois fermé) d'un thread `claude-zra`.
-  Les pastilles ne disent que live (verte), fermé (vide) ou sans session (grise,
-  non cliquable). On ne le découvre qu'en ouvrant le thread, et le bandeau
-  y est faux : « thread fermé — la réponse rouvrira le thread dans Zed
-  (§6.3) ». À signaler dès la liste, avec un bandeau juste, et sans renvoi à la
-  spec dans l'interface.
-
 ### Démarrage automatique : une fenêtre PowerShell reste ouverte
 
 La tâche planifiée « ZRA daemon » démarre bien le daemon, mais une fenêtre
@@ -57,7 +47,8 @@ affichée qu'une fenêtre qui flashe.
 
 Les threads d'un agent que ZRA n'enveloppe pas (`claude-acp`, créés avant ZRA)
 se lisent mais ne s'écrivent pas une fois fermés : Zed les rouvre avec l'agent
-d'origine, sans shim (`not_zra_thread`). Piste : voir « Tous les threads par le
+d'origine, sans shim (`not_zra_thread`). La PWA le signale (cadenas à la place
+de la pastille, bandeau dans le thread). Piste : voir « Tous les threads par le
 shim » ci-dessous.
 
 -----

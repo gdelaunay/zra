@@ -13,21 +13,21 @@ export const MACHINES = {
     version: '0.1.0-mock',
     threads: [
       {
-        threadId: 'a1f39c0b', sessionId: 'sess-live-1', agentId: 'claude-acp',
+        threadId: 'a1f39c0b', sessionId: 'sess-live-1', agentId: 'claude-zra',
         title: "Refactor du lecteur d'index SQLite",
         folderPaths: ['C:/Users/gd/Documents/Développement/zra'],
         projectOpen: true,
         updatedAt: ago(30_000), archived: false, state: 'live',
       },
       {
-        threadId: 'b7c2e441', sessionId: 'sess-live-2', agentId: 'claude-acp',
+        threadId: 'b7c2e441', sessionId: 'sess-live-2', agentId: 'claude-zra',
         title: "Ajouter les tests de la file d'attente",
         folderPaths: ['C:/Users/gd/Documents/Développement/zra'],
         projectOpen: true,
         updatedAt: ago(14 * MIN), archived: false, state: 'live',
       },
       {
-        threadId: 'c0d81e77', sessionId: 'sess-closed-1', agentId: 'claude-acp',
+        threadId: 'c0d81e77', sessionId: 'sess-closed-1', agentId: 'claude-zra',
         title: 'Bug : encodage UTF-8 des folder_paths',
         folderPaths: ['C:/Users/gd/Documents/Développement/zra'],
         projectOpen: true,
@@ -42,7 +42,7 @@ export const MACHINES = {
       },
       {
         // Archivé dans Zed : masqué par défaut, visible sous le filtre « Archivés ».
-        threadId: 'f7a2e0d4', sessionId: 'sess-archived', agentId: 'claude-acp',
+        threadId: 'f7a2e0d4', sessionId: 'sess-archived', agentId: 'claude-zra',
         title: 'Ancien essai : injection au clavier',
         folderPaths: ['C:/Users/gd/Documents/Développement/zra'],
         projectOpen: true,
@@ -64,7 +64,7 @@ export const MACHINES = {
     version: '0.1.0-mock',
     threads: [
       {
-        threadId: 'f1029384', sessionId: 'sess-live-3', agentId: 'claude-acp',
+        threadId: 'f1029384', sessionId: 'sess-live-3', agentId: 'claude-zra',
         title: 'Portage du daemon sur Node 22',
         folderPaths: ['D:/src/zra'],
         projectOpen: true,
@@ -76,6 +76,14 @@ export const MACHINES = {
         folderPaths: ['D:/src/zra', 'D:/src/notes'],
         projectOpen: false,
         updatedAt: ago(6 * DAY), archived: false, state: 'closed',
+      },
+      {
+        // Créé avant ZRA, avec l'agent d'origine : consultable, pas modifiable.
+        threadId: 'bb88cc11', sessionId: 'sess-closed-4', agentId: 'claude-acp',
+        title: 'Premier essai, avant ZRA',
+        folderPaths: ['D:/src/zra'],
+        projectOpen: true,
+        updatedAt: ago(9 * DAY), archived: false, state: 'closed',
       },
     ],
   },
@@ -231,6 +239,10 @@ const HISTORIES = {
   b7c2e441: [
     userChunk("Écris les tests de la machine à états de la file d'attente."),
     agentChunk("J'ai ajouté `test/queue.test.ts` : 6 cas couvrant `queue`, `interrupt` et la perte de file.\n"),
+  ],
+  bb88cc11: [
+    userChunk('Liste les threads de Zed depuis sa base SQLite.'),
+    agentChunk('La table `sidebar_threads` contient tout ce qu’il faut : titre, dossiers, date.\n'),
   ],
 }
 

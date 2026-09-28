@@ -268,6 +268,11 @@ button { cursor: pointer; }
 .thread-row--unknown { opacity: .45; }
 .thread-row--unknown:hover { background: none; cursor: default; }
 .thread-row__dot { margin-top: 6px; }
+/* Cadenas à la place de la pastille (thread en lecture seule) : même emprise
+   (7px), même centre. */
+.lock-dot { flex: none; width: 7px; display: flex; justify-content: center; color: var(--text-muted); }
+.lock-dot .icon { width: 10px; height: 10px; }
+.thread-row__lock { margin-top: 4.5px; }
 .thread-row__body { min-width: 0; flex: 1; }
 /* En bloc : sur un span inline, l'ellipse ne s'applique pas et le titre
    déborde sous l'icône de l'agent. */
