@@ -481,6 +481,12 @@ export class Hub {
     const msg = { type: 'permission_resolved', threadId, requestId, optionId, by }
     if (optionName) msg.optionName = optionName
     this.broadcastToSubs(threadId, msg)
+    // La demande est dans le ring : sa réponse aussi, sinon un réabonnement ou
+    // un historique (rechargement de la PWA) la rejoue comme encore ouverte.
+    this.publish(threadId, {
+      sessionUpdate: 'zra/permission_resolved', requestId, optionId, by,
+      ...(optionName ? { optionName } : {}),
+    })
   }
 
   /** Shim mort ou requête trop tardive : l'encart passe en lecture seule (§6.6). */

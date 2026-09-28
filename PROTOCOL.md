@@ -460,6 +460,19 @@ le bloc. La PWA repeint tous les tool calls qui référencent ce `terminalId`.
 Message du daemon inséré dans le fil : « tour interrompu », « Zed a fermé
 l'agent : file d'attente perdue »… Rendu en ligne système discrète.
 
+### `zra/permission_resolved`
+```ts
+{
+  sessionUpdate: 'zra/permission_resolved', requestId: string,
+  optionId: string, optionName?: string, by: 'mobile' | 'desktop',
+}
+```
+Double de `permission_resolved`, inscrit dans le ring buffer à la suite de la
+demande. Le message direct verrouille l'encart sur le moment ; celui-ci le
+verrouille aussi au rejeu d'un `subscribe` et dans l'historique d'un thread
+vivant, sans quoi une PWA rechargée réafficherait la demande comme ouverte.
+Les deux sont idempotents.
+
 ---
 
 ## 6. Invariants attendus du daemon

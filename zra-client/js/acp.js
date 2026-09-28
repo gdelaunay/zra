@@ -83,6 +83,10 @@ export class Timeline {
         return this.terminalOutput(update)
       case 'zra/notice':
         return [this.push({ type: 'notice', text: update.text, level: update.level || 'info', at: meta.at })]
+      case 'zra/permission_resolved':
+        return this.resolvePermission(update.requestId, {
+          optionId: update.optionId, optionName: update.optionName, by: update.by || 'desktop',
+        })
 
       default:
         // Demande de permission : arrive comme requête ACP, pas comme notification.

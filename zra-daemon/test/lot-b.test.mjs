@@ -420,6 +420,17 @@ test('permission : le mobile tranche, permission_resolved by mobile', async (t) 
     (m) => m.type === 'acp_event' && m.update.sessionUpdate === 'tool_call_update' && m.update.status === 'completed',
     { label: 'reprise du tour' },
   )
+
+  // PWA rechargée : le rejeu du ring rend la demande, puis sa réponse.
+  const fresh = await (await Client.open(t)).hello()
+  await subscribe(fresh, VIVANT)
+  const rejeu = await fresh.until(
+    (m) => m.type === 'acp_event' && m.update.sessionUpdate === 'zra/permission_resolved',
+    { label: 'réponse rejouée' },
+  )
+  assert.equal(rejeu.update.requestId, demande.update.requestId)
+  assert.equal(rejeu.update.optionId, 'allow')
+  assert.equal(rejeu.update.by, 'mobile')
 })
 
 test('permission : le poste tranche en premier, by desktop puis permission_expired', async (t) => {

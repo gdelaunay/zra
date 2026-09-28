@@ -113,6 +113,18 @@ test('permission : le poste peut trancher le premier, la réponse mobile ne ré�
   assert.equal(tl.entries[0].by, 'desktop')
 })
 
+test('permission : la réponse rejouée depuis le ring verrouille l’encart', () => {
+  // Rechargement de la PWA : l'historique rend la demande, puis sa réponse.
+  const tl = new Timeline()
+  tl.apply({ requestId: 'p1', toolCall: { title: 'x' }, options: [{ optionId: 'allow', name: 'Autoriser' }] })
+  const changes = tl.apply({ sessionUpdate: 'zra/permission_resolved', requestId: 'p1', optionId: 'allow', by: 'mobile' })
+  assert.equal(changes.length, 1)
+  assert.equal(tl.entries.length, 1, 'aucun bloc brut en plus')
+  assert.equal(tl.entries[0].resolved, true)
+  assert.equal(tl.entries[0].pendingOptionId, 'allow')
+  assert.equal(tl.pendingPermissions().length, 0)
+})
+
 test('permission : requestId inconnu ignoré sans casser', () => {
   const tl = new Timeline()
   assert.deepEqual(tl.resolvePermission('jamais-vu', { optionId: 'ok' }), [])

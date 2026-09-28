@@ -27,8 +27,6 @@ Relevé à l'usage :
 - **auto-scroll** : à l'envoi d'un message, descendre en bas du fil pour que
   le stream défile sous les yeux ;
 - **titre des threads** : il déborde, le texte n'est pas coupé proprement ;
-- **permission répondue, oubliée au rechargement** : après avoir accepté une
-  permission, un Ctrl+F5 sur la PWA la réaffiche comme non répondue ;
 - **threads en lecture seule** : dans la liste, rien ne distingue un thread
   `claude-acp` natif (lecture seule une fois fermé) d'un thread `claude-zra`.
   Les pastilles ne disent que live (verte), fermé (vide) ou sans session (grise,
