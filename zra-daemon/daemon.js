@@ -278,8 +278,10 @@ export async function startDaemon(config) {
   } else {
     log.warn('appairage désactivé (auth.required: false) : tout client du réseau local pilote ce poste')
   }
-  if (!servers.secure) {
-    log.warn('HTTP en clair : pas de service worker, pas d’installation PWA, pas de Web Push (contexte non sécurisé)')
+  // Derrière un reverse proxy HTTPS (DEPLOY.md §4.1), le daemon parle HTTP
+  // mais la PWA est servie en HTTPS : rien ne manque, rien à signaler.
+  if (!servers.secure && !servers.allowedOrigins.some((o) => o.startsWith('https://'))) {
+    log.warn('HTTP sans reverse proxy HTTPS : la PWA ne s’installe pas et ne marche pas hors ligne (DEPLOY.md §4.1)')
   }
 
   return {

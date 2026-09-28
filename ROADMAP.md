@@ -45,13 +45,6 @@ lanceur `wscript` (`.vbs`), ou lancer `node` directement, sans PowerShell.
 Si on ne peut pas la masquer proprement, mieux vaut une fenêtre qui reste
 affichée qu'une fenêtre qui flashe.
 
-### Derrière un proxy HTTPS : avertissement « HTTP en clair » trompeur
-
-Au démarrage, le daemon sans `tls` avertit « HTTP en clair : pas de service
-worker, pas d'installation PWA… ». C'est faux quand il est derrière un reverse
-proxy HTTPS (`DEPLOY.md` §4.1) : la PWA s'installe et fonctionne hors ligne. À
-reformuler, ou à taire quand `allowedOrigins` contient une origine `https://`.
-
 ### À confirmer à l'usage
 
 - **désynchronisation mobile** (Edge : stream arrêté, message bloqué « envoi en
