@@ -1,7 +1,6 @@
 # ZRA — mise en service sur le téléphone
 
-Jusqu'ici tout tournait en local (`npm run daemon:dev`, PWA sur `localhost`).
-Ce document est le chemin **téléphone → poste**, dans l'ordre. Les scripts ZRA
+Le chemin **téléphone → poste**, dans l'ordre. Les scripts ZRA
 n'installent jamais rien : ils affichent ce qui serait fait, et agissent avec
 `--apply` ; les étapes marquées **admin** demandent une PowerShell administrateur.
 
@@ -91,7 +90,32 @@ change après 20 échecs.
 
 Un portable qui change de réseau (maison, bureau) change d'IP : dans la PWA,
 ce sont deux adresses, donc deux postes à ajouter — l'un hors ligne quand on
-est sur l'autre réseau.
+est sur l'autre réseau. Pour une seule adresse partout : §3.1.
+
+### 3.1 Poste hors du réseau local : le mettre sur le VPN
+
+Le poste rejoint le **même VPN** que le téléphone, et on le vise par son **IP
+VPN** : fixe, quel que soit le réseau où il se trouve (bureau, partage de
+connexion). Le daemon écoute l'interface du tunnel d'office (le journal
+l'annonce : « écoute http://10.8.0.3:7777 »).
+
+**Le plus simple : Tailscale** (ou ZeroTier). Poste et téléphone dans le même
+tailnet, chacun a son IP `100.x` fixe, sans port ouvert ni configuration. Non
+essayé avec ZRA.
+
+**Avec WireGuard (wg-easy)**. Dans la config du poste :
+
+- `AllowedIPs` : le sous-réseau VPN (`10.8.0.0/24`), plus celui du proxy
+  HTTPS s'il n'est pas dans le VPN. Tout ce qui n'y est pas est rejeté, même
+  avec un handshake OK ;
+- `PersistentKeepalive = 25` : c'est le proxy qui ouvre la connexion vers le
+  poste, et sans keepalive un poste derrière une box redevient injoignable.
+
+Si wg-easy tourne dans Docker en réseau `bridge`, `10.8.0.0/24` n'existe que
+dans son conteneur : l'hôte du proxy doit savoir y router (`ip route … via
+<IP du conteneur>`, à rendre persistante), ou wg-easy passe en
+`network_mode: host`. Test depuis le serveur du proxy :
+`curl http://10.8.0.3:7777/` doit répondre du HTML.
 
 **Installer sur l'écran d'accueil** demande HTTPS (§4). En HTTP, tout
 fonctionne (lecture, envoi, permissions, streaming) sauf l'installation, l'app
@@ -108,7 +132,7 @@ joint en HTTPS aussi. Deux façons d'y arriver.
 ### 4.1 Derrière un reverse proxy (recommandé avec un homelab)
 
 Le homelab porte le HTTPS, les postes restent en HTTP sur le réseau local ou
-le tunnel. Exemple validé au round 3 avec Nginx Proxy Manager et un certificat
+le tunnel. Exemple avec Nginx Proxy Manager et un certificat
 wildcard déjà en place :
 
 - proxy host `zra.exemple.fr` → le client statique servi sur le homelab
@@ -126,8 +150,8 @@ wildcard déjà en place :
 Aucun certificat sur les postes. Un sous-chemin par poste sur un seul domaine
 (Custom Location NPM `/dell/`) n'a pas marché : NPM transmet le chemin tel
 quel, et le daemon répond « introuvable ». Le sous-domaine évite le problème.
-Limite : le proxy vise une IP fixe. Si le poste change de réseau, son adresse
-`http://` directe reste utilisable.
+Le proxy vise une IP fixe : celle du poste sur le VPN (§3.1), pour qu'il reste
+joignable quel que soit son réseau.
 
 ### 4.2 Certificat sur le daemon
 

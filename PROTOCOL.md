@@ -338,7 +338,7 @@ chose : reconnaître un événement reçu deux fois — par le rejeu du `subscri
 et par l'`history` (voir `until`).
 
 **Le message de l'utilisateur.** L'agent ne le renvoie pas en direct
-(`claude-agent-acp` ne le rejoue qu'au `session/load`, relevé au test réel).
+(`claude-agent-acp` ne le rejoue qu'au `session/load`).
 Le shim publie donc lui-même un `user_message_chunk` pour chaque prompt qu'il
 voit passer, qu'il vienne de Zed ou du mobile, en reprenant les blocs du prompt
 tels quels. C'est la seule trame fabriquée par ZRA, et elle le dit :
@@ -587,8 +587,8 @@ Pour le piloter depuis la PWA : servir `zra-client/` (par le daemon en dev, ou
 par un hébergeur), puis ajouter l'adresse du poste dans Réglages → Postes, et
 vérifier dans l'ordre `machine` → `threads` → `thread_state` → `acp_event`.
 
-Côté bouchon, `zra-client/test/mock-daemon.test.mjs` couvre ce que le lot A ne
-fournit pas encore : historique, agent sans `loadSession`, perte du shim,
+Côté bouchon, `zra-client/test/mock-daemon.test.mjs` couvre des cas difficiles à
+provoquer avec un vrai agent : historique, agent sans `loadSession`, perte du shim,
 permission acceptée/refusée, nouvelle session.
 
 Pendant la mise au point, `ZRA_RECORD=1` côté shim (§10.3) produit un JSONL de
