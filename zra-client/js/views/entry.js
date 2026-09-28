@@ -307,14 +307,13 @@ function permissionCard(entry, ctx) {
       o.name || o.optionId)
   })
 
-  let note
+  // Seule la réponse compte, pas son origine : le spinner puis la coche sur
+  // l'option suffisent. La note ne reste que si aucune option ne porte la
+  // réponse, ou si le thread est injoignable.
+  let note = null
   if (entry.resolved) {
-    note = entry.by === 'desktop'
-      ? `tranché sur le poste : ${entry.outcome}`
-      : `répondu depuis le mobile : ${entry.outcome}`
-  } else if (sent) note = 'réponse envoyée, en attente de confirmation…'
-  else if (!ctx.canRespond) note = 'thread injoignable — à traiter sur le poste'
-  else note = "l'agent attend une réponse"
+    if (!(entry.options || []).some((o) => o.optionId === entry.pendingOptionId)) note = `réponse : ${entry.outcome}`
+  } else if (!sent && !ctx.canRespond) note = 'thread injoignable — à traiter sur le poste'
 
   const root = h(`div.perm${entry.resolved ? '.perm--done' : ''}`,
     h('div.perm__head', icon('shield', 'icon--sm'), h('span', { text: 'Autorisation demandée' }),
@@ -323,7 +322,7 @@ function permissionCard(entry, ctx) {
     h('div.perm__body',
       h('div.md', { html: inlineTitle(entry.toolCall?.title || 'action') }),
       h('div.perm__options', ...options),
-      h('div.perm__note', { text: note }),
+      note ? h('div.perm__note', { text: note }) : null,
     ),
   )
   return root

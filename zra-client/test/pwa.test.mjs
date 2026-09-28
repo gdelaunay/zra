@@ -298,16 +298,18 @@ test('permission : répondue depuis le mobile, le tour reprend', async () => {
   })
   await until(() => $('.perm'), 5000, 'encart permission')
   assert.ok($$('.perm__options .btn').every((b) => !b.disabled), 'les options sont cliquables')
-  assert.match($('.perm__note').textContent, /attend une réponse/)
+  assert.ok(!$('.perm__note'), 'pas de note tant que l’agent attend')
   assert.equal(ZRA.store.ensureState(key).turn, 'busy', "l'agent reste bloqué sur sa requête")
 
   const allow = $$('.perm__options .btn').find((b) => /une fois/i.test(b.textContent))
   click(allow)
   // Verrouillage optimiste, peint à la frame suivante. Le bouchon confirme
   // presque aussitôt : sous charge, on peut ne voir que l'état d'après.
-  await until(() => /réponse envoyée|répondu depuis le mobile/.test($('.perm__note').textContent), 2000, 'verrouillage optimiste')
+  await until(() => $('.perm .spin') || $('.perm--done'), 2000, 'verrouillage optimiste')
+  assert.ok(!$('.perm__note'), 'pas de note pendant l’envoi : le spinner suffit')
   assert.ok(ZRA.store.ensureTimeline(key).entries.some((e) => e.type === 'permission' && e.pendingOptionId === 'allow-once'))
-  await until(() => /répondu depuis le mobile/.test($('.perm__note').textContent), 3000, 'confirmation du daemon')
+  await until(() => $('.perm--done'), 3000, 'confirmation du daemon')
+  assert.ok(!$('.perm__note'), 'tranchée : l’option cochée suffit, sans note d’origine')
   assert.ok($$('.perm__options .btn').every((b) => b.disabled || /une fois/i.test(b.textContent)))
 
   // la suite du tour arrive : l'outil s'exécute pour de bon
@@ -323,7 +325,8 @@ test('permission : un refus est relayé tel quel', async () => {
   await until(() => $$('.perm').length > before, 5000, 'nouvel encart')
   const reject = () => [...$$('.perm').pop().querySelectorAll('.btn')].find((b) => /refuser/i.test(b.textContent))
   click(reject())
-  await until(() => /répondu depuis le mobile : Refuser/.test($$('.perm').pop().textContent), 4000, 'refus confirmé')
+  await until(() => $$('.perm').pop().classList.contains('perm--done'), 4000, 'refus confirmé')
+  assert.ok(!reject().disabled && reject().querySelector('svg, .icon'), 'le refus est l’option cochée')
   await until(() => /je ne pousse pas/.test(doc.body.textContent), 5000, 'réponse de l’agent')
   assert.ok($$('.tool--failed').length >= 1, 'le tool call est marqué en échec')
 })

@@ -27,10 +27,6 @@ Relevé à l'usage :
 - **auto-scroll** : à l'envoi d'un message, descendre en bas du fil pour que
   le stream défile sous les yeux ;
 - **titre des threads** : il déborde, le texte n'est pas coupé proprement ;
-- **libellés de permission** : retirer « répondu depuis le mobile : … » et
-  « l'agent attend une réponse ». L'origine de la réponse n'intéresse personne,
-  seule la réponse compte, et un bloc de permission ouvert dit déjà qu'on
-  attend ;
 - **permission répondue, oubliée au rechargement** : après avoir accepté une
   permission, un Ctrl+F5 sur la PWA la réaffiche comme non répondue ;
 - **threads en lecture seule** : dans la liste, rien ne distingue un thread
