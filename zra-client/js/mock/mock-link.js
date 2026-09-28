@@ -22,7 +22,7 @@ const AGENTS = [
 
 const PERMISSION_LABELS = {
   'allow-once': 'Autoriser une fois',
-  'allow-always': 'Toujours autoriser',
+  'allow-always': "Yes, and don't ask again for `node --no-warnings --test zra-client/test/pwa.test.mjs zra-daemon/test/protocol.test.mjs` commands in C:\\Users\\dev\\Documents\\Développement\\zra",
   reject: 'Refuser',
 }
 

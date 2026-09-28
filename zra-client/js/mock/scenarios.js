@@ -147,7 +147,7 @@ export const permission = (o) => ({
   toolCall: o.toolCall,
   options: o.options || [
     { optionId: 'allow-once', name: 'Autoriser une fois', kind: 'allow_once' },
-    { optionId: 'allow-always', name: 'Toujours autoriser', kind: 'allow_always' },
+    { optionId: 'allow-always', name: "Yes, and don't ask again for `node --no-warnings --test zra-client/test/pwa.test.mjs zra-daemon/test/protocol.test.mjs` commands in C:\\Users\\dev\\Documents\\Développement\\zra", kind: 'allow_always' },
     { optionId: 'reject', name: 'Refuser', kind: 'reject_once' },
   ],
 })

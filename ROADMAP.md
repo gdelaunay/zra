@@ -26,11 +26,20 @@ Relevé à l'usage :
 
 - **auto-scroll** : à l'envoi d'un message, descendre en bas du fil pour que
   le stream défile sous les yeux ;
-- **permission** : le bouton « Yes, and don't ask again for … » déborde de son
-  bloc parent ;
 - **titre des threads** : il déborde, le texte n'est pas coupé proprement ;
-- **permission tranchée** : retirer le libellé « répondu depuis le mobile : … ».
-  L'origine de la réponse n'intéresse personne, seule la réponse compte.
+- **libellés de permission** : retirer « répondu depuis le mobile : … » et
+  « l'agent attend une réponse ». L'origine de la réponse n'intéresse personne,
+  seule la réponse compte, et un bloc de permission ouvert dit déjà qu'on
+  attend ;
+- **permission répondue, oubliée au rechargement** : après avoir accepté une
+  permission, un Ctrl+F5 sur la PWA la réaffiche comme non répondue ;
+- **threads en lecture seule** : dans la liste, rien ne distingue un thread
+  `claude-acp` natif (lecture seule une fois fermé) d'un thread `claude-zra`.
+  Les pastilles ne disent que live (verte), fermé (vide) ou sans session (grise,
+  non cliquable). On ne le découvre qu'en ouvrant le thread, et le bandeau
+  y est faux : « thread fermé — la réponse rouvrira le thread dans Zed
+  (§6.3) ». À signaler dès la liste, avec un bandeau juste, et sans renvoi à la
+  spec dans l'interface.
 
 ### Démarrage automatique : une fenêtre PowerShell reste ouverte
 

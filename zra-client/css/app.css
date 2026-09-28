@@ -446,6 +446,13 @@ button { cursor: pointer; }
 }
 .perm__body { padding: 0 var(--sp-4) var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-3); }
 .perm__options { display: flex; flex-wrap: wrap; gap: var(--sp-3); }
+/* Un libellé long (« Yes, and don't ask again for … ») passe à la ligne
+   plutôt que de déborder du bloc. */
+.perm__options .btn {
+  max-width: 100%; height: auto; min-height: 24px;
+  padding-block: var(--sp-1); white-space: normal; text-align: left;
+  overflow-wrap: anywhere;
+}
 .perm__note { font-size: var(--fs-xs); color: var(--text-muted); }
 .perm--done { border-color: var(--border-variant); background: var(--element-background); }
 .perm--done .perm__head { color: var(--text-muted); }
