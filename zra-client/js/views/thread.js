@@ -73,6 +73,9 @@ export function ThreadView({ key, navigate }) {
       // Répondre à un thread fermé : Zed le rouvre au clavier, ce qui prend
       // quelques secondes. Le bandeau le dit jusqu'au retour du thread (ou l'échec).
       if (st.state === 'closed') startReopen()
+      // Envoyer, c'est vouloir lire la réponse : le fil se recolle en bas et
+      // suit le stream, même si on était remonté dans l'historique.
+      if (settings.scrollOnSend) { stick = true; jump.classList.add('hidden'); scrollToEnd() }
       store.sendMessage(key, text, mode)
     },
     onStop: stopTurn,

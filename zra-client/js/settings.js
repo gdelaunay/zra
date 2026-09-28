@@ -20,6 +20,7 @@ function load() {
     defaultSendMode: s.defaultSendMode === 'interrupt' ? 'interrupt' : 'queue',
     showThoughts: s.showThoughts !== false,
     expandTools: s.expandTools === true,
+    scrollOnSend: s.scrollOnSend !== false,
     mock: s.mock === true,
     lastThread: s.lastThread || null,
     /** Projets repliés dans la liste, clé `${machineId}|${projectKey}`. */
@@ -34,10 +35,10 @@ function load() {
 export const settings = load()
 
 function persist() {
-  const { machines, theme, clientId, defaultSendMode, showThoughts, expandTools, mock, lastThread, collapsedProjects, collapsedMachines, tokens } = settings
+  const { machines, theme, clientId, defaultSendMode, showThoughts, expandTools, scrollOnSend, mock, lastThread, collapsedProjects, collapsedMachines, tokens } = settings
   try {
     localStorage.setItem(KEY, JSON.stringify({
-      machines, theme, clientId, defaultSendMode, showThoughts, expandTools, mock, lastThread, collapsedProjects, collapsedMachines, tokens,
+      machines, theme, clientId, defaultSendMode, showThoughts, expandTools, scrollOnSend, mock, lastThread, collapsedProjects, collapsedMachines, tokens,
     }))
   } catch { /* mode privé : on tourne en mémoire */ }
 }

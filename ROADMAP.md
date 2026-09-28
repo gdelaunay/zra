@@ -24,8 +24,6 @@ Pour coller au plus près du panneau agent de Zed :
 
 Relevé à l'usage :
 
-- **auto-scroll** : à l'envoi d'un message, descendre en bas du fil pour que
-  le stream défile sous les yeux ;
 - **threads en lecture seule** : dans la liste, rien ne distingue un thread
   `claude-acp` natif (lecture seule une fois fermé) d'un thread `claude-zra`.
   Les pastilles ne disent que live (verte), fermé (vide) ou sans session (grise,
@@ -50,7 +48,10 @@ affichée qu'une fenêtre qui flashe.
 - **désynchronisation mobile** (Edge : stream arrêté, message bloqué « envoi en
   cours ») : corrigée par l'ordre `hello` → file → réabonnement, un heartbeat
   `ping`/`pong` toutes les 15 s, et un rechargement de l'historique à la
-  reconnexion (`zra-client/js/link.js`, `store.js`).
+  reconnexion (`zra-client/js/link.js`, `store.js`) ;
+- **auto-scroll à l'envoi** : réglage « Descendre en bas du fil à l'envoi d'un
+  message », actif par défaut. C'est le comportement de Zed : si on ne le
+  décoche jamais, supprimer le réglage et le rendre permanent.
 
 ### Threads créés hors ZRA : lecture seule
 
