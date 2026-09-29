@@ -48,6 +48,8 @@ function render() {
 
   currentView = view
   app.append(view.el)
+  // Ce qui dépend de la mise en page (défilement) attend que la vue soit dans le document.
+  view.mounted?.()
   currentDev = DevBar({ currentKey: () => currentKey })
   app.append(currentDev.el)
 

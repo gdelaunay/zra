@@ -628,6 +628,32 @@ test('load_history sur un thread live : le ring, sans relancer l’agent, borné
   assert.ok(replayed.every((e) => typeof e.seq === 'number' && e.seq <= history.until))
 })
 
+test('retour sur un thread (`since`) : la suite seulement, l’historique si le ring l’a perdue', async (t) => {
+  const daemon = await boot(t)
+  daemon.loader.load = () => { throw new Error('un thread live ne doit pas relancer l’agent') }
+  const { zed } = await startShim(t)
+  const client = await (await Client.open(t)).hello()
+  await subscribe(client, VIVANT)
+  await zed.prompt('premier')
+  const seen = await client.until((m) => m.type === 'acp_event' && m.update.content?.text === 'reçu : premier', { label: 'premier tour' })
+
+  client.send({ type: 'unsubscribe', threadId: VIVANT })
+  await zed.prompt('pendant l’absence')
+  await wait(150)
+  client.clear()
+  client.send({ type: 'subscribe', threadId: VIVANT, since: seen.seq })
+  await client.until((m) => m.type === 'acp_event' && m.update.content?.text === 'reçu : pendant l’absence', { label: 'rattrapage' })
+  assert.deepEqual(client.events(VIVANT).map((u) => u.content?.text).filter(Boolean), ['pendant l’absence', 'reçu : pendant l’absence'])
+
+  // Position inconnue du ring (autre instance du daemon) : l'historique, pas le rejeu.
+  client.send({ type: 'unsubscribe', threadId: VIVANT })
+  client.clear()
+  client.send({ type: 'subscribe', threadId: VIVANT, since: 1 })
+  const history = await client.until((m) => m.type === 'history', { label: 'historique' })
+  assert.ok(history.updates.some((u) => u.content?.text === 'reçu : premier'))
+  assert.equal(client.of('acp_event').length, 0)
+})
+
 test('Zed recharge la session : les abonnés repartent d’un historique vide, le ring aussi', async (t) => {
   const daemon = await boot(t)
   const { zed } = await startShim(t)

@@ -107,7 +107,7 @@ export class Hub {
         return
 
       case 'subscribe':
-        return this.subscribe(client, msg.threadId)
+        return this.subscribe(client, msg.threadId, msg.since)
 
       case 'unsubscribe':
         client.subs.delete(msg.threadId)
@@ -205,13 +205,19 @@ export class Hub {
     }
   }
 
-  /** Idempotent : un `subscribe` rejoué à la reconnexion doit être inoffensif. */
-  subscribe(client, threadId) {
+  /**
+   * Idempotent : un `subscribe` rejoué à la reconnexion doit être inoffensif.
+   * `since` : le client a déjà tout jusqu'à ce `seq`. Il ne reçoit que la
+   * suite, ou l'historique si le ring ne peut plus la lui donner.
+   */
+  subscribe(client, threadId, since) {
     const thread = this.threads.get(threadId)
     if (!thread) return this.error(client.conn, 'unknown_thread', 'thread inconnu de cet index', threadId)
     client.subs.add(threadId)
     client.conn.send(this.states.snapshot(threadId, { state: thread.state }))
-    for (const event of this.rings.read(threadId)) {
+    const events = Number.isSafeInteger(since) ? this.rings.since(threadId, since) : this.rings.read(threadId)
+    if (!events) return this.loadHistory(client.conn, threadId)
+    for (const event of events) {
       client.conn.send({ type: 'acp_event', threadId, ...event })
     }
   }
@@ -238,7 +244,7 @@ export class Hub {
         type: 'history', threadId,
         updates: events.map((e) => e.update),
         complete: !this.rings.truncated(threadId),
-        until: events.at(-1)?.seq ?? 0,
+        until: this.rings.cursor(),
       })
       return
     }
@@ -250,7 +256,7 @@ export class Hub {
     // `until` : ce que le ring contenait au lancement de la relecture est dans
     // le replay. La PWA écarte ces événements s'ils lui sont aussi parvenus en
     // direct, sans quoi elle les afficherait deux fois.
-    const until = this.rings.lastSeq(threadId)
+    const until = this.rings.cursor()
     try {
       const { updates, complete } = await this.loader.load(threadId)
       conn.send({ type: 'history', threadId, updates, complete, until })
@@ -462,7 +468,7 @@ export class Hub {
    * conversation s'afficherait une seconde fois à la suite de la première.
    */
   restart(threadId) {
-    const until = this.rings.lastSeq(threadId)
+    const until = this.rings.cursor()
     this.rings.clear(threadId)
     this.broadcastToSubs(threadId, { type: 'history', threadId, updates: [], complete: true, until })
   }

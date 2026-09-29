@@ -177,6 +177,7 @@ function handle(machine, msg) {
       const st = ensureState(k)
       if (st.historyPending) { st.buffer.push({ update: msg.update, at: msg.at, seq: msg.seq }); break }
       applyToTimeline(k, msg.update, { at: msg.at })
+      if (typeof msg.seq === 'number') st.seq = msg.seq
       break
     }
 
@@ -192,9 +193,11 @@ function handle(machine, msg) {
       // `until` : dernier événement que l'historique contient déjà. Ce qui a été
       // reçu en direct jusque-là (rejeu du `subscribe`) ferait doublon.
       const until = typeof msg.until === 'number' ? msg.until : null
+      st.seq = until
       for (const ev of st.buffer.splice(0)) {
         if (until !== null && typeof ev.seq === 'number' && ev.seq <= until) continue
         tl.apply(ev.update, { at: ev.at })
+        if (typeof ev.seq === 'number') st.seq = ev.seq
       }
       // Les échos locaux pointaient dans l'ancienne timeline : le message
       // publié par le shim est dans l'historique, ou arrivera en direct.
@@ -327,6 +330,8 @@ export function ensureState(k) {
       historyPending: false,
       historyComplete: false,
       historyError: null,
+      /** `seq` jusqu'auquel la timeline est à jour, `null` si inconnu (`subscribe.since`). */
+      seq: null,
       buffer: [],
       localEchoes: [],
     }
@@ -374,7 +379,9 @@ export function openThread(k) {
   const { threadId } = splitKey(k)
   if (!st.subscribed) {
     st.subscribed = true
-    m.link.send({ type: 'subscribe', threadId })
+    // Timeline déjà en mémoire : seulement la suite, pas un second rejeu du ring.
+    const since = st.historyComplete && st.seq !== null ? { since: st.seq } : {}
+    m.link.send({ type: 'subscribe', threadId, ...since })
   }
   ensureTimeline(k)
   if (!st.historyComplete && !st.historyPending) loadHistory(k)

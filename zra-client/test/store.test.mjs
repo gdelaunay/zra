@@ -110,6 +110,29 @@ test('reconnexion : le thread ouvert repart de l’historique, sans doublon du r
   assert.deepEqual(texts(k), ['agent:avant la coupure et après'])
 })
 
+test('retour sur un thread : réabonnement avec `since`, la timeline n’est pas rejouée', () => {
+  const k = 'mock-desk/thread-retour'
+  const sent = []
+  const send = machine.link.send
+  machine.link.send = (msg) => { sent.push(msg); return true }
+  try {
+    store.openThread(k)
+    deliver({ type: 'history', threadId: 'thread-retour', complete: true, until: 40, updates: [user('question', 'zed')] })
+    deliver({ type: 'acp_event', threadId: 'thread-retour', seq: 41, update: chunk('réponse') })
+    store.closeThread(k)
+    store.openThread(k)
+  } finally {
+    machine.link.send = send
+  }
+  const subs = sent.filter((m) => m.type === 'subscribe')
+  assert.deepEqual(subs.map((m) => m.since), [undefined, 41])
+  assert.equal(sent.filter((m) => m.type === 'load_history').length, 1, 'l’historique n’est pas redemandé')
+
+  // La suite, seule, s'ajoute à ce qui est déjà affiché.
+  deliver({ type: 'acp_event', threadId: 'thread-retour', seq: 42, update: chunk(' complète') })
+  assert.deepEqual(texts(k), ['user:question', 'agent:réponse complète'])
+})
+
 test('écriture refusée par le daemon : le message en attente passe « non envoyé »', () => {
   const k = 'mock-desk/thread-refus'
   store.ensureState(k)

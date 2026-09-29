@@ -529,6 +529,9 @@ export function ThreadView({ key, navigate }) {
 
   return {
     el,
+    // Timeline déjà en mémoire (retour sur le thread) : le premier rendu a eu
+    // lieu hors du document, son défilement n'a rien fait.
+    mounted() { scrollToEnd(true) },
     destroy() {
       offs.forEach((off) => off())
       clearInterval(turnTimer)

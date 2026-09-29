@@ -249,6 +249,28 @@ test('ring buffer : borne respectée, ordre conservé', () => {
   assert.equal(rings.read('t1').length, 3)
 })
 
+test('ring buffer : `since` rend la suite, ou `null` si le ring l’a perdue', () => {
+  const rings = new RingBuffers({ size: 3 })
+  const [a, b] = [rings.push('t1', { update: { n: 0 } }), rings.push('t1', { update: { n: 1 } })]
+  assert.deepEqual(rings.since('t1', a.seq).map((e) => e.update.n), [1])
+  assert.deepEqual(rings.since('t1', b.seq), [])
+  // Rien encore sur ce thread : tout ce qui viendra est la suite.
+  assert.deepEqual(rings.since('t2', rings.cursor()), [])
+
+  // Évincé depuis `a` : on ne peut plus rattraper un client resté à `a`.
+  for (let i = 2; i < 5; i++) rings.push('t1', { update: { n: i } })
+  assert.equal(rings.since('t1', a.seq), null)
+
+  // Effacé (Zed recharge la session) : même chose, même vide.
+  const c = rings.cursor()
+  rings.clear('t1')
+  assert.equal(rings.since('t1', c - 1), null)
+  assert.deepEqual(rings.since('t1', rings.cursor()), [])
+
+  // `seq` d'une instance précédente du daemon : toujours antérieur.
+  assert.equal(new RingBuffers().since('t1', c), null)
+})
+
 // ---- machine à états -------------------------------------------------------
 
 test('thread-state : file d’attente et dépilage en fin de tour', () => {

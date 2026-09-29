@@ -131,7 +131,7 @@ bootstrap, à la reconnexion, au retour au premier plan et sur le bouton
 
 ### `subscribe` / `unsubscribe`
 ```ts
-{ type: 'subscribe', threadId: string }
+{ type: 'subscribe', threadId: string, since?: number }
 { type: 'unsubscribe', threadId: string }
 ```
 Abonnement au flux d'un thread. Après `subscribe`, le daemon envoie :
@@ -140,6 +140,12 @@ Abonnement au flux d'un thread. Après `subscribe`, le daemon envoie :
 2. le contenu du **ring buffer** de ce thread (2000 événements max), en
    `acp_event`, dans l'ordre ;
 3. puis les événements en temps réel.
+
+`since` : la PWA revient sur un thread dont elle a déjà la timeline, à jour
+jusqu'à ce `seq`. Le daemon n'envoie alors du ring que les événements
+postérieurs. S'il en a perdu depuis (ring évincé, session rechargée par Zed,
+daemon redémarré), il envoie à la place un `history`, comme sur
+`load_history` : la PWA repart de là.
 
 `unsubscribe` est envoyé quand l'utilisateur quitte l'écran. Le daemon peut
 continuer à bufferiser, il ne doit plus pousser.
@@ -333,9 +339,10 @@ par `set_option` avec `key` = `id` de l'option (booléen pour un `boolean`).
 **Le cœur.** `update` est le payload `session/update` de l'agent, **verbatim** :
 le daemon ne le relit pas, ne le normalise pas, ne le complète pas.
 
-`seq` : numéro d'ordre attribué par le daemon, croissant. Il ne sert qu'à une
-chose : reconnaître un événement reçu deux fois — par le rejeu du `subscribe`
-et par l'`history` (voir `until`).
+`seq` : numéro d'ordre attribué par le daemon, croissant pour tous ses threads,
+et d'une instance du daemon à la suivante. Il sert à reconnaître un événement
+reçu deux fois — par le rejeu du `subscribe` et par l'`history` (voir
+`until`) —, et à ne recevoir que la suite en revenant sur un thread (`since`).
 
 **Le message de l'utilisateur.** L'agent ne le renvoie pas en direct
 (`claude-agent-acp` ne le rejoue qu'au `session/load`).
@@ -375,7 +382,8 @@ La PWA la reconnaît à la présence simultanée de `toolCall` et `options`.
 ```ts
 { type: 'history', threadId: string, updates: object[], complete: boolean, until?: number }
 ```
-Réponse à `load_history`, dans l'ordre, au même format que `acp_event.update`.
+Réponse à `load_history` (ou à un `subscribe` dont le `since` ne peut plus être
+rattrapé), dans l'ordre, au même format que `acp_event.update`.
 La PWA **remet la timeline à zéro** et rejoue tout, puis applique les
 événements live reçus entre-temps (elle les tamponne) — **sauf** ceux dont le
 `seq` est inférieur ou égal à `until`, que l'historique contient déjà.
@@ -482,8 +490,8 @@ Les deux sont idempotents.
    ZRA immune aux évolutions du protocole.
 2. **Ordre.** Les `acp_event` d'un thread arrivent dans l'ordre d'émission. Pas de
    garantie inter-threads.
-3. **Ring buffer.** 2000 événements par thread live, rejoués à `subscribe`,
-   chacun avec son `seq`.
+3. **Ring buffer.** 2000 événements par thread live, rejoués à `subscribe`
+   (à partir de `since` s'il est donné), chacun avec son `seq`.
 4. **Idempotence.** `subscribe`, `unsubscribe`, `interrupt`, `cancel_queued`
    doivent tolérer d'être reçus deux fois (rejeu à la reconnexion).
 5. **Pas d'état client.** Aucun besoin de retenir qui est connecté au-delà du
