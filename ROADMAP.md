@@ -36,20 +36,6 @@ lanceur `wscript` (`.vbs`), ou lancer `node` directement, sans PowerShell.
 Si on ne peut pas la masquer proprement, mieux vaut une fenêtre qui reste
 affichée qu'une fenêtre qui flashe.
 
-### Confirmé à l'usage ✅
-
-- **reconnexion mobile** : backoff doublé (1 → 30 s) puis plateau 60 s pour un
-  poste mort ; timeout de handshake WS 15 s — une socket coincée en
-  `CONNECTING` ne bloque plus l'état « connexion… » à vie ni la chaîne de
-  retry (c'était la cause des déconnexions sans reconnexion possible, celle
-  qui exigeait un restart du daemon) ; codes de fermeture WS journalisés des
-  deux côtés. `PROTOCOL.md` §Cycle de vie ;
-- **désynchronisation mobile** (Edge) : corrigée (ordre `hello` → file →
-  réabonnement, heartbeat 15 s, rechargement de l'historique à la
-  reconnexion) — plus observée depuis ;
-- **auto-scroll à l'envoi** : jamais décoché → le réglage a été supprimé, le
-  comportement est permanent (comme Zed).
-
 ### Threads créés hors ZRA : lecture seule
 
 Les threads d'un agent que ZRA n'enveloppe pas (`claude-acp`, créés avant ZRA)
