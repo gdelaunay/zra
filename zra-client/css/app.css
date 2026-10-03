@@ -26,6 +26,11 @@
   --radius-lg: 6px;
   --bar-h: 40px;
 
+  /* escalier de la liste des threads : poste → projet → thread */
+  --indent-step: 8px;
+  /* hauteur de la ligne de titre d'un poste : les projets s'y collent dessous */
+  --group-head-h: 34px;
+
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
@@ -217,16 +222,21 @@ button { cursor: pointer; }
 
 /* ---------- ecran 1 : threads ---------- */
 
-/* Poste : toute la ligne replie/déplie, comme un projet. */
+/* Poste : toute la ligne replie/déplie, comme un projet. Collée en haut de
+   sa section (.machine) pendant le scroll. */
 .group__head {
   display: flex; align-items: center; gap: var(--sp-3);
   width: 100%; text-align: left;
-  padding: var(--sp-5) var(--sp-4) var(--sp-3);
+  height: var(--group-head-h);
+  padding: 0 var(--sp-4);
   position: sticky; top: 0; z-index: 2;
   background: var(--panel-background);
 }
 .group__head:hover { background: var(--ghost-element-hover); }
 .group__head:hover .group__name { color: var(--text); }
+/* Icône du poste : elle remplace la pastille d'état, mêmes couleurs. */
+.group__icon { color: var(--text-disabled); opacity: .5; }
+.group__icon--online { color: var(--created); opacity: 1; }
 .group__chevron { color: var(--icon-muted); flex: none; }
 /* Flèche au survol seulement, comme pour un projet — sauf sur écran tactile. */
 @media (hover: hover) {
@@ -237,19 +247,27 @@ button { cursor: pointer; }
 .group__meta { font-size: var(--fs-xs); color: var(--text-disabled); }
 
 /* Projet : comme dans Zed, toute la ligne replie/déplie — pas de bouton
-   dessiné, pas d'arrondi. Le « + » reste tout à droite. */
+   dessiné, pas d'arrondi. Le « + » reste tout à droite. Collée sous la ligne
+   du poste pendant le scroll de son projet. */
 .project__head {
   display: flex; align-items: center;
   margin-top: var(--sp-2); padding-right: var(--sp-3);
   color: var(--text-muted);
+  position: sticky; top: var(--group-head-h); z-index: 1;
+  background: var(--panel-background);
 }
 .project__head:hover { background: var(--ghost-element-hover); color: var(--text); }
 .project__toggle {
   flex: 1; display: flex; align-items: center; gap: var(--sp-2);
-  min-width: 0; padding: var(--sp-2) var(--sp-3) var(--sp-2) var(--sp-4);
+  min-width: 0;
+  padding: var(--sp-2) var(--sp-3) var(--sp-2) calc(var(--sp-4) + var(--indent-step));
   border-radius: 0; color: inherit; text-align: left;
 }
 .project__name { font-size: var(--fs-sm); font-weight: 600; }
+/* Icône du projet : elle remplace la pastille d'état, mêmes couleurs. */
+.project__icon { color: var(--text-muted); }
+.project__icon--live { color: var(--created); }
+.project__icon--closed { color: var(--text-disabled); opacity: .6; }
 .project__chevron { color: var(--icon-muted); flex: none; }
 /* Flèche au survol seulement, comme Zed — sauf sur écran tactile, sans survol. */
 @media (hover: hover) {
@@ -259,7 +277,7 @@ button { cursor: pointer; }
 .thread-row {
   display: flex; align-items: flex-start; gap: var(--sp-4);
   width: 100%; text-align: left;
-  padding: var(--sp-4) var(--sp-4);
+  padding: var(--sp-4) var(--sp-4) var(--sp-4) calc(var(--sp-4) + var(--indent-step) * 2);
   border-radius: var(--radius);
   color: inherit;
 }

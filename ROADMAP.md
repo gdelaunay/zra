@@ -20,10 +20,7 @@ Pour coller au plus près du panneau agent de Zed :
   entrées et sorties brutes) ;
 - forme et couleurs des commandes, des messages, etc. ;
 - mise en page des réflexions ;
-- l'icône définitive de l'indicateur de tour (`loader` en attendant) ;
-- **hiérarchie visuelle poste / projet / thread** dans la liste : tout est
-  aligné au même niveau, on les confond. Prévoir une indentation et/ou des
-  icônes différenciantes — probablement les deux.
+- l'icône définitive de l'indicateur de tour (`loader` en attendant).
 
 ### Démarrage automatique : une fenêtre PowerShell reste ouverte
 

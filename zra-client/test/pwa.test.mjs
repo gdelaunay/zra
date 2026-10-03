@@ -52,8 +52,11 @@ before(async () => {
 
 after(() => { dom?.window?.close() })
 
-test('écran 1 : les threads des deux postes s’affichent', async () => {
-  await until(() => $$('.thread-row').length >= 7, 4000, 'lignes de threads')
+test('écran 1 : tout est replié par défaut, puis les threads des deux postes s’affichent', async () => {
+  await until(() => $$('.group__head').length === 2, 4000, 'les deux postes')
+  assert.equal($$('.thread-row').length, 0, 'rien de déplié par défaut')
+  assert.equal($$('.project__head').length, 0, 'aucun projet tant que le poste est replié')
+  await expandAll()
   const titles = $$('.thread-row__title').map((n) => n.textContent)
   assert.ok(titles.some((t) => t.includes('Refactor du lecteur')))
   assert.ok(titles.some((t) => t.includes('Portage du daemon')))
@@ -407,6 +410,17 @@ function projectHead(machine, name) {
   return null
 }
 
+/** Déplie postes puis projets, un clic à la fois, jusqu'à voir tous les threads. */
+async function expandAll() {
+  await until(() => {
+    const head = $$('.group__head').find((n) => n.getAttribute('aria-expanded') === 'false')
+    if (head) { click(head); return false }
+    const toggle = $$('.project__toggle').find((n) => n.getAttribute('aria-expanded') === 'false')
+    if (toggle) { click(toggle); return false }
+    return $$('.thread-row').length >= 7
+  }, 5000, 'tout déplié')
+}
+
 /** Titres des threads affichés sous la ligne d'un projet. */
 function rowsUnder(head) {
   const out = []
@@ -438,7 +452,9 @@ test('un projet se replie sur sa ligne de titre, et le reste après un rendu', a
   assert.equal(toggle().getAttribute('aria-expanded'), 'false')
   assert.deepEqual(rowsUnder(projectHead('DESK-ZED', 'zra')), [], 'plus aucun thread affiché')
   assert.ok(rowsUnder(projectHead('DESK-ZED', 'uia')).length, 'les autres projets restent dépliés')
-  assert.ok(ZRA.settings.collapsedProjects.some((k) => k.startsWith('mock-desk|')), 'repli mémorisé')
+  // Le repli est en mémoire (module), pas dans les réglages persistés :
+  // il survit à la navigation, un rechargement repart de zéro.
+  assert.ok(!('collapsedProjects' in ZRA.settings), 'rien de persisté')
 
   // Un nouveau rendu (retour sur la liste) garde le repli.
   ZRA.render()
@@ -456,7 +472,6 @@ test('un projet se replie sur sa ligne de titre, et le reste après un rendu', a
 
   click(toggle())
   assert.equal(rowsUnder(projectHead('DESK-ZED', 'zra')).length, 4, 'déplié à nouveau')
-  assert.equal(ZRA.settings.collapsedProjects.length, 0)
 })
 
 test('thread créé hors ZRA : cadenas dans la liste, bandeau et composer en lecture seule', async () => {
@@ -483,14 +498,13 @@ test('un poste se replie sur sa ligne de titre, et le reste après un rendu', as
   assert.equal(head().getAttribute('aria-expanded'), 'false')
   assert.equal(projectHead('DESK-ZED', 'zra'), null, 'ni projets ni threads sous le poste replié')
   assert.ok(projectHead('LAPTOP-ZED', 'zra'), 'l’autre poste reste déplié')
-  assert.deepEqual(ZRA.settings.collapsedMachines, ['mock-desk'], 'repli mémorisé')
+  assert.ok(!('collapsedMachines' in ZRA.settings), 'rien de persisté')
 
   ZRA.render()
   assert.equal(head().getAttribute('aria-expanded'), 'false')
 
   click(head())
   assert.ok(projectHead('DESK-ZED', 'zra'), 'déplié à nouveau')
-  assert.equal(ZRA.settings.collapsedMachines.length, 0)
 })
 
 test('pas de « + » global : la liste n’en a qu’un par projet', () => {

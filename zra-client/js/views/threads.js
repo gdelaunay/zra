@@ -11,11 +11,16 @@ import { h, button, clear, debounce } from '../dom.js'
 import { icon, agentIcon } from '../icons.js'
 import { relTime, absTime, shortPath, agentLabel, toMs, projectOf } from '../format.js'
 import * as store from '../store.js'
-import { settings, update as updateSettings } from '../settings.js'
 import { openMenu } from '../ui.js'
 import { openSettings } from './settings.js'
 import { newSessionButton } from './new-session.js'
 import { openPairSheet } from './pair.js'
+
+// Tout est replié par défaut. L'état déplé est une liste blanche gardée en
+// mémoire au niveau du module : il survit à la navigation (re-rendu de la
+// vue), mais un rechargement — donc une reconnexion — repart de zéro.
+const expandedMachines = new Set()
+const expandedProjects = new Set()
 
 const FILTERS = [
   { id: 'all', label: 'Tous' },
@@ -72,19 +77,24 @@ export function ThreadsView({ navigate }) {
         .sort((a, b) => (toMs(b.updatedAt) ?? 0) - (toMs(a.updatedAt) ?? 0))
       total += rows.length
 
+      // Une section par poste : la ligne du poste y reste collée en haut,
+      // et celles des projets juste dessous — jusqu'à la fin de leur section.
+      const section = h('div.machine')
+      list.append(section)
+
       // Une recherche montre ses résultats, même dans un poste replié.
-      const machineOpen = Boolean(query) || !settings.collapsedMachines.includes(m.id)
-      list.append(machineHead(m, machineOpen, () => { toggleMachine(m); paint() }))
+      const machineOpen = Boolean(query) || expandedMachines.has(m.id)
+      section.append(machineHead(m, machineOpen, () => { toggleMachine(m); paint() }))
       if (!machineOpen) continue
       if (m.status === 'locked') {
         // Le poste répond, mais ne parle qu'aux appareils appairés (spec §9).
-        list.append(h('div.empty', { style: { padding: '12px' } },
+        section.append(h('div.empty', { style: { padding: '12px' } },
           h('span', { text: 'Ce poste ne connaît pas encore ce téléphone.' }),
           button('btn.btn--accent.btn--sm', { onclick: () => openPairSheet(m) }, icon('lock', 'icon--sm'), 'Saisir le code')))
         continue
       }
       if (m.status !== 'online') {
-        list.append(h('div.empty', { style: { padding: '12px' } },
+        section.append(h('div.empty', { style: { padding: '12px' } },
           h('span', { text: m.status === 'connecting' ? 'connexion…' : (m.error || 'poste injoignable') }),
           m.status === 'offline'
             ? button('btn.btn--sm', { onclick: () => m.link.wake?.() }, icon('refresh', 'icon--sm'), 'Réessayer')
@@ -92,14 +102,16 @@ export function ThreadsView({ navigate }) {
         continue
       }
       if (!rows.length) {
-        list.append(h('div.empty', { style: { padding: '12px' }, text: 'aucun thread' }))
+        section.append(h('div.empty', { style: { padding: '12px' }, text: 'aucun thread' }))
         continue
       }
       for (const group of byProject(rows)) {
         // Une recherche montre ses résultats, même dans un projet replié.
-        const open = Boolean(query) || !isCollapsed(m, group.project)
-        list.append(projectHead(m, group.project, open, () => { toggleProject(m, group.project); paint() }, projectState(group.threads)))
-        if (open) for (const t of group.threads) list.append(threadRow(m, t, navigate))
+        const open = Boolean(query) || expandedProjects.has(collapseKey(m, group.project))
+        const projectSection = h('div.project')
+        section.append(projectSection)
+        projectSection.append(projectHead(m, group.project, open, () => { toggleProject(m, group.project); paint() }, projectState(group.threads)))
+        if (open) for (const t of group.threads) projectSection.append(threadRow(m, t, navigate))
       }
     }
 
@@ -149,20 +161,22 @@ function machineHead(m, open, onToggle) {
   const status = m.status === 'online' ? 'en ligne'
     : m.status === 'connecting' ? 'connexion…'
       : m.status === 'locked' ? 'appairage requis' : 'hors ligne'
+  const server = icon('server', `icon--sm group__icon${m.status === 'online' ? ' group__icon--online' : ''}`)
+  server.setAttribute('title', status)
   return button('group__head', { 'aria-expanded': String(open), onclick: onToggle },
-    h(`span.dot.dot--${m.status === 'online' ? 'live' : 'unknown'}`),
+    server,
     h('span.group__name', { text: m.info?.name || m.label || m.url }),
     h('span.group__meta', { text: `· ${status}` }),
     m.info?.zedRunning === false ? h('span.group__meta', { text: '· Zed fermé' }) : null,
+    icon(open ? 'chevron-down' : 'chevron-right', 'icon--sm group__chevron'),
     h('span.spacer'),
     h('span.group__meta', { text: m.threads.length ? `${m.threads.length}` : '' }),
-    icon(open ? 'chevron-down' : 'chevron-right', 'icon--sm group__chevron'),
   )
 }
 
 function toggleMachine(m) {
-  const rest = settings.collapsedMachines.filter((x) => x !== m.id)
-  updateSettings({ collapsedMachines: rest.length === settings.collapsedMachines.length ? [...rest, m.id] : rest })
+  if (expandedMachines.has(m.id)) expandedMachines.delete(m.id)
+  else expandedMachines.add(m.id)
 }
 
 /**
@@ -181,12 +195,11 @@ function byProject(rows) {
 }
 
 const collapseKey = (m, project) => `${m.id}|${project.key}`
-const isCollapsed = (m, project) => settings.collapsedProjects.includes(collapseKey(m, project))
 
 function toggleProject(m, project) {
   const k = collapseKey(m, project)
-  const rest = settings.collapsedProjects.filter((x) => x !== k)
-  updateSettings({ collapsedProjects: rest.length === settings.collapsedProjects.length ? [...rest, k] : rest })
+  if (expandedProjects.has(k)) expandedProjects.delete(k)
+  else expandedProjects.add(k)
 }
 
 /**
@@ -199,6 +212,20 @@ function projectState(threads) {
   return null
 }
 
+/**
+ * Icône du projet : un dossier, coloré comme l'était la pastille d'état —
+ * vert si le projet est ouvert dans Zed, neutre sinon.
+ */
+function projectIcon(state) {
+  const el = icon('folder', `icon--sm project__icon${state ? ` project__icon--${state}` : ''}`)
+  if (state) {
+    el.setAttribute('title', state === 'live'
+      ? 'ouvert dans Zed'
+      : 'fermé dans Zed : il s’ouvrira à la demande')
+  }
+  return el
+}
+
 /** Ligne de titre d'un projet : toute la ligne replie/déplie (comme Zed), « + » à droite. */
 function projectHead(m, project, open, onToggle, state = null) {
   return h('div.project__head', {},
@@ -207,11 +234,7 @@ function projectHead(m, project, open, onToggle, state = null) {
       title: project.folderPaths.join('\n') || project.name,
       onclick: onToggle,
     },
-      state
-        ? h(`span.dot.dot--${state}.project__dot`, {
-          title: state === 'live' ? 'ouvert dans Zed' : 'fermé dans Zed : il s’ouvrira à la demande',
-        })
-        : null,
+      projectIcon(state),
       h('span.project__name.truncate', { text: project.name }),
       icon(open ? 'chevron-down' : 'chevron-right', 'icon--sm project__chevron'),
     ),
