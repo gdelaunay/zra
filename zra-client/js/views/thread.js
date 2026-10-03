@@ -75,8 +75,10 @@ export function ThreadView({ key, navigate }) {
       // quelques secondes. Le bandeau le dit jusqu'au retour du thread (ou l'échec).
       if (st.state === 'closed') startReopen()
       // Envoyer, c'est vouloir lire la réponse : le fil se recolle en bas et
-      // suit le stream, même si on était remonté dans l'historique.
-      if (settings.scrollOnSend) { stick = true; jump.classList.add('hidden'); scrollToEnd() }
+      // suit le stream, même si on était remonté dans l'historique. Toujours —
+      // c'est le comportement de Zed (l'ancien réglage « scrollOnSend » n'était
+      // jamais décoché, il a été supprimé et rendu permanent).
+      stick = true; jump.classList.add('hidden'); scrollToEnd()
       store.sendMessage(key, text, mode)
     },
     onStop: stopTurn,

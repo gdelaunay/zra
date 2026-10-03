@@ -85,7 +85,6 @@ function displaySection(api) {
     h('span.label', { text: 'Affichage' }),
     toggle('Déplier les réflexions par défaut', 'showThoughts'),
     toggle('Déplier les outils par défaut', 'expandTools'),
-    toggle('Descendre en bas du fil à l’envoi d’un message', 'scrollOnSend'),
     toggle('Mode mock (daemon simulé)', 'mock', () => {
       confirmSheet('Recharger ?', 'Le mode mock change la source de données : la PWA doit être rechargée.',
         () => location.reload(), { yes: 'Recharger' })
