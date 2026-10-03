@@ -4,10 +4,10 @@
 import { emitter } from './dom.js'
 
 const BACKOFF = [1000, 2000, 4000, 8000, 16000, 30000]
-/** Au-delà du backoff court : un poste mort est retenté à ce rythme, pas plus (RECONNECT-SPEC §1). */
+/** Au-delà du backoff court : un poste mort est retenté à ce rythme, pas plus. */
 const LONG_BACKOFF_MS = 60000
 /**
- * Filet anti-bloqué-infini (RECONNECT-SPEC §2) : sans lui, un handshake qui ne
+ * Filet anti-bloqué-infini : sans lui, un handshake qui ne
  * finit jamais (proxy qui retient la connexion, socket morte en `CONNECTING`)
  * ne déclenche ni `onopen` ni `onclose` — aucun timer ne tourne, la chaîne de
  * reconnexion est morte et `wake()` ne fait rien sur `'connecting'`.
@@ -73,7 +73,7 @@ export class DaemonLink {
       return
     }
     this.ws = ws
-    // RECONNECT-SPEC §2 : borner le handshake. S'il aboutit, `onopen` l'annule ;
+    // Borner le handshake. S'il aboutit, `onopen` l'annule ;
     // sinon `lost()` relance le `scheduleRetry` normal (et donc le plateau §1).
     clearTimeout(this.connectTimer)
     this.connectTimer = setTimeout(() => this.lost(ws, 'délai de connexion dépassé'), CONNECT_TIMEOUT_MS)

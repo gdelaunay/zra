@@ -36,20 +36,14 @@ lanceur `wscript` (`.vbs`), ou lancer `node` directement, sans PowerShell.
 Si on ne peut pas la masquer proprement, mieux vaut une fenêtre qui reste
 affichée qu'une fenêtre qui flashe.
 
-### Reconnexion mobile 🟡
-
-Trois chantiers cadrés dans `RECONNECT-SPEC.md` :
-
-1. ✅ plateau de backoff à 60 s + délais doublés (1→30 s puis 60 s) ;
-2. ✅ timeout de handshake WS 15 s — corrige aussi la chaîne de retry qui
-   mourait en silence sur une socket coincée en `CONNECTING` ;
-3. **déconnexion en pleine séance puis reconnexion impossible sans redémarrer
-   le daemon** : logs analysés (RECONNECT-SPEC.md §3) — le client cessait de
-   retenter, §2 devrait suffire ; instrumentation posée des deux côtés (codes
-   de fermeture) pour capturer une récidive éventuelle. À surveiller à l'usage.
-
 ### Confirmé à l'usage ✅
 
+- **reconnexion mobile** : backoff doublé (1 → 30 s) puis plateau 60 s pour un
+  poste mort ; timeout de handshake WS 15 s — une socket coincée en
+  `CONNECTING` ne bloque plus l'état « connexion… » à vie ni la chaîne de
+  retry (c'était la cause des déconnexions sans reconnexion possible, celle
+  qui exigeait un restart du daemon) ; codes de fermeture WS journalisés des
+  deux côtés. `PROTOCOL.md` §Cycle de vie ;
 - **désynchronisation mobile** (Edge) : corrigée (ordre `hello` → file →
   réabonnement, heartbeat 15 s, rechargement de l'historique à la
   reconnexion) — plus observée depuis ;

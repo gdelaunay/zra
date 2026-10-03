@@ -128,7 +128,7 @@ test('poste d’avant le heartbeat : son refus du ping suffit, sans toast', (t) 
   assert.deepEqual(seen, [])
 })
 
-// ---- RECONNECT-SPEC §2 : handshake qui ne finit jamais ---------------------
+// ---- Handshake qui ne finit jamais : le timeout rend la main au backoff -----
 
 test('handshake interminable : le timeout rend la main au backoff', (t) => {
   const l = link(t)
@@ -152,7 +152,7 @@ test('handshake réussi : le timeout de connexion ne tue pas la socket ouverte',
   assert.equal(FakeSocket.all.length, 1)
 })
 
-// ---- RECONNECT-SPEC §1 : plateau long ---------------------------------------
+// ---- Backoff doublé, puis plateau long -------------------------------------
 
 test('backoff doublé, puis plateau à 60 s pour un poste mort', (t) => {
   const l = link(t)
