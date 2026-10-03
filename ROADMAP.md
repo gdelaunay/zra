@@ -20,7 +20,10 @@ Pour coller au plus près du panneau agent de Zed :
   entrées et sorties brutes) ;
 - forme et couleurs des commandes, des messages, etc. ;
 - mise en page des réflexions ;
-- l'icône définitive de l'indicateur de tour (`loader` en attendant).
+- l'icône définitive de l'indicateur de tour (`loader` en attendant) ;
+- **hiérarchie visuelle poste / projet / thread** dans la liste : tout est
+  aligné au même niveau, on les confond. Prévoir une indentation et/ou des
+  icônes différenciantes — probablement les deux.
 
 ### Démarrage automatique : une fenêtre PowerShell reste ouverte
 
@@ -33,15 +36,24 @@ lanceur `wscript` (`.vbs`), ou lancer `node` directement, sans PowerShell.
 Si on ne peut pas la masquer proprement, mieux vaut une fenêtre qui reste
 affichée qu'une fenêtre qui flashe.
 
-### À confirmer à l'usage
+### Reconnexion mobile 🟡
 
-- **désynchronisation mobile** (Edge : stream arrêté, message bloqué « envoi en
-  cours ») : corrigée par l'ordre `hello` → file → réabonnement, un heartbeat
-  `ping`/`pong` toutes les 15 s, et un rechargement de l'historique à la
-  reconnexion (`zra-client/js/link.js`, `store.js`) ;
-- **auto-scroll à l'envoi** : réglage « Descendre en bas du fil à l'envoi d'un
-  message », actif par défaut. C'est le comportement de Zed : si on ne le
-  décoche jamais, supprimer le réglage et le rendre permanent.
+Trois chantiers cadrés dans `RECONNECT-SPEC.md` (`zra-client/js/link.js`) :
+
+1. plateau de backoff à 60 s pour un poste mort (spécifié, à coder) ;
+2. timeout de handshake WS ~15 s contre l'état « connexion… » infini
+   (spécifié, à coder) ;
+3. **déconnexion en pleine séance puis reconnexion impossible sans redémarrer
+   le daemon** : observé à l'usage, aucun log, cause probablement côté daemon.
+   À investiguer (RECONNECT-SPEC.md §3) — le plus pénible des trois.
+
+### Confirmé à l'usage ✅
+
+- **désynchronisation mobile** (Edge) : corrigée (ordre `hello` → file →
+  réabonnement, heartbeat 15 s, rechargement de l'historique à la
+  reconnexion) — plus observée depuis ;
+- **auto-scroll à l'envoi** : jamais décoché → le réglage a été supprimé, le
+  comportement est permanent (comme Zed).
 
 ### Threads créés hors ZRA : lecture seule
 

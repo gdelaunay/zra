@@ -1,9 +1,10 @@
-# Spéc. reconnexion client — deux correctifs
+# Spéc. reconnexion client — correctifs et bugs transport
 
-Note de cadrage pour deux développements distincts sur le transport mobile ↔
-daemon (`zra-client/js/link.js`). Les deux concernent le cycle de reconnexion
-mais sont **indépendants** : l'un règle l'agressivité des retries, l'autre un
-état bloqué.
+Note de cadrage pour développements distincts sur le transport mobile ↔
+daemon (`zra-client/js/link.js`). §1 et §2 concernent le cycle de reconnexion
+et sont **indépendants** : l'un règle l'agressivité des retries, l'autre un
+état bloqué. §3 est un bug observé à l'usage, à investiguer — il est peut-être
+côté daemon plutôt que client.
 
 ---
 
@@ -63,3 +64,47 @@ mesuré à **6 s** derrière wireguard/IPv4 est un p99 observé, pas une limite.
 
 **À ne pas confondre.** `PONG_TIMEOUT_MS = 6000` (link.js:10) = « connexion déjà
 ouverte, ça répond vite ». Sémantique différente du handshake → constante dédiée.
+
+---
+
+## 3. Déconnexion en pleine séance, reconnexion impossible sans redémarrer le daemon (à investiguer)
+
+**Symptôme observé (usage réel).** Le client PWA est **déconnecté en pleine
+séance**, sans aucun changement de réseau côté téléphone. Ensuite il **ne
+parvient plus à se reconnecter**, malgré les tentatives. Aucun log particulier
+ni côté client ni côté daemon. **Relancer le daemon** règle le problème : le
+client se reconnecte après quelques tentatives.
+
+**Ce que ça distingue de §2.** §2 est un handshake qui ne finit jamais côté
+client (socket coincé en `CONNECTING`). Ici la connexion était établie et
+fonctionnelle, puis perdue ; et le fait qu'un **restart du daemon** débloque
+tout pointe vers un état côté serveur : le listener accepte peut-être encore
+les connexions TCP mais ne traite plus le WebSocket (socket serveur
+half-open, ressource non libérée, boucle d'accept bloquée…), ou l'ancienne
+connexion fantôme n'est pas nettoyée et gêne la nouvelle (appairage, registre
+de shim, mutex côté `hub.js` / `ws.js` / `server.js`).
+
+**Reproductibilité.** Inconnue pour l'instant — observé une fois, en conditions
+réelles (Wi-Fi domestique). Pas de capture, pas de logs exploitables.
+
+**Pistes d'investigation (avant tout correctif) :**
+
+1. **Instrumenter d'abord** : horodater côté daemon les `connection`, `close`
+   (avec code/raison), `error` du serveur WS et l'activité du heartbeat ;
+   idem côté client dans `link.js` (code de fermeture reçu ou absence de
+   code). Sans ça, le prochain épisode ne donnera rien de plus.
+2. **Vérifier le nettoyage serveur** : quand une connexion tombe, le daemon
+   retire-t-il toujours le client de ses structures (hub, abonnements,
+   heartbeat) ? Une ancienne connexion fantôme peut-elle bloquer la nouvelle ?
+3. **Provoquer** : couper le Wi-Fi du téléphone en pleine séance, attendre,
+   le rallumer — la reconnexion doit marcher sans redémarrer le daemon.
+   Essayer aussi le mode avion brutal et la mise en veille longue de l'écran.
+4. **Heartbeat serveur** : le daemon sonde-t-il ses clients morts (ping WS ou
+   équivalent), ou découvre-t-il la perte uniquement quand TCP veut bien se
+   fermer ? Un socket mort non détecté côté serveur est un candidat naturel.
+
+**Lien possible avec §2** : si le daemon a accepté la connexion TCP mais
+n'achève pas le handshake WS (état interne coincé), le client se retrouve
+exactement dans le cas §2 — le timeout de handshake le sortira du « connexion…
+infini », mais sans régler la cause côté serveur. §2 reste donc utile quoi
+qu'il arrive ; §3 est la vraie cause à trouver.
