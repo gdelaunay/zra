@@ -212,7 +212,7 @@ export function attachWebSocket(server, { path = '/ws', verify, onConnection, ro
     socket.on('data', (chunk) => {
       for (const ev of decode(chunk)) {
         if (ev.error) { log?.debug(`client ${conn.id} : ${ev.error}`); conn.close(ev.code); return }
-        if (ev.close) { conn.close(1000); return }
+        if (ev.close) { conn.closeCode = ev.code; conn.close(1000); return }
         if (ev.ping) { try { socket.write(encodeFrame(ev.payload, OP.PONG)) } catch { /* fermé */ } continue }
         if (ev.pong) continue
         if (!ev.text) continue

@@ -3,7 +3,17 @@
 
 import { emitter } from './dom.js'
 
-const BACKOFF = [500, 1000, 2000, 4000, 8000, 15000]
+const BACKOFF = [1000, 2000, 4000, 8000, 16000, 30000]
+/** Au-delà du backoff court : un poste mort est retenté à ce rythme, pas plus (RECONNECT-SPEC §1). */
+const LONG_BACKOFF_MS = 60000
+/**
+ * Filet anti-bloqué-infini (RECONNECT-SPEC §2) : sans lui, un handshake qui ne
+ * finit jamais (proxy qui retient la connexion, socket morte en `CONNECTING`)
+ * ne déclenche ni `onopen` ni `onclose` — aucun timer ne tourne, la chaîne de
+ * reconnexion est morte et `wake()` ne fait rien sur `'connecting'`.
+ * Généreux à dessein : un faux positif coûte une connexion lente mais légitime.
+ */
+const CONNECT_TIMEOUT_MS = 15000
 /** Un `ping` applicatif à cet intervalle : le navigateur n'expose pas ceux du protocole. */
 const HEARTBEAT_MS = 15000
 /** Sans aucune trame reçue dans ce délai après un `ping`, la connexion est morte. */
@@ -63,8 +73,13 @@ export class DaemonLink {
       return
     }
     this.ws = ws
+    // RECONNECT-SPEC §2 : borner le handshake. S'il aboutit, `onopen` l'annule ;
+    // sinon `lost()` relance le `scheduleRetry` normal (et donc le plateau §1).
+    clearTimeout(this.connectTimer)
+    this.connectTimer = setTimeout(() => this.lost(ws, 'délai de connexion dépassé'), CONNECT_TIMEOUT_MS)
 
     ws.onopen = () => {
+      clearTimeout(this.connectTimer)
       this.attempt = 0
       this.lastError = null
       this.lastRx = Date.now()
@@ -94,7 +109,10 @@ export class DaemonLink {
 
     ws.onerror = () => { this.lastError = 'connexion impossible' }
 
-    ws.onclose = () => this.lost(ws)
+    ws.onclose = (ev) => {
+      console.debug(`[link] ${this.id} : socket fermée (code=${ev?.code ?? '?'} raison=${ev?.reason || '—'})`)
+      this.lost(ws)
+    }
   }
 
   /**
@@ -104,6 +122,7 @@ export class DaemonLink {
    */
   lost(ws, reason) {
     if (ws !== this.ws) return
+    clearTimeout(this.connectTimer)
     this.stopHeartbeat()
     this.probing = false
     ws.onopen = ws.onmessage = ws.onerror = ws.onclose = null
@@ -111,6 +130,7 @@ export class DaemonLink {
     this.ws = null
     if (this.closedByUs) { this.setStatus('idle'); return }
     if (reason) this.lastError = reason
+    console.debug(`[link] ${this.id} : connexion perdue (${reason || 'fermée'})`)
     this.setStatus('offline')
     this.scheduleRetry()
   }
@@ -142,7 +162,9 @@ export class DaemonLink {
   }
 
   scheduleRetry() {
-    const delay = BACKOFF[Math.min(this.attempt, BACKOFF.length - 1)]
+    // Backoff court doublé, puis plateau long : un poste définitivement hors
+    // ligne est retenté toutes les ~60 s, pas toutes les 15 s pour toujours.
+    const delay = this.attempt < BACKOFF.length ? BACKOFF[this.attempt] : LONG_BACKOFF_MS
     this.attempt++
     clearTimeout(this.retryTimer)
     this.retryTimer = setTimeout(() => this.connect(), delay + Math.random() * 300)
@@ -193,6 +215,7 @@ export class DaemonLink {
   close() {
     this.closedByUs = true
     clearTimeout(this.retryTimer)
+    clearTimeout(this.connectTimer)
     this.stopHeartbeat()
     this.ws?.close()
     this.ws = null

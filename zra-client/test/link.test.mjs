@@ -63,7 +63,7 @@ test('une connexion muette est abandonnée, puis rouverte', (t) => {
   clock.tick(6000)
   assert.equal(l.status, 'offline')
   assert.equal(l.lastError, 'le poste ne répond plus')
-  clock.tick(1000)
+  clock.tick(1400)
   assert.equal(FakeSocket.all.length, 2, 'reconnexion')
 })
 
@@ -100,7 +100,7 @@ test('sonde sans réponse : le message part sur la connexion suivante', (t) => {
   l.send({ type: 'send', threadId: 'a', text: 'coucou' })
   clock.tick(3000)
   assert.equal(l.status, 'offline')
-  clock.tick(1000)
+  clock.tick(1400)
   FakeSocket.all[1].open()
   assert.deepEqual(FakeSocket.all[1].types(), ['hello', 'send'])
   assert.deepEqual(FakeSocket.all[0].types(), ['hello', 'ping'], 'rien de perdu sur la socket morte')
@@ -126,4 +126,55 @@ test('poste d’avant le heartbeat : son refus du ping suffit, sans toast', (t) 
   clock.tick(6000)
   assert.equal(l.status, 'online')
   assert.deepEqual(seen, [])
+})
+
+// ---- RECONNECT-SPEC §2 : handshake qui ne finit jamais ---------------------
+
+test('handshake interminable : le timeout rend la main au backoff', (t) => {
+  const l = link(t)
+  // La socket reste en CONNECTING : ni onopen ni onclose (proxy qui retient).
+  assert.equal(l.status, 'connecting')
+  l.wake() // avant le filet : rien n’y faisait — toujours pas de timer côté wake()
+  clock.tick(14999)
+  assert.equal(l.status, 'connecting', 'pas encore échoué')
+  clock.tick(1)
+  assert.equal(l.status, 'offline')
+  assert.equal(l.lastError, 'délai de connexion dépassé')
+  clock.tick(1400)
+  assert.equal(FakeSocket.all.length, 2, 'une nouvelle tentative repart')
+})
+
+test('handshake réussi : le timeout de connexion ne tue pas la socket ouverte', (t) => {
+  const l = link(t)
+  FakeSocket.all[0].open()
+  clock.tick(20000) // > CONNECT_TIMEOUT_MS : onopen l’a annulé
+  assert.equal(l.status, 'online')
+  assert.equal(FakeSocket.all.length, 1)
+})
+
+// ---- RECONNECT-SPEC §1 : plateau long ---------------------------------------
+
+test('backoff doublé, puis plateau à 60 s pour un poste mort', (t) => {
+  const l = link(t)
+  const retries = []
+  l.on('retry', (r) => retries.push(r.in))
+  // Huit échecs successifs sans jamais aboutir : le backoff court doublé,
+  // puis le plateau. (Ouvrir la socket remettrait `attempt` à zéro.)
+  for (let i = 0; i < 8; i++) l.scheduleRetry()
+  assert.deepEqual(retries, [1000, 2000, 4000, 8000, 16000, 30000, 60000, 60000])
+})
+
+test('une reconnexion réussie remet le backoff à zéro', (t) => {
+  const l = link(t)
+  const retries = []
+  l.on('retry', (r) => retries.push(r.in))
+  FakeSocket.all[0].open()
+  l.lost(FakeSocket.all[0], 'perdue')
+  clock.tick(1400) // 1000 + jitter ≤ 300
+  l.lost(FakeSocket.all[1], 'perdue')
+  clock.tick(2400) // 2000 + jitter
+  FakeSocket.all[2].open()
+  assert.equal(l.attempt, 0)
+  l.lost(FakeSocket.all[2], 'perdue')
+  assert.equal(retries.at(-1), 1000, 'repart du premier échelon')
 })

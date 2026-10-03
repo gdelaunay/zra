@@ -76,7 +76,9 @@ export class Hub {
 
     conn.on('close', () => {
       this.clients.delete(conn)
-      log.info(`client ${conn.id} déconnecté`)
+      // Le code de fermeture WS, quand le client en a envoyé un : 1001 = il part
+      // (onglet fermé, reconnexion), absence = TCP mort sans adieu (à creuser).
+      log.info(`client ${conn.id} déconnecté${conn.closeCode ? ` (code ${conn.closeCode})` : ' (sans code — coupure TCP)'}`)
     })
   }
 
