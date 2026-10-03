@@ -47,6 +47,19 @@ export class ShimError extends Error {
 }
 
 /**
+ * Garde-fou de tour : silence de l'agent au-delà duquel un tour en vol est clos
+ * d'office, et intervalle auquel on le vérifie.
+ *
+ * Dix minutes sans **aucun** `session/update` alors qu'une requête
+ * `session/prompt` attend sa réponse, ce n'est plus un tour long : c'est un
+ * agent pendu, ou un agent mort sans avoir clos sa requête. Le mesurer sur le
+ * silence plutôt que sur la durée du tour évite de couper un tour légitime —
+ * une grosse recherche d'outil stream des `update` en continu.
+ */
+export const TURN_TIMEOUT_MS = 600_000
+export const TURN_TICK_MS = 5_000
+
+/**
  * Projette les options de session ACP sur le contrat de la PWA.
  *
  * L'ACP moderne expose les modes dans `modes` et **tout le reste** — dont le
@@ -138,17 +151,24 @@ function assignOptions(st, p) {
 
 export class AcpBridge extends EventEmitter {
   /**
-   * @param {{ toAgent:(raw:Buffer)=>void, toZed?:(raw:Buffer)=>void, log?:object, cancelTimeoutMs?:number }} opts
+   * @param {{
+   *   toAgent:(raw:Buffer)=>void, toZed?:(raw:Buffer)=>void, log?:object,
+   *   cancelTimeoutMs?:number, turnTimeoutMs?:number, turnTickMs?:number,
+   * }} opts
    */
-  constructor({ toAgent, toZed = null, log = null, cancelTimeoutMs = 5000 }) {
+  constructor({
+    toAgent, toZed = null, log = null, cancelTimeoutMs = 5000,
+    turnTimeoutMs = TURN_TIMEOUT_MS, turnTickMs = TURN_TICK_MS,
+  }) {
     super()
     this.toAgent = toAgent
     this.toZed = toZed
     this.log = log
     this.cancelTimeoutMs = cancelTimeoutMs
 
-    this.sessions = new Sessions()
+    this.sessions = new Sessions({ turnTimeoutMs, turnTickMs })
     this.sessions.on('change', (sessionId) => this.emit('state', this.sessions.snapshot(sessionId)))
+    this.sessions.on('stalled', (sessionId, info) => this.noteStalled(sessionId, info))
 
     /** Requêtes Zed → agent en vol : `idKey` → `{ method, params }`. */
     this.zedRequests = new Map()
@@ -371,6 +391,8 @@ export class AcpBridge extends EventEmitter {
     // `thread_state` : l'`update` lui-même est republié verbatim.
     // Premier signe de vie de l'agent après un prompt injecté : il l'a accepté.
     this.confirm(sessionId, true)
+    // Tout `update` repousse le garde-fou : un tour qui stream est vivant.
+    this.sessions.activity(sessionId)
 
     const st = this.sessions.get(sessionId)
     switch (update.sessionUpdate) {
@@ -486,6 +508,19 @@ export class AcpBridge extends EventEmitter {
   }
 
   /**
+   * Avis inscrit dans le fil (protocole §5 `zra/notice`). Publié vers le daemon
+   * seulement : comme le `user_message_chunk` synthétique, il n'est jamais
+   * envoyé à Zed.
+   */
+  notice(sessionId, text, level = 'info') {
+    this.emit('update', {
+      sessionId,
+      update: { sessionUpdate: 'zra/notice', text, level },
+      at: new Date().toISOString(),
+    })
+  }
+
+  /**
    * Requête vers l'agent dans notre propre espace d'`id` : `zra-N`. Zed numérote
    * ses requêtes de son côté sans jamais voir les nôtres ; un préfixe textuel
    * rend la collision impossible même s'il utilisait les mêmes entiers.
@@ -537,6 +572,10 @@ export class AcpBridge extends EventEmitter {
         const entry = this.sessions.enqueue(sessionId, text)
         return { queued: true, queueId: entry.queueId }
       }
+      // `cancelAndWait` rend toujours un tour clos : acquitté par l'agent, ou
+      // d'office. C'est ce qui empêche un « stop et envoie » sur un agent muet
+      // d'empiler un prompt orphelin de plus — le tour ne reviendrait alors
+      // jamais à `idle`, même une fois l'agent reparti.
       await this.cancelAndWait(sessionId)
     }
 
@@ -555,7 +594,11 @@ export class AcpBridge extends EventEmitter {
   /**
    * `session/cancel` est une notification : l'acquittement attendu est la
    * réponse au `session/prompt` en vol, que l'agent clôt en `cancelled`. On
-   * l'attend — sans bloquer indéfiniment si l'agent traîne.
+   * l'attend — sans bloquer indéfiniment s'il traîne.
+   *
+   * S'il ne vient pas, on ne rend pas la main en laissant le tour ouvert : ce
+   * serait un « tour interrompu » affiché sur un chargement qui ne s'arrête
+   * jamais, sans aucune échappatoire côté mobile. Le tour est clos d'office.
    */
   async cancelAndWait(sessionId) {
     const st = this.sessions.get(sessionId)
@@ -564,33 +607,71 @@ export class AcpBridge extends EventEmitter {
     // envoie » : c'est l'appelant qui décide de ce qui part ensuite.
     st.holdQueue = true
     this.notify(M.sessionCancel, { sessionId })
-    // Le fil doit dire ce qui vient de se passer : l'agent, lui, ne produira
-    // qu'un tour clos en « cancelled », que la PWA ne saurait pas nommer.
-    this.emit('update', {
-      sessionId,
-      update: { sessionUpdate: 'zra/notice', text: 'tour interrompu', level: 'warn' },
-      at: new Date().toISOString(),
-    })
     try {
-      await this.waitIdle(sessionId, this.cancelTimeoutMs)
+      if (await this.waitIdle(sessionId, this.cancelTimeoutMs)) {
+        // Le fil doit dire ce qui vient de se passer : l'agent, lui, ne produit
+        // qu'un tour clos en « cancelled », que la PWA ne saurait pas nommer.
+        this.notice(sessionId, 'tour interrompu', 'warn')
+        return true
+      }
+      this.log?.warn(
+        `interruption : pas d'acquittement en ${this.cancelTimeoutMs} ms, tour clos d'office`,
+      )
+      this.forceIdle(sessionId, "l'agent n'a pas acquitté l'interruption : tour clos")
+      return false
     } finally {
       st.holdQueue = false
     }
   }
 
+  /**
+   * Clôture d'office du tour, et ce que le fil en dit. La file reste en place :
+   * voir `Sessions.forceIdle`.
+   *
+   * Le mobile ne peut pas deviner qu'un tour s'est arrêté **sans** l'agent :
+   * sans cet avis, il ne verrait qu'un chargement qui s'arrête, sur un thread
+   * dont l'agent est en fait à relancer.
+   *
+   * @returns {boolean} vrai si un tour a effectivement été clos
+   */
+  forceIdle(sessionId, reason) {
+    const queued = this.sessions.get(sessionId).queue.length
+    if (!this.sessions.forceIdle(sessionId).length) return false
+    // Un prompt injecté dont on n'attend plus la réponse ne confirmera jamais :
+    // son appelant (backend `auto`) doit pouvoir rendre la main. « Non confirmé »,
+    // pas « refusé » — l'agent s'est tu, il n'a rien rejeté.
+    const waiter = this.confirming.get(sessionId)
+    if (waiter) {
+      this.confirming.delete(sessionId)
+      clearTimeout(waiter.timer)
+      waiter.resolve(false)
+    }
+    const text = queued ? `${reason} — ${queued} message(s) en attente conservé(s)` : reason
+    this.notice(sessionId, `${text}. Rouvre le thread dans Zed pour relancer l'agent`, 'warn')
+    return true
+  }
+
+  /** Le garde-fou a repéré un tour que l'agent ne referme pas : on le clos. */
+  noteStalled(sessionId, { silentFor }) {
+    const s = Math.round(silentFor / 1000)
+    this.log?.warn(`session ${sessionId} : agent muet depuis ${s} s, tour clos d'office`)
+    const mins = Math.round(silentFor / 60_000)
+    this.forceIdle(sessionId, `l'agent ne répond plus depuis ${mins > 0 ? `${mins} min` : `${s} s`}`)
+  }
+
+  /** @returns {Promise<boolean>} vrai si le tour s'est clos, faux sur timeout. */
   waitIdle(sessionId, timeoutMs) {
-    if (this.sessions.get(sessionId).turn === 'idle') return Promise.resolve()
+    if (this.sessions.get(sessionId).turn === 'idle') return Promise.resolve(true)
     return new Promise((resolve) => {
       const onChange = (id) => {
         if (id !== sessionId || this.sessions.get(sessionId).turn !== 'idle') return
         clearTimeout(timer)
         this.sessions.off('change', onChange)
-        resolve()
+        resolve(true)
       }
       const timer = setTimeout(() => {
         this.sessions.off('change', onChange)
-        this.log?.warn(`interruption : pas d'acquittement en ${timeoutMs} ms, on continue`)
-        resolve()
+        resolve(false)
       }, timeoutMs)
       timer.unref?.()
       this.sessions.on('change', onChange)
@@ -609,6 +690,12 @@ export class AcpBridge extends EventEmitter {
       method: M.sessionPrompt,
       params,
       settle: (msg) => {
+        // Tour clos d'office entre-temps (agent muet) : cette réponse tardive ne
+        // tranche plus rien, et ne doit surtout pas confirmer le verdict d'un
+        // autre prompt en vol. Elle reste avalée — l'entrée dans `injected` est
+        // gardée exprès, pour que Zed ne voie jamais cet `id` qui n'est pas le
+        // sien.
+        if (!this.sessions.isPending(sessionId, k)) return
         if (msg.error) {
           const message = msg.error.message || 'prompt refusé'
           // Qui attend un verdict en est informé directement : c'est lui qui
@@ -743,5 +830,6 @@ export class AcpBridge extends EventEmitter {
     }
     this.permissions.clear()
     this.injected.clear()
+    this.sessions.close()
   }
 }

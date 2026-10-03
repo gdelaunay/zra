@@ -286,6 +286,20 @@ idle ──prompt──► busy ──réponse finale──► idle
 - **`interrupt`** : `session/cancel`, attendre l'acquittement, puis envoyer.
 - File persistée en mémoire du shim. Le shim meurt (Zed fermé) ⇒ file perdue,
   le mobile en est notifié explicitement.
+- **Clôture d'office.** `busy` se déduit des seuls `session/prompt` en vol : un
+  agent qui ne répond pas — pendu, ou mort sans avoir clos sa requête — ne
+  rendrait jamais le tour, et le mobile n'aurait aucune échappatoire, Stop
+  compris. Deux garde-fous le closent donc eux-mêmes, et le disent par un
+  `zra/notice` (protocole §5) :
+  - une interruption que l'agent n'acquitte pas dans les 5 s ;
+  - `turnTimeoutMs` (10 min par défaut) sans **aucun** `session/update`. Le
+    silence, pas la durée du tour : un tour long qui stream est vivant, une
+    grosse recherche d'outil ne doit pas être coupée.
+
+  La file n'est alors **pas** dépilée : on n'envoie pas un message à un agent
+  qu'on vient de déclarer muet. Elle reste affichée et annulable, et le thread se
+  relance en le rouvrant dans Zed (`session/load`, §5.2). Une réponse qui
+  arriverait après la clôture est avalée sans rien trancher.
 
 ### 6.5 Changer de modèle / mode
 

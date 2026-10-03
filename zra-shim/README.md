@@ -91,6 +91,7 @@ L'agent enveloppé se désigne, par ordre de priorité :
 | `ZRA_AGENT_COMMAND`, `ZRA_AGENT_ARGS` | commande explicite, prioritaire sur le registry |
 | `ZRA_DAEMON_URL` | défaut `ws://127.0.0.1:<port>/shim` |
 | `ZRA_DAEMON_PORT` | port du daemon si l'URL n'est pas donnée (défaut 7777) |
+| `ZRA_TURN_TIMEOUT_MS` | silence de l'agent au-delà duquel un tour en vol est clos d'office (`turnTimeoutMs` de `zra.config.json`, défaut 600000) |
 | `ZRA_RECORD=1` | vide toutes les trames dans `%LOCALAPPDATA%\zra\records\*.jsonl` |
 | `ZRA_RECORD_DIR` | où écrire ces enregistrements |
 | `ZRA_LOG_LEVEL` | `debug` `info` `warn` `error` |
@@ -116,4 +117,6 @@ C'est la première étape du re-test (`SPEC.md` §12).
 Le shim est monté entre un faux Zed (`test/fake-zed.mjs`, spec §10.2) et un
 agent ACP bouchon (`test/fake-agent.mjs`, spec §10.1) qui parle le vrai
 protocole sur stdio et joue des scénarios scriptés — texte streamé, diff,
-terminal, permission, tour long annulable.
+terminal, permission, tour long annulable, agent muet (`muet: …` : il accepte le
+prompt puis se tait, et n'acquitte jamais `session/cancel` — la panne qui a fait
+naître la clôture d'office, spec §6.4).

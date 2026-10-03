@@ -27,7 +27,7 @@ import { readFile } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
-import { AcpBridge, ShimError } from './acp.js'
+import { AcpBridge, ShimError, TURN_TIMEOUT_MS } from './acp.js'
 import { DaemonLink } from './daemon-link.js'
 import { log } from './log.js'
 import { pipeFrames } from './proxy.js'
@@ -46,16 +46,19 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
  *   agentIn: NodeJS.WritableStream, agentOut: NodeJS.ReadableStream,
  *   agentId?: string|null, daemonUrl?: string|null, shimId?: string,
  *   record?: { write:Function, close:Function }, cancelTimeoutMs?: number,
+ *   turnTimeoutMs?: number,
  * }} opts
  */
 export function createShim({
   zedIn, zedOut, agentIn, agentOut,
   agentId = null, daemonUrl = null, shimId = randomUUID().slice(0, 8),
   record = { write: () => {}, close: () => {} }, cancelTimeoutMs = 5000,
+  turnTimeoutMs = TURN_TIMEOUT_MS,
 }) {
   const bridge = new AcpBridge({
     log,
     cancelTimeoutMs,
+    turnTimeoutMs,
     // L'écho du message mobile : une trame entière en un seul appel, comme le relai
     // agent → Zed ; les deux ne s'entrelacent pas.
     toZed: (raw) => {
@@ -229,6 +232,9 @@ export async function main(argv = process.argv.slice(2)) {
 
   const port = Number(process.env.ZRA_DAEMON_PORT || config.port || 7777)
   const daemonUrl = process.env.ZRA_DAEMON_URL || `ws://127.0.0.1:${port}/shim`
+  // Garde-fou de tour (`acp.js`) : silence de l'agent au-delà duquel un tour en
+  // vol est clos d'office, plutôt que de laisser le mobile charger pour toujours.
+  const turnTimeoutMs = Number(process.env.ZRA_TURN_TIMEOUT_MS || config.turnTimeoutMs || TURN_TIMEOUT_MS)
 
   log.info(`agent : ${agent.command} ${agent.args.join(' ')}`)
 
@@ -257,6 +263,7 @@ export async function main(argv = process.argv.slice(2)) {
     agentId: agent.agentId,
     daemonUrl,
     record,
+    turnTimeoutMs,
   })
 
   // Zed coupe le shim comme il couperait l'agent : on transmet et on suit.

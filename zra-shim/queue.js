@@ -9,6 +9,12 @@
 // conséquences : le tour est déduit des requêtes `session/prompt` réellement en
 // vol (les siennes comme celles de Zed), et la file d'attente vit ici — si le
 // shim meurt, elle est perdue, et le mobile en est notifié explicitement.
+//
+// Déduire le tour des seules requêtes en vol a un revers : un agent qui ne
+// répond jamais — pendu, ou mort sans que sa requête soit close — laisse le tour
+// `busy` pour toujours, et le mobile sans aucune échappatoire, Stop compris.
+// D'où une troisième sortie, `forceIdle` : clôture d'office, sur silence
+// prolongé (garde-fou) ou sur une interruption non acquittée.
 
 import { EventEmitter } from 'node:events'
 import { randomUUID } from 'node:crypto'
@@ -41,6 +47,11 @@ export class SessionState {
      * décide de ce qui part ensuite, pas la fin de tour.
      */
     this.holdQueue = false
+    /**
+     * Dernier signe de vie de l'agent (ms). Le garde-fou mesure le **silence**,
+     * pas la durée : un tour long qui stream n'est pas un tour pendu.
+     */
+    this.lastActivity = Date.now()
   }
 
   get turn() {
@@ -49,10 +60,19 @@ export class SessionState {
 }
 
 export class Sessions extends EventEmitter {
-  constructor() {
+  /**
+   * @param {{ turnTimeoutMs?:number, turnTickMs?:number }} [opts]
+   *   `turnTimeoutMs` : silence au-delà duquel un tour en vol est clos d'office
+   *   (`0` désactive le garde-fou — les tests pilotent `sweep` à la main).
+   */
+  constructor({ turnTimeoutMs = 0, turnTickMs = 5000 } = {}) {
     super()
     /** @type {Map<string, SessionState>} */
     this.map = new Map()
+    this.turnTimeoutMs = turnTimeoutMs
+    this.timer = turnTimeoutMs > 0 ? setInterval(() => this.sweep(), turnTickMs) : null
+    // Le garde-fou ne doit jamais retenir le processus : le shim suit son agent.
+    this.timer?.unref?.()
   }
 
   has(sessionId) {
@@ -84,6 +104,7 @@ export class Sessions extends EventEmitter {
     const st = this.get(sessionId)
     const before = st.turn
     st.pendingPrompts.add(idKey)
+    st.lastActivity = Date.now()
     if (before !== st.turn) this.changed(sessionId)
   }
 
@@ -98,6 +119,59 @@ export class Sessions extends EventEmitter {
     st.cancelling = false
     this.changed(sessionId)
     return st.queue.length ? st.queue[0] : null
+  }
+
+  /** Un signe de vie de l'agent : le garde-fou repart de là. */
+  activity(sessionId) {
+    this.get(sessionId).lastActivity = Date.now()
+  }
+
+  /**
+   * Le prompt est-il toujours en vol ? Une réponse qui arrive après une
+   * clôture d'office ne doit plus rien trancher — seulement rester avalée.
+   */
+  isPending(sessionId, idKey) {
+    return this.get(sessionId).pendingPrompts.has(idKey)
+  }
+
+  /**
+   * Clôture d'office : l'agent ne refermera pas ce tour lui-même.
+   *
+   * La file **n'est pas dépilée**. Le chemin nominal enverrait le message
+   * suivant à un agent qu'on vient de déclarer muet, ce qui ne ferait qu'un
+   * second tour orphelin ; les entrées restent visibles et annulables.
+   *
+   * @returns {string[]} les clés des prompts abandonnés
+   */
+  forceIdle(sessionId) {
+    const st = this.get(sessionId)
+    const keys = [...st.pendingPrompts]
+    if (!keys.length) return keys
+    st.pendingPrompts.clear()
+    st.cancelling = false
+    this.changed(sessionId)
+    return keys
+  }
+
+  /**
+   * Garde-fou : repère les tours dont l'agent ne donne plus aucun signe de vie.
+   * Ne clos rien elle-même — c'est l'écouteur (`AcpBridge.noteStalled`) qui s'en
+   * charge, lui seul sachant le dire dans le fil.
+   */
+  sweep(now = Date.now()) {
+    for (const [sessionId, st] of this.map) {
+      if (!st.pendingPrompts.size) continue
+      const silentFor = now - st.lastActivity
+      if (silentFor < this.turnTimeoutMs) continue
+      this.emit('stalled', sessionId, { silentFor })
+    }
+  }
+
+  /** Le shim s'en va : plus personne à surveiller. */
+  close() {
+    if (!this.timer) return
+    clearInterval(this.timer)
+    this.timer = null
   }
 
   // ---- file d'attente ------------------------------------------------------

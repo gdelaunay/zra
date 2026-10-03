@@ -184,6 +184,11 @@ mobile n'est jamais envoyé par Stop. Si le tour est déjà `idle`, ne rien fair
 Émettre ensuite `thread_state` avec `turn: 'idle'` et, idéalement, un
 `zra/notice` « tour interrompu ».
 
+`turn: 'idle'` est dû **même si l'agent n'acquitte pas** le `session/cancel` : le
+tour est alors clos d'office et le notice dit ce qui s'est vraiment passé plutôt
+que « tour interrompu » (§5, spec §6.4). Sans ça, Stop afficherait une
+interruption sur un chargement qui ne s'arrête jamais.
+
 ### `cancel_queued`
 ```ts
 { type: 'cancel_queued', threadId: string, queueId: string }
@@ -468,6 +473,12 @@ le bloc. La PWA repeint tous les tool calls qui référencent ce `terminalId`.
 ```
 Message du daemon inséré dans le fil : « tour interrompu », « Zed a fermé
 l'agent : file d'attente perdue »… Rendu en ligne système discrète.
+
+Un tour clos **sans** l'agent le dit aussi, avec la marche à suivre : « l'agent
+n'a pas acquitté l'interruption : tour clos. Rouvre le thread dans Zed pour
+relancer l'agent », « l'agent ne répond plus depuis 12 min : tour clos —
+2 message(s) en attente conservé(s). … ». Sans cet avis, le mobile ne verrait
+qu'un chargement qui s'arrête (spec §6.4).
 
 ### `zra/permission_resolved`
 ```ts

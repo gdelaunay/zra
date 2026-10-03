@@ -3,7 +3,8 @@
 //
 // Parle l'ACP réel sur stdio (celui du schéma `@agentclientprotocol/sdk` relevé
 // sur la machine cible) et joue des scénarios scriptés : texte streamé, tool
-// call avec diff, terminal, demande de permission, tour long annulable.
+// call avec diff, terminal, demande de permission, tour long annulable, agent
+// muet (tour pendu, interruption jamais acquittée).
 //
 // Il sert deux maîtres :
 //  · le shim, qui l'enveloppe comme il envelopperait le vrai agent ;
@@ -172,6 +173,14 @@ async function runPrompt(session, text) {
     session.effort = 'high'
     update(sessionId, { sessionUpdate: 'config_option_update', configOptions: configOf(session) })
     return { stopReason: 'end_turn' }
+  }
+
+  if (text.startsWith('muet:')) {
+    // Agent pendu : il accepte le prompt, ne stream rien, et n'acquittera jamais
+    // `session/cancel` — le gestionnaire pose `session.cancelled`, que cette
+    // branche ne lit pas. C'est la panne réelle du 2026-10-03 (pi-acp muet après
+    // la mort de son enfant `pi`) : seul le garde-fou du shim peut clore le tour.
+    await new Promise(() => {})
   }
 
   if (text.startsWith('lent:')) {

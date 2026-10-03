@@ -77,6 +77,12 @@
   //   }
   "agentCommands": {},
 
+  // Garde-fou de tour, lu par le **shim** (ZRA_TURN_TIMEOUT_MS le surcharge).
+  // Silence de l'agent — aucun session/update — au-delà duquel un tour en vol
+  // est clos d'office et le dit dans le fil. Sans lui, un agent pendu ou mort
+  // sans avoir clos sa requête laisse le mobile en chargement pour toujours.
+  "turnTimeoutMs": 600000,
+
   // Cache du replay session/load (spec §5.2) et garde-fou de durée.
   "historyTtlMs": 600000,
   "historyTimeoutMs": 60000

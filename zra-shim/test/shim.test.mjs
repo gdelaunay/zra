@@ -14,7 +14,7 @@ import { fileURLToPath } from 'node:url'
 import { createShim } from '../index.js'
 import { createFramer, parseFrame } from '../framing.js'
 import { pipeFrames } from '../proxy.js'
-import { projectOptions } from '../acp.js'
+import { AcpBridge, projectOptions } from '../acp.js'
 import { createRecorder } from '../record.js'
 import { FakeZed } from './fake-zed.mjs'
 
@@ -22,7 +22,7 @@ const HERE = dirname(fileURLToPath(import.meta.url))
 const FAKE_AGENT = join(HERE, 'fake-agent.mjs')
 
 /** Monte un shim entre un faux Zed (en mémoire) et l'agent bouchon (un vrai processus). */
-async function boot(t, { zed = {}, env = {} } = {}) {
+async function boot(t, { zed = {}, env = {}, shimOpts = {} } = {}) {
   const agent = spawn(process.execPath, [FAKE_AGENT], {
     stdio: ['pipe', 'pipe', 'pipe'],
     env: { ...process.env, ...env },
@@ -39,6 +39,7 @@ async function boot(t, { zed = {}, env = {} } = {}) {
     agentId: 'fake-acp',
     daemonUrl: null,
     cancelTimeoutMs: 2000,
+    ...shimOpts,
   })
 
   const fakeZed = new FakeZed({ toShim: zedIn, fromShim: zedOut, ...zed })
@@ -305,15 +306,21 @@ test('cancel_queued retire une entrée, un queueId inconnu est sans effet', asyn
 
 test('interrupt coupe le tour et rend la main sur l’acquittement', async (t) => {
   const { bridge, zed } = await boot(t)
+  const notices = []
+  bridge.on('update', (e) => { if (e.update.sessionUpdate === 'zra/notice') notices.push(e.update) })
+
   const turn = zed.prompt('lent: tour à couper')
   await until(() => bridge.sessions.get(zed.sessionId).turn === 'busy', { label: 'busy' })
 
   assert.deepEqual(await bridge.cancel(zed.sessionId), { interrupted: true })
   assert.equal(bridge.sessions.get(zed.sessionId).turn, 'idle')
   assert.equal((await turn).stopReason, 'cancelled')
+  // Acquittement réel ⇒ l'avis nominal, et lui seul (protocole §7).
+  assert.deepEqual(notices.map((n) => n.text), ['tour interrompu'])
 
   // Tour déjà à l'arrêt : ne rien faire (protocole §3 `interrupt`).
   assert.deepEqual(await bridge.cancel(zed.sessionId), { interrupted: false })
+  assert.equal(notices.length, 1)
 })
 
 test('mode interrupt : on coupe, puis le message part', async (t) => {
@@ -538,4 +545,173 @@ test('prompt confirmé : accepté au premier update, refusé sur erreur, muet au
   await bridge.prompt('s1', 'quatre')
   bridge.observeFromAgent({ jsonrpc: '2.0', id: sent.at(-1).id, error: { code: -32000, message: 'refus' } })
   assert.equal(failed.length, 1)
+})
+
+// ---------------------------------------------------------------------------
+// Agent muet — tour clos d'office (panne réelle du 2026-10-03)
+//
+// `turn` est déduit des seuls `session/prompt` en vol : un agent qui ne répond
+// jamais laissait le tour `busy` pour toujours, le mobile en chargement infini,
+// et Stop n'y changeait rien — il affichait « tour interrompu » sans refermer le
+// tour. Ce qui suit verrouille les trois sorties : interruption non acquittée,
+// garde-fou sur silence, et réponse tardive d'un tour déjà clos.
+// ---------------------------------------------------------------------------
+
+/** Pont nu, sans processus, avec une session `s1` ouverte : pour les tests d'horloge. */
+function bareBridge(sent, opts = {}) {
+  const bridge = new AcpBridge({
+    toAgent: (raw) => sent.push(JSON.parse(raw.toString())),
+    turnTimeoutMs: 1000,
+    ...opts,
+  })
+  bridge.observeFromZed({ jsonrpc: '2.0', id: 1, method: 'session/new', params: { cwd: '/tmp' } })
+  bridge.observeFromAgent({ jsonrpc: '2.0', id: 1, result: { sessionId: 's1' } })
+  return bridge
+}
+
+const zedPrompt = (bridge, text, id = 2) =>
+  bridge.observeFromZed({ jsonrpc: '2.0', id, method: 'session/prompt', params: { sessionId: 's1', prompt: [{ type: 'text', text }] } })
+
+const agentChunk = () => ({
+  jsonrpc: '2.0', method: 'session/update',
+  params: { sessionId: 's1', update: { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: '.' } } },
+})
+
+const noticesOf = (bridge) => {
+  const notices = []
+  bridge.on('update', (e) => { if (e.update.sessionUpdate === 'zra/notice') notices.push(e.update) })
+  return notices
+}
+
+test('stop sur un agent muet : le tour est clos d’office et le fil le dit', async (t) => {
+  const { bridge, zed } = await boot(t, { shimOpts: { cancelTimeoutMs: 200 } })
+  const notices = noticesOf(bridge)
+
+  // L'agent accepte le prompt puis se tait : il n'acquittera pas le cancel.
+  let rendu = false
+  const turn = zed.prompt('muet: ne répondra jamais')
+  turn.then(() => { rendu = true }, () => { rendu = true })
+  await until(() => bridge.sessions.get(zed.sessionId).turn === 'busy', { label: 'busy' })
+
+  assert.deepEqual(await bridge.cancel(zed.sessionId), { interrupted: true })
+  assert.equal(bridge.sessions.get(zed.sessionId).turn, 'idle')
+  // Pas « tour interrompu » : ce serait mentir, l'agent n'a rien acquitté.
+  assert.equal(notices.length, 1)
+  assert.match(notices[0].text, /pas acquitté/)
+  assert.match(notices[0].text, /Rouvre le thread dans Zed/)
+  assert.equal(notices[0].level, 'warn')
+  // Zed, lui, attend toujours sa réponse : on a cessé d'y croire, pas lui.
+  assert.equal(rendu, false)
+})
+
+test('stop et envoie sur un agent muet : un seul prompt en vol, pas d’orphelin', async (t) => {
+  const { bridge, zed } = await boot(t, { shimOpts: { cancelTimeoutMs: 200 } })
+
+  zed.prompt('muet: premier tour')
+  await until(() => bridge.sessions.get(zed.sessionId).turn === 'busy', { label: 'busy' })
+
+  await bridge.prompt(zed.sessionId, 'muet: second tour', 'interrupt')
+  // Sans clôture d'office, le tour non acquitté s'ajouterait au nouveau prompt :
+  // `turn` ne reviendrait plus jamais à `idle`, même l'agent reparti.
+  assert.equal(bridge.sessions.get(zed.sessionId).pendingPrompts.size, 1)
+})
+
+test('garde-fou : un tour sans signe de vie est clos, la file conservée', async () => {
+  const sent = []
+  const bridge = bareBridge(sent)
+  const notices = noticesOf(bridge)
+  const turns = []
+  bridge.on('state', (s) => turns.push(s.turn))
+
+  zedPrompt(bridge, 'bonjour')
+  const st = bridge.sessions.get('s1')
+  assert.equal(st.turn, 'busy')
+  bridge.sessions.enqueue('s1', 'en attente')
+
+  // Sous le délai : rien ne bouge.
+  bridge.sessions.sweep(st.lastActivity + 999)
+  assert.equal(st.turn, 'busy')
+  assert.equal(notices.length, 0)
+
+  // Délai atteint sans un seul `session/update` : clôture d'office.
+  bridge.sessions.sweep(st.lastActivity + 1000)
+  assert.equal(st.turn, 'idle')
+  assert.equal(turns.at(-1), 'idle')
+  // La file ne part pas dans le vide : elle reste visible et annulable.
+  assert.equal(st.queue.length, 1)
+  assert.equal(sent.length, 0, 'rien n’est écrit vers l’agent')
+  assert.equal(notices.length, 1)
+  assert.match(notices[0].text, /ne répond plus/)
+  assert.match(notices[0].text, /1 message\(s\) en attente conservé/)
+  bridge.shutdown()
+})
+
+test('garde-fou : le silence se mesure depuis le dernier signe de vie', () => {
+  const bridge = bareBridge([])
+  const st = bridge.sessions.get('s1')
+  zedPrompt(bridge, 'un long tour')
+
+  // Un tour long qui stream n'est pas un tour pendu : chaque `update` repousse
+  // l'échéance. `lastActivity` est remis à une valeur synthétique pour balayer à
+  // heure fixe, sans horloge simulée.
+  for (const at of [10_000, 20_000, 30_000]) {
+    const avant = st.lastActivity
+    bridge.observeFromAgent(agentChunk())
+    assert.ok(st.lastActivity >= avant, 'un update rafraîchit le dernier signe de vie')
+    st.lastActivity = at
+    bridge.sessions.sweep(at + 999)
+    assert.equal(st.turn, 'busy', `tour coupé à tort après l'update de ${at}`)
+  }
+
+  st.lastActivity = 40_000
+  bridge.sessions.sweep(41_000)
+  assert.equal(st.turn, 'idle')
+  bridge.shutdown()
+})
+
+test('une réponse tardive après clôture d’office ne dépile pas la file', async () => {
+  const sent = []
+  const bridge = bareBridge(sent)
+
+  await bridge.prompt('s1', 'premier')
+  bridge.sessions.enqueue('s1', 'second')
+  const abandonne = sent.at(-1).id
+  bridge.forceIdle('s1', 'agent muet')
+  const avant = sent.length
+
+  // L'agent se réveille et répond au prompt abandonné.
+  bridge.observeFromAgent({ jsonrpc: '2.0', id: abandonne, result: { stopReason: 'end_turn' } })
+  await wait(20)
+
+  assert.equal(bridge.sessions.get('s1').turn, 'idle')
+  assert.equal(bridge.sessions.get('s1').queue.length, 1, 'la file ne part pas toute seule')
+  assert.equal(sent.length, avant, 'rien de plus n’est écrit vers l’agent')
+  bridge.shutdown()
+})
+
+test('une réponse tardive ne confirme pas le verdict d’un autre prompt', async () => {
+  const sent = []
+  const bridge = bareBridge(sent)
+
+  // Premier prompt, abandonné par une clôture d'office…
+  const premier = bridge.prompt('s1', 'premier', 'queue', { confirmMs: 5000 })
+  await new Promise((r) => setImmediate(r))
+  const abandonne = sent.at(-1).id
+  bridge.forceIdle('s1', 'agent muet')
+  // …rendu à son appelant sans verdict, plutôt que de le laisser pendre.
+  assert.deepEqual(await premier, { queued: false, confirmed: false })
+
+  // Un second prompt, dont on attend le verdict.
+  const second = bridge.prompt('s1', 'second', 'queue', { confirmMs: 5000 })
+  await new Promise((r) => setImmediate(r))
+
+  // La réponse du premier ne doit pas trancher pour le second.
+  bridge.observeFromAgent({ jsonrpc: '2.0', id: abandonne, result: { stopReason: 'end_turn' } })
+  await wait(20)
+  assert.equal(bridge.sessions.get('s1').turn, 'busy', 'le second prompt est toujours en vol')
+
+  bridge.observeFromAgent(agentChunk())
+  assert.deepEqual(await second, { queued: false, confirmed: true })
+  bridge.observeFromAgent({ jsonrpc: '2.0', id: sent.at(-1).id, result: { stopReason: 'end_turn' } })
+  bridge.shutdown()
 })
