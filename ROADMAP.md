@@ -55,6 +55,21 @@ shim » ci-dessous.
 
 # Roadmap / Idées d'architecture
 
+## V1.1 — plus tard, pas avant la fin de la v1
+
+- **commandes `/`** : taper `/` dans le composer propose les commandes de
+  l'agent. ACP les annonce (`available_commands_update`), la PWA les mémorise
+  déjà sans les afficher (`PROTOCOL.md` §4, `zra-client/js/acp.js`). Lancer une
+  commande, c'est envoyer son texte ;
+- **mentions `@`** : suggérer des fichiers et dossiers du projet. Ce n'est pas
+  dans ACP, c'est Zed qui fournit la liste. Le daemon tourne sur le poste et
+  connaît les `folderPaths` du thread, il pourrait donc lister les fichiers
+  lui-même. Reste à définir ce que la mention envoie à l'agent (lien de
+  ressource ACP, ou chemin en texte). Faisabilité à vérifier ;
+- **notifications push** quand une réponse arrive sur un thread (Web Push).
+  L'architecture est prévue mais inactive : `sw.js` gère déjà `push` et
+  `notificationclick` (`SPEC.md`, `zra-client/README.md`). Exige le HTTPS.
+
 ## Portabilité Linux (priorité)
 
 ZRA ne tourne aujourd'hui que sous Windows. Le protocole, la PWA, le shim et
