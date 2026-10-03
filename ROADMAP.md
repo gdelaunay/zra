@@ -38,14 +38,15 @@ affichée qu'une fenêtre qui flashe.
 
 ### Reconnexion mobile 🟡
 
-Trois chantiers cadrés dans `RECONNECT-SPEC.md` (`zra-client/js/link.js`) :
+Trois chantiers cadrés dans `RECONNECT-SPEC.md` :
 
-1. plateau de backoff à 60 s pour un poste mort (spécifié, à coder) ;
-2. timeout de handshake WS ~15 s contre l'état « connexion… » infini
-   (spécifié, à coder) ;
+1. ✅ plateau de backoff à 60 s + délais doublés (1→30 s puis 60 s) ;
+2. ✅ timeout de handshake WS 15 s — corrige aussi la chaîne de retry qui
+   mourait en silence sur une socket coincée en `CONNECTING` ;
 3. **déconnexion en pleine séance puis reconnexion impossible sans redémarrer
-   le daemon** : observé à l'usage, aucun log, cause probablement côté daemon.
-   À investiguer (RECONNECT-SPEC.md §3) — le plus pénible des trois.
+   le daemon** : logs analysés (RECONNECT-SPEC.md §3) — le client cessait de
+   retenter, §2 devrait suffire ; instrumentation posée des deux côtés (codes
+   de fermeture) pour capturer une récidive éventuelle. À surveiller à l'usage.
 
 ### Confirmé à l'usage ✅
 

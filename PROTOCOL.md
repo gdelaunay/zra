@@ -51,7 +51,8 @@ modules ne chargent pas : `.js → text/javascript`, `.css → text/css`,
 2. Le daemon répond `machine`, puis `threads`, puis un `thread_state` par thread
    connu. Ce trio est le **bootstrap** ; la PWA n'affiche rien tant qu'il n'est
    pas arrivé.
-3. À toute coupure, la PWA reconnecte avec backoff (0,5 s → 15 s, jitter). À la
+3. À toute coupure, la PWA reconnecte avec backoff (1 s → 30 s, puis plateau
+   60 s, jitter), et un handshake WS qui traîne est abandonné au bout de 15 s. À la
    reconnexion elle renvoie `hello`, puis `list_threads`, puis un `subscribe`
    et un `load_history` pour chaque thread qu'elle avait ouvert : ce qui est
    passé pendant la coupure n'est pas rejoué autrement.

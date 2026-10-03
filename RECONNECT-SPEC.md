@@ -8,15 +8,15 @@ côté daemon plutôt que client.
 
 ---
 
-## 1. Plateau de backoff à 60 s
+## 1. Plateau de backoff à 60 s ✅ implémenté
 
 **Symptôme.** Un poste définitivement hors ligne (éteint, hors réseau) est
 ressayé toutes les 15 s *indéfiniment*. L'escalade plafonne à 15 s puis tourne
 en boucle ; le bandeau de la liste des postes (`views/threads.js`) clignote
 « connexion… → poste injoignable » à l'infini.
 
-**Existant.** `BACKOFF = [500, 1000, 2000, 4000, 8000, 15000]` (link.js:6),
-plafonné au dernier terme + jitter 0–300 ms (`scheduleRetry`, link.js:144).
+**Existant.** `BACKOFF = [500, 1000, 2000, 4000, 8000, 15000]`,
+plafonné au dernier terme + jitter 0–300 ms (`scheduleRetry`).
 Pas de borne haute de durée totale : ça retente pour toujours.
 
 **Décision.** Ajouter un **plateau long** après épuisement du backoff court :
@@ -24,13 +24,18 @@ au-delà de `BACKOFF.length` tentatives consécutives, passer le délai à **60 
 (avec jitter). Ça borne le spam d'un poste mort sans le donner totalement perdu
 — une reconnexion de fond reste possible toutes les minutes.
 
-**Non-retenu (pour l'instant).** Remonter `attempt = 0` dans `wake()` (link.js:162)
+**Fait.** `BACKOFF` doublé dans la foulée (jugé raisonnable à l'usage) :
+`[1000, 2000, 4000, 8000, 16000, 30000]`, puis `LONG_BACKOFF_MS = 60000`.
+Une ouverture réussie remet `attempt` à zéro (séquence complète à chaque
+nouvelle perte). Tests dans `zra-client/test/link.test.mjs`.
+
+**Non-retenu (pour l'instant).** Remonter `attempt = 0` dans `wake()`
 est jugé **souhaitable** (un retour au premier plan légitime doit pouvoir
 re-tenter vite), pas un bug. Le plateau le compense côté poste mort.
 
 ---
 
-## 2. Timeout d'établissement du handshake WebSocket
+## 2. Timeout d'établissement du handshake WebSocket ✅ implémenté
 
 **Symptôme.** Certains postes restent bloqués en « connexion… » **indéfiniment**.
 Plus rien ne les déloge, même le bouton « Réessayer » ou un retour au premier plan.
@@ -62,8 +67,19 @@ et un faux positif coûte cher (tuer une connexion lente-mais-légitime). Règle
 ≈ 2× le pire handshake réel + marge de cold-start radio mobile. Un handshake
 mesuré à **6 s** derrière wireguard/IPv4 est un p99 observé, pas une limite.
 
-**À ne pas confondre.** `PONG_TIMEOUT_MS = 6000` (link.js:10) = « connexion déjà
-ouverte, ça répond vite ». Sémantique différente du handshake → constante dédiée.
+**À ne pas confondre.** `PONG_TIMEOUT_MS = 6000` = « connexion déjà ouverte, ça
+répond vite ». Sémantique différente du handshake → constante dédiée.
+
+**Fait.** `CONNECT_TIMEOUT_MS = 15000` : timer posé dans `connect()`, annulé
+dans `onopen`, `lost()` et `close()` ; à échéance il force
+`lost(ws, 'délai de connexion dépassé')` → backoff normal. Tests dans
+`zra-client/test/link.test.mjs` (handshake interminable, et ouverture réussie
+non tuée par le timer). Ce filet répare au passage un piège pire que le symptôme
+décrit : une socket coincée en `CONNECTING` sans événement **cassait aussi la
+chaîne de retry** — `connect()` rend la main sans replanifier quand une socket
+est déjà en vol, et `wake()` ne fait rien sur `'connecting'` : plus aucun timer
+ne tournait nulle part. Avec le timeout, `lost()` finit toujours par rendre la
+main à `scheduleRetry()`.
 
 ---
 
@@ -84,22 +100,66 @@ half-open, ressource non libérée, boucle d'accept bloquée…), ou l'ancienne
 connexion fantôme n'est pas nettoyée et gêne la nouvelle (appairage, registre
 de shim, mutex côté `hub.js` / `ws.js` / `server.js`).
 
-**Reproductibilité.** Inconnue pour l'instant — observé une fois, en conditions
-réelles (Wi-Fi domestique). Pas de capture, pas de logs exploitables.
+**Reproductibilité.** Observé au moins deux fois en conditions réelles (Wi-Fi
+domestique). La seconde avec les logs du daemon — voir l'analyse ci-dessous.
 
-**Pistes d'investigation (avant tout correctif) :**
+**Analyse des logs de l'épisode du 3/10 (18 h 38 – 18 h 58).**
 
-1. **Instrumenter d'abord** : horodater côté daemon les `connection`, `close`
-   (avec code/raison), `error` du serveur WS et l'activité du heartbeat ;
-   idem côté client dans `link.js` (code de fermeture reçu ou absence de
-   code). Sans ça, le prochain épisode ne donnera rien de plus.
-2. **Vérifier le nettoyage serveur** : quand une connexion tombe, le daemon
+```
+18:38:50 client b2ce4f16 connecté (origin=https://zra.gdelaunay.fr, ip=192.168.1.86)
+18:42:49 client 41b85e62 connecté (mêmes origin/ip)
+18:42:50 client b2ce4f16 déconnecté
+18:43:00 client 41b85e62 déconnecté
+… plus RIEN jusqu'à l'arrêt manuel à 18:57:29 …
+```
+
+1. **Les deux clients simultanés ne sont pas deux projets** : la PWA ouvre un
+   WebSocket **par poste**, pas par projet ni par thread. `b2ce4f16` puis
+   `41b85e62` = une **reconnexion** : le client a jugé la première connexion
+   morte (heartbeat sans pong — onglet gelé, micro-coupure) et en a ouvert une
+   nouvelle pendant que le daemon voyait l'ancienne mourir 1,5 s plus tard.
+   Séquence normale de bascule.
+2. **L'anomalie est le silence après 18:43.** `41b85e62 déconnecté`, puis
+   **aucune tentative d'upgrade n'atteint le daemon pendant 14 minutes** —
+   alors que le client aurait dû retenter toutes les ~15 s (backoff de
+   l'époque), et que chaque arrivée, même refusée, aurait été journalisée
+   (`client … connecté` ou `upgrade refusé`). Conclusion : les tentatives sont
+   mortes **entre le téléphone et le daemon**, ou le client **a cessé de
+   retenter**.
+3. **Le client a probablement cessé de retenter — bug identifié depuis** :
+   socket coincée en `CONNECTING` sans `onerror`/`onclose` → aucun timer en vol
+   (§2), `wake()` inerte sur `'connecting'`, et `connect()` rendu sans
+   replanifier quand une socket est déjà en vol. La chaîne de retry meurt en
+   silence. **Corrigé par le timeout de handshake (§2).**
+4. **Pourquoi le restart du daemon débloque** : hypothèse cohérente — le
+   reverse proxy (ou la pile réseau du téléphone) retient des connexions
+   half-open vers le daemon ; l'arrêt du daemon les réinitialise côté proxy, et
+   au redémarrage le navigateur obtient enfin un `onerror`/`onclose` sur ses
+   sockets fantômes — ou le retry suivant aboutit directement.
+5. **ProtonVPN peu probable** : split-tunnel en mode inclusion avec bittorrent
+   seul ; le trafic passait par le LAN (192.168.1.86 → 192.168.1.32). Le daemon
+   écoute bien sur l'adaptateur Proton (10.2.0.2, détecté comme « tunnel »),
+   mais ce n'est pas le chemin emprunté. À garder en suspect secondaire tant
+   qu'un épisode n'est pas capturé avec les nouveaux logs.
+
+**Instrumentation ajoutée depuis cet épisode :**
+
+- côté daemon (`hub.js`) : la déconnexion journalise le **code de fermeture
+  WS** quand le client en a envoyé un, ou « sans code — coupure TCP » sinon
+  (1001 = il part proprement ; absence = TCP mort sans adieu) ;
+- côté client (`link.js`) : `console.debug` sur la fermeture de socket
+  (code/raison/wasClean) et sur la perte de connexion. Les prochaines
+  DevTools mobiles distantes devraient montrer si le retry tourne encore.
+
+**Pistes restantes (si récidive malgré §2) :**
+
+1. **Vérifier le nettoyage serveur** : quand une connexion tombe, le daemon
    retire-t-il toujours le client de ses structures (hub, abonnements,
    heartbeat) ? Une ancienne connexion fantôme peut-elle bloquer la nouvelle ?
-3. **Provoquer** : couper le Wi-Fi du téléphone en pleine séance, attendre,
+2. **Provoquer** : couper le Wi-Fi du téléphone en pleine séance, attendre,
    le rallumer — la reconnexion doit marcher sans redémarrer le daemon.
    Essayer aussi le mode avion brutal et la mise en veille longue de l'écran.
-4. **Heartbeat serveur** : le daemon sonde-t-il ses clients morts (ping WS ou
+3. **Heartbeat serveur** : le daemon sonde-t-il ses clients morts (ping WS ou
    équivalent), ou découvre-t-il la perte uniquement quand TCP veut bien se
    fermer ? Un socket mort non détecté côté serveur est un candidat naturel.
 
