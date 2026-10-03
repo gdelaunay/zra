@@ -576,7 +576,8 @@ donc aussi. Il reste `jsdom`, en dépendance de développement, pour les tests P
 ```
 zra/
   package.json
-  zra.config.json              écoute, TLS, origines, injection, chemins
+  zra.config.example.json      écoute, TLS, origines, injection, chemins
+                               (à copier en zra.config.json, non suivi)
   zra-daemon/    index.js  daemon.js  config.js  server.js  ws.js  static.js
                  hub.js  threads-index.js  thread-state.js  ring-buffer.js
                  shim-registry.js  shim-link.js  session-loader.js

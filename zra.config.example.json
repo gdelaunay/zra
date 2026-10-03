@@ -1,6 +1,8 @@
-// Configuration de zra-daemon. Les commentaires sont tolérés (JSONC), comme
-// dans le settings.json de Zed. Surchargeable par variables d'environnement
-// (ZRA_PORT, ZRA_REQUIRE_TUNNEL…) et par les options de la ligne de commande.
+// Configuration de zra-daemon — modèle à copier en `zra.config.json` à la
+// racine (fichier propre au poste, non suivi par git ; `ZRA_CONFIG` peut pointer
+// ailleurs). Les commentaires sont tolérés (JSONC), comme dans le settings.json
+// de Zed. Surchargeable par variables d'environnement (ZRA_PORT,
+// ZRA_REQUIRE_TUNNEL…) et par les options de la ligne de commande.
 {
   "port": 7777,
 

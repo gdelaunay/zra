@@ -41,7 +41,8 @@ npm run zed -- probe | recipes | try <recette> [--apply]   # pilotage clavier
 npm test                             # npm install d'abord : jsdom, pour les tests de la PWA
 ```
 
-Configuration : `zra.config.json` (commenté).
+Configuration : copier `zra.config.example.json` (commenté) en `zra.config.json`
+à la racine — lu par le daemon et le shim, jamais committé (propre à chaque poste).
 
 | Doc | Contenu |
 |---|---|

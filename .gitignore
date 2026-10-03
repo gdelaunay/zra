@@ -10,6 +10,9 @@ zra-daemon/test/fixtures/settings-custom.json
 zra-daemon/test/fixtures/registry-args/
 zra-daemon/test/fixtures/settings-discover.json
 
+# config réelle du poste : copiée depuis zra.config.example.json, jamais committée
+/zra.config.json
+
 # état local de ZRA : journaux du shim, trames enregistrées, sauvegardes du settings.json
 .zra/
 zra-daemon/test/fixtures/settings-zra.json
