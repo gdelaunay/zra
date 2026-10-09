@@ -60,6 +60,10 @@ modules ne chargent pas : `.js → text/javascript`, `.css → text/css`,
    aucune trame en retour (6 s, 3 s au premier plan), elle tient la connexion
    pour morte et reconnecte : sur mobile, une socket peut rester ouverte sans
    que plus rien ne passe. Les envois attendent la réponse à ce `ping`.
+5. Le daemon **coupe un client qui ne lit pas** : si le tampon d'écriture de la
+   socket dépasse sa ligne d'eau (4 Mo) et que le client ne le draine pas, la
+   connexion est détruite plutôt que de gonfler la mémoire du daemon. Côté PWA,
+   c'est une coupure ordinaire : reconnexion + `subscribe`, point 3.
 
 > **Le daemon ne conserve aucun état par client.** Un client qui revient doit
 > pouvoir tout reconstruire avec `hello` + `list_threads` + `subscribe`.

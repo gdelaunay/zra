@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url'
 
 import { parseJsonc, stripJsonc } from '../jsonc.js'
 import { inCidr, isPrivate, findTunnel, findLan, resolveBinds, listInterfaces, bindAddresses, NetWatch, TunnelMissingError } from '../net.js'
-import { acceptKey, encodeFrame, createDecoder } from '../ws.js'
+import { acceptKey, encodeFrame, createDecoder, WsConnection } from '../ws.js'
 import { toIso, splitFolderPaths } from '../threads-index.js'
 import { RingBuffers } from '../ring-buffer.js'
 import { ThreadStates } from '../thread-state.js'
@@ -216,6 +216,22 @@ test('ws : encodage des trois tailles d’en-tête', () => {
   assert.equal(encodeFrame('a').length, 2 + 1)
   assert.equal(encodeFrame('a'.repeat(200)).length, 4 + 200)
   assert.equal(encodeFrame('a'.repeat(70000)).length, 10 + 70000)
+})
+
+test('ws : un client qui ne lit pas est coupé, pas nourri (G1, backpressure)', () => {
+  const queued = []
+  const socket = { // faux net.Socket : write accepte toujours, ne draine jamais
+    writable: true, destroyed: false,
+    write(c) { queued.push(c); return queued.join('').length < 1_000_000 },
+    end() {}, destroy() { this.destroyed = true }, setNoDelay() {},
+    on() {},
+  }
+  const conn = new WsConnection(socket, { log: null })
+  for (let i = 0; i < 5000; i++) {
+    conn.send({ type: 'acp_event', threadId: 't1', update: { text: 'x'.repeat(500) } })
+  }
+  assert.equal(conn.alive, false, 'le daemon doit abandonner un client saturé')
+  assert.ok(socket.destroyed, 'et détruire la socket')
 })
 
 // ---- index : normalisations ------------------------------------------------

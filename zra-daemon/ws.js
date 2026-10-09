@@ -9,6 +9,16 @@ import { createHash, randomUUID } from 'node:crypto'
 
 const GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11'
 
+/**
+ * Ligne d'eau des sockets : plafond du tampon d'écriture par connexion, donc
+ * de ce qu'un client gelé peut faire gonfler la mémoire du daemon avant que
+ * `send()` ne le coupe (G1). Au-delà, `write` rend `false` — c'est le signal de
+ * saturation. Même esprit que `OUTBOX_MAX` côté shim (`zra-shim/daemon-link.js`) :
+ * un bout du canal borné, l'autre aussi. La PWA coupée se reconnecte et rejoue
+ * l'historique (protocole §6).
+ */
+export const SOCKET_HWM = 4 * 1024 * 1024
+
 /** Garde-fou mémoire : un prompt mobile légitime ne pèse pas 16 Mo. */
 const MAX_MESSAGE = 16 * 1024 * 1024
 
@@ -132,13 +142,29 @@ export class WsConnection extends EventEmitter {
     this.remoteAddress = remoteAddress || null
     this.alive = true
     this.log = log
+    /** Tampon d'écriture bouché : `write` a rendu `false`, pas encore de `drain`. */
+    this.plugged = false
+    try { this.socket.on?.('drain', () => { this.plugged = false }) } catch { /* socket réduit */ }
   }
 
   /** Envoi best-effort : un client mort ne doit jamais faire tomber le daemon. */
   send(msg) {
     if (!this.alive) return false
     try {
-      this.socket.write(encodeFrame(JSON.stringify(msg)))
+      const flushed = this.socket.write(encodeFrame(JSON.stringify(msg)))
+      // Backpressure (G1) : `write` rend `false` quand le tampon déborde sa
+      // ligne d'eau. Un client vivant le draine (`drain` remet `plugged` à
+      // faux) ; si on doit réécrire avant, le client est gelé (mobile bloqué,
+      // cellule faible) — on le coupe plutôt que de gonfler la mémoire du
+      // daemon sans plafond, même règle que `OUTBOX_MAX` côté shim
+      // (`zra-shim/daemon-link.js`). La PWA se reconnecte et rejoue
+      // l'historique (protocole §6).
+      if (this.plugged) {
+        this.log?.warn?.(`client ${this.id} : tampon d'écriture saturé, connexion coupée`)
+        this.destroy()
+        return false
+      }
+      if (flushed === false) this.plugged = true
       return true
     } catch (err) {
       this.log?.debug(`client ${this.id} : écriture impossible`, err.message)

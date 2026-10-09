@@ -12,7 +12,7 @@ import { readFile } from 'node:fs/promises'
 import { X509Certificate } from 'node:crypto'
 
 import { createStaticHandler } from './static.js'
-import { attachWebSocket } from './ws.js'
+import { attachWebSocket, SOCKET_HWM } from './ws.js'
 import { logger } from './log.js'
 
 const log = logger('server')
@@ -140,7 +140,11 @@ export async function createServers({ config, addresses, onConnection, onShim, s
   }
 
   function make() {
-    const server = tls ? createHttps({ cert: tls.cert, key: tls.key }, handler) : createHttp(handler)
+    // `highWaterMark` : plafond du tampon d'écriture des sockets, seuil auquel
+    // `WsConnection.send()` détecte un client gelé et le coupe (G1, ws.js).
+    const server = tls
+      ? createHttps({ cert: tls.cert, key: tls.key, highWaterMark: SOCKET_HWM }, handler)
+      : createHttp({ highWaterMark: SOCKET_HWM }, handler)
 
     attachWebSocket(server, {
       log,
