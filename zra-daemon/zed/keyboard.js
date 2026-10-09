@@ -679,6 +679,17 @@ export async function createKeyboard({ backend = 'auto', platform = process.plat
 
   if (platform === 'win32') return new KeyboardRunner({ timeoutMs })
 
+  // Sous Wayland, si xdotool voit des fenêtres Zed (Zed sous XWayland), le
+  // préférer à ydotool : xdotool peut cibler les fenêtres, ydotool non.
+  const wayland = env.XDG_SESSION_TYPE === 'wayland' || Boolean(env.WAYLAND_DISPLAY)
+  if (wayland && (await installed('xdotool'))) {
+    const xdotoolWindows = await exitsZero('xdotool', ['search', '--class', 'zed'])
+    if (xdotoolWindows) {
+      log?.info('backend clavier : xdotool (autodétecté — Zed sous XWayland)')
+      return new named.xdotool(opts)
+    }
+  }
+
   for (const name of keyboardPreference({ platform, env })) {
     if (name === 'none') break
     if (name === 'powershell') continue
@@ -692,7 +703,7 @@ export async function createKeyboard({ backend = 'auto', platform = process.plat
       log?.info('ydotool installé mais ydotoold arrêté : écarté (aucune frappe ne passerait)')
       continue
     }
-    if (name === 'xdotool' && env.XDG_SESSION_TYPE === 'wayland') {
+    if (name === 'xdotool' && wayland) {
       // Zed est un client Wayland natif (GPUI) : un outil X11 ne voit pas ses
       // fenêtres. On le prend quand même — c'est le seul présent — mais on le
       // dit, pour qu'un « aucune fenêtre Zed ouverte » ne reste pas un mystère.
