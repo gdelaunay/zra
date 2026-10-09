@@ -64,6 +64,17 @@
     // "window": "zra",        // fenêtre Zed dont le titre contient ce texte
     // "dryRun": true,         // tout résoudre, ne rien envoyer
     // "cli": "C:/…/Zed/bin/zed.exe",  // ouvre le projet d'un « + » (défaut : installation standard)
+    // Backend clavier : "auto" (défaut) = keyboard.ps1 sous Windows, xdotool en
+    // X11, ydotool (si ydotoold tourne) puis wtype en Wayland, "none" si rien.
+    // Un nom imposé ("xdotool", "ydotool", "wtype", "none", "powershell") est
+    // respecté même si l'outil est absent : il échoue en disant pourquoi.
+    // Surcharge ponctuelle : ZRA_ZED_KEYBOARD=none npm run daemon:dev
+    // "keyboard": "auto",
+    // Wayland uniquement : ydotool/wtype ne peuvent ni viser une fenêtre ni
+    // vérifier le premier plan. true = les frappes partent dans le focus
+    // courant, en connaissance de cause. Sans lui, une recette ciblée est
+    // refusée avec un message qui renvoie vers le backend acp.
+    // "unsafeFocus": false,
     // "recipes": {            // surcharge des recettes de zra-daemon/zed/driver.js
     //   "openThread": [ { "keys": "ctrl+shift+p" }, { "wait": 400 }, … ]
     // }

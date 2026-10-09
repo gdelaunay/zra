@@ -14,7 +14,7 @@ import { createBackend } from './inject/backend.js'
 import { Hub } from './hub.js'
 import { ShimHost } from './shim-link.js'
 import { SessionLoader } from './session-loader.js'
-import { ZedDriver, KeyboardRunner, ZedCli } from './zed/driver.js'
+import { ZedDriver, ZedCli, createKeyboard } from './zed/driver.js'
 import { ZedControl } from './zed/control.js'
 import { createServers } from './server.js'
 import { NetWatch, resolveBinds } from './net.js'
@@ -96,9 +96,16 @@ export async function startDaemon(config) {
 
   // Pilotage de la fenêtre Zed (lot C) : ouvrir une session, rouvrir un thread,
   // backend `uia`. Désactivé par défaut ; `zedControl.runner` sert aux tests.
+  // Le backend clavier est résolu ici (asynchrone : l'autodétection lance des
+  // processus) — Windows donne `keyboard.ps1`, Linux `xdotool`/`ydotool`/
+  // `wtype`/`none` selon la session et les outils installés (`zed/keyboard.js`).
   const zc = config.zedControl ?? {}
   const driver = new ZedDriver({
-    runner: zc.runner ?? new KeyboardRunner(),
+    runner: zc.runner ?? await createKeyboard({
+      backend: zc.keyboard,
+      unsafeFocus: Boolean(zc.unsafeFocus),
+      log: logger('zed'),
+    }),
     enabled: Boolean(zc.enabled),
     window: zc.window ?? null,
     stepDelayMs: zc.stepDelayMs,
@@ -262,6 +269,7 @@ export async function startDaemon(config) {
   const tlsWatch = config.tls ? watchTls({ config, servers }) : null
   log.info(`injection : backend ${backend.name}${backend.ownsQueue ? ' (file tenue par le shim)' : ''}`)
   if (driver.enabled) {
+    log.info(`pilotage de Zed : backend clavier ${driver.runner?.name ?? '?'}`)
     log.warn(`pilotage de Zed au clavier ACTIVÉ${driver.dryRun ? ' (simulation, aucune touche envoyée)' : ''} — ` +
       `recettes : ${Object.keys(driver.recipes).filter((k) => driver.has(k)).join(', ') || 'aucune'}`)
   } else {

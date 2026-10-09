@@ -15,7 +15,7 @@
 
 import { loadConfig } from '../zra-daemon/config.js'
 import {
-  CANDIDATE_RECIPES, DEFAULT_RECIPES, KeyboardRunner, ZedCli, checkRecipe, expandRecipe, projectWindow,
+  CANDIDATE_RECIPES, DEFAULT_RECIPES, ZedCli, checkRecipe, createKeyboard, expandRecipe, projectWindow,
 } from '../zra-daemon/zed/driver.js'
 import { npmSafeArgs } from './lib/args.mjs'
 
@@ -60,7 +60,13 @@ async function main() {
   const config = await loadConfig()
   const zc = config.zedControl
   const recipes = { ...DEFAULT_RECIPES, ...zc.recipes }
-  const runner = new KeyboardRunner({ timeoutMs: 120_000 })
+  // Backend clavier de ce poste : `keyboard.ps1` sous Windows, xdotool/ydotool/
+  // wtype/none sous Linux (autodétection ou `zedControl.keyboard` de la config).
+  const runner = await createKeyboard({
+    backend: zc.keyboard,
+    unsafeFocus: Boolean(zc.unsafeFocus),
+    timeoutMs: 120_000,
+  })
 
   if (opts.command === 'probe') {
     const res = await runner.run({ op: 'probe' })

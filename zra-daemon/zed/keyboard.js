@@ -366,7 +366,18 @@ export class XdotoolKeyboard extends LinuxKeyboard {
     return out
   }
 
-  /** Fenêtres des processus Zed, avec leur titre, la plus récente d'abord. */
+  /**
+   * Fenêtres des processus Zed, avec leur titre, la plus récente d'abord.
+   *
+   * Le filtre par pid est vérifié fenêtre par fenêtre (`getwindowpid`), et
+   * c'est nécessaire : fait établi sous Xvfb (xdotool 3.20160805.1), un motif
+   * vide annule le filtre `--pid` —
+   *   $ xdotool search --pid 999999 --name '' | wc -l   → 52   (TOUTES les fenêtres)
+   *   $ xdotool search --pid 999999 | wc -l             → 0
+   * sans compter que `--pid` s'appuie sur `_NET_WM_PID`, que les fenêtres sans
+   * WM ne portent pas. `search --pid` seul + `getwindowpid` derrière : ce qui
+   * passe n'appartient au pid que si xdotool peut le prouver.
+   */
   async windows() {
     const pids = []
     for (const name of zedProcessNames()) {
@@ -381,13 +392,15 @@ export class XdotoolKeyboard extends LinuxKeyboard {
     for (const pid of pids) {
       let ids = ''
       try {
-        ids = await this.exec(this.tool_, ['search', '--pid', pid, '--name', ''])
-      } catch { return found } // aucune fenêtre nommée pour ce pid
+        ids = await this.exec(this.tool_, ['search', '--pid', pid])
+      } catch { continue } // aucune fenêtre pour ce pid
       for (const id of ids.split(/\s+/).filter(Boolean)) {
         try {
+          const owner = (await this.exec(this.tool_, ['getwindowpid', id])).trim()
+          if (owner !== String(pid)) continue // filtre xdotool pris en défaut : écartée
           const title = (await this.exec(this.tool_, ['getwindowname', id])).trim()
           if (title) found.push({ id, title, pid: Number(pid) })
-        } catch { /* fenêtre disparue entre-temps */ }
+        } catch { /* fenêtre sans _NET_WM_PID, ou disparue entre-temps */ }
       }
     }
     return found
@@ -439,10 +452,23 @@ export class XdotoolKeyboard extends LinuxKeyboard {
     await this.assertTarget(target)
   }
 
-  /** Le garde-fou de keyboard.ps1 : on ne tape jamais ailleurs. */
+  /**
+   * Le garde-fou de keyboard.ps1 : on ne tape jamais ailleurs.
+   *
+   * `xdotool getactivewindow` lit la propriété `_NET_ACTIVE_WINDOW` du WM :
+   * sans gestionnaire de fenêtres (Xvfb nu), il échoue ou répond vide. Une
+   * absence de réponse n'est pas une fenêtre différente : on ne peut alors PAS
+   * vérifier, et on continue — l'exigence tient sur le cas réel : une fenêtre
+   * DIFFÉRENTE au premier plan arrête net la recette, aucune frappe envoyée.
+   */
   async assertTarget(target) {
     if (!target?.id) return
-    const active = (await this.tool('getactivewindow')).trim()
+    let active = ''
+    try {
+      active = (await this.tool('getactivewindow')).trim()
+    } catch {
+      return // pas de WM, pas de réponse : le premier plan n'est pas mesurable ici
+    }
     if (active && active !== String(target.id)) {
       let other = active
       try { other = (await this.tool('getwindowname', active)).trim() || active } catch { /* fenêtre close */ }
@@ -559,7 +585,10 @@ export class NoneKeyboard extends LinuxKeyboard {
 
   get canTargetWindows() { return false }
 
-  async execute() {
+  async execute(request) {
+    // `probe` reste inoffensif : `npm run zed -- probe` sert justement à
+    // diagnostiquer pourquoi aucun backend n'a été retenu.
+    if (request?.op === 'probe') return this.probe(request)
     throw this.fail(
       'backend clavier indisponible : aucun outil d’injection installé ou utilisable sur ce poste ' +
       '(xdotool en X11, ydotool/wtype en Wayland). Passez au backend acp ' +

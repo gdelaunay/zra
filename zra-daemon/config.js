@@ -7,7 +7,7 @@ import { dirname, isAbsolute, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { parseJsonc } from './jsonc.js'
-import { PATHS } from './platform.js'
+import { KEYBOARD_BACKENDS, PATHS } from './platform.js'
 
 export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -131,6 +131,22 @@ export const DEFAULTS = {
     cli: null,
     /** Délai laissé à la fenêtre d'un projet pour apparaître après la CLI. */
     windowWaitMs: 8000,
+    /**
+     * Backend clavier (portage Linux) : `auto` (défaut) choisit selon la
+     * session et les outils réellement installés — `keyboard.ps1` sous Windows,
+     * `xdotool` en X11, `ydotool`/`wtype` en Wayland. Un nom imposé est
+     * respecté même si l'outil est absent : il échoue en disant pourquoi,
+     * plutôt que de basculer en silence. `none` : pas de clavier, l'injection
+     * `uia` échoue avec un message qui renvoie vers `acp`.
+     */
+    keyboard: 'auto',
+    /**
+     * Wayland : aucune API publique ne permet de viser une fenêtre ni de
+     * vérifier le premier plan. `ydotool`/`wtype` refusent une recette ciblée
+     * tant que ce consentement explicite n'est pas activé — les frappes
+     * partent dans le focus courant, à vos risques et périls.
+     */
+    unsafeFocus: false,
   },
 
   /**
@@ -199,6 +215,7 @@ export async function loadConfig({ file = process.env.ZRA_CONFIG || (UNDER_TEST 
   // Fusion d'un niveau : `"zedControl": { "enabled": true }` ne doit pas effacer le reste.
   cfg.zedControl = { ...DEFAULTS.zedControl, ...fromFile.zedControl, ...overrides.zedControl }
   if (process.env.ZRA_ZED_CONTROL) cfg.zedControl.enabled = process.env.ZRA_ZED_CONTROL !== '0'
+  if (process.env.ZRA_ZED_KEYBOARD) cfg.zedControl.keyboard = process.env.ZRA_ZED_KEYBOARD
   cfg.auth = { ...DEFAULTS.auth, ...fromFile.auth, ...overrides.auth }
   cfg.auth.file = cfg.auth.file ? abs(cfg.auth.file) : null
 
@@ -229,5 +246,11 @@ function validate(cfg) {
   }
   if (cfg.zedControl?.recipes && typeof cfg.zedControl.recipes !== 'object') {
     throw new Error('zedControl.recipes : objet attendu')
+  }
+  if (cfg.zedControl && !['auto', ...KEYBOARD_BACKENDS].includes(cfg.zedControl.keyboard)) {
+    throw new Error(`zedControl.keyboard inconnu : ${cfg.zedControl.keyboard} (auto, ${KEYBOARD_BACKENDS.join(', ')})`)
+  }
+  if (cfg.zedControl && typeof cfg.zedControl.unsafeFocus !== 'boolean') {
+    throw new Error('zedControl.unsafeFocus : booléen attendu')
   }
 }
