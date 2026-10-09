@@ -280,24 +280,28 @@ test('new_thread : une ligne déjà dans l’index n’est pas prise pour la neu
 })
 
 // `waitFor()` rend une promesse que `newThread`/`reopen` n'attachent qu'**après**
-// `await this.driver.…`. Une preuve — ou un refus rapide — qui tombe pendant la
-// recette rejette donc cette promesse sans aucun écouteur : Node la signale comme
-// rejet non géré. Le daemon s'en sort parce que `index.js` installe un gestionnaire
-// global (une ligne « promesse rejetée » au journal, alors que l'erreur est déjà
-// traitée) ; sans lui, le processus tomberait. Voir FINDINGS.md.
-test('BUG : un refus qui tombe pendant la recette produit un rejet non géré', {
-  todo: "BUG : zed/control.js — wait.promise rejette avant que newThread ne l'attende",
-}, async () => {
+// `await this.driver.…` : une preuve — ou un refus rapide — qui tombe pendant la
+// recette la rejetterait sans écouteur. `waitFor` l'attache donc neutralement
+// (FINDINGS.md, corrigé) : ce test vérifie que le rejet reste géré.
+test('un refus qui tombe pendant la recette reste un rejet géré', async () => {
   const ctx = boot({ driver: fakeDriver({ slowMs: 30 }), timeoutMs: 5000 })
-  const job = ctx.control.newThread('claude-zra')
-  await tick()
-  ctx.threads.add({ threadId: 't-codex', sessionId: null, agentId: 'codex-zra' })   // pendant la recette
-  await assert.rejects(() => job, (err) => {
-    assert.equal(err.code, 'new_thread_failed')
-    assert.match(err.message, /Zed a ouvert le thread avec « codex-zra »/)
-    return true
-  })
-  await new Promise((r) => setTimeout(r, 60))
+  const unhandled = []
+  const onUnhandled = (err) => unhandled.push(err)
+  process.on('unhandledRejection', onUnhandled)
+  try {
+    const job = ctx.control.newThread('claude-zra')
+    await tick()
+    ctx.threads.add({ threadId: 't-codex', sessionId: null, agentId: 'codex-zra' })   // pendant la recette
+    await assert.rejects(() => job, (err) => {
+      assert.equal(err.code, 'new_thread_failed')
+      assert.match(err.message, /Zed a ouvert le thread avec « codex-zra »/)
+      return true
+    })
+    await new Promise((r) => setTimeout(r, 60))   // le point de contrôle des rejets est passé
+  } finally {
+    process.off('unhandledRejection', onUnhandled)
+  }
+  assert.deepEqual(unhandled, [], 'aucun rejet non géré')
   assert.equal(ctx.host.listenerCount('session'), 0, 'l’attente est bien nettoyée')
 })
 

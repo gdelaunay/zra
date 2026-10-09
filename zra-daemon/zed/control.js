@@ -57,6 +57,12 @@ export class ZedControl {
    * Attend qu'une condition portée par les événements du shim et de l'index
    * devienne vraie. `check` est rappelé à chaque session annoncée et à chaque
    * changement d'index ; il renvoie la valeur attendue, ou rien.
+   *
+   * L'appelant n'attend cette promesse qu'**après** sa recette : une preuve qui
+   * arrive — ou un refus qui tombe — pendant ce temps la rejetterait sans aucun
+   * écouteur, donc en rejet non géré (fatal hors du daemon, qui installe un
+   * gestionnaire global). D'où l'attache neutre ci-dessous : elle n'avale rien,
+   * `await promise` de l'appelant rejette toujours.
    */
   waitFor(check, { timeoutMs = this.timeoutMs, onTimeout }) {
     let cleanup = () => {}
@@ -79,6 +85,8 @@ export class ZedControl {
       this.threads.on('change', onThreads)
       tick({})
     })
+    // Attache neutre : voir le commentaire de la méthode.
+    promise.catch(() => {})
     return { promise, cancel: () => cleanup() }
   }
 
