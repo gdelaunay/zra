@@ -22,3 +22,6 @@ zra-daemon/test/fixtures/settings-lot-c.json
 zra-daemon/test/fixtures/deploy/
 zra-daemon/test/fixtures/keymap/
 zra-daemon/test/fixtures/open-projects/
+
+# fixtures Linux du portage, fabriquées par zra-daemon/test/paths-linux.test.mjs
+zra-daemon/test/fixtures/registry-linux/

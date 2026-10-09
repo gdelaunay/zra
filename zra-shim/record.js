@@ -9,10 +9,9 @@
 // laisse tomber l'enregistrement, jamais le relai.
 
 import { createWriteStream, mkdirSync, readdirSync, rmSync, statSync } from 'node:fs'
-import { homedir } from 'node:os'
 import { join } from 'node:path'
 
-const LOCALAPPDATA = process.env.LOCALAPPDATA || join(homedir(), 'AppData', 'Local')
+import { PATHS } from '../zra-daemon/platform.js'
 
 /**
  * Âge au-delà duquel un JSONL enregistré est purgé au démarrage du shim.
@@ -36,7 +35,7 @@ function purge(dir, maxAgeDays) {
 }
 
 /** @returns {{ write:(dir:string, raw:Buffer)=>void, close:()=>void, file:string|null }} */
-export function createRecorder({ enabled, agentId, dir = process.env.ZRA_RECORD_DIR || join(LOCALAPPDATA, 'zra', 'records'), maxAgeDays = RECORD_MAX_AGE_DAYS } = {}) {
+export function createRecorder({ enabled, agentId, dir = process.env.ZRA_RECORD_DIR || PATHS.recordsDir, maxAgeDays = RECORD_MAX_AGE_DAYS } = {}) {
   if (!enabled) return { write: () => {}, close: () => {}, file: null }
 
   const stamp = new Date().toISOString().replace(/[:.]/g, '-')

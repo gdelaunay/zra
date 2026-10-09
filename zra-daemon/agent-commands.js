@@ -6,9 +6,10 @@
 //
 // La spec supposait des entrées `agent_servers` de type `custom`, avec la
 // commande écrite à la main. La machine cible n'en a aucune : ses deux agents
-// sont de type `registry`, installés par Zed lui-même sous
-// `%LOCALAPPDATA%\Zed\external_agents\registry`. On résout donc les trois cas,
-// dans cet ordre de priorité :
+// sont de type `registry`, installés par Zed lui-même sous son dossier
+// `external_agents/registry` (`%LOCALAPPDATA%\Zed\…` en Windows,
+// `$XDG_DATA_HOME/zed/…` sous Linux — voir `platform.js`). On résout donc les
+// trois cas, dans cet ordre de priorité :
 //
 //   1. `agentCommands` de `zra.config.json` — le dernier mot revient à la config ;
 //   2. `agent_servers.<id>` de type `custom` — la commande est écrite dedans ;
@@ -19,15 +20,22 @@
 
 import { existsSync, readdirSync, statSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
-import { homedir } from 'node:os'
 import { join } from 'node:path'
 
 import { parseJsonc } from './jsonc.js'
+import { PATHS } from './platform.js'
 
-const LOCALAPPDATA = process.env.LOCALAPPDATA || join(homedir(), 'AppData', 'Local')
-
-/** Emplacement des agents installés par Zed depuis son registry. */
-export const REGISTRY_DIR = join(LOCALAPPDATA, 'Zed', 'external_agents', 'registry')
+/**
+ * Emplacement des agents installés par Zed depuis son registry.
+ *
+ * Fait établi sous Linux (Ubuntu 24.04.3, Zed 1.23.2) : même arborescence
+ * qu'en Windows, et le paquet installé par Zed pour `pi-acp` se lit exactement
+ * comme le prévoit `resolveAgentCommand` :
+ *   $ find ~/.local/share/zed/external_agents/registry/npx -maxdepth 4
+ *     …/npx/pi-acp/package.json, …/npx/pi-acp/node_modules/pi-acp/package.json
+ *   $ … package.json de pi-acp → {"bin":{"pi-acp":"dist/index.js"},"type":"module"}
+ */
+export const REGISTRY_DIR = PATHS.registryDir
 
 export class AgentCommandError extends Error {}
 
@@ -86,6 +94,16 @@ function bare(cmd) {
   return String(cmd).replace(/^\.[\\/]/, '')
 }
 
+/**
+ * Clé de plateforme du registry de Zed.
+ *
+ * Fait établi : les clés réelles de `registry.json` sur cette machine sont
+ * `linux-x86_64`, `linux-aarch64`, `windows-x86_64`, `darwin-aarch64`…
+ *   $ … registry.json → distribution.binary.{linux-x86_64: {cmd: "./amp-acp"}}
+ * `linux` + `x86_64` : cette fonction produisait déjà la bonne clé, elle n'a
+ * pas été modifiée. À noter : `cmd` n'a pas de `.exe` sous Linux, et il est
+ * relatif (`./amp-acp`) — `bare()` enlève déjà les deux séparateurs.
+ */
 function platformKey() {
   const os = process.platform === 'win32' ? 'windows' : process.platform
   const arch = process.arch === 'x64' ? 'x86_64' : process.arch === 'arm64' ? 'aarch64' : process.arch

@@ -1,10 +1,14 @@
 // Exploration : schéma réel de sidebar_threads sur la machine cible.
 // Lecture seule, non destructif. Sert à caler zra-daemon/threads-index.js.
+//
+// Le chemin vient de `platform.js` (Windows : `%LOCALAPPDATA%\Zed\…`, Linux :
+// `$XDG_DATA_HOME/zed/…`) ; un argument de ligne de commande le remplace.
 import { DatabaseSync } from 'node:sqlite'
 import { pathToFileURL } from 'node:url'
-import { join } from 'node:path'
 
-const file = join(process.env.LOCALAPPDATA, 'Zed', 'db', '0-stable', 'db.sqlite')
+import { PATHS } from '../zra-daemon/platform.js'
+
+const file = process.argv[2] || PATHS.db
 const uri = pathToFileURL(file).href + '?mode=ro'
 const db = new DatabaseSync(uri, { readOnly: true })
 

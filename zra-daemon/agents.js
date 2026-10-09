@@ -6,6 +6,7 @@ import { hostname, platform, release, type as osType } from 'node:os'
 import { promisify } from 'node:util'
 
 import { parseJsonc } from './jsonc.js'
+import { zedProcessNames } from './platform.js'
 import { wrappedAgentId } from './agent-commands.js'
 import { logger } from './log.js'
 
@@ -72,6 +73,16 @@ export async function readAgents(file) {
  * Détection par processus : c'est le seul signal fiable. La présence du fichier
  * `db.sqlite-shm` dirait seulement qu'une connexion SQLite est ouverte — vrai
  * aussi pour nous.
+ *
+ * Les noms cherchés viennent de `platform.js`. Sous Linux le processus s'appelle
+ * `zed-editor`, pas `zed` — vérifié sur la machine de portage, Zed ouvert :
+ *
+ *   $ pgrep -x zed         → (vide), rc=1
+ *   $ pgrep -x zed-editor  → 17496  17518
+ *   $ cat /proc/17496/comm → zed-editor
+ *
+ * L'ancienne branche `pgrep -x zed` répondait donc « Zed fermé » en permanence
+ * sous Linux. La branche Windows (`tasklist`) est gelée : inchangée.
  */
 export async function isZedRunning() {
   try {
@@ -79,10 +90,16 @@ export async function isZedRunning() {
       const { stdout } = await run('tasklist', ['/FI', 'IMAGENAME eq zed.exe', '/NH'], { windowsHide: true })
       return /zed\.exe/i.test(stdout)
     }
-    const { stdout } = await run('pgrep', ['-x', platform() === 'darwin' ? 'Zed' : 'zed'])
-    return stdout.trim().length > 0
+    // `pgrep` sort en 1 dès qu'un nom ne correspond pas : ce n'est pas une
+    // erreur, c'est la réponse. On essaie les noms dans l'ordre.
+    for (const name of zedProcessNames()) {
+      try {
+        const { stdout } = await run('pgrep', ['-x', name])
+        if (stdout.trim().length > 0) return true
+      } catch { /* pas de processus de ce nom : au suivant */ }
+    }
+    return false
   } catch {
-    // `pgrep` sort en 1 quand rien ne correspond : ce n'est pas une erreur.
     return false
   }
 }

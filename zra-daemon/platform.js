@@ -191,6 +191,9 @@ export function defaultZedCli(opts = {}) {
 export function zedProcessNames(opts = {}) {
   const { platform } = ctx(opts)
   if (platform === 'win32') return ['zed.exe']
+  // macOS est hors périmètre du portage et n'a pas été vérifié : `Zed` est le
+  // nom que le code antérieur cherchait déjà, il est conservé tel quel.
+  if (platform === 'darwin') return ['Zed', 'zed-editor', 'zed']
   return ['zed-editor', 'zed']
 }
 

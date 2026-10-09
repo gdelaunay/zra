@@ -10,11 +10,10 @@
 // un poste de travail n'est pas anodin : on l'active en connaissance de cause.
 
 import { execFile, spawn } from 'node:child_process'
-import { existsSync } from 'node:fs'
-import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { defaultZedCli as hostZedCli } from '../platform.js'
 import { readAgentKey, toChord } from '../zed-keymap.js'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
@@ -223,11 +222,19 @@ export function projectWindow(folderPaths) {
   return String(first).replace(/\\/g, '/').replace(/\/+$/, '').split('/').pop() || null
 }
 
-/** CLI de Zed : celle de l'installation par défaut, sinon `zed` dans le PATH. */
+/**
+ * CLI de Zed : celle de l'installation par défaut, sinon `zed` dans le PATH.
+ *
+ * Résolue par `platform.js`, qui est le seul module à connaître l'OS. Sous
+ * Linux les candidats absolus comptent : un service `systemd --user` démarre
+ * avec un PATH minimal, et l'installeur de Zed pose un symlink dans
+ * `~/.local/bin` que `.bashrc` n'ajoute pas (`.profile` seulement).
+ * Fait établi ici : `which zed` → `/home/gdelaunay/.local/bin/zed` →
+ * `~/.local/zed.app/bin/zed`, et `zed --version` →
+ * `Zed 1.23.2 … /home/gdelaunay/.local/zed.app/libexec/zed-editor`.
+ */
 export function defaultZedCli() {
-  const local = process.env.LOCALAPPDATA || join(homedir(), 'AppData', 'Local')
-  const installed = join(local, 'Programs', 'Zed', 'bin', 'zed.exe')
-  return existsSync(installed) ? installed : 'zed'
+  return hostZedCli()
 }
 
 /**
@@ -239,6 +246,19 @@ export function defaultZedCli() {
  * ligne de commande comme espace de travail de plus dans la fenêtre existante.
  * `--classic` (option cachée de sa CLI : « new window for directories ») lui
  * donne sa propre fenêtre. Refusée par une autre version : relancé sans.
+ *
+ * Vérifié sous Linux, Zed 1.23.2 : `--classic` n'apparaît PAS dans `zed --help`
+ * (options listées : -w/--wait, -a/--add, -n/--new, -e/--existing,
+ * --user-data-dir, --diff, --completions, --uninstall, --zed, --foreground,
+ * --dev-server-token, --dev-container), mais il est toujours accepté :
+ *
+ *   $ zed --classic --version
+ *   Zed 1.23.2 c0199504… – /home/gdelaunay/.local/zed.app/libexec/zed-editor
+ *   $ zed --option-inexistante --version
+ *   error: unexpected argument '--option-inexistante' found
+ *
+ * Donc l'option cachée survit au portage et le repli sans `--classic` reste ce
+ * qu'il était : une assurance, pas le chemin courant.
  */
 export class ZedCli {
   constructor({ command = defaultZedCli(), timeoutMs = 15_000 } = {}) {
