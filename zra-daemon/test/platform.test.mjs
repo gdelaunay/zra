@@ -17,7 +17,7 @@ import { existsSync } from 'node:fs'
 
 import {
   KEYBOARD_BACKENDS, PATHS, defaultZedCli, keyboardPreference, processProbe,
-  zedCliCandidates, zedPaths, zedProcessNames,
+  serviceBackend, zedCliCandidates, zedPaths, zedProcessNames,
 } from '../platform.js'
 
 // ---- fixtures Windows : ce que le code produisait avant le portage ----------
@@ -56,6 +56,8 @@ test('windows (gelé) : CLI, processus et clavier', () => {
   assert.deepEqual(zedProcessNames({ platform: 'win32' }), ['zed.exe'])
   assert.equal(processProbe({ platform: 'win32' }), 'tasklist')
   assert.deepEqual(keyboardPreference({ platform: 'win32', env: {} }), ['powershell', 'none'])
+  // Le démarrage à l'ouverture de session reste la tâche planifiée.
+  assert.equal(serviceBackend({ platform: 'win32' }), 'schtasks')
 })
 
 // ---- Linux : les chemins réels de la machine de portage ---------------------
@@ -109,6 +111,10 @@ test('linux : Zed tourne sous le nom zed-editor, pas zed', () => {
   // `cat /proc/<pid>/comm` → zed-editor.
   assert.deepEqual(zedProcessNames({ platform: 'linux' }), ['zed-editor', 'zed'])
   assert.equal(processProbe({ platform: 'linux' }), 'pgrep')
+  // Le pendant de la tâche planifiée : un service `systemd --user`.
+  assert.equal(serviceBackend({ platform: 'linux' }), 'systemd')
+  // macOS hors périmètre : le nom que le code antérieur cherchait est conservé.
+  assert.deepEqual(zedProcessNames({ platform: 'darwin' }), ['Zed', 'zed-editor', 'zed'])
 })
 
 test('linux : l’ordre des backends clavier suit la session', () => {

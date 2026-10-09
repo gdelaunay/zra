@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Lancer le daemon à l'ouverture de session — tâche planifiée Windows.
+// Lancer le daemon à l'ouverture de session.
 //
 //   npm run service                       état : tâche, daemon, journal
 //   npm run service -- install            montre la tâche qui serait créée, ne crée rien
@@ -8,14 +8,22 @@
 //   npm run service -- start | stop       la lance, l'arrête
 //   npm run service -- logs [--lines 60]  fin du journal du daemon
 //
-// La tâche est **celle de l'utilisateur**, sans élévation : déclenchée à son
-// ouverture de session, dans sa session interactive. C'est nécessaire au
+// Deux backends, MÊMES sous-commandes — celui de l'OS est choisi par
+// `platform.js`, pas par un test dispersé ici :
+//
+//   Windows : tâche planifiée (`schtasks`) — **gelée**, inchangée, vérifiée sur
+//             la machine cible et impossible à retester depuis Linux.
+//   Linux   : service `systemd --user` (`scripts/lib/systemd.mjs`), vérifié sur
+//             la machine de portage.
+//
+// Dans les deux cas c'est **celui de l'utilisateur**, sans élévation : déclenché
+// à son ouverture de session, dans sa session interactive. C'est nécessaire au
 // pilotage de Zed au clavier (on ne tape pas dans un bureau depuis une session
 // de service) et ça évite de stocker un mot de passe.
 //
-// Elle lance `scripts/daemon-task.ps1` dans une console PowerShell masquée : le
-// daemon tourne sans fenêtre, en `--wait-tunnel` (WireGuard peut monter après
-// l'ouverture de session), et journalise dans `.zra/logs/daemon.log`.
+// Windows lance `scripts/daemon-task.ps1` dans une console PowerShell masquée ;
+// Linux laisse systemd journaliser, et le daemon écrit aussi dans
+// `.zra/logs/daemon.log` (`--log`) — même fichier des deux côtés.
 
 import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
@@ -24,8 +32,10 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { loadConfig } from '../zra-daemon/config.js'
+import { serviceBackend } from '../zra-daemon/platform.js'
 import { npmSafeArgs } from './lib/args.mjs'
 import { daemonStatus } from './lib/daemon-status.mjs'
+import { commands as systemdCommands, UNIT } from './lib/systemd.mjs'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 export const TASK = 'ZRA daemon'
@@ -55,10 +65,11 @@ const USAGE = `zra service — le daemon lancé à l'ouverture de session
   npm run service [-- <commande>] [options]
 
   status               tâche, daemon, fin du journal (défaut)
-  install              crée la tâche planifiée « ${TASK} »
+  install              crée la tâche planifiée « ${TASK} » (Windows)
+                       ou le service systemd --user « ${UNIT} » (Linux)
   uninstall            la supprime
   start | stop         la lance, l'arrête
-  logs                 fin du journal (.zra/logs/daemon.log)
+  logs                 fin du journal (.zra/logs/daemon.log, ou journalctl --user)
 
   --apply              pour install/uninstall : agir pour de vrai (sans : simulation)
   --lines <n>          pour logs : nombre de lignes (défaut 40)
@@ -284,8 +295,16 @@ function logs(opts) {
 async function main() {
   const opts = parseArgs(process.argv.slice(2))
   if (opts.command === 'help') return console.log(USAGE)
-  if (process.platform !== 'win32') throw new Error('tâche planifiée Windows uniquement')
   const config = await loadConfig()
+
+  // Linux : mêmes verbes, autre mécanisme. La branche Windows ci-dessous est
+  // gelée — elle n'est pas modifiée, elle n'est plus atteinte que sous Windows.
+  if (serviceBackend() === 'systemd') {
+    const run = systemdCommands[opts.command]
+    if (!run) throw new Error(`commande inconnue : ${opts.command}`)
+    return run(opts, config)
+  }
+
   switch (opts.command) {
     case 'status': return status(opts, config)
     case 'install': return install(opts)

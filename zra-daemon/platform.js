@@ -203,6 +203,22 @@ export function processProbe(opts = {}) {
 }
 
 // ---------------------------------------------------------------------------
+// Démarrage à l'ouverture de session
+// ---------------------------------------------------------------------------
+
+/**
+ * Le backend de `npm run service`.
+ *
+ * Windows : la tâche planifiée `schtasks` + `scripts/daemon-task.ps1` — gelée,
+ * intouchable, et la seule qui ait été vérifiée sous Windows.
+ * Ailleurs : `systemd --user` (`scripts/lib/systemd.mjs`), mêmes verbes.
+ * Le choix est fait ici pour que `service.mjs` n'ait pas à connaître l'OS.
+ */
+export function serviceBackend(opts = {}) {
+  return ctx(opts).platform === 'win32' ? 'schtasks' : 'systemd'
+}
+
+// ---------------------------------------------------------------------------
 // Clavier
 // ---------------------------------------------------------------------------
 
