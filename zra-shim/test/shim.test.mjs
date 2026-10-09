@@ -7,7 +7,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
 import { readFileSync, rmSync } from 'node:fs'
-import { PassThrough } from 'node:stream'
+import { PassThrough, Writable } from 'node:stream'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -108,6 +108,34 @@ test('proxy : octets entrants ≡ octets sortants, même illisibles (spec §10.5
   assert.equal(Buffer.concat(chunks).toString('utf8'), corpus)
   // La trame illisible est relayée sans être observée : `null`, jamais une erreur.
   assert.deepEqual(seen.map((m) => (m ? 'lu' : 'illisible')), ['lu', 'illisible', 'lu'])
+})
+
+test('shim : un EPIPE asynchrone vers Zed ne casse pas le relai (SPEC §3.1, fail-open)', async () => {
+  const agentOut = new PassThrough()
+  const agentIn = new PassThrough()
+  agentIn.resume()
+  // Zed ne lit plus : chaque écriture échoue en EPIPE au tick suivant. Le
+  // try/catch de createShim/proxy.js est déjà sorti : sans écouteur 'error',
+  // l'erreur part en uncaughtException et le shim meurt en code 1 (G4).
+  const zedOut = new Writable({
+    write(raw, enc, cb) { setImmediate(() => cb(Object.assign(new Error('write EPIPE'), { code: 'EPIPE' }))) },
+  })
+  const shim = createShim({
+    zedIn: new PassThrough(), zedOut,
+    agentIn, agentOut,
+    agentId: 'fake-acp', daemonUrl: null,
+  })
+  const uncaught = []
+  const onUncaught = (err) => uncaught.push(err)
+  process.on('uncaughtException', onUncaught)
+  try {
+    agentOut.write(Buffer.from('{"jsonrpc":"2.0","method":"session/update","params":{}}\n', 'utf8'))
+    await wait(120)
+    assert.deepEqual(uncaught.map((e) => e.message), [], 'le shim doit survivre à un EPIPE asynchrone vers Zed')
+  } finally {
+    process.removeListener('uncaughtException', onUncaught)
+    shim.stop()
+  }
 })
 
 test('proxy : un observateur qui jette laisse quand même passer la trame (fail-open)', async () => {

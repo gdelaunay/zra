@@ -55,6 +55,17 @@ export function createShim({
   record = { write: () => {}, close: () => {} }, cancelTimeoutMs = 5000,
   turnTimeoutMs = TURN_TIMEOUT_MS,
 }) {
+  // Fail-open jusqu'au bout : une erreur *asynchrone* d'écriture (EPIPE vers un
+  // Zed qui a fermé, agent mort sous Linux) n'est vue par aucun try/catch —
+  // sans écouteur 'error', elle tue le shim en code 1 au lieu du code de
+  // l'agent (SPEC §3.1). Même règle que record.js/log.js/daemon-link.js.
+  if (typeof zedOut.on === 'function') {
+    zedOut.on('error', (err) => log.warn('écriture vers Zed impossible :', err.message))
+  }
+  if (typeof agentIn.on === 'function') {
+    agentIn.on('error', (err) => log.warn("écriture vers l'agent impossible :", err.message))
+  }
+
   const bridge = new AcpBridge({
     log,
     cancelTimeoutMs,
