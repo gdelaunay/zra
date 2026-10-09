@@ -60,25 +60,11 @@ shim » ci-dessous.
   L'architecture est prévue mais inactive : `sw.js` gère déjà `push` et
   `notificationclick` (`SPEC.md`, `zra-client/README.md`). Exige le HTTPS.
 
-## Portabilité Linux (priorité)
+## Portabilité Linux — ✅ fait (branche `linux`)
 
-ZRA ne tourne aujourd'hui que sous Windows. Le protocole, la PWA, le shim et
-le cœur du daemon sont du Node pur. Ce qui est propre à Windows :
-
-- **chemins de Zed** : base, `settings.json`, `keymap.json`, registry des
-  agents sous `%LOCALAPPDATA%` / `%APPDATA%` (`zra-daemon/config.js`,
-  `agent-commands.js`, `zed/driver.js`, `zra-shim/record.js`). Sous Linux :
-  `~/.local/share/zed`, `~/.config/zed` ;
-- **pilotage clavier** : `zed/keyboard.ps1` (`SendInput`). À remplacer, par
-  exemple par `xdotool` (X11) ou `ydotool` / `wtype` (Wayland), ce qui est plus
-  délicat. À voir d'abord : la CLI de Zed pourrait suffire (elle ouvre déjà
-  les projets) ;
-- **démarrage automatique** : tâche planifiée (`scripts/service.mjs`). Sous
-  Linux : un service `systemd --user` (déjà envisagé en V1) ;
-- **certificat** : `scripts/cert.ps1` (Posh-ACME). Sous Linux : `certbot` ou
-  `acme.sh` en DNS-01 ;
-- à vérifier : la résolution des agents du registry (`agent-commands.js`,
-  `process.platform`) et la détection de Zed lancé (`agents.js`).
+Portage terminé : module plateforme (`platform.js`), chemins Linux, service
+`systemd --user`, backend clavier pluggable (`xdotool`/`ydotool`/`wtype`/`none`).
+Voir `SPEC.md` §2.4 et `prompts/portage-linux-avancement.md`.
 
 ## Tous les threads par le shim
 

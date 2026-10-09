@@ -209,6 +209,55 @@ lancé tient le port : la tâche réessaie jusqu'à ce qu'il s'arrête.
 
 ---
 
+## 5.1 Linux : démarrage automatique (systemd --user)
+
+Sur Linux, le daemon tourne comme service utilisateur systemd. Même UX CLI que
+sous Windows (`npm run service`) : le backend est détecté automatiquement.
+
+```bash
+npm run service -- install            # montre l'unité, ne crée rien
+npm run service -- install --apply    # écrit ~/.config/systemd/user/zra-daemon.service
+npm run service -- start              # démarre le daemon
+npm run service -- status             # état : unité, daemon, linger, journal
+npm run service -- logs               # journalctl --user -u zra-daemon
+npm run service -- stop | uninstall --apply
+```
+
+**Linger** : sans `loginctl enable-linger $USER`, le service meurt à la
+déconnexion et ne démarre pas au boot. `install` et `status` le vérifient et
+donnent la commande. `enable-linger` ne demande **pas sudo**.
+
+**PATH** : le service recopie le PATH de la session dans l'unité (sinon les CLI
+installées hors `/usr/bin` — comme `pi` dans `~/.pi/agent/bin` — sont
+invisibles au daemon).
+
+---
+
+## 5.2 Linux : certificat (certbot / acme.sh)
+
+`scripts/cert.ps1` est Windows (Posh-ACME). Sous Linux, utiliser `certbot` ou
+`acme.sh` en validation DNS-01 (même principe : nom de domaine + enregistrement
+TXT, certificat dans `.zra/tls/`).
+
+```bash
+# Exemple avec certbot (à adapter selon le fournisseur DNS)
+certbot certonly --manual --preferred-challenges dns -d zra.exemple.fr
+# puis copier les certs :
+cp /etc/letsencrypt/live/zra.exemple.fr/fullchain.pem .zra/tls/zra.crt
+cp /etc/letsencrypt/live/zra.exemple.fr/privkey.pem .zra/tls/zra.key
+```
+
+Dans `zra.config.json` :
+
+```jsonc
+"tls": { "cert": ".zra/tls/zra.crt", "key": ".zra/tls/zra.key" }
+```
+
+Renouvellement : `certbot renew` (cron ou systemd timer), puis redémarrer le
+daemon (`npm run service -- stop && start`) pour qu'il relise le certificat.
+
+---
+
 ## 6. Si ça ne marche pas
 
 | Symptôme | Où regarder |

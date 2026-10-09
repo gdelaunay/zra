@@ -111,6 +111,44 @@ enveloppe l'agent ainsi résolu.
   depuis le mobile (§6.6).
 - `session/cancel` : interruption d'un tour.
 
+### 2.4 Linux — faits établis
+
+Vérifiés sur Ubuntu 24.04 / GNOME / Wayland (machine de dev). La cible de
+production est Debian 13 / KDE / X11, où `xdotool` reste le backend clavier
+principal.
+
+| Linux | Windows | Rôle |
+|---|---|---|
+| `~/.local/share/zed/db/0-stable/db.sqlite` | `%LOCALAPPDATA%\Zed\db\0-stable\db.sqlite` | index des threads |
+| `~/.config/zed/settings.json` | `%APPDATA%\Zed\settings.json` | `agent_servers` |
+| `~/.config/zed/keymap.json` | `%APPDATA%\Zed\keymap.json` | touches « nouveau thread » |
+| `~/.local/share/zed/external_agents/registry` | `%LOCALAPPDATA%\Zed\external_agents\registry` | agents installés |
+| `~/.local/state/zra/` | `%LOCALAPPDATA%\zra\` | journaux et trames |
+
+Le schéma `sidebar_threads` est **identique** à Windows (mêmes colonnes).
+
+**Session et bureau** :
+- `$XDG_DATA_HOME`, `$XDG_CONFIG_HOME`, `$XDG_STATE_HOME` vides → valeurs par défaut
+- Zed 1.23.2 : `~/.local/zed.app/libexec/zed-editor`, CLI via `~/.local/bin/zed`
+- Processus : `zed-editor` (pas `zed`) — `pgrep -x zed-editor`
+- Registry : clés `linux-x86_64`, `linux-aarch64` déjà présentes (mapping inchangé)
+
+**systemd --user** :
+- `systemctl --user` (systemd 255)
+- `loginctl enable-linger $USER` : **sans sudo**, rc=0
+- Sans linger, le service meurt à la déconnexion
+- Le PATH de la session est recopié dans l'unité (sinon les CLI installées hors
+  `/usr/bin` sont invisibles au daemon)
+
+**Backend clavier** :
+- X11 → `xdotool` (cible Debian/KDE/X11)
+- Wayland → `ydotool` si `ydotoold` tourne, sinon `wtype`, sinon `none`
+- `none` = refus explicite qui renvoie vers `acp`
+- Sur Ubuntu 24.04 le paquet `ydotool` ne livre que le client (pas `ydotoold`)
+
+**Non vérifié** : titres réels des fenêtres Zed sous X11, recettes de la keymap
+Linux de Zed, branche `registry/binary` sous Linux (aucun agent binaire installé).
+
 ---
 
 ## 3. Architecture
