@@ -577,9 +577,18 @@ export class NoneKeyboard extends LinuxKeyboard {
 // ===========================================================================
 
 /** `true` si l'exécutable est lançable (ENOENT → absent). */
-async function available(cmd, args = ['--version']) {
+/**
+ * L'exécutable est-il lançable ? On teste le `spawn`, pas le code de sortie :
+ * `ydotool --version` sort en **1** sur la version 0.1.8 d'Ubuntu alors que
+ * l'outil est bien installé.
+ *
+ *   $ ydotool --version ; echo rc=$?  → rc=1
+ *   $ xdotool --version ; echo rc=$?  → xdotool 3.20160805 (libxdo 3.201608051) ; rc=0
+ *   $ wtype --version ; echo rc=$?    → rc=127 (absent)
+ */
+async function installed(cmd) {
   return new Promise((resolve) => {
-    const child = spawn(cmd, args, { stdio: 'ignore' })
+    const child = spawn(cmd, ['--version'], { stdio: 'ignore' })
     const done = (ok) => { try { child.kill() } catch { /* déjà sorti */ } resolve(ok) }
     child.on('error', () => done(false))
     child.on('close', (code) => done(code !== null))
@@ -587,12 +596,34 @@ async function available(cmd, args = ['--version']) {
   })
 }
 
-/** `ydotoold` tourne-t-il ? Sans lui, `ydotool` échoue à chaque frappe. */
+/**
+ * Le code de sortie tranche-t-il ? Distinct d'`installed()` à dessein : pour
+ * `pgrep`, sortir en 1 veut dire « pas trouvé », et le confondre avec « l'outil
+ * existe » fait prendre un backend inutilisable pour un backend disponible
+ * (bug vu en vrai sur cette machine, cf. le rapport de portage).
+ */
+async function exitsZero(cmd, args) {
+  return new Promise((resolve) => {
+    const child = spawn(cmd, args, { stdio: 'ignore' })
+    const done = (ok) => { try { child.kill() } catch { /* déjà sorti */ } resolve(ok) }
+    child.on('error', () => done(false))
+    child.on('close', (code) => done(code === 0))
+    setTimeout(() => done(false), 4000).unref?.()
+  })
+}
+
+/**
+ * `ydotoold` tourne-t-il ? Sans lui, chaque frappe `ydotool` échoue. Message
+ * réel relevé sur cette machine (ydotool 0.1.8, démon absent) :
+ *
+ *   $ ydotool type bonjour
+ *   what():  failed to open uinput device
+ */
 async function ydotooldRunning() {
-  const socket = join(process.env.XDG_RUNTIME_DIR || `/run/user/${process.getuid?.() ?? 0}`, '.ydotool_socket')
-  if (existsSync(socket)) return true
-  if (existsSync('/tmp/.ydotool_socket')) return true
-  return available('pgrep', ['-x', 'ydotoold'])
+  const runtime = process.env.XDG_RUNTIME_DIR || `/run/user/${process.getuid?.() ?? 0}`
+  const sockets = [process.env.YDOTOOL_SOCKET, join(runtime, '.ydotool_socket'), '/tmp/.ydotool_socket']
+  for (const socket of sockets.filter(Boolean)) if (existsSync(socket)) return true
+  return exitsZero('pgrep', ['-x', 'ydotoold'])
 }
 
 /**
@@ -622,10 +653,21 @@ export async function createKeyboard({ backend = 'auto', platform = process.plat
   for (const name of keyboardPreference({ platform, env })) {
     if (name === 'none') break
     if (name === 'powershell') continue
-    if (!(await available(name))) continue
+    if (!(await installed(name))) continue
     if (name === 'ydotool' && !(await ydotooldRunning())) {
+      // Fait établi sur Ubuntu 24.04.3 : le paquet `ydotool` (0.1.8-3build1) ne
+      // contient QUE le client — ni démon, ni unité systemd :
+      //   $ dpkg -L ydotool | grep -c ydotoold → 0
+      //   $ systemctl list-unit-files | grep -i ydotool → (vide)
+      // Ailleurs (Debian, Arch) le démon existe : il faut qu'il tourne.
       log?.info('ydotool installé mais ydotoold arrêté : écarté (aucune frappe ne passerait)')
       continue
+    }
+    if (name === 'xdotool' && env.XDG_SESSION_TYPE === 'wayland') {
+      // Zed est un client Wayland natif (GPUI) : un outil X11 ne voit pas ses
+      // fenêtres. On le prend quand même — c'est le seul présent — mais on le
+      // dit, pour qu'un « aucune fenêtre Zed ouverte » ne reste pas un mystère.
+      log?.warn('backend clavier xdotool en session Wayland : il ne voit que les fenêtres XWayland, pas Zed (client Wayland natif)')
     }
     log?.info(`backend clavier : ${name} (autodétecté)`)
     return new named[name](opts)
