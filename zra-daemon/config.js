@@ -3,21 +3,24 @@
 
 import { readFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
-import { homedir } from 'node:os'
 import { dirname, isAbsolute, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { parseJsonc } from './jsonc.js'
+import { PATHS } from './platform.js'
 
 export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 
-const LOCALAPPDATA = process.env.LOCALAPPDATA || join(homedir(), 'AppData', 'Local')
-const APPDATA = process.env.APPDATA || join(homedir(), 'AppData', 'Roaming')
-
-/** Chemins par défaut de Zed sur la machine cible (Windows). */
+/**
+ * Chemins par défaut de Zed sur ce poste.
+ *
+ * Calculés par `platform.js`, qui est le seul module à connaître l'OS : Windows
+ * donne `%LOCALAPPDATA%\Zed\…`, Linux `$XDG_DATA_HOME/zed/…`. Les exports
+ * publics ne changent pas, aucun appelant n'est à modifier.
+ */
 export const ZED = {
-  db: join(LOCALAPPDATA, 'Zed', 'db', '0-stable', 'db.sqlite'),
-  settings: join(APPDATA, 'Zed', 'settings.json'),
+  db: PATHS.db,
+  settings: PATHS.settings,
 }
 
 /** `keymap.json` de Zed : à côté de son `settings.json`. */
@@ -141,8 +144,8 @@ export const DEFAULTS = {
   /** Garde-fou : un agent qui ne rend jamais la main ne bloque pas le daemon. */
   historyTimeoutMs: 60_000,
 
-  /** Journal d'injections (spec §9). */
-  logFile: join(LOCALAPPDATA, 'zra', 'injections.log'),
+  /** Journal d'injections (spec §9). Dossier de ZRA : `%LOCALAPPDATA%\zra` en Windows, `$XDG_STATE_HOME/zra` ailleurs. */
+  logFile: PATHS.injectionLog,
   /** Journal du daemon sur disque, en plus de la console (`--log`). `null` : console seule. */
   daemonLogFile: null,
   /** Nom du poste affiché dans la PWA. `null` => hostname. */
