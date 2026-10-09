@@ -1,6 +1,6 @@
 # Portage Linux — note d'avancement
 
-État au commit `d66eacb`, branche `linux`. À lire avant de reprendre :
+État au commit `e71d60a`, branche `linux`. À lire avant de reprendre :
 `prompts/portage-linux.md` (le prompt d'origine, ses deux règles et son
 inventaire `fichier:ligne`). Cette note dit ce qui est fait, ce qui est prouvé,
 ce qui reste.
@@ -19,13 +19,19 @@ Règles toujours en vigueur :
 
 ## 1. État actuel
 
-**Le portage est terminé côté développement.** Vérifié sur deux machines :
+**Le portage est terminé côté développement.** Vérifié en réel sur deux machines :
 Ubuntu 24.04 / GNOME / Wayland (la machine de portage) et MX Linux 23 / Xfce /
-X11 sur HP Pavilion x2 (§3.2). Reste : Debian 13 / KDE, la cible de production.
+X11 sur HP Pavilion x2 (§3.2) — sur cette dernière, bout en bout : démarrage à
+l'ouverture de session, et ouverture d'un thread depuis la PWA. Reste : Debian 13
+/ KDE, la cible de production.
 
 ```
-a33dd88  fix(daemon,test)   la suite est verte que Zed tourne ou non (MX Linux)
+e71d60a  fix(keyboard)      F1…F12 en minuscules : xdotool jetait la touche
+7e30da5  docs(config)       le modèle citait encore ydotool/wtype, unsafeFocus mort
+c1e2bef  docs               backend autostart dans la note et le ROADMAP
 d66eacb  feat(service)      backend autostart XDG — Linux sans systemd en init
+736f1c3  docs(portage)      relevé MX Linux 23 / Xfce / X11 — §3.2
+a33dd88  fix(daemon,test)   la suite est verte que Zed tourne ou non
 30e2b4f  docs(portage)      note d'avancement — portage terminé
 875a0a6  feat(setup)        forcer XWayland automatiquement sous Wayland
 d911219  refactor(keyboard) simplification — xdotool partout, suppression ydotool/wtype
@@ -51,11 +57,11 @@ eb70e6f  étape 1            feat(platform): un seul module sait sur quel OS tou
 | 2. Chemins Linux (inventaire A) + fixtures Linux | **fait** — `e2c05e4` |
 | 3. `agent-commands` : registry et exécutables | **fait**, fondu dans l'étape 2 |
 | 4. `service.mjs` : backend systemd --user | **fait et vérifié en réel** — `ef395df` ; complété par un backend autostart XDG pour les machines sans systemd en init (`d66eacb`) |
-| 5. Backend clavier pluggable | **fait** — `xdotool` partout, XWayland forcé automatiquement sous Wayland (`875a0a6`) |
+| 5. Backend clavier pluggable | **fait et vérifié en réel** — `xdotool` partout, XWayland forcé sous Wayland (`875a0a6`), touches de fonction corrigées (`e71d60a`) |
 | 6. Docs (`SPEC.md` §2.4, `ROADMAP.md`, `DEPLOY.md`) | **fait** — `a2699ca` |
 | 7. CI GitHub Actions | **exclu** (priorité basse, machine de dev vaut mieux) |
 
-**Suite de tests** : 758 tests, 756 pass, 0 fail, 2 skipped (les 2 préexistants :
+**Suite de tests** : 761 tests, 759 pass, 0 fail, 2 skipped (les 2 préexistants :
 `keyboard.ps1` réservé à Windows, `wg.exe` absent). Vert **que Zed tourne ou non**
 depuis `a33dd88` — ce n'était pas le cas avant, voir §3.2.
 
@@ -101,6 +107,42 @@ depuis `a33dd88` — ce n'était pas le cas avant, voir §3.2.
 - Sous Wayland : Zed est forcé sous XWayland via `WAYLAND_DISPLAY=` dans le `.desktop`
 - `scripts/setup.mjs` : `install --apply` patche automatiquement le `.desktop` de Zed
 - `scripts/lib/wayland.mjs` : module dédié (patch/unpatch/status)
+- **`e71d60a`** : les keysyms X11 des touches de fonction sont en majuscules
+  (`F1`, pas `f1`) — voir §2.6, c'était un bug bloquant
+
+### 2.6 Touches de fonction et succès silencieux (`e71d60a`)
+
+Bug bloquant trouvé en ouvrant un thread depuis la PWA sur MX Linux. La chaîne,
+chaque maillon mesuré :
+
+1. `zed-keymap.js:31` — `KEY_POOL = ctrl-alt-shift-f1…f12` : `npm run setup` ne
+   sait lier **que** des touches de fonction
+2. `keyboard.js:144` — `parseChord` met tout en minuscules
+3. `X11_KEYSYM` n'avait **aucune** entrée pour `f1…f12`, alors que les keysyms X11
+   s'écrivent `F1…F12` :
+   ```
+   $ xdotool key --window 0x7fffffff f1 2>&1 >/dev/null ; echo $?
+   (symbol) No such key name 'f1'. Ignoring it.
+   0
+   $ xdotool key --window 0x7fffffff F1 2>&1 >/dev/null
+   X Error of failed request:  BadWindow     ← keysym résolu, envoi tenté
+   ```
+4. Zed ne recevait que `ctrl+alt+shift`, sans la touche. Comme xdotool sort en 0
+   et écrit sur **stderr** — que `exec()` ne lisait pas — la recette annonçait
+   « ✓ envoyé ». **L'ouverture de thread depuis le mobile était morte sous
+   Linux, en silence.**
+
+Corrigé : `f1…f12 → F1…F12` générés comme `KEY_NAMES` ; `xdotoolDroppedKey(stderr)`
+fait d'une touche jetée une erreur explicite ; `driver.play()` nomme la recette
+dans son résultat et `control.js` explique un timeout selon la voie réellement
+jouée (la touche liée → le bloc ZRA du keymap ; la palette → le dernier agent).
+
+À retenir : `keyboard.test.mjs:54` **verrouillait le bug** — `toX11Keysym('f5')`
+valait `'f5'`, commenté « keysyms X11 littéraux ». Un fait deviné, contredit par
+xdotool. Remplacé par les 12 touches, l'accord complet, et **toutes** celles de
+`KEY_POOL`.
+
+### 2.7 Documentation
 
 ### 2.4 Détection de Zed
 
@@ -127,13 +169,21 @@ Bug réel trouvé sur MX Linux, invisible sur la machine de portage :
   (`ydotool`, `wtype`) : ce commit avait mis à jour `keyboard.test.mjs` mais pas
   celui-là. Échec déterministe, sur toute machine.
 
-### 2.6 Documentation
+### 2.7 Documentation
 
-- `SPEC.md` §2.4 : faits Linux (chemins, systemd, backend clavier)
-- `DEPLOY.md` §5.1 : systemd --user
+- `SPEC.md` §2.4 : faits Linux (chemins, les deux backends de service, backend clavier)
+- `DEPLOY.md` §5.1 : systemd --user **et** autostart XDG, avec leurs limites
 - `DEPLOY.md` §5.2 : certbot/acme.sh (à la place de `cert.ps1`)
 - `DEPLOY.md` §5.3 : XWayland sous Wayland
 - `ROADMAP.md` : portage marqué comme fait
+- `zra.config.example.json` et `config.js` : les commentaires citaient encore
+  `ydotool`/`wtype` (`7e30da5`). Le piège n'était pas cosmétique : le modèle
+  proposait `"keyboard": "ydotool"`, que `config.js` refuse —
+  `zedControl.keyboard inconnu : ydotool (auto, powershell, xdotool, none)`
+- **`zedControl.unsafeFocus` est un bouton mort** depuis `d911219` : écrit
+  (`keyboard.js:187`) et validé (`config.js:253`), mais plus jamais **lu** — ses
+  seuls lecteurs étaient `YdotoolKeyboard`/`WtypeKeyboard`. La clé reste acceptée
+  pour ne pas casser une configuration existante ; les deux docs le disent
 
 ---
 
@@ -202,19 +252,37 @@ $ zed --version             → Zed 1.23.2 c0199504b9cce79bc27524950022ed701bc3e
 - ✅ Garde-fou du pidfile : `echo 1 > .zra/service/zra-daemon.pid` (le pid de
       l'init) → `status` dit « pidfile périmé », `stop` le nettoie **sans tuer**,
       `ps -p 1` → toujours vivant
-- ❌ **Non vérifié, et qui ne peut pas l'être d'ici** : que Xfce lise l'entrée à
-      l'ouverture de session. Demande une déconnexion/reconnexion réelles
+- ✅ **Autostart vérifié en vrai** : déconnexion/reconnexion, puis
+      `npm run service -- status` → `processus : ✓ lancé, pid 48379` **sans avoir
+      tapé `start`**, et `daemon … : ✓ http`. Xfce lit donc bien l'entrée
+- ✅ **Ouverture d'un thread depuis la PWA** (après `e71d60a`) : Zed ouvre le
+      thread sur l'agent `pi-zra`, le shim s'annonce, plus de timeout. Les trois
+      tentatives précédentes échouaient toutes sur la touche de fonction (§2.6) ;
+      le succès après le correctif est rapporté par l'utilisateur, les mesures
+      intermédiaires (`toX11Keysym`, `xdotool`, suite de tests) sont dans §2.6
+- ✅ **Titre de fenêtre avec un fichier ouvert** : `npm run zed -- try newThread
+      --project zra` → `✓ fenêtre : zra — zra.config.example.json`. Le titre devient
+      « dossier — fichier », et `matchesProject` le reconnaît par `startsWith('zra —')`
+- ⚠️ **`zra.config.json` est propre au poste et jamais committé** (`.gitignore:14`).
+      Sans lui, `loadConfig` ne prend que les défauts, et `zedControl.enabled`
+      vaut `false` (`config.js:117`) → le journal dit `pilotage de Zed désactivé`.
+      Le créer : `cp zra.config.example.json zra.config.json` (README.md:44).
+      Vérifié après copie : `pilotage de Zed : backend clavier xdotool` puis
+      `pilotage de Zed au clavier ACTIVÉ — recettes : newThreadKey, newThread,
+      openThread, submit`
+- ℹ️ Le dialogue « déverrouiller le trousseau de clés » qui vole le focus à
+      l'ouverture de session n'a **rien** cassé : le garde-fou `assertTarget`
+      aurait arrêté la recette en le disant, et le journal ne montre aucune
+      erreur de focus
 
 ### 3.3 Ce qui n'a pas été testé
 
-- ❌ Recettes clavier en frappe réelle (`try submit --apply`) dans Zed 1.23.2
-- ❌ `setup install --apply` sur MX Linux (settings.json + keymap.json de Zed)
-- ❌ Que Xfce lance réellement l'entrée d'autostart à l'ouverture de session
-- ❌ Le daemon lancé par la session (et non par `service -- start`) : même
-      lanceur, mais l'environnement vient de Xfce, pas du terminal
 - ❌ Registry `binary` sous Linux (aucun agent binaire installé)
 - ❌ Debian 13 / KDE (la cible de production), Fedora, Arch
 - ❌ Zed installé via Flatpak/Snap
+- ❌ Le backend autostart sur un autre bureau que Xfce (GNOME, KDE, LXQt lisent le
+      même dossier, mais ce n'est pas mesuré)
+- ❌ Wayland natif sans XWayland forcé, WSL2
 
 ---
 
@@ -229,9 +297,10 @@ C'est la cible de production. À vérifier :
    par `t === p`. Restait à le vérifier sous KDE, où Zed pourrait suffixer le
    titre : `npm run zed -- probe` et comparer.
 
-2. **Recettes clavier** : la keymap Linux de Zed utilise-t-elle les mêmes raccourcis ?
-   - Tester : `npm run zed -- try submit --apply` dans une fenêtre Zed
-   - Si les raccourcis sont différents, surcharger via `zedControl.recipes` dans `zra.config.json`
+2. **Recettes clavier** : ✅ **répondues sur MX Linux / Xfce / X11** (§3.2) pour
+   `newThreadKey`, `newThread`, `submit` et la reconnaissance de fenêtre. Sous
+   KDE, revérifier seulement le titre de la fenêtre (item 1) et la touche liée :
+   `npm run zed -- recipes`, puis un `new_thread` depuis la PWA.
 
 3. **Registry binary** : installer un agent binaire et vérifier que Zed le lance
    - Tester : ajouter un agent `binary` dans le registry, vérifier que `resolveAgentCommand` le trouve
@@ -247,19 +316,26 @@ C'est une machine spéciale pour tester la compatibilité :
   - xdotool : paquet standard, devrait marcher
   - Zed : vérifier qu'il existe en version compatible (pas de build i386 officiel ?)
 
-**Résultat (commits `a33dd88` puis `d66eacb`)** : étapes 1 à 7 de la procédure
-faites. Étapes 8 à 10 restant à faire (frappe réelle, recette `newThread`, mobile).
-Sur les pièges annoncés, un seul était réel — et un autre, non annoncé, est tombé :
+**Résultat (commits `a33dd88`, `d66eacb`, `e71d60a`)** : la procédure est faite
+**en entier**, étapes 1 à 10 comprises — démarrage à l'ouverture de session
+vérifié par une déconnexion/reconnexion, et ouverture d'un thread depuis la PWA
+en état de marche (§3.2). Deux pièges sont tombés, dont un que cette note
+n'avait pas vu :
 
 - CPU 64 bits → le tarball x64 de Node marche, le boot 32 bits ne gêne pas
 - ❌ **systemd 252 installé, mais pas comme init** → `systemctl --user` répond
       `offline`, l'étape 6 échouait. C'était le piège que cette note n'avait pas
       vu : elle raisonnait en version de systemd, pas en init. Backend autostart
       ajouté (`d66eacb`), cycle complet vérifié en réel (§3.2)
+- ❌ **Les touches liées par `setup` ne partaient pas** : `KEY_POOL` ne contient
+      que des `ctrl-alt-shift-f<N>`, et les keysyms X11 s'écrivent `F<N>` —
+      l'étape 10 échouait donc à coup sûr sous Linux, en silence (§2.6, `e71d60a`)
 - `xdotool` présent, session X11 → aucun patch `.desktop` à faire
 - Zed 1.23.2 installé classiquement (`~/.local/zed.app`), ni Flatpak ni Snap
 - ⚠️ **Node 22 par défaut dans le PATH** (nvm) alors que `engines: ">=24"` :
       `nvm use 24` avant toute commande npm
+- ⚠️ **`zra.config.json` absent d'un clone neuf** (propre au poste, jamais
+      committé) : sans lui le pilotage de Zed est désactivé par défaut (§3.2)
 
 **Procédure de test** :
 
@@ -298,10 +374,15 @@ npm run zed -- try submit --apply
 # Doit taper dans la fenêtre Zed
 ```
 
-**Points d'attention** :
+**Points d'attention** (ceux qui se sont réellement présentés sont marqués) :
 
-- Si Node 24 n'est pas disponible en i386 : le portage ne marchera pas (engines: ">=24")
-- Si systemd < 232 : le service `--user` ne marchera pas, mais le daemon en manuel oui
+- ⚠️ Node < 24 dans le PATH : `engines: ">=24"` — **vu ici** (nvm donnait v22)
+- ❌ systemd installé mais pas comme init : `systemctl --user` → `offline` —
+      **vu ici**, réglé par le backend autostart (`d66eacb`)
+- ❌ Touches de fonction envoyées en minuscules : xdotool les jette en sortant
+      en 0 — **vu ici**, réglé par `e71d60a`
+- ⚠️ `zra.config.json` absent d'un clone neuf : pilotage de Zed désactivé —
+      **vu ici**
 - Si Zed n'est pas disponible : le portage ne peut pas être testé (Zed est le client ACP)
 - Si le `.desktop` n'est pas à l'emplacement standard : `findZedDesktop()` ne le trouvera pas
 
@@ -336,12 +417,27 @@ npm run zed -- try submit --apply
 - **Wayland natif sans XWayland** : si quelqu'un refuse de forcer XWayland → backend `none`
 - **Zed via Flatpak/Snap** : chemins différents (`~/.var/app/...`) → pas testé
 - **WSL2** : pas de systemd par défaut, pas de GUI native → pas testé
+- **Registry `binary`** sous Linux : aucun agent binaire installé sur les deux
+  machines de test
+- **Backend autostart hors Xfce** : GNOME, KDE et LXQt lisent le même dossier,
+  mais ce n'est pas mesuré
 
-### 5.4 Verdict
+### 5.4 Leçon à retenir pour la suite
 
-**90% des cas** : marche out of the box sur Debian 12+, Ubuntu 22.04+, Fedora 38+, Arch, avec Node 24 et Zed installé classiquement.
+Les deux bugs bloquants trouvés sur la deuxième machine (`a33dd88`, `e71d60a`)
+ont la même forme : un fait **deviné** et verrouillé par un test. « 748 pass »
+supposait Zed fermé ; « keysyms X11 littéraux » supposait que `f5` suffice à
+xdotool. Une machine différente, et les deux tombent. D'où la règle n°2 : une
+sortie de commande recopiée, ou « non vérifié ».
 
-**10% restants** : vieilles distros, Zed via Flatpak/Snap, ou refus de XWayland → demandera un peu de config manuelle.
+### 5.5 Verdict
+
+**90% des cas** : marche out of the box sur Debian 12+, Ubuntu 22.04+, Fedora 38+,
+Arch, MX Linux, avec Node 24 et Zed installé classiquement — systemd en init ou
+pas, X11 ou Wayland.
+
+**10% restants** : Zed via Flatpak/Snap, refus de XWayland, ou session sans
+bureau → demandera un peu de config manuelle.
 
 ---
 
@@ -363,25 +459,19 @@ Check-list inverse pour s'assurer que rien n'a cassé Windows :
 
 ```bash
 cd ~/Documents/zra
-git checkout linux && git log --oneline -5
+git checkout linux && git log --oneline -6
 node -v                                  # doit être >= 24
-npm test                                 # 758 tests, 756 pass, 0 fail, 2 skip
+npm test                                 # 761 tests, 759 pass, 0 fail, 2 skip
 node scripts/service.mjs status          # daemon tourne-t-il ?
 command -v xdotool                       # doit être installé
+cat zra.config.json >/dev/null 2>&1 || echo "à créer : cp zra.config.example.json zra.config.json"
 ```
 
 Sur la machine MX Linux, `nvm use 24` d'abord (le PATH donne Node 22 par défaut).
-Le service est installé et vérifié (backend autostart, §3.2). Reste, dans l'ordre
-de la procédure §4.2 :
 
-```bash
-npm run setup   -- install --apply      # settings.json + keymap.json de Zed
-npm run zed     -- probe
-npm run zed     -- try submit --project zra --text "test MX" --apply
-npm run zed     -- try newThread --title "test MX" --project zra --apply
-npm run pair                            # puis un message depuis Android
-```
+**Cette machine est complète** : procédure §4.2 faite en entier, service
+(autostart) vérifié par une déconnexion/reconnexion, `setup -- install --apply`
+fait, et ouverture de thread depuis la PWA en état de marche (§3.2).
 
-Et une déconnexion/reconnexion, seule façon de savoir si Xfce lit bien l'entrée
-d'autostart — ensuite `npm run service` doit montrer le daemon lancé sans que
-personne n'ait rien tapé.
+Ce qui reste au portage est listé en §3.3 — pour l'essentiel une autre machine :
+Debian 13 / KDE, la cible de production.
