@@ -1,0 +1,24 @@
+# Fins de ligne — ZRA se développe sur Windows et se porte sur Linux.
+# Sans ce fichier, le rendu dépend du `core.autocrlf` de chaque machine : les
+# mêmes sources apparaissent comme entièrement réécrites d'un poste à l'autre.
+# Ici, le dépôt tranche : LF partout, quel que soit l'OS.
+
+* text=auto eol=lf
+
+# PowerShell ne sait pas lire un script en LF : CRLF imposé, sur tous les OS.
+*.ps1 text eol=crlf
+
+# Binaires : jamais normalisés, jamais fusionnés.
+*.sqlite binary
+*.dat binary
+*.png binary
+*.ico binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.woff binary
+*.woff2 binary
+
+# Un diff de lockfile ne se lit pas et ne se résout pas à la main.
+package-lock.json -diff
