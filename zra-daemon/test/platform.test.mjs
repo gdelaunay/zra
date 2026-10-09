@@ -17,7 +17,7 @@ import { existsSync } from 'node:fs'
 
 import {
   KEYBOARD_BACKENDS, PATHS, defaultZedCli, keyboardPreference, processProbe,
-  serviceBackend, zedCliCandidates, zedPaths, zedProcessNames,
+  serviceBackend, systemdIsInit, zedCliCandidates, zedPaths, zedProcessNames,
 } from '../platform.js'
 
 // ---- fixtures Windows : ce que le code produisait avant le portage ----------
@@ -111,8 +111,11 @@ test('linux : Zed tourne sous le nom zed-editor, pas zed', () => {
   // `cat /proc/<pid>/comm` → zed-editor.
   assert.deepEqual(zedProcessNames({ platform: 'linux' }), ['zed-editor', 'zed'])
   assert.equal(processProbe({ platform: 'linux' }), 'pgrep')
-  // Le pendant de la tâche planifiée : un service `systemd --user`.
-  assert.equal(serviceBackend({ platform: 'linux' }), 'systemd')
+  // Le pendant de la tâche planifiée : `systemd --user` — ou l'entrée d'autostart
+  // XDG quand systemd n'est pas l'init (MX Linux 23 : sysvinit en PID 1). Le fait
+  // est injecté, donc le test ne dépend pas de la machine qui le joue.
+  assert.equal(serviceBackend({ platform: 'linux', systemdInit: true }), 'systemd')
+  assert.equal(serviceBackend({ platform: 'linux', systemdInit: false }), 'autostart')
   // macOS hors périmètre : le nom que le code antérieur cherchait est conservé.
   assert.deepEqual(zedProcessNames({ platform: 'darwin' }), ['Zed', 'zed-editor', 'zed'])
 })

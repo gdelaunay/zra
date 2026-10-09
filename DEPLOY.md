@@ -209,10 +209,21 @@ lancé tient le port : la tâche réessaie jusqu'à ce qu'il s'arrête.
 
 ---
 
-## 5.1 Linux : démarrage automatique (systemd --user)
+## 5.1 Linux : démarrage automatique
 
-Sur Linux, le daemon tourne comme service utilisateur systemd. Même UX CLI que
-sous Windows (`npm run service`) : le backend est détecté automatiquement.
+Même UX CLI que sous Windows (`npm run service`) : le backend est détecté
+automatiquement, et les six verbes sont identiques.
+
+| Machine | Backend | Fichier |
+|---|---|---|
+| systemd est l'init (Debian, Ubuntu, Fedora, Arch) | `systemd --user` | `~/.config/systemd/user/zra-daemon.service` |
+| systemd n'est **pas** l'init (MX Linux et dérivés) | autostart XDG | `~/.config/autostart/zra-daemon.desktop` |
+
+Le critère est `/run/systemd/system` (le marqueur de `sd_booted()`), **pas** la
+version du paquet : MX Linux 23 a systemd 252 installé, et `systemctl --user`
+n'y répond que `offline` parce que l'init est sysvinit.
+
+### systemd --user
 
 ```bash
 npm run service -- install            # montre l'unité, ne crée rien
@@ -230,6 +241,45 @@ donnent la commande. `enable-linger` ne demande **pas sudo**.
 **PATH** : le service recopie le PATH de la session dans l'unité (sinon les CLI
 installées hors `/usr/bin` — comme `pi` dans `~/.pi/agent/bin` — sont
 invisibles au daemon).
+
+### autostart XDG (sans systemd en init)
+
+Mêmes commandes, mêmes verbes :
+
+```bash
+npm run service -- install --apply    # écrit l'entrée .desktop et le lanceur
+npm run service -- start              # lance tout de suite (sans attendre la session)
+npm run service -- status             # entrée, processus, daemon, journal
+npm run service -- logs               # .zra/logs/daemon.log (pas de journalctl ici)
+npm run service -- stop | uninstall --apply
+```
+
+Deux fichiers sont écrits :
+
+- `~/.config/autostart/zra-daemon.desktop` — ce que la session lit à
+  l'ouverture (Xfce, GNOME, KDE, LXQt), sans sudo ;
+- `<dépôt>/.zra/service/zra-daemon.sh` — le lanceur. Une entrée `.desktop` n'a
+  pas de clé `Environment=` : c'est lui qui porte `DISPLAY`, `XDG_SESSION_TYPE`,
+  `XDG_RUNTIME_DIR` et le PATH de la session, relevés au moment de
+  l'installation. Sans `DISPLAY`, `xdotool` ne vise aucune fenêtre.
+
+**Pourquoi pas `/etc/init.d` ni cron `@reboot`** : ils partent avant la session
+graphique, donc sans `DISPLAY` — et le pilotage de Zed exige la session.
+
+**Les deux limites à connaître** (`status` les rappelle) :
+
+1. Aucune supervision : pas d'équivalent à `Restart=on-failure`. Si le daemon
+   plante, il reste arrêté jusqu'à la prochaine ouverture de session.
+2. Aucun équivalent à `enable-linger` : le daemon s'arrête à la fermeture de
+   session et ne démarre pas au boot d'une machine sans session ouverte.
+
+**Le pidfile** : `.zra/service/zra-daemon.pid`. `stop` vérifie la ligne de
+commande du pid dans `/proc` avant de tuer — un pid recyclé par un autre
+processus est nettoyé, pas suivi (testé en écrivant `1`, le pid de l'init, dans
+le pidfile : `stop` l'a nettoyé sans toucher à l'init).
+
+**Ce qui ne se vérifie qu'en vrai** : que la session lise bien l'entrée à
+l'ouverture. Il faut se déconnecter/reconnecter, puis `npm run service`.
 
 ---
 

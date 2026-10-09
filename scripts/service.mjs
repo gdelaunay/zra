@@ -8,22 +8,26 @@
 //   npm run service -- start | stop       la lance, l'arrête
 //   npm run service -- logs [--lines 60]  fin du journal du daemon
 //
-// Deux backends, MÊMES sous-commandes — celui de l'OS est choisi par
+// Trois backends, MÊMES sous-commandes — celui de la machine est choisi par
 // `platform.js`, pas par un test dispersé ici :
 //
 //   Windows : tâche planifiée (`schtasks`) — **gelée**, inchangée, vérifiée sur
 //             la machine cible et impossible à retester depuis Linux.
-//   Linux   : service `systemd --user` (`scripts/lib/systemd.mjs`), vérifié sur
-//             la machine de portage.
+//   Linux avec systemd en init : service `systemd --user`
+//             (`scripts/lib/systemd.mjs`), vérifié sur la machine de portage.
+//   Linux sans systemd en init : entrée d'autostart XDG
+//             (`scripts/lib/autostart.mjs`) — MX Linux et ses dérivés, où
+//             `systemctl --user` répond `offline` (voir l'en-tête du module).
 //
-// Dans les deux cas c'est **celui de l'utilisateur**, sans élévation : déclenché
+// Dans les trois cas c'est **celui de l'utilisateur**, sans élévation : déclenché
 // à son ouverture de session, dans sa session interactive. C'est nécessaire au
 // pilotage de Zed au clavier (on ne tape pas dans un bureau depuis une session
 // de service) et ça évite de stocker un mot de passe.
 //
 // Windows lance `scripts/daemon-task.ps1` dans une console PowerShell masquée ;
-// Linux laisse systemd journaliser, et le daemon écrit aussi dans
-// `.zra/logs/daemon.log` (`--log`) — même fichier des deux côtés.
+// Linux laisse systemd journaliser, ou lance un petit `.sh` côté autostart, et
+// le daemon écrit aussi dans `.zra/logs/daemon.log` (`--log`) — même fichier
+// partout.
 
 import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
@@ -36,6 +40,7 @@ import { serviceBackend } from '../zra-daemon/platform.js'
 import { npmSafeArgs } from './lib/args.mjs'
 import { daemonStatus } from './lib/daemon-status.mjs'
 import { commands as systemdCommands, UNIT } from './lib/systemd.mjs'
+import { commands as autostartCommands, DESKTOP } from './lib/autostart.mjs'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 export const TASK = 'ZRA daemon'
@@ -65,8 +70,9 @@ const USAGE = `zra service — le daemon lancé à l'ouverture de session
   npm run service [-- <commande>] [options]
 
   status               tâche, daemon, fin du journal (défaut)
-  install              crée la tâche planifiée « ${TASK} » (Windows)
-                       ou le service systemd --user « ${UNIT} » (Linux)
+  install              crée la tâche planifiée « ${TASK} » (Windows),
+                       le service systemd --user « ${UNIT} », ou l'entrée
+                       d'autostart « ${DESKTOP} » (Linux sans systemd en init)
   uninstall            la supprime
   start | stop         la lance, l'arrête
   logs                 fin du journal (.zra/logs/daemon.log, ou journalctl --user)
@@ -297,10 +303,12 @@ async function main() {
   if (opts.command === 'help') return console.log(USAGE)
   const config = await loadConfig()
 
-  // Linux : mêmes verbes, autre mécanisme. La branche Windows ci-dessous est
+  // Linux : mêmes verbes, autre mécanisme — systemd --user, ou l'autostart XDG
+  // quand systemd n'est pas l'init (MX Linux). La branche Windows ci-dessous est
   // gelée — elle n'est pas modifiée, elle n'est plus atteinte que sous Windows.
-  if (serviceBackend() === 'systemd') {
-    const run = systemdCommands[opts.command]
+  const linux = { systemd: systemdCommands, autostart: autostartCommands }[serviceBackend()]
+  if (linux) {
+    const run = linux[opts.command]
     if (!run) throw new Error(`commande inconnue : ${opts.command}`)
     return run(opts, config)
   }

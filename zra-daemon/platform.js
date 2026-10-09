@@ -211,11 +211,51 @@ export function processProbe(opts = {}) {
  *
  * Windows : la tâche planifiée `schtasks` + `scripts/daemon-task.ps1` — gelée,
  * intouchable, et la seule qui ait été vérifiée sous Windows.
- * Ailleurs : `systemd --user` (`scripts/lib/systemd.mjs`), mêmes verbes.
- * Le choix est fait ici pour que `service.mjs` n'ait pas à connaître l'OS.
+ * Linux avec systemd en init : `systemd --user` (`scripts/lib/systemd.mjs`).
+ * Linux sans systemd en init (MX Linux et ses dérivés) : entrée d'autostart XDG
+ * (`scripts/lib/autostart.mjs`) — `~/.config/autostart`, lu par Xfce, GNOME,
+ * KDE et LXQt à l'ouverture de session, sans sudo.
+ *
+ * Pourquoi pas `/etc/init.d` ni cron `@reboot` sur ces machines : ils partent
+ * AVANT la session graphique, donc sans `DISPLAY` — et sans `DISPLAY`,
+ * `xdotool` ne vise aucune fenêtre. Le pilotage de Zed impose la session.
+ *
+ * Les trois backends ont les MÊMES six verbes. Le choix est fait ici pour que
+ * `service.mjs` n'ait pas à connaître l'OS. `systemdInit` est injectable
+ * (comme `detect` pour `ZedPresence`) : il se teste sans machine.
  */
 export function serviceBackend(opts = {}) {
-  return ctx(opts).platform === 'win32' ? 'schtasks' : 'systemd'
+  const { platform } = ctx(opts)
+  if (platform === 'win32') return 'schtasks'
+  const init = opts.systemdInit ?? systemdIsInit({ platform })
+  return init ? 'systemd' : 'autostart'
+}
+
+/**
+ * systemd est-il **l'init** de cette machine (PID 1) ?
+ *
+ * Le marqueur est celui de `sd_booted()` de systemd lui-même : le dossier
+ * `/run/systemd/system` n'existe que si systemd tourne comme init. La version
+ * du paquet ne dit rien : systemd peut être installé sans être l'init.
+ *
+ * Fait établi sur MX Linux 23 (HP Pavilion x2), où ce test vaut false :
+ *   $ dpkg -l | grep -E 'systemd|sysvinit' → systemd 1:252.6-1mx23+1,
+ *     sysvinit-core 3.06-4, systemd-shim 10-6
+ *   $ cat /proc/1/comm                   → init      (sysvinit, pas systemd)
+ *   $ ls /run/systemd/system             → inexistant
+ *   $ systemctl --user is-system-running → offline
+ *   $ loginctl show-user 1000 -p Linger
+ *     System has not been booted with systemd as init system (PID 1). Can't operate.
+ *   $ journalctl --user -n 5             → No journal files were found
+ * systemd 252 est donc installé, et `systemd --user` y est impossible : ni user
+ * manager, ni linger, ni journal.
+ *
+ * @param {{ platform?:string }} [opts]
+ * @returns {boolean}
+ */
+export function systemdIsInit({ platform = process.platform } = {}) {
+  if (platform === 'win32') return false
+  return existsSync('/run/systemd/system')
 }
 
 // ---------------------------------------------------------------------------

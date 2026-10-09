@@ -133,19 +133,44 @@ Le schéma `sidebar_threads` est **identique** à Windows (mêmes colonnes).
 - Processus : `zed-editor` (pas `zed`) — `pgrep -x zed-editor`
 - Registry : clés `linux-x86_64`, `linux-aarch64` déjà présentes (mapping inchangé)
 
-**systemd --user** :
-- `systemctl --user` (systemd 255)
+**Démarrage à l'ouverture de session** — deux backends Linux, mêmes six verbes :
+
+*systemd --user* (systemd est l'init) :
+- `systemctl --user` (systemd 255 sur Ubuntu 24.04)
 - `loginctl enable-linger $USER` : **sans sudo**, rc=0
 - Sans linger, le service meurt à la déconnexion
 - Le PATH de la session est recopié dans l'unité (sinon les CLI installées hors
   `/usr/bin` sont invisibles au daemon)
+- `Restart=on-failure` : le daemon est relancé s'il plante
+
+*autostart XDG* (systemd n'est **pas** l'init — MX Linux et dérivés) :
+- `~/.config/autostart/zra-daemon.desktop` + un lanceur `.zra/service/zra-daemon.sh`
+- Le lanceur porte l'environnement de session (une entrée `.desktop` n'a pas de
+  clé `Environment=`), dont `DISPLAY` et le PATH
+- Détection : `/run/systemd/system` absent (le marqueur de `sd_booted()`)
+- **Deux limites** : aucune supervision (pas d'équivalent à `Restart=on-failure`),
+  et arrêt à la fermeture de session (pas d'équivalent à `enable-linger`)
+- Faits mesurés sur MX Linux 23 (HP Pavilion x2) : `cat /proc/1/comm` → `init`
+  (sysvinit-core 3.06-4), `systemd 1:252.6-1mx23+1` installé mais pas init,
+  `ls /run/systemd/system` → inexistant, `systemctl --user is-system-running` →
+  `offline`, `systemctl --user daemon-reload` → `Failed to reload daemon:
+  Process org.freedesktop.systemd1 exited with status 1`, `journalctl --user` →
+  `No journal files were found`
+- La version de systemd n'est **pas** le critère : être l'init l'est
 
 **Backend clavier** :
 - `xdotool` partout (X11 natif, ou Wayland + XWayland pour Zed)
 - Zed est forcé sous XWayland via `WAYLAND_DISPLAY=` dans le `.desktop`
 - `none` = refus explicite qui renvoie vers `acp`
 
-**Non vérifié** : recettes de la keymap Linux de Zed, branche `registry/binary` sous Linux (aucun agent binaire installé).
+**Vérifié sur MX Linux 23 / Xfce / X11** : titre réel de la fenêtre Zed =
+`WM_NAME="zra"` (le nom du dossier seul), `WM_CLASS="dev.zed.Zed"` ;
+`matchesProject` le reconnaît par `t === p`.
+
+**Non vérifié** : recettes de la keymap Linux de Zed en frappe réelle, branche
+`registry/binary` sous Linux (aucun agent binaire installé), et — pour le backend
+autostart — que la session lise bien l'entrée à l'ouverture (demande une
+déconnexion/reconnexion réelles).
 
 ---
 
