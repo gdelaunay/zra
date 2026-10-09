@@ -9,15 +9,11 @@
 // **Désactivé par défaut** (`zedControl.enabled: false`). Envoyer des touches à
 // un poste de travail n'est pas anodin : on l'active en connaissance de cause.
 
-import { execFile, spawn } from 'node:child_process'
-import { dirname, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { execFile } from 'node:child_process'
 
 import { defaultZedCli as hostZedCli } from '../platform.js'
 import { readAgentKey, toChord } from '../zed-keymap.js'
-
-const HERE = dirname(fileURLToPath(import.meta.url))
-export const KEYBOARD_SCRIPT = join(HERE, 'keyboard.ps1')
+import { defaultKeyboardRunner } from './keyboard.js'
 
 export class ZedControlError extends Error {
   constructor(code, message) {
@@ -141,75 +137,22 @@ export function checkRecipe(name, steps) {
  */
 const UNDER_TEST = Boolean(process.env.NODE_TEST_CONTEXT)
 
-function refuseUnderTest(what) {
+export function refuseUnderTest(what) {
   return Promise.reject(new ZedControlError('zed_control_failed', `${what} refusé sous node --test : fournir un bouchon`))
 }
 
-export class KeyboardRunner {
-  constructor({ shell = 'pwsh', script = KEYBOARD_SCRIPT, timeoutMs = 30_000 } = {}) {
-    this.shell = shell
-    this.script = script
-    this.timeoutMs = timeoutMs
-    this.chain = Promise.resolve()
-  }
+// ---------------------------------------------------------------------------
+// Exécution des recettes
+// ---------------------------------------------------------------------------
+//
+// Le lanceur clavier est désormais **pluggable** : `keyboard.ps1` sous Windows
+// (gelé), `xdotool` / `ydotool` / `wtype` / `none` sous Linux. Le code vit dans
+// `zed/keyboard.js` ; `KeyboardRunner` et `KEYBOARD_SCRIPT` sont ré-exportés ici
+// pour que les importateurs existants ne changent pas.
 
-  run(request) {
-    if (UNDER_TEST && !request?.dryRun) return refuseUnderTest('clavier réel')
-    const job = this.chain.then(() => this.exec(request))
-    this.chain = job.catch(() => {})
-    return job
-  }
-
-  exec(request, shell = this.shell) {
-    return new Promise((resolve, reject) => {
-      const child = spawn(shell, ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', this.script], {
-        stdio: ['pipe', 'pipe', 'pipe'],
-        windowsHide: true,
-      })
-      let out = ''
-      let err = ''
-      // Node émet `error` puis `close` quand le shell n'existe pas : `close`
-      // ne doit pas trancher à la place du repli lancé par `error`.
-      let failed = false
-      const timer = setTimeout(() => {
-        child.kill()
-        reject(new ZedControlError('zed_control_failed', `pilotage de Zed : pas de réponse en ${this.timeoutMs} ms`))
-      }, this.timeoutMs)
-      child.stdout.on('data', (c) => { out += c })
-      child.stderr.on('data', (c) => { err += c })
-      child.on('error', (e) => {
-        failed = true
-        clearTimeout(timer)
-        // PowerShell 7 absent : Windows PowerShell 5.1 est toujours là.
-        if (e.code === 'ENOENT' && shell === 'pwsh') {
-          this.shell = 'powershell'
-          this.exec(request, 'powershell').then(resolve, reject)
-          return
-        }
-        reject(new ZedControlError('zed_control_failed', `pilotage de Zed : ${shell} non lançable (${e.message})`))
-      })
-      child.on('close', (code) => {
-        if (failed) return
-        clearTimeout(timer)
-        const line = out.trim().split(/\r?\n/).at(-1)
-        let res
-        try {
-          res = JSON.parse(line)
-        } catch {
-          // Tout ce qu'on sait, pour diagnostiquer à distance : quel PowerShell,
-          // son code de sortie, et ce qu'il a écrit à la place du JSON.
-          const said = (err.trim().split(/\r?\n/).at(-1) || out.trim().slice(0, 200) || 'sortie vide')
-          reject(new ZedControlError('zed_control_failed', `pilotage de Zed : réponse illisible (${shell}, code ${code}) — ${said}`))
-          return
-        }
-        if (!res.ok) reject(new ZedControlError('zed_control_failed', res.error || 'échec du pilotage de Zed'))
-        else resolve(res)
-      })
-      child.stdin.on('error', () => {}) // shell absent : EPIPE, déjà traité par `error`
-      child.stdin.end(JSON.stringify(request), 'utf8')
-    })
-  }
-}
+export {
+  KEYBOARD_SCRIPT, KeyboardRunner, LazyKeyboard, createKeyboard, defaultKeyboardRunner,
+} from './keyboard.js'
 
 // ---------------------------------------------------------------------------
 // La CLI de Zed : ouvrir le dossier d'un projet
@@ -301,7 +244,7 @@ export class ZedDriver {
    *        apparaître après l'appel à la CLI (ouverture d'une fenêtre neuve).
    */
   constructor({
-    runner = new KeyboardRunner(), enabled = false, window = null, stepDelayMs = 120, recipes = {},
+    runner = defaultKeyboardRunner(), enabled = false, window = null, stepDelayMs = 120, recipes = {},
     dryRun = false, log = null, cli = new ZedCli(), windowWaitMs = 8000, keymapFile = null,
   } = {}) {
     this.runner = runner
