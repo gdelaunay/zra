@@ -270,17 +270,22 @@ demande `ydotoold` — le daemon qui injecte les frappes via `/dev/uinput`.
 sudo apt-get install -y cmake build-essential
 git clone https://github.com/ReimuNotMoe/ydotool /tmp/ydotool-build
 cd /tmp/ydotool-build && mkdir -p build && cd build
-cmake .. && make
-sudo cp Daemon/ydotoold /usr/local/bin/
+cmake -DBUILD_DOCS=OFF .. && make
+# Les binaires sont dans build/, pas Daemon/
+sudo cp ydotoold ydotool /usr/local/bin/
 
 # Configurer udev (accès à /dev/uinput pour le groupe uinput)
 echo 'KERNEL=="uinput", GROUP="uinput", MODE="0660"' | sudo tee /etc/udev/rules.d/99-uinput.rules
 sudo groupadd -f uinput
 sudo usermod -aG uinput $USER
 sudo udevadm control --reload-rules
+sudo udevadm trigger    # recharge /dev/uinput immédiatement
 
-# Se reconnecter (logout/login) pour que le groupe prenne effet
+# Activer le groupe dans la session courante (ou logout/login)
+newgrp uinput
 ```
+
+**Vérification** : `ls -la /dev/uinput` doit montrer `root uinput` (pas `root root`).
 
 **Vérification** :
 
