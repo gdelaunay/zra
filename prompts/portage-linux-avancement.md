@@ -445,7 +445,7 @@ bureau → demandera un peu de config manuelle.
 
 Check-list inverse pour s'assurer que rien n'a cassé Windows :
 
-1. **`npm test`** : 746 tests, 0 fail ; les 2 sauts sont `keyboard.ps1` (Windows) et `wg.exe`
+1. **`npm test`** : 761 tests, 0 fail ; les 2 sauts sont `keyboard.ps1` (Windows) et `wg.exe`
 2. **`platform.js`** : `zedPaths({platform:'win32'})` → mêmes chemins qu'avant (antislashes)
 3. **`npm run setup`** : mêmes entrées, mêmes touches
 4. **`npm run service`** : tâche schtasks inchangée, XML identique
