@@ -13,7 +13,7 @@
 // pris pour une position que le ring connaît.
 
 export class RingBuffers {
-  constructor({ size = 2000 } = {}) {
+  constructor({ size = 2000, origin = Date.now() * 1000 } = {}) {
     this.size = size
     /** @type {Map<string, object[]>} */
     this.buffers = new Map()
@@ -21,7 +21,7 @@ export class RingBuffers {
     this.cut = new Set()
     /** Dernier `seq` perdu par thread (évincé, effacé) ; `origin` par défaut. */
     this.floors = new Map()
-    this.origin = Date.now() * 1000
+    this.origin = origin
     this.seq = this.origin
   }
 

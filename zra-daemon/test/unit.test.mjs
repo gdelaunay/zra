@@ -261,14 +261,17 @@ test('ring buffer : `since` rend la suite, ou `null` si le ring l’a perdue', (
   for (let i = 2; i < 5; i++) rings.push('t1', { update: { n: i } })
   assert.equal(rings.since('t1', a.seq), null)
 
-  // Effacé (Zed recharge la session) : même chose, même vide.
+  // `seq` d'une instance précédente du daemon : toujours antérieur. `origin`
+  // injecté (ici : 1 s plus tard, comme un redémarrage) pour que l'assertion
+  // ne dépende pas de la milliseconde courante.
+  // (Avant le `clear` ci-dessous, qui pose un floor déterministe à `c`.)
   const c = rings.cursor()
+  assert.equal(new RingBuffers({ origin: c + 1_000_000 }).since('t1', c), null)
+
+  // Effacé (Zed recharge la session) : même chose, même vide.
   rings.clear('t1')
   assert.equal(rings.since('t1', c - 1), null)
   assert.deepEqual(rings.since('t1', rings.cursor()), [])
-
-  // `seq` d'une instance précédente du daemon : toujours antérieur.
-  assert.equal(new RingBuffers().since('t1', c), null)
 })
 
 // ---- machine à états -------------------------------------------------------
