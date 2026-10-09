@@ -35,6 +35,7 @@ import { assertParsable, removeAgentServer, upsertAgentServer } from '../zra-dae
 import { assignKeys, readZraKeys, removeZraKeymap, upsertZraKeymap } from '../zra-daemon/zed-keymap.js'
 import { npmSafeArgs } from './lib/args.mjs'
 import { daemonStatus } from './lib/daemon-status.mjs'
+import { isWayland, findZedDesktop, patchDesktopForXWayland, unpatchDesktop } from './lib/wayland.mjs'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const STATE = join(ROOT, '.zra')
@@ -256,6 +257,16 @@ async function status(opts, config) {
   for (const s of d.shims) {
     console.log(`  shim ${s.shimId} : ${s.agentId ?? '—'}, ${s.sessions.length} session(s)${s.loadSession ? ', loadSession' : ''}`)
   }
+
+  // Wayland : statut du .desktop
+  if (isWayland()) {
+    const desktopFile = findZedDesktop()
+    if (desktopFile) {
+      const content = await readFile(desktopFile, 'utf8')
+      const patched = /^Exec=env WAYLAND_DISPLAY= /m.test(content)
+      console.log(`.desktop de Zed : ${patched ? '✓ XWayland forcé' : '✗ XWayland non forcé — `install --apply` pour activer le pilotage clavier'}`)
+    }
+  }
 }
 
 async function install(opts, config) {
@@ -342,6 +353,17 @@ async function install(opts, config) {
     const backup = await writeZedFile(kmFile, kmBefore, km.text)
     console.log(`\n✓ keymap.json écrit.${backup ? ` Sauvegarde : ${backup}` : ''}`)
   }
+
+  // Wayland : forcer Zed sous XWayland pour que xdotool voie ses fenêtres
+  const desktop = await patchDesktopForXWayland(opts.apply)
+  if (desktop.action === 'patched') {
+    console.log(`\n✓ .desktop de Zed modifié pour forcer XWayland. Sauvegarde : ${desktop.backup}`)
+    console.log('  Redémarrer Zed pour que le changement prenne effet.')
+  } else if (desktop.action === 'dry-run') {
+    console.log('\n.desktop de Zed : forcer XWayland sous Wayland (simulation) :\n')
+    console.log(lineDiff(desktop.original, desktop.patched))
+    console.log('\nsimulation : le .desktop n\'a pas été modifié. Relancer avec --apply pour appliquer.')
+  }
 }
 
 async function uninstall(opts, config) {
@@ -384,6 +406,17 @@ async function uninstall(opts, config) {
   if (kmChanged) {
     const backup = await writeZedFile(kmFile, kmBefore, km.text)
     console.log(`\n✓ raccourcis retirés du keymap.json. Sauvegarde : ${backup}`)
+  }
+
+  // Wayland : retirer le forçage XWayland du .desktop
+  const desktop = await unpatchDesktop(opts.apply)
+  if (desktop.action === 'restored') {
+    console.log(`\n✓ .desktop de Zed restauré (XWayland retiré). Sauvegarde : ${desktop.backup}`)
+    console.log('  Redémarrer Zed pour que le changement prenne effet.')
+  } else if (desktop.action === 'dry-run') {
+    console.log('\n.desktop de Zed : retirer le forçage XWayland (simulation) :\n')
+    console.log(lineDiff(desktop.original, desktop.restored))
+    console.log('\nsimulation : le .desktop n\'a pas été restauré. Relancer avec --apply pour appliquer.')
   }
 }
 
