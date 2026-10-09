@@ -107,6 +107,8 @@ export class ZedControl {
       const known = new Set(this.threads.threads.map((t) => t.threadId))
       /** Sessions neuves de cet agent → dossier annoncé par le shim. */
       const fresh = new Map()
+      /** Ce que le pilote a réellement joué — lu par le message de timeout. */
+      let played = null
 
       const wait = this.waitFor(({ session }) => {
         if (session?.sessionId && session.source === 'new') {
@@ -150,11 +152,20 @@ export class ZedControl {
       }, {
         onTimeout: () => new ZedControlError('new_thread_failed', fresh.size
           ? "Zed a ouvert la session, mais le thread n'est pas encore dans son index (il n'y entre peut-être qu'au premier message)"
-          : `Zed n'a ouvert aucune session ${agent.id} en ${Math.round(this.timeoutMs / 1000)} s — il ouvre le dernier agent utilisé dans Zed : était-ce bien celui-là ?`),
+          // L'explication dépend de la recette jouée : la touche liée vise CET
+          // agent, la palette ouvre le dernier utilisé. Accuser la palette quand
+          // c'est la touche qui a été envoyée envoie chercher du mauvais côté —
+          // vu en vrai sur MX Linux, où la touche partait sans sa touche de
+          // fonction (`f1` au lieu du keysym `F1`).
+          : played?.recipe === 'newThreadKey'
+            ? `Zed n'a ouvert aucune session ${agent.id} en ${Math.round(this.timeoutMs / 1000)} s — la touche liée par \`npm run setup\` a été envoyée à sa fenêtre sans effet : vérifie le bloc ZRA de son keymap.json, et que cette version de Zed connaît l'action liée`
+            : played?.recipe === 'newThread'
+              ? `Zed n'a ouvert aucune session ${agent.id} en ${Math.round(this.timeoutMs / 1000)} s — il ouvre le dernier agent utilisé dans Zed : était-ce bien celui-là ?`
+              : `Zed n'a ouvert aucune session ${agent.id} en ${Math.round(this.timeoutMs / 1000)} s`),
       })
 
       try {
-        await this.driver.newThread(agent, { folderPaths, newWindow })
+        played = await this.driver.newThread(agent, { folderPaths, newWindow })
       } catch (err) {
         wait.cancel()
         throw new ZedControlError('new_thread_failed', err.message)

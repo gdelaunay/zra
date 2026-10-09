@@ -11,12 +11,16 @@
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { mkdtempSync, rmSync, writeFileSync, chmodSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 
 import {
   KEY_NAMES, NoneKeyboard, XdotoolKeyboard,
-  createKeyboard, defaultKeyboardRunner, parseChord, toX11Keysym,
+  createKeyboard, defaultKeyboardRunner, parseChord, toX11Keysym, xdotoolDroppedKey,
 } from '../zed/keyboard.js'
 import { KeyboardRunner } from '../zed/driver.js'
+import { KEY_POOL } from '../zed-keymap.js'
 import { KEYBOARD_BACKENDS } from '../platform.js'
 import { loadConfig } from '../config.js'
 
@@ -51,8 +55,60 @@ test('toX11Keysym : ce que `xdotool key` attend', () => {
   assert.equal(toX11Keysym('backspace'), 'BackSpace')
   assert.equal(toX11Keysym('pageup'), 'Page_Up')
   assert.equal(toX11Keysym('win+l'), 'super+l')
-  assert.equal(toX11Keysym('f5'), 'f5', 'F1-F12 : keysyms X11 littéraux')
   assert.throws(() => toX11Keysym('ctrl+inconnu'), /touche inconnue/)
+})
+
+test('toX11Keysym : les touches de fonction partent en MAJUSCULES, comme les keysyms X11', () => {
+  // Bug réel, trouvé sur MX Linux 23 en ouvrant un thread depuis la PWA :
+  // `parseChord` met tout en minuscules et X11_KEYSYM n'avait pas d'entrée pour
+  // f1…f12, donc xdotool recevait `ctrl+alt+shift+f1` — et laissait tomber la
+  // touche en sortant en 0. Zed ne recevait que les modificateurs.
+  //   $ xdotool key --window 0x7fffffff f1 2>&1 >/dev/null
+  //   (symbol) No such key name 'f1'. Ignoring it.
+  //   $ xdotool key --window 0x7fffffff F1 2>&1 >/dev/null
+  //   X Error of failed request:  BadWindow     ← keysym résolu, envoi tenté
+  for (let i = 1; i <= 12; i++) {
+    assert.equal(toX11Keysym(`f${i}`), `F${i}`)
+    assert.equal(toX11Keysym(`ctrl+alt+shift+f${i}`), `ctrl+alt+shift+F${i}`)
+  }
+  // Et sur TOUTES les touches que `npm run setup` peut lier : `KEY_POOL` ne
+  // contient que des ctrl-alt-shift-f<N>. Une seule oubliée et l'ouverture de
+  // thread depuis le mobile est morte en silence.
+  for (const chord of KEY_POOL) {
+    const out = toX11Keysym(chord.split('-').join('+'))
+    assert.match(out, /\+F([1-9]|1[0-2])$/, `${chord} → ${out}`)
+  }
+})
+
+test('xdotool : une touche laissée tomber est une erreur, pas un succès', async (t) => {
+  // xdotool écrit son avertissement sur stderr et sort en **0** : sans ce
+  // contrôle, `exec` résolvait et la recette annonçait « ✓ envoyé ».
+  // Sortie réelle recopiée :
+  const stderr = "(symbol) No such key name 'f1'. Ignoring it.\n"
+  assert.equal(xdotoolDroppedKey(stderr), 'f1')
+  assert.equal(xdotoolDroppedKey(''), null)
+  assert.equal(xdotoolDroppedKey(null), null)
+  assert.equal(xdotoolDroppedKey('X Error of failed request:  BadWindow'), null, 'une autre erreur n’est pas une touche oubliée')
+
+  // Le vrai chemin `exec` (pas bouchonné) : un faux xdotool qui imite la sortie
+  // mesurée — stderr, code 0.
+  const dir = mkdtempSync(join(tmpdir(), 'zra-faux-outil-'))
+  t.after(() => rmSync(dir, { recursive: true, force: true }))
+  const fake = join(dir, 'xdotool')
+  writeFileSync(fake, '#!/bin/sh\necho "(symbol) No such key name \'f1\'. Ignoring it." >&2\nexit 0\n', 'utf8')
+  chmodSync(fake, 0o755)
+
+  const k = new XdotoolKeyboard({ timeoutMs: 2000 })
+  k.tool_ = fake
+  await assert.rejects(
+    k.tool('key', '--clearmodifiers', 'ctrl+alt+shift+f1'),
+    (err) => {
+      assert.equal(err.code, 'zed_control_failed')
+      assert.match(err.message, /touche inconnue de X11 « f1 »/)
+      assert.match(err.message, /aucune frappe envoyée/)
+      return true
+    },
+  )
 })
 
 // ---------------------------------------------------------------------------

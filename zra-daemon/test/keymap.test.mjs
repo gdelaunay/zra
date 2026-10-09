@@ -138,3 +138,26 @@ test('pilote : la touche de l’agent si elle est posée, la palette sinon', asy
   await driver.newThread({ id: 'pi-zra' })
   assert.equal(keyboard.calls.at(-1).steps[0].keys, 'ctrl+shift+p')
 })
+
+test('pilote : le résultat nomme la recette jouée — le message d’échec en dépend', async () => {
+  // `control.js` explique un timeout différemment selon la voie : la touche liée
+  // vise CET agent (donc c'est le keymap ou l'action de Zed qui est en cause),
+  // la palette ouvre le dernier agent utilisé (donc c'est peut-être le bon agent
+  // qui n'était pas sélectionné). Sans ce nom, le message accusait la palette
+  // alors que la touche avait été jouée — vu en vrai sur MX Linux 23.
+  const file = join(WORK, 'keymap-recette.json')
+  rmSync(file, { force: true })
+  const keyboard = fakeKeyboard()
+  const driver = new ZedDriver({ runner: keyboard, enabled: true, keymapFile: file, cli: { open: async () => ({}) } })
+
+  assert.equal((await driver.newThread({ id: 'claude-zra' })).recipe, 'newThread', 'sans keymap : la palette')
+
+  writeFileSync(file, upsertZraKeymap(USER, keys(['claude-zra', 'ctrl-alt-shift-f1'])).text)
+  assert.equal((await driver.newThread({ id: 'claude-zra' })).recipe, 'newThreadKey', 'touche liée : la touche')
+  assert.deepEqual(keyboard.calls.at(-1).steps[0], { keys: 'ctrl+alt+shift+f1' })
+
+  // Les autres recettes sont nommées aussi : même besoin d'explication.
+  assert.equal((await driver.openThread({ title: 'x', folderPaths: ['/tmp/p'] })).recipe, 'openThread')
+  assert.equal((await driver.submit('bonjour')).recipe, 'submit')
+  rmSync(file, { force: true })
+})

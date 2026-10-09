@@ -285,7 +285,11 @@ export class ZedDriver {
     const where = project
       ? { project, windowWaitMs: this.windowWaitMs }
       : { window: this.window }
-    return this.runner.run({ op: 'run', steps, ...where, stepDelayMs: this.stepDelayMs, dryRun: this.dryRun })
+    const res = await this.runner.run({ op: 'run', steps, ...where, stepDelayMs: this.stepDelayMs, dryRun: this.dryRun })
+    // `recipe` : l'appelant en a besoin pour dire ce qu'il a réellement joué —
+    // `newThread` passe par la touche liée OU par la palette, et les deux
+    // n'ont pas du tout la même explication en cas d'échec.
+    return { ...res, recipe: name }
   }
 
   assertEnabled() {

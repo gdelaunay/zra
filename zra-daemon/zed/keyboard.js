@@ -155,18 +155,54 @@ export function parseChord(spec) {
 }
 
 /** Noms de touches X11 (XStringToKeysym) : ce que `xdotool key` attend. */
+/**
+ * Noms de touches X11 (XStringToKeysym) : ce que `xdotool key` attend.
+ *
+ * Les touches de fonction s'écrivent en MAJUSCULES (`F1`, pas `f1`) : c'est le
+ * nom du keysym, et il est sensible à la casse. Fait mesuré sur MX Linux 23
+ * (xdotool 3.20160805.1), et c'était un bug réel — `parseChord` met tout en
+ * minuscules, donc `ctrl-alt-shift-f1` partait en `ctrl+alt+shift+f1` :
+ *   $ xdotool key --window 0x7fffffff f1
+ *   (symbol) No such key name 'f1'. Ignoring it.      ← stderr, et rc=0
+ *   $ xdotool key --window 0x7fffffff F1
+ *   X Error of failed request:  BadWindow             ← keysym résolu, envoi tenté
+ * Autrement dit Zed recevait les modificateurs seuls, sans la touche, et ne
+ * faisait rien. Comme `KEY_POOL` de `zed-keymap.js` ne contient QUE des
+ * `ctrl-alt-shift-f<N>`, c'est toute l'ouverture de thread depuis le mobile qui
+ * était morte sous Linux — en silence, puisque xdotool sort en 0.
+ */
 const X11_KEYSYM = {
   enter: 'Return', return: 'Return', escape: 'Escape', esc: 'Escape',
   backspace: 'BackSpace', delete: 'Delete', insert: 'Insert',
   pageup: 'Page_Up', pagedown: 'Page_Down', space: 'space', tab: 'Tab',
   home: 'Home', end: 'End', up: 'Up', down: 'Down', left: 'Left', right: 'Right',
   ctrl: 'ctrl', control: 'ctrl', shift: 'shift', alt: 'alt', win: 'super', super: 'super',
+  // Même vocabulaire que KEY_NAMES : f1…f12, dans la casse du keysym X11.
+  ...Object.fromEntries(Array.from({ length: 12 }, (_, i) => [`f${i + 1}`, `F${i + 1}`])),
 }
 
 /** `ctrl+shift+p` → `ctrl+shift+p` (keysyms X11), tel que `xdotool key` le lit. */
 export function toX11Keysym(spec) {
   const { tokens } = parseChord(spec)
   return tokens.map((t) => (t.length === 1 ? t : X11_KEYSYM[t] ?? t)).join('+')
+}
+
+/**
+ * La touche qu'xdotool a laissée tomber, ou `null`.
+ *
+ * xdotool écrit `(symbol) No such key name 'f1'. Ignoring it.` sur **stderr** et
+ * sort en **0** : sans ce contrôle, une recette amputée de sa touche principale
+ * est annoncée envoyée. Fait mesuré (MX Linux 23) :
+ *   $ xdotool key --window 0x7fffffff f1 2>&1 >/dev/null ; echo $?
+ *   (symbol) No such key name 'f1'. Ignoring it.
+ *   0
+ *
+ * @param {string} stderr
+ * @returns {string|null} le nom de touche refusé
+ */
+export function xdotoolDroppedKey(stderr) {
+  const m = /No such key name '([^']+)'/.exec(String(stderr ?? ''))
+  return m ? m[1] : null
 }
 
 // ===========================================================================
@@ -260,6 +296,13 @@ class LinuxKeyboard {
         if (err) {
           const said = (stderr || '').trim().split(/\r?\n/).at(-1) || err.message
           reject(this.fail(`${cmd} : ${said}`))
+          return
+        }
+        // rc=0 ne veut pas dire « tout est parti » : xdotool laisse tomber une
+        // touche qu'il ne connaît pas en se contentant de l'écrire sur stderr.
+        const dropped = xdotoolDroppedKey(stderr)
+        if (dropped) {
+          reject(this.fail(`${cmd} : touche inconnue de X11 « ${dropped} », aucune frappe envoyée pour elle`))
           return
         }
         resolve(String(stdout ?? ''))
