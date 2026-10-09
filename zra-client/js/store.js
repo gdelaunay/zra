@@ -442,6 +442,12 @@ export function respondPermission(k, requestId, option) {
   const m = machineOf(k)
   if (!m) return
   const tl = ensureTimeline(k)
+  // Encart déjà tranché, ou réponse déjà en vol : muet. Le second appui ne doit
+  // pas renvoyer une écriture que le daemon refuserait en `permission_expired`
+  // (spec §6.6) — l'encart verrouillé de `views/entry.js` y veille aussi, mais
+  // c'est ici que l'écriture part.
+  const asked = tl.entries.find((e) => e.type === 'permission' && e.requestId === requestId)
+  if (asked?.resolved || asked?.pendingOptionId) return
   const changes = tl.resolvePermission(requestId, { optionId: option.optionId, pending: true })
   if (changes.length) emit(`timeline:${k}`, { changes })
   m.link.send({

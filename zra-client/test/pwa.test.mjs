@@ -329,7 +329,10 @@ test('permission : un refus est relayé tel quel', async () => {
   const reject = () => [...$$('.perm').pop().querySelectorAll('.btn')].find((b) => /refuser/i.test(b.textContent))
   click(reject())
   await until(() => $$('.perm').pop().classList.contains('perm--done'), 4000, 'refus confirmé')
-  assert.ok(!reject().disabled && reject().querySelector('svg, .icon'), 'le refus est l’option cochée')
+  // L'encart tranché est muet sur **toutes** ses options, la choisie comprise :
+  // c'est elle qui porte la coche (FINDINGS.md, corrigé).
+  assert.ok(reject().disabled, 'plus aucune option cliquable une fois tranchée')
+  assert.ok(reject().querySelector('svg, .icon'), 'le refus est l’option cochée')
   await until(() => /je ne pousse pas/.test(doc.body.textContent), 5000, 'réponse de l’agent')
   assert.ok($$('.tool--failed').length >= 1, 'le tool call est marqué en échec')
 })

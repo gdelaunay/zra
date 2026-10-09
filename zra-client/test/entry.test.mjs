@@ -440,38 +440,36 @@ test('permission ouverte et répondable : deux options actives, refus en danger'
   assert.equal(calls[0][0].requestId, 'r1', 'le callback reçoit l’entrée entière')
 })
 
-test('permission en cours d’envoi : l’option choisie tourne, les autres sont verrouillées', () => {
+test('permission en cours d’envoi : l’option choisie tourne, tout est verrouillé', () => {
   const { node } = permRender({ pendingOptionId: 'allow' }, { canRespond: true })
   const [allow, reject] = qa(node, '.perm__options button')
   assert.ok(q(allow, 'svg.spin'), 'spinner sur l’option envoyée')
-  assert.equal(allow.disabled, false, 'l’option choisie reste visible comme telle')
+  assert.equal(allow.disabled, true, 'on ne renvoie pas une réponse déjà en vol')
   assert.equal(reject.disabled, true, 'on ne change plus d’avis')
   assert.equal(q(node, '.perm__note'), null)
 })
 
-test('permission tranchée : coche sur l’option, encart clos, l’autre option verrouillée', () => {
+test('permission tranchée : coche sur l’option, encart clos, plus rien de cliquable', () => {
   const { node } = permRender({ pendingOptionId: 'allow', resolved: true, outcome: 'allow' }, { canRespond: true })
   assert.equal(node.className.includes('perm--done'), true)
   const [allow, reject] = qa(node, '.perm__options button')
   assert.ok(q(allow, 'svg'), 'la coche marque l’option choisie')
+  assert.equal(allow.disabled, true)
   assert.equal(reject.disabled, true, 'changer d’avis n’est plus possible')
   assert.equal(q(node, '.perm__note'), null, 'la réponse se lit sur l’option')
 })
 
-// `disabled: locked && !chosen` laisse l'option **choisie** cliquable une fois la
-// permission tranchée, et `store.respondPermission` ne regarde pas `resolved` :
-// un second appui renvoie un `respond_permission` au daemon, qui répondra
-// `permission_expired`. Voir FINDINGS.md.
-test('BUG : une permission tranchée reste cliquable sur l’option choisie', {
-  todo: 'BUG : js/views/entry.js — l’option choisie d’une permission résolue renvoie une réponse',
-}, () => {
+// L'option choisie d'un encart tranché restait cliquable (`disabled: locked &&
+// !chosen`) et un second appui renvoyait une écriture que le daemon refusait en
+// `permission_expired`. Corrigé (FINDINGS.md) : verrouillé = tout le monde muet.
+test('une permission tranchée ne se rejoue pas, même sur l’option choisie', () => {
   let calls = 0
   const { node } = permRender({ pendingOptionId: 'allow', resolved: true, outcome: 'allow' },
     { canRespond: true, onPermission: () => { calls++ } })
   const allow = qa(node, '.perm__options button')[0]
-  assert.equal(allow.disabled, true, 'une permission tranchée ne se rejoue pas')
+  assert.equal(allow.disabled, true)
   click(allow)
-  assert.equal(calls, 0)
+  assert.equal(calls, 0, 'un bouton désactivé ne répond pas au clic')
 })
 
 test('permission tranchée par une option absente : la note donne le verdict', () => {

@@ -169,3 +169,36 @@ test('thread d’un agent hors ZRA : lecture seule, sauf s’il est vivant', () 
     machine.info = info
   }
 })
+
+test('permission : une réponse déjà en vol, ou déjà tranchée, ne repart pas', () => {
+  const k = 'mock-desk/thread-perm'
+  const tl = store.ensureTimeline(k)
+  tl.entries.push({
+    id: 'e-perm', rev: 0, at: Date.now(), type: 'permission', requestId: 'r1',
+    toolCall: { title: 'Écrire `app.js`' },
+    options: [{ optionId: 'allow', name: 'Autoriser', kind: 'allow_once' }],
+  })
+
+  const sent = []
+  const send = machine.link.send
+  machine.link.send = (msg) => { sent.push(msg); return true }
+  try {
+    store.respondPermission(k, 'r1', { optionId: 'allow' })
+    assert.deepEqual(sent.map((m) => m.type), ['respond_permission'])
+    assert.equal(sent[0].threadId, 'thread-perm')
+    assert.equal(tl.entries.at(-1).pendingOptionId, 'allow', 'l’encart se verrouille tout de suite')
+
+    // Un second appui — même option, ou une autre — ne renvoie rien : le daemon
+    // répondrait `permission_expired` (spec §6.6).
+    store.respondPermission(k, 'r1', { optionId: 'allow' })
+    store.respondPermission(k, 'r1', { optionId: 'reject' })
+    assert.equal(sent.length, 1)
+
+    deliver({ type: 'permission_resolved', threadId: 'thread-perm', requestId: 'r1', optionId: 'allow', by: 'desktop' })
+    assert.equal(tl.entries.at(-1).resolved, true)
+    store.respondPermission(k, 'r1', { optionId: 'allow' })
+    assert.equal(sent.length, 1, 'tranchée depuis le poste : toujours muet')
+  } finally {
+    machine.link.send = send
+  }
+})
