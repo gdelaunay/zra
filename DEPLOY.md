@@ -258,6 +258,47 @@ daemon (`npm run service -- stop && start`) pour qu'il relise le certificat.
 
 ---
 
+## 5.3 Linux : pilotage clavier sous Wayland (ydotoold)
+
+Sous X11, `xdotool` marche sans installation. Sous Wayland, le pilotage clavier
+demande `ydotoold` — le daemon qui injecte les frappes via `/dev/uinput`.
+
+**Installation** (Ubuntu 24.04 : le paquet `ydotool` ne livre que le client) :
+
+```bash
+# Compiler le daemon (demande cmake + build-essential)
+sudo apt-get install -y cmake build-essential
+git clone https://github.com/ReimuNotMoe/ydotool /tmp/ydotool-build
+cd /tmp/ydotool-build && mkdir -p build && cd build
+cmake .. && make
+sudo cp Daemon/ydotoold /usr/local/bin/
+
+# Configurer udev (accès à /dev/uinput pour le groupe uinput)
+echo 'KERNEL=="uinput", GROUP="uinput", MODE="0660"' | sudo tee /etc/udev/rules.d/99-uinput.rules
+sudo groupadd -f uinput
+sudo usermod -aG uinput $USER
+sudo udevadm control --reload-rules
+
+# Se reconnecter (logout/login) pour que le groupe prenne effet
+```
+
+**Vérification** :
+
+```bash
+systemctl start ydotoold     # ou ydotoold en foreground pour tester
+ydotool type bonjour         # doit taper dans la fenêtre active
+```
+
+**Note** : sur Arch/Fedora, `ydotool` est packagé avec le daemon → `pacman -S ydotool`
+ou `dnf install ydotool`, rien à compiler.
+
+**Si ydotoold n'est pas disponible** : le daemon ZRA démarre quand même, refuse
+l'injection clavier avec un message explicite (« backend clavier indisponible,
+passez au backend acp »), et tout le reste fonctionne. Alternative : forcer Zed
+sous XWayland (`WAYLAND_DISPLAY= zed`) pour utiliser `xdotool`.
+
+---
+
 ## 6. Si ça ne marche pas
 
 | Symptôme | Où regarder |
