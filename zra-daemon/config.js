@@ -132,19 +132,27 @@ export const DEFAULTS = {
     /** Délai laissé à la fenêtre d'un projet pour apparaître après la CLI. */
     windowWaitMs: 8000,
     /**
-     * Backend clavier (portage Linux) : `auto` (défaut) choisit selon la
-     * session et les outils réellement installés — `keyboard.ps1` sous Windows,
-     * `xdotool` en X11, `ydotool`/`wtype` en Wayland. Un nom imposé est
-     * respecté même si l'outil est absent : il échoue en disant pourquoi,
-     * plutôt que de basculer en silence. `none` : pas de clavier, l'injection
-     * `uia` échoue avec un message qui renvoie vers `acp`.
+     * Backend clavier (portage Linux) : `auto` (défaut) choisit selon l'OS et
+     * les outils réellement installés — `keyboard.ps1` sous Windows, `xdotool`
+     * sous Linux. Depuis `d911219` il n'y a plus de `ydotool`/`wtype` : sous
+     * Wayland, Zed est forcé sous XWayland (`WAYLAND_DISPLAY=` dans son
+     * `.desktop`, voir `scripts/lib/wayland.mjs`) et `xdotool` voit ses fenêtres.
+     * Un nom imposé est respecté même si l'outil est absent : il échoue en
+     * disant pourquoi, plutôt que de basculer en silence. Les noms acceptés sont
+     * `auto`, `powershell`, `xdotool`, `none` (`KEYBOARD_BACKENDS`) — tout autre
+     * est refusé au chargement de la configuration.
+     * `none` : pas de clavier, l'injection `uia` échoue avec un message qui
+     * renvoie vers `acp`.
      */
     keyboard: 'auto',
     /**
-     * Wayland : aucune API publique ne permet de viser une fenêtre ni de
-     * vérifier le premier plan. `ydotool`/`wtype` refusent une recette ciblée
-     * tant que ce consentement explicite n'est pas activé — les frappes
-     * partent dans le focus courant, à vos risques et périls.
+     * **Bouton mort depuis `d911219`.** Il servait aux backends sans fenêtre
+     * (`ydotool`, `wtype`), qui ne pouvaient ni viser une fenêtre ni vérifier le
+     * premier plan sous Wayland : `true` assumait que les frappes partent dans
+     * le focus courant. Ces deux backends ont été supprimés, et plus aucun code
+     * ne lit cette valeur — `xdotool` vérifie le premier plan à chaque étape
+     * (`assertTarget`). La clé reste acceptée pour ne pas casser une
+     * configuration existante, mais elle ne fait rien.
      */
     unsafeFocus: false,
   },
