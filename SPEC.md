@@ -556,7 +556,9 @@ donc être vérifiable sans Zed ni agent.
    shim, et sait ne pas répondre à une permission pour laisser le mobile gagner.
 3. **Mode enregistrement** — `ZRA_RECORD=1` fait vider au shim toutes les trames
    dans un JSONL horodaté. `npm run setup` l'active d'office : une session
-   enregistrée devient une fixture de non-régression.
+   enregistrée devient une fixture de non-régression. Au démarrage, le shim
+   purge les JSONL de plus de 14 jours : le mode permanent ne remplit pas le
+   disque sans fin.
 4. **Fixture SQLite** — `sidebar_threads` committée, pour tester le lecteur
    d'index sans Zed installé. Schéma relevé tel quel sur la machine cible,
    lignes **synthétiques** plutôt qu'anonymisées : on ne risque pas d'y laisser

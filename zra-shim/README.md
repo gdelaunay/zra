@@ -92,7 +92,7 @@ L'agent enveloppé se désigne, par ordre de priorité :
 | `ZRA_DAEMON_URL` | défaut `ws://127.0.0.1:<port>/shim` |
 | `ZRA_DAEMON_PORT` | port du daemon si l'URL n'est pas donnée (défaut 7777) |
 | `ZRA_TURN_TIMEOUT_MS` | silence de l'agent au-delà duquel un tour en vol est clos d'office (`turnTimeoutMs` de `zra.config.json`, défaut 600000) |
-| `ZRA_RECORD=1` | vide toutes les trames dans `%LOCALAPPDATA%\zra\records\*.jsonl` |
+| `ZRA_RECORD=1` | vide toutes les trames dans `%LOCALAPPDATA%\zra\records\*.jsonl` (purge des JSONL de plus de 14 jours au démarrage) |
 | `ZRA_RECORD_DIR` | où écrire ces enregistrements |
 | `ZRA_LOG_LEVEL` | `debug` `info` `warn` `error` |
 | `ZRA_LOG_FILE` | double le journal dans ce fichier (`setup` : `.zra/logs/shim.log`) |

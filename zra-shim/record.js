@@ -8,14 +8,35 @@
 // Best-effort comme le reste du shim : si le fichier n'est pas écrivable, on
 // laisse tomber l'enregistrement, jamais le relai.
 
-import { createWriteStream, mkdirSync } from 'node:fs'
+import { createWriteStream, mkdirSync, readdirSync, rmSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 
 const LOCALAPPDATA = process.env.LOCALAPPDATA || join(homedir(), 'AppData', 'Local')
 
+/**
+ * Âge au-delà duquel un JSONL enregistré est purgé au démarrage du shim.
+ * Sans plafond, le mode permanent installé par `npm run setup` remplit le
+ * disque sans fin (~55 Mo/semaine mesurés sur le poste de dev).
+ */
+const RECORD_MAX_AGE_DAYS = 14
+
+/** Best-effort : une purge qui échoue ne doit jamais empêcher d'enregistrer. */
+function purge(dir, maxAgeDays) {
+  try {
+    const cutoff = Date.now() - maxAgeDays * 86_400_000
+    for (const name of readdirSync(dir)) {
+      if (!name.endsWith('.jsonl')) continue
+      const file = join(dir, name)
+      try {
+        if (statSync(file).mtimeMs < cutoff) rmSync(file, { force: true })
+      } catch { /* fichier disparu entre-temps */ }
+    }
+  } catch { /* dossier illisible : pas de purge, tant pis */ }
+}
+
 /** @returns {{ write:(dir:string, raw:Buffer)=>void, close:()=>void, file:string|null }} */
-export function createRecorder({ enabled, agentId, dir = process.env.ZRA_RECORD_DIR || join(LOCALAPPDATA, 'zra', 'records') } = {}) {
+export function createRecorder({ enabled, agentId, dir = process.env.ZRA_RECORD_DIR || join(LOCALAPPDATA, 'zra', 'records'), maxAgeDays = RECORD_MAX_AGE_DAYS } = {}) {
   if (!enabled) return { write: () => {}, close: () => {}, file: null }
 
   const stamp = new Date().toISOString().replace(/[:.]/g, '-')
@@ -23,6 +44,7 @@ export function createRecorder({ enabled, agentId, dir = process.env.ZRA_RECORD_
   let stream = null
   try {
     mkdirSync(dir, { recursive: true })
+    purge(dir, maxAgeDays)
     stream = createWriteStream(file, { flags: 'a' })
     stream.on('error', () => { stream = null })
   } catch {

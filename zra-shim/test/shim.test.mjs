@@ -6,7 +6,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
-import { readFileSync, rmSync } from 'node:fs'
+import { readFileSync, rmSync, mkdtempSync, writeFileSync, existsSync, utimesSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { PassThrough, Writable } from 'node:stream'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -536,6 +537,30 @@ test('sans ZRA_RECORD, l’enregistreur ne touche à rien', () => {
   assert.equal(recorder.file, null)
   recorder.write('zed→agent', Buffer.from('{}\n'))
   recorder.close()
+})
+
+test('record : les enregistrements sont purgés au démarrage du shim (G2)', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'zra-record-'))
+  try {
+    const vieux = join(dir, '2026-01-01T00-00-00-000Z-a-1.jsonl')
+    const recent = join(dir, '2026-01-01T00-00-00-000Z-a-2.jsonl')
+    const pasUnRecord = join(dir, 'notes.txt')
+    writeFileSync(vieux, 'x'.repeat(10))
+    writeFileSync(recent, 'x'.repeat(10))
+    writeFileSync(pasUnRecord, 'x'.repeat(10))
+    // `vieux` daté de 30 jours (mtime), `recent` d'aujourd'hui.
+    const ilYATrenteJours = (Date.now() - 30 * 86_400_000) / 1000
+    utimesSync(vieux, ilYATrenteJours, ilYATrenteJours)
+
+    const recorder = createRecorder({ enabled: true, agentId: 'a', dir, maxAgeDays: 7 })
+    recorder.close()
+
+    assert.equal(existsSync(vieux), false, 'un JSONL plus vieux que maxAgeDays est purgé')
+    assert.equal(existsSync(recent), true, 'un JSONL récent reste')
+    assert.equal(existsSync(pasUnRecord), true, 'la purge ne touche que les *.jsonl')
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
 })
 
 // ---- confirmation d'un prompt injecté (mode auto, lot C) --------------------
