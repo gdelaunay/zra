@@ -5,20 +5,9 @@
 // ici pour que le choix du backend vive au même endroit, et `driver.js` le
 // ré-exporte — aucun importateur ne change.
 //
-// Sous Linux il n'y a pas d'équivalent universel, et c'est tout le sujet :
-//
-//   X11      `xdotool` parle au serveur X : il énumère les fenêtres, active
-//            celle qu'on vise, tape dedans, et sait vérifier qu'elle est
-//            toujours au premier plan. C'est le seul backend qui reproduit le
-//            garde-fou de `keyboard.ps1` (« jamais une frappe envoyée dans une
-//            autre application »). La cible de production du projet est
-//            Debian 13 / KDE / X11 : c'est le backend principal.
-//   Wayland  Aucun protocole public ne laisse un client activer la fenêtre d'un
-//            autre client, ni même lister les fenêtres. `ydotool` (via
-//            `/dev/uinput`, donc indépendant du compositeur) et `wtype` (via
-//            `virtual-keyboard`, que tous les compositeurs n'implémentent pas)
-//            savent TAPER, pas VISER. D'où `canTargetWindows: false` et la
-//            configuration explicite `zedControl.unsafeFocus`.
+// Sous Linux : `xdotool` partout (X11 natif, ou Wayland + XWayland pour Zed).
+// Zed est forcé sous XWayland via `WAYLAND_DISPLAY=` dans le .desktop, ce qui
+// permet à xdotool de voir ses fenêtres et de les cibler.
 //   none     Aucun outil utilisable. Le daemon démarre, et l'injection `uia`
 //            échoue avec un message qui dit quoi faire.
 //
@@ -32,7 +21,6 @@
 // mi-chemin. `dryRun` résout sans rien envoyer.
 
 import { execFile, spawn } from 'node:child_process'
-import { existsSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -179,56 +167,6 @@ const X11_KEYSYM = {
 export function toX11Keysym(spec) {
   const { tokens } = parseChord(spec)
   return tokens.map((t) => (t.length === 1 ? t : X11_KEYSYM[t] ?? t)).join('+')
-}
-
-/**
- * Codes evdev (linux/input-event-codes.h) pour `ydotool key <code>:1 <code>:0`.
- * ydotool ne connaît pas les noms de touches : il veut des codes.
- *
- * **Non vérifié sur cette machine au moment de l'écriture** (ydotool absent) :
- * table recopiée de `/usr/include/linux/input-event-codes.h` et de la page de
- * manuel de ydotool. À confirmer au premier test réel.
- */
-const EVDEV = {
-  esc: 1, escape: 1, enter: 28, return: 28, backspace: 14, tab: 15,
-  space: 57, leftctrl: 29, ctrl: 29, control: 29, leftshift: 42, shift: 42,
-  alt: 56, leftalt: 56, super: 125, win: 125, leftmeta: 125,
-  delete: 111, insert: 110, home: 102, end: 107, pageup: 104, pagedown: 109,
-  up: 103, down: 108, left: 105, right: 106,
-  a: 30, b: 48, c: 46, d: 32, e: 18, f: 33, g: 34, h: 35, i: 23, j: 36, k: 37,
-  l: 38, m: 50, n: 49, o: 24, p: 25, q: 16, r: 19, s: 31, t: 20, u: 22, v: 47,
-  w: 17, x: 45, y: 21, z: 44,
-  '1': 2, '2': 3, '3': 4, '4': 5, '5': 6, '6': 7, '7': 8, '8': 9, '9': 10, '0': 11,
-  f1: 59, f2: 60, f3: 61, f4: 62, f5: 63, f6: 64, f7: 65, f8: 66, f9: 67,
-  f10: 68, f11: 87, f12: 88,
-}
-
-/** `ctrl+shift+p` → `['29:1','42:1','25:1','25:0','42:0','29:0']` (presser/relâcher). */
-export function toEvdevCodes(spec) {
-  const { tokens } = parseChord(spec)
-  const codes = tokens.map((t) => {
-    const code = EVDEV[t] ?? (t.length === 1 ? EVDEV[t] : null)
-    if (code === null || code === undefined) {
-      throw new ZedControlError('zed_control_failed', `touche sans code evdev : « ${t} » (accord « ${spec} »)`)
-    }
-    return code
-  })
-  return [...codes.map((c) => `${c}:1`), ...codes.slice().reverse().map((c) => `${c}:0`)]
-}
-
-/**
- * `ctrl+shift+p` → `['-P','ctrl','-P','shift','-k','p','-p','shift','-p','ctrl']`,
- * la syntaxe de `wtype` (modificateurs pressés/relâchés autour de la touche).
- */
-export function toWtypeArgs(spec) {
-  const { mods, key } = parseChord(spec)
-  const names = mods.map((m) => (m === 'control' ? 'ctrl' : m === 'win' ? 'super' : m))
-  const out = []
-  for (const m of names) out.push('-P', m)
-  if (key) out.push('-k', key.length === 1 ? key : X11_KEYSYM[key] ?? key)
-  for (const m of names.slice().reverse()) out.push('-p', m)
-  if (!key) out.push('-P', names[0], '-p', names[0]) // modificateur seul (TapAlt du .ps1)
-  return out
 }
 
 // ===========================================================================
@@ -488,87 +426,6 @@ export class XdotoolKeyboard extends LinuxKeyboard {
 }
 
 // ===========================================================================
-// ydotool — Wayland et X11, via /dev/uinput (indépendant du compositeur)
-// ===========================================================================
-
-/**
- * `ydotool` écrit dans le noyau (`uinput`) : les touches arrivent comme celles
- * d'un vrai clavier, quel que soit le serveur. Il faut que `ydotoold` tourne.
- *
- * **Non vérifié au moment de l'écriture** (ydotool absent de la machine de
- * portage) : mapping recopié de la page de manuel de ydotool et de
- * `input-event-codes.h`. Aucune fenêtre ne peut être visée — ydotool tape dans
- * ce qui a le focus, et Wayland ne laisse personne demander lequel.
- */
-export class YdotoolKeyboard extends LinuxKeyboard {
-  constructor(opts = {}) {
-    super(opts)
-    this.name = 'ydotool'
-    this.tool_ = 'ydotool'
-  }
-
-  chordArgs(spec) { return ['key', ...toEvdevCodes(spec)] }
-
-  textArgs(text, delay) {
-    // ydotool `type` prend le texte après `--` ; `--key-delay` en millisecondes.
-    return ['type', '--key-delay', String(Math.max(1, Math.round(delay / 4))), '--', text]
-  }
-
-  async tool(...args) { return this.exec(this.tool_, args) }
-
-  /**
-   * Pas de fenêtre visable : la recette tape dans le focus courant. ZRA amène la
-   * fenêtre du projet au premier plan par la CLI de Zed (`zed <dossier>`), qui
-   * est portable ; c'est la seule voie ici.
-   */
-  async target(request, { log }) {
-    if (!this.unsafeFocus && (request.project || request.window)) {
-      throw this.fail(
-        'backend clavier ydotool (Wayland) : aucune API ne permet de viser ni de vérifier la fenêtre au premier plan. ' +
-        'La CLI de Zed amène le projet au premier plan, puis la recette tape dans le focus courant — ' +
-        'à activer en connaissance de cause (zedControl.unsafeFocus: true), ou passer au backend acp')
-    }
-    log.unshift('fenêtre : focus courant (non vérifiable en Wayland)')
-    return null
-  }
-}
-
-// ===========================================================================
-// wtype — Wayland, protocole virtual-keyboard
-// ===========================================================================
-
-/**
- * `wtype` passe par `zwp_virtual_keyboard_v1`, que les compositeurs
- * n'implémentent pas tous — sous GNOME, il n'est pas disponible.
- * **Non vérifié au moment de l'écriture** (wtype absent de la machine de
- * portage) : syntaxe recopiée de la page de manuel de wtype.
- */
-export class WtypeKeyboard extends LinuxKeyboard {
-  constructor(opts = {}) {
-    super(opts)
-    this.name = 'wtype'
-    this.tool_ = 'wtype'
-  }
-
-  chordArgs(spec) { return toWtypeArgs(spec) }
-
-  /** wtype n'a pas d'option « texte après -- » : `-t` puis la chaîne. */
-  textArgs(text, delay) { return ['-d', String(Math.max(1, Math.round(delay / 4))), '-t', text] }
-
-  async tool(...args) { return this.exec(this.tool_, args) }
-
-  async target(request, { log }) {
-    if (!this.unsafeFocus && (request.project || request.window)) {
-      throw this.fail(
-        'backend clavier wtype (Wayland) : aucune API ne permet de viser ni de vérifier la fenêtre au premier plan. ' +
-        'À activer en connaissance de cause (zedControl.unsafeFocus: true), ou passer au backend acp')
-    }
-    log.unshift('fenêtre : focus courant (non vérifiable en Wayland)')
-    return null
-  }
-}
-
-// ===========================================================================
 // none — pas de clavier, refus explicite
 // ===========================================================================
 
@@ -590,10 +447,8 @@ export class NoneKeyboard extends LinuxKeyboard {
     // diagnostiquer pourquoi aucun backend n'a été retenu.
     if (request?.op === 'probe') return this.probe(request)
     throw this.fail(
-      'backend clavier indisponible : aucun outil d’injection installé ou utilisable sur ce poste ' +
-      '(xdotool en X11, ydotool/wtype en Wayland). Passez au backend acp ' +
-      '(injection: "acp", le défaut), qui n’a pas besoin du clavier — ou installez un outil et ' +
-      'relancez `npm run zed -- probe`.')
+      'backend clavier indisponible : xdotool absent. Installez-le (sudo apt install xdotool) ' +
+      'ou passez au backend acp (injection: "acp", le défaut), qui n\'a pas besoin du clavier.')
   }
 
   async probe() {
@@ -648,13 +503,6 @@ async function exitsZero(cmd, args) {
  *   $ ydotool type bonjour
  *   what():  failed to open uinput device
  */
-async function ydotooldRunning() {
-  const runtime = process.env.XDG_RUNTIME_DIR || `/run/user/${process.getuid?.() ?? 0}`
-  const sockets = [process.env.YDOTOOL_SOCKET, join(runtime, '.ydotool_socket'), '/tmp/.ydotool_socket']
-  for (const socket of sockets.filter(Boolean)) if (existsSync(socket)) return true
-  return exitsZero('pgrep', ['-x', 'ydotoold'])
-}
-
 /**
  * Ce que ce poste peut réellement jouer, dans l'ordre de préférence.
  *
@@ -666,7 +514,7 @@ async function ydotooldRunning() {
  */
 export async function createKeyboard({ backend = 'auto', platform = process.platform, env = process.env, unsafeFocus = false, log = null, timeoutMs = 30_000 } = {}) {
   const opts = { unsafeFocus, log, timeoutMs }
-  const named = { powershell: KeyboardRunner, xdotool: XdotoolKeyboard, ydotool: YdotoolKeyboard, wtype: WtypeKeyboard, none: NoneKeyboard }
+  const named = { powershell: KeyboardRunner, xdotool: XdotoolKeyboard, none: NoneKeyboard }
 
   if (backend !== 'auto') {
     const Ctor = named[backend]
@@ -679,40 +527,13 @@ export async function createKeyboard({ backend = 'auto', platform = process.plat
 
   if (platform === 'win32') return new KeyboardRunner({ timeoutMs })
 
-  // Sous Wayland, si xdotool voit des fenêtres Zed (Zed sous XWayland), le
-  // préférer à ydotool : xdotool peut cibler les fenêtres, ydotool non.
-  const wayland = env.XDG_SESSION_TYPE === 'wayland' || Boolean(env.WAYLAND_DISPLAY)
-  if (wayland && (await installed('xdotool'))) {
-    const xdotoolWindows = await exitsZero('xdotool', ['search', '--class', 'zed'])
-    if (xdotoolWindows) {
-      log?.info('backend clavier : xdotool (autodétecté — Zed sous XWayland)')
-      return new named.xdotool(opts)
-    }
+  // Linux : xdotool partout (X11 natif, ou Wayland + XWayland pour Zed).
+  if (await installed('xdotool')) {
+    log?.info('backend clavier : xdotool (autodétecté)')
+    return new XdotoolKeyboard(opts)
   }
 
-  for (const name of keyboardPreference({ platform, env })) {
-    if (name === 'none') break
-    if (name === 'powershell') continue
-    if (!(await installed(name))) continue
-    if (name === 'ydotool' && !(await ydotooldRunning())) {
-      // Fait établi sur Ubuntu 24.04.3 : le paquet `ydotool` (0.1.8-3build1) ne
-      // contient QUE le client — ni démon, ni unité systemd :
-      //   $ dpkg -L ydotool | grep -c ydotoold → 0
-      //   $ systemctl list-unit-files | grep -i ydotool → (vide)
-      // Ailleurs (Debian, Arch) le démon existe : il faut qu'il tourne.
-      log?.info('ydotool installé mais ydotoold arrêté : écarté (aucune frappe ne passerait)')
-      continue
-    }
-    if (name === 'xdotool' && wayland) {
-      // Zed est un client Wayland natif (GPUI) : un outil X11 ne voit pas ses
-      // fenêtres. On le prend quand même — c'est le seul présent — mais on le
-      // dit, pour qu'un « aucune fenêtre Zed ouverte » ne reste pas un mystère.
-      log?.warn('backend clavier xdotool en session Wayland : il ne voit que les fenêtres XWayland, pas Zed (client Wayland natif)')
-    }
-    log?.info(`backend clavier : ${name} (autodétecté)`)
-    return new named[name](opts)
-  }
-  log?.warn('aucun backend clavier utilisable : xdotool (X11), ydotool (+ydotoold) ou wtype (Wayland) absents — injection `uia` indisponible, `acp` reste le défaut')
+  log?.warn('aucun backend clavier utilisable : xdotool absent — injection `uia` indisponible, `acp` reste le défaut')
   return new NoneKeyboard(opts)
 }
 

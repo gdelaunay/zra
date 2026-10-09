@@ -243,14 +243,10 @@ export function serviceBackend(opts = {}) {
 export function keyboardPreference(opts = {}) {
   const { platform, env } = ctx(opts)
   if (platform === 'win32') return ['powershell', 'none']
-  // Wayland : ydotool passe par `/dev/uinput` (noyau), donc indépendant du
-  // compositeur ; wtype passe par le protocole `virtual-keyboard`, que les
-  // compositeurs n'implémentent pas tous. X11 (ou inconnu) : xdotool d'abord.
-  const wayland = env.XDG_SESSION_TYPE === 'wayland' || Boolean(env.WAYLAND_DISPLAY)
-  return wayland
-    ? ['ydotool', 'wtype', 'xdotool', 'none']
-    : ['xdotool', 'ydotool', 'wtype', 'none']
+  // Linux : xdotool partout (X11 natif, ou Wayland + XWayland pour Zed).
+  // Zed est forcé sous XWayland via WAYLAND_DISPLAY= dans le .desktop.
+  return ['xdotool', 'none']
 }
 
 /** Les backends que ZRA sait jouer. `none` = pas de clavier, refus explicite. */
-export const KEYBOARD_BACKENDS = ['powershell', 'xdotool', 'ydotool', 'wtype', 'none']
+export const KEYBOARD_BACKENDS = ['powershell', 'xdotool', 'none']

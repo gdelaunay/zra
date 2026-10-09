@@ -1,6 +1,6 @@
 # Portage Linux — note d'avancement et passage de relais
 
-État au commit `5721cb0`, branche `linux`. À lire avant de reprendre :
+État au commit `2ea61cc`, branche `linux`. À lire avant de reprendre :
 `prompts/portage-linux.md` (le prompt d'origine, ses deux règles et son
 inventaire `fichier:ligne`). Cette note dit ce qui est fait, ce qui est prouvé,
 ce qui reste, et dans quel ordre.
@@ -20,7 +20,10 @@ Règles toujours en vigueur :
 ## 1. Où on en est
 
 ```
-5721cb0  étape 5 (moitié)  feat(keyboard): backend clavier pluggable
+2ea61cc  fix réel (PWA)    fix(systemd): le PATH de la session est recopié dans l'unité
+bce7ce3  étape 5 (fin)     feat(keyboard): étape 5 câblée — config, daemon, zed.mjs, tests, Xvfb
+672bbd3  docs              note d'avancement et relais (étapes 0–4)
+5721cb0  étape 5 (socle)   feat(keyboard): backend clavier pluggable
 ef395df  étape 4           feat(service): backend systemd --user, testé en réel
 e2c05e4  étapes 2 + 3      feat(linux): les chemins de Zed et de ZRA suivent l'OS
 eb70e6f  étape 1           feat(platform): un seul module sait sur quel OS tourne ZRA
@@ -33,16 +36,16 @@ eb70e6f  étape 1           feat(platform): un seul module sait sur quel OS tour
 | 1. Module plateforme + `zedPaths()` injectable | **fait** — `eb70e6f` |
 | 2. Chemins Linux (inventaire A) + fixtures Linux | **fait** — `e2c05e4` |
 | 3. `agent-commands` : registry et exécutables | **fait**, fondu dans l'étape 2 : le mapping plateforme était déjà bon (§4.3), il ne restait que `REGISTRY_DIR` |
-| 4. `service.mjs` : backend systemd --user | **fait et vérifié en réel** — `ef395df`, §5 |
-| 5. Backend clavier pluggable | **moitié faite** — le socle et les 4 backends sont écrits (`5721cb0`) ; il reste le câblage config/daemon, les tests, et la vérification réelle. Détail en §6 |
-| 6. Docs (`LINUX.md`, `ROADMAP.md`, `SPEC.md` §2) | **à faire** — les faits sont prêts à recopier, §4 |
+| 4. `service.mjs` : backend systemd --user | **fait et vérifié en réel** — `ef395df`, §5 ; un bug réel trouvé depuis le téléphone et corrigé dans `2ea61cc` (§6.4) |
+| 5. Backend clavier pluggable | **fait sur cette machine** — socle `5721cb0`, câblage + 26 tests + vérification Xvfb réelle `bce7ce3` (§6). Reste la vérification **contre Zed**, impossible ici (Wayland) : à faire sur la cible Debian 13 / KDE / X11 |
+| 6. Docs (`LINUX.md`, `ROADMAP.md`, `SPEC.md` §2) | **à faire** — les faits sont prêts à recopier, §4 et §6 |
 | 7. CI GitHub Actions (runner Ubuntu, Node 24) | **à faire**, priorité basse |
 
 `npm test` sur cette machine, avant / après :
 
 ```
 AVANT (node v22.23.3, node_modules absent)  → 534 tests, 466 pass, 9 fail, 57 cancelled
-APRÈS (node v24.21.0, npm install fait)     → 724 tests, 722 pass, 0 fail, 2 skipped
+APRÈS (node v24.21.0, npm install fait)     → 750 tests, 748 pass, 0 fail, 2 skipped
 ```
 
 Les 2 sauts sont **préexistants**, aucun test n'a été ajouté aux sauts, aucune
@@ -75,24 +78,25 @@ Ce qui a été installé / modifié sur ce poste (tout est réversible) :
 | Service `zra-daemon.service` | `node scripts/service.mjs install --apply` → `~/.config/systemd/user/zra-daemon.service`, `enabled`, **actif** sur `127.0.0.1:7777` | `node scripts/service.mjs uninstall --apply` |
 | `linger` | `loginctl enable-linger gdelaunay` → `Linger=yes` (**sans sudo**, rc=0) | `loginctl disable-linger gdelaunay` |
 
-⚠ **Deux points d'attention sur cette machine :**
+⚠ **Point d'attention résolu depuis** : Node 24 a été installé **en global**
+(NodeSource) : `/usr/bin/node` → `v24.21.0`, `apt-cache policy nodejs` →
+`Installé : 24.21.0-1nodesource1`. Le piège historique (Node 24 seulement dans
+`~/.local/bin`, invisible d'un shell non-login, Node 22 système qui casse la
+suite de tests — §3.1) ne s'applique plus : tous les shells ont Node 24. Les
+symlinks `~/.local/bin/{node,npm,npx}` vers le tarball existent toujours et
+passent avant `/usr/bin` dans les shells de login — même version des deux
+côtés, aucune divergence observée.
 
-1. **Node 24 n'est pas dans le PATH d'un shell non-login.** `~/.local/bin` est
-   ajouté par `~/.profile` (shells de login), pas par `~/.bashrc` : un
-   gnome-terminal ordinaire retombe sur `/usr/bin/node` = **v22.23.3**, et sous
-   Node 22 la suite de tests échoue (§3.1). Preuve :
-   ```
-   $ env -i HOME=$HOME bash -lc 'which node; node -v'   → /home/gdelaunay/.local/bin/node ; v24.21.0
-   $ env -i HOME=$HOME bash -c  'echo $PATH'            → …:/usr/bin:… (pas de ~/.local/bin)
-   ```
-   À trancher : une ligne dans `~/.bashrc`, ou Node 24 système
-   (`curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash - && sudo apt install -y nodejs`).
-   **Conséquence pour le portage** : le service systemd écrit `ExecStart` avec le
-   chemin absolu de `process.execPath`, donc il n'est pas exposé à ce piège —
-   mais un utilisateur qui lance `npm run daemon` à la main l'est.
-2. **Zed tourne en permanence sur ce poste**, et la session de développement est
-   dedans. Une fenêtre « test » sur un projet vide a été ouverte pour les essais
-   de frappe : taper là, pas dans la fenêtre du dépôt.
+Autre point d'attention, **vécu en vrai** : ne jamais nommer un processus de
+test `zed-editor` (un symlink `zed-editor → xeyes` pour Xvfb a fait tuer le VRAI
+Zed par un `pkill -x zed-editor` de nettoyage — la session de dev tourne dedans,
+journal : « Zed est fermé » 21:22:38). Les vérifications Xvfb se font avec des
+pid et des id de fenêtre explicites (`scripts/verify-keyboard-xvfb.mjs`), jamais
+par le nom.
+
+**Zed tourne en permanence sur ce poste**, et la session de développement est
+dedans. Une fenêtre « test » sur un projet vide a été ouverte pour les essais
+de frappe : taper là, pas dans la fenêtre du dépôt.
 
 Outils clavier, dernier relevé (`command -v`) : `xdotool` ✓, `ydotool` ✓ (client
 seul), `Xvfb` ✓, `wmctrl` ✓, `xev` ✓ ; `wtype`, `xterm`, `ydotoold` **absents** ;
@@ -359,9 +363,9 @@ $ node --no-warnings zra-daemon/index.js --loopback-only
 
 ---
 
-## 6. Ce qui reste — l'étape 5, en détail
+## 6. Étape 5 — faite sur cette machine, vérifiée en réel sous Xvfb
 
-### 6.1 Déjà écrit (`5721cb0`)
+### 6.1 Le socle (`5721cb0`)
 
 `zra-daemon/zed/keyboard.js` :
 
@@ -381,7 +385,8 @@ $ node --no-warnings zra-daemon/index.js --loopback-only
   aucune API publique pour lister/activer les fenêtres d'un autre client. Ils
   **refusent** une recette ciblée tant que `zedControl.unsafeFocus` n'est pas
   activé explicitement.
-- `NoneKeyboard` — refus explicite qui renvoie vers `acp`.
+- `NoneKeyboard` — refus explicite qui renvoie vers `acp` (son `probe` reste
+  inoffensif : `npm run zed -- probe` sert justement à diagnostiquer).
 - `createKeyboard()` — autodétection selon `keyboardPreference()` (platform.js) +
   ce qui est réellement installé ; `ydotool` écarté si `ydotoold` ne tourne pas ;
   un backend imposé par la config est respecté même absent (il échoue en disant
@@ -389,16 +394,11 @@ $ node --no-warnings zra-daemon/index.js --loopback-only
 - `LazyKeyboard` / `defaultKeyboardRunner()` — pour les constructeurs synchrones
   (`new ZedDriver({ enabled: true })`), l'autodétection étant asynchrone.
 
-Les 25 tests du lot C passent inchangés (24 + le saut Windows), et la suite
-complète reste à 724 tests / 0 échec après le refactor.
-
-**Bug trouvé et corrigé grâce à la machine réelle** (commit suivant) : la
-détection de disponibilité testait « le binaire a-t-il pu être lancé » avec un
-seul helper, et s'en servait aussi pour `pgrep -x ydotoold` — qui sort en 1 quand
-le démon est absent. Résultat : `ydotool` était retenu alors qu'aucune frappe ne
-pouvait passer. Séparé en `installed()` (le spawn a réussi) et `exitsZero()` (le
-code de sortie tranche). `ydotool --version` sortant lui aussi en 1 sur Ubuntu,
-c'est bien `installed()` qu'il faut pour les outils. Preuve après correction :
+**Bug trouvé et corrigé grâce à la machine réelle** : la détection de
+disponibilité testait « le binaire a-t-il pu être lancé » avec un seul helper,
+et s'en servait aussi pour `pgrep -x ydotoold` — qui sort en 1 quand le démon
+est absent. Séparé en `installed()` (le spawn a réussi) et `exitsZero()` (le
+code de sortie tranche). Preuve après correction :
 
 ```
   info: ydotool installé mais ydotoold arrêté : écarté (aucune frappe ne passerait)
@@ -406,52 +406,141 @@ c'est bien `installed()` qu'il faut pour les outils. Preuve après correction :
   info: backend clavier : xdotool (autodétecté)
 ```
 
-### 6.2 À faire, dans l'ordre
+### 6.2 Câblage, tests et vérification réelle (`bce7ce3`)
 
-1. ~~Revérifier les outils~~ **fait** (§2) : `xdotool` + `Xvfb` disponibles,
-   `ydotool` sans démon, `wtype` absent. En reprendre l'étape 5 avec ça en tête.
-2. **Câbler la configuration** — rien n'est encore branché :
-   - `zra-daemon/config.js` : ajouter `keyboard: 'auto'` et `unsafeFocus: false`
-     dans `DEFAULTS.zedControl` (~ligne 116), la surcharge d'environnement
-     `ZRA_ZED_KEYBOARD` dans `envOverrides()` (~ligne 165), et la validation dans
-     `validate()` (~ligne 230 : valeur dans `KEYBOARD_BACKENDS` + `'auto'`).
-   - `zra-daemon/daemon.js:101` : `runner: zc.runner ?? await createKeyboard({ backend: zc.keyboard, unsafeFocus: zc.unsafeFocus, log: logger('zed') })`,
-     et une ligne de log au démarrage disant quel backend est retenu (à côté de
-     la ligne existante `daemon.js:270`).
-   - `scripts/zed.mjs:63` : `const runner = await createKeyboard({ backend: zc.keyboard, timeoutMs: 120_000, unsafeFocus: zc.unsafeFocus })`
-     — sinon `npm run zed -- probe` joue `keyboard.ps1` sous Linux.
-   - `zra.config.example.json` : documenter les deux nouvelles clés.
-3. **Tests** (à ajouter à `lot-c.test.mjs` ou un `keyboard.test.mjs` neuf) :
-   les fonctions pures d'abord — `parseChord` (touche inconnue refusée, accord
-   mal formé, plusieurs touches), `toX11Keysym('ctrl+shift+p')`,
-   `toEvdevCodes('enter')` → `['28:1','28:0']`, `toWtypeArgs('ctrl+a')` ; puis
-   l'orchestration en bouchonnant `exec`/`tool` des backends (cible résolue avant
-   la première frappe, `dryRun` n'envoie rien, une recette entrelacée est
-   sérialisée, garde-fou du premier plan, refus `unsafeFocus`, message de
-   `none`). C'est le même procédé que les tests existants
-   (`runner.exec = async () => …`, `lot-c.test.mjs:214`).
-4. **Vérification réelle**, dans cet ordre :
-   - `xdotool` **sous Xvfb** (pas contre Zed : la machine est en Wayland). Ce que
-     ça prouve : l'énumération, `windowactivate`, `getactivewindow`, les accords
-     et `type`. Ce que ça ne prouve **pas** : le titre des fenêtres de Zed sous
-     X11, ni la règle de projet. Piste : `Xvfb :99 &`, `DISPLAY=:99 <une app X>`,
-     puis jouer une recette avec un `exec` non bouchonné.
-   - `xdotool` **contre Zed** : seulement sur la cible Debian 13 / KDE / X11.
-     C'est là qu'il faudra relever le titre réel d'une fenêtre de projet
-     (« `<projet> — <fichier>` » ?) et caler `matchesProject`.
-   - `ydotool` **contre Zed ici** (Wayland) : `ydotoold` lancé, puis une recette
-     `submit` dans la fenêtre « test ». Confirmera ou corrigera la table evdev,
-     marquée « non vérifié » dans le code.
-   - `wtype` : probable échec sous GNOME (le protocole `virtual-keyboard` n'y est
-     pas implémenté). Un échec propre est un résultat acceptable, à documenter.
-   - `none` : `npm run daemon:dev` avec `ZRA_ZED_KEYBOARD=none`, envoyer un
-     message avec `injection: "uia"` et vérifier le refus explicite.
-5. **Recettes** : les raccourcis de `DEFAULT_RECIPES` viennent de la keymap
-   **Windows** de Zed. La keymap Linux de Zed 1.23.2 n'a pas été relevée
-   (`base_keymap: "Zed"` dans `settings.json`). À établir sur la cible, et à
-   surcharger dans `zra.config.json` (`zedControl.recipes`) plutôt qu'à coder.
+Le socle n'était atteint par rien ; c'est fait :
 
-### 6.3 Non implémenté, et pourquoi
+- `config.js` : `zedControl.keyboard` (`'auto'` par défaut) et
+  `zedControl.unsafeFocus` (`false`), surcharge `ZRA_ZED_KEYBOARD`, validation
+  (valeur dans `auto` + `KEYBOARD_BACKENDS`, booléen pour `unsafeFocus`).
+- `daemon.js` : `runner: zc.runner ?? await createKeyboard({…})`, et une ligne
+  de log au démarrage : « pilotage de Zed : backend clavier <nom> ».
+- `scripts/zed.mjs` : `probe`/`try` passent par `createKeyboard` — plus de
+  `keyboard.ps1` joué sous Linux.
+- `zra.config.example.json` : les deux clés documentées.
+- **26 tests** dans `zra-daemon/test/keyboard.test.mjs` : fonctions pures
+  (`parseChord`, `toX11Keysym`, `toEvdevCodes`, `toWtypeArgs`), orchestration
+  bouchonnée (cible avant frappe, `dryRun`, garde-fou, sérialisation, refus
+  `unsafeFocus`, `none`→`acp`, filtre `getwindowpid`), `createKeyboard`, config.
+  Suite complète : **750 tests, 748 pass, 0 fail, 2 skipped** (les 2 préexistants).
+
+**Deux corrections nées de la vérification RÉELLE sous Xvfb** (`:99`,
+`xdotool 3.20160805.1`, sorties recopiées du terminal) :
+
+1. `assertTarget()` : sans gestionnaire de fenêtres, `xdotool getactivewindow`
+   échoue — message réel relevé :
+   `Your windowmanager claims not to support _NET_ACTIVE_WINDOW, so the attempt to query the active window aborted.`
+   Ce n'est pas « une autre fenêtre au premier plan » : la recette continue.
+   Une AUTRE fenêtre identifiée arrête toujours net (test bouchonné).
+2. `windows()` : **`xdotool search --pid P --name ''` renvoie TOUTES les
+   fenêtres quel que soit P** — relevé sous Xvfb :
+   ```
+   $ xdotool search --pid 999999 --name '' | wc -l   → 52   (toutes les fenêtres de l'écran)
+   $ xdotool search --pid 999999 | wc -l             → 0
+   ```
+   Corrigé : `search --pid` seul, puis chaque fenêtre revérifiée par
+   `getwindowpid` — sans `_NET_WM_PID` prouvé, la fenêtre est écartée. Un test
+   bouchonné tient ce filtre (`keyboard.test.mjs`).
+
+**Vérification réelle sous Xvfb** (`scripts/verify-keyboard-xvfb.mjs` — seul
+`pgrep` y est bouchonné, tout le reste est de vrais `execFile` → xdotool → X) :
+
+- fenêtre de test : `xeyes` renommée `zra — verify-keyboard-xvfb.mjs` avec
+  `_NET_WM_PID` posé à `xprop` ; cible visée par pid + id explicites.
+- `probe` → `[{"title":"zra — verify-keyboard-xvfb.mjs","pid":130342,"uiaDescendants":-1}]`
+- recette complète `ctrl+shift+p` / `attente 50 ms` / texte / `enter` → `ok:true`,
+  mêmes libellés de log que `keyboard.ps1` ; `matchesProject` reconnaît le
+  projet sur le titre ; focus final = la fenêtre cible (`getwindowfocus` → id cible).
+- **les frappes sont prouvées par `xev`** (fenêtre cible = fenêtre d'`xev`) :
+  `18 KeyPress`, dont `keysym 0xffe3 Control_L`, `0xffe1 Shift_L`, `0x50 P`,
+  puis `b o n j o u r ␣ Z R A` un par un, puis `0xff0d Return`.
+- Ce que ça ne prouve PAS : le titre réel des fenêtres de Zed sous X11, ni le
+  comportement contre Zed — à faire sur la cible Debian 13 / KDE / X11.
+
+Vérifié aussi en réel, sur ce poste (Wayland) :
+
+```
+$ npm run zed -- probe                        → « aucune fenêtre Zed ouverte » (Zed est Wayland natif : xdotool ne le voit pas — attendu ici)
+$ ZRA_ZED_KEYBOARD=none npm run zed -- try …  → ✗ backend clavier indisponible : … Passez au backend acp …
+$ ZRA_ZED_KEYBOARD=magique npm run zed -- probe → ✗ zedControl.keyboard inconnu : magique (auto, powershell, xdotool, ydotool, wtype, none)
+$ ZRA_ZED_KEYBOARD=ydotool npm run zed -- try --steps '[{"text":"x"}]' --apply
+  → ✗ ydotool : what(): failed to open uinput device   (échec propre, message réel de l'outil — ydotoold absent)
+$ ZRA_PORT=7788 ZRA_ZED_CONTROL=1 ZRA_ZED_KEYBOARD=none node zra-daemon/index.js --loopback-only
+  → info daemon pilotage de Zed : backend clavier none   (la ligne de log du câblage)
+```
+
+### 6.3 Un bug réel trouvé depuis le téléphone : le PATH du service systemd (`2ea61cc`)
+
+La PWA a été appairée et utilisée en réel depuis un Android (journal :
+`client … appairé (« Android · Chrome », 192.168.1.27)`). Ouverture d'un thread
+fermé en lecture seule → erreur « pi n'est pas installé sur ce poste ».
+
+Diagnostic, preuves à l'appui :
+
+- L'index ne contient que des threads `agent_id: "pi-acp"` ; `resolveAgentCommand('pi-acp')`
+  résout très bien depuis un shell (`registry/npx`, node + `dist/index.js`).
+- Le message vient de **`pi-acp` lui-même** (chaîne relevée dans son `dist/index.js`) :
+  `Could not start pi: executable not found (command: …). Pi needs to be installed…`
+  — c'est `pi` (le CLI, `~/.pi/agent/bin/pi`) que l'agent ne trouve pas.
+- `pi` est dans le PATH via `~/.bashrc:120` (`export PATH="/home/gdelaunay/.pi/agent/bin:$PATH"`),
+  donc présent dans Zed (session interactive) — mais le daemon systemd tourne avec :
+  ```
+  $ cat /proc/<pid du daemon>/environ | tr '\0' '\n' | grep ^PATH=
+    PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+  ```
+  ni `~/.pi/agent/bin`, ni `~/.local/bin`. La relecture d'un thread fermé
+  (`session-loader`) relance l'agent : échec.
+
+**Correctif** : `GRAPHICS_ENV` de `scripts/lib/systemd.mjs` recopie désormais
+aussi le `PATH` de la session dans l'unité (même mécanisme que `DISPLAY` &
+co : relevé à l'installation, donc depuis la session graphique). Le test
+`service.test.mjs` affirmait l'inverse (« PATH n'est pas recopié : systemd a le
+sien ») : corrigé pour asserting le fait réel. **Ce bug existerait aussi sous
+Windows** si le PATH de la tâche planifiée différait — mais la branche Windows
+est gelée : À VÉRIFIER SUR WINDOWS (§7, point 3bis).
+
+Vérifié en réel après réinstallation (`install --apply`, `stop`, `start`) :
+
+```
+$ cat /proc/<nouveau pid>/environ | … grep ^PATH=  → …:/home/gdelaunay/.pi/agent/bin:… (celui de la session)
+$ env -i HOME=$HOME PATH=<celle du daemon> which pi → /home/gdelaunay/.pi/agent/bin/pi
+$ (client WS loopback) load_history 89ad7b7d…       → history complete=true, updates=290, 1090 ms
+journal : « relecture de 89ad7b7d… : 290 événement(s) »   (avant : échec « Could not start pi »)
+```
+
+### 6.4 « Nouveau thread impossible depuis la PWA » — comportement attendu ici
+
+Message réel du daemon (journal de démarrage) : `pilotage de Zed désactivé :
+new_thread et réouverture de threads indisponibles`, et côté PWA
+`new_thread_failed : ouverture de session indisponible : pilotage de Zed
+désactivé sur ce poste (zedControl.enabled)` (`hub.js:414`).
+
+Ce n'est pas un bug : `zedControl.enabled` vaut `false` par défaut (pas de
+`zra.config.json` sur ce poste) et le « + » de la PWA pilote Zed **au clavier**.
+Sur CETTE machine (Wayland, Zed client Wayland natif, pas de `ydotoold`, pas de
+`wtype`), l'activer ne servirait à rien : aucun backend ne peut viser une
+fenêtre Zed. Les threads vivants s'ouvrent en lançant `pi-zra` dans Zed
+(`ctrl-alt-shift-f1`) ; la PWA les suit ensuite en direct. Sur la cible
+Debian/KDE/X11, `zedControl.enabled: true` + `xdotool` rendra le « + »
+fonctionnel — c'est précisément la vérification qui reste (§6.5).
+
+### 6.5 Ce qui reste pour l'étape 5 (sur la cible, pas ici)
+
+1. **`xdotool` contre Zed**, sur Debian 13 / KDE / X11 : relever le titre réel
+   d'une fenêtre de projet (« `<projet> — <fichier>` » ?) et caler
+   `matchesProject` ; `npm run zed -- probe` puis `try submit --apply` dans la
+   fenêtre « test » ; vérifier le garde-fou (changer de fenêtre en cours de
+   recette doit l'arrêter net).
+2. **Recettes** : `DEFAULT_RECIPES` vient de la keymap **Windows** de Zed. La
+   keymap Linux de Zed 1.23.2 n'a pas été relevée (`base_keymap: "Zed"`).
+   À établir sur la cible et à surcharger via `zra.config.json`
+   (`zedControl.recipes`), pas à coder.
+3. **`ydotool` contre Zed** (si un poste Wayland avec `ydotoold` se présente) :
+   confirmera ou corrigera la table evdev, marquée « non vérifié » dans le code.
+   Sous GNOME, `wtype` échouera probablement (protocole `virtual-keyboard` non
+   implémenté) — un échec propre est un résultat acceptable, à documenter.
+
+### 6.6 Non implémenté, et pourquoi
 
 - **Viser une fenêtre sous Wayland** : aucune API publique. `unsafeFocus` est un
   consentement explicite, pas une solution. Sur la cible X11, le problème ne se
@@ -477,10 +566,12 @@ ici, et la règle n°1 n'a de valeur que si ces points passent. Dans l'ordre de
 
 **0. Le dépôt et Node.** `git config core.autocrlf` (doit être inchangé ou
 `false` : `.gitattributes` tranche, LF partout, `.ps1` en CRLF). `node -v` ≥ 24.
-`npm ci && npm test` → **724 tests, 0 fail**, et les 2 sauts doivent être les
-mêmes qu'avant le portage (`keyboard.ps1` ne saute **plus** : il redevient
-exécuté sous Windows — vérifier qu'il passe). `git status` propre, aucun fichier
-réécrit par les fins de ligne.
+`npm ci && npm test` → **750 tests, 0 fail**, et les 2 sauts Linux doivent
+disparaître ou changer de nature : `lot-c.test.mjs` (`keyboard.ps1`) **redevient
+exécuté** sous Windows — vérifier qu'il passe ; `wireguard.test.mjs` ne saute
+que si `wg.exe` est absent. Les 26 tests de `keyboard.test.mjs` tournent partout
+(aucun spawn réel). `git status` propre, aucun fichier réécrit par les fins de
+ligne.
 
 **1. `platform.js` n'a rien cassé (le point critique).** La branche Windows est
 censée être identique au code d'avant. Vérifier à la main, sur le poste :
@@ -502,7 +593,17 @@ node -e "import('./zra-daemon/platform.js').then(m=>console.log(m.zedPaths({plat
 (simulation) → le XML affiché doit être **inchangé** (mêmes `LogonTrigger`,
 `InteractiveToken`, `LeastPrivilege`, `Delay PT15S`, `powershell.exe -File
 daemon-task.ps1`) ; `start` → le daemon répond ; `stop` → il s'arrête ; `logs` →
-`.zra\logs\daemon.log`. Le backend `systemd` ne doit jamais être atteint.
+`.zra\logs\daemon.log`. Le backend `systemd` ne doit jamais être atteint —
+`scripts/lib/systemd.mjs` (dont le `GRAPHICS_ENV` avec PATH, §6.3) n'est importé
+que derrière `serviceBackend() === 'systemd'`.
+
+**3bis. La relecture d'un thread fermé lance l'agent avec le bon PATH** (§6.3).
+La tâche Windows hérite du PATH utilisateur au logon : ouvrir depuis la PWA un
+thread fermé dont l'agent est un CLI installé hors des dossiers système (le cas
+`pi` dans `~/.pi/agent/bin` qui a échoué sous systemd Linux). Si le PATH de la
+tâche ne contient pas ce dossier, le symptôme sera le même (« Could not start
+pi ») — la correction Linux ne s'applique pas à la branche gelée ; le cas
+échéant, passer par `agentCommands` de `zra.config.json` (chemin absolu).
 
 **4. Le shim et l'injection (§12.1, §12.5, §12.6).** Un thread ZRA dans Zed se
 comporte comme l'agent d'origine ; un message envoyé depuis la PWA part, la
@@ -519,9 +620,14 @@ plus susceptible d'avoir bougé.
 `arbre UIA : 0 élément(s)` (le risque 🟠3 avéré) ; `npm run zed -- try submit
 --apply` → la frappe part dans la bonne fenêtre ; le garde-fou : changer de
 fenêtre pendant une recette doit l'arrêter net avec « la fenêtre Zed n'est plus
-au premier plan ». `KeyboardRunner` a été **déplacé** dans `keyboard.js` :
-vérifier que le repli `pwsh` → `powershell` fonctionne toujours sur un poste
-sans PowerShell 7.
+au premier plan ». Deux changements à surveiller : (a) `KeyboardRunner` a été
+**déplacé** dans `keyboard.js` — vérifier que le repli `pwsh` → `powershell`
+fonctionne toujours sur un poste sans PowerShell 7 ; (b) `zed.mjs` et
+`daemon.js` passent désormais par `createKeyboard({ backend: zedControl.keyboard
+?? 'auto' })` — sous Windows `auto` doit redonner exactement `KeyboardRunner`
+(`keyboardPreference('win32')[0] === 'powershell'`, résolution immédiate, aucun
+processus sondé). Vérifier aussi `ZRA_ZED_KEYBOARD=none npm run zed -- probe` →
+refus explicite qui renvoie vers acp.
 
 **7. `defaultKeyboardRunner()` sous Windows.** `new ZedDriver({ enabled: true })`
 sans `runner` doit donner un `KeyboardRunner` (pas un `LazyKeyboard`) :
@@ -546,17 +652,24 @@ ne doit montrer que l'ajout du dispatch systemd et des commentaires.
 
 ```bash
 cd ~/Documents/zra
-git checkout linux && git log --oneline -5
-export PATH="$HOME/.local/bin:$PATH"     # Node 24 (§2, point d'attention 1)
-node -v                                  # v24.21.0, sinon rien ne passe
-npm test                                 # 724 tests, 0 fail, 2 skipped
-node scripts/service.mjs status          # le daemon tourne-t-il encore ?
-command -v xdotool ydotool wtype Xvfb    # où en sont les apt install ?
+git checkout linux && git log --oneline -8
+node -v                                  # v24.21.0 — désormais aussi /usr/bin/node (NodeSource, §2)
+npm test                                 # 750 tests, 0 fail, 2 skipped
+node scripts/service.mjs status          # le daemon tourne-t-il encore ? (linger ✓, unité réinstallée avec PATH en 2ea61cc)
+command -v xdotool ydotool wtype Xvfb    # xdotool ✓, ydotool ✓ (client seul), Xvfb ✓, wtype ✗
 ```
 
-Puis §6.2, dans l'ordre. Les faits de §4 sont prêts à être recopiés dans
-`SPEC.md` §2 (étape 6) — ne pas les ré-établir, mais les **revérifier** si le
-code ou Zed a bougé depuis.
+Puis, dans l'ordre :
+
+1. **Étape 6 — docs** : `LINUX.md` (ou section de `DEPLOY.md`), les faits de §4
+   + §6 recopiés dans `SPEC.md` §2, `ROADMAP.md` (le portage sort de la liste),
+   `DEPLOY.md` : `certbot`/`acme.sh` à la place de `cert.ps1` (§6.6), et le cas
+   du service systemd (linger, PATH). Ne pas ré-établir les faits, mais les
+   **revérifier** si le code ou Zed a bougé depuis.
+2. **Étape 7 — CI** GitHub Actions (runner Ubuntu, Node 24, `npm test`),
+   priorité basse.
+3. **Sur la cible Debian 13 / KDE / X11 seulement** : §6.5 (xdotool contre Zed,
+   titres de fenêtres, recettes de la keymap Linux).
 
 ---
 
@@ -564,20 +677,27 @@ code ou Zed a bougé depuis.
 
 Le travail s'est arrêté ici, volontairement, entre deux étapes :
 
-- **Committé** : étapes 0 à 4 + le socle de l'étape 5 (5 commits, §1), suite de
-  tests verte (724 / 0 échec), daemon installé et actif en `systemd --user`,
-  ZRA branché dans Zed (`pi-zra`).
-- **Non fait** : le câblage config/daemon/`zed.mjs` du backend clavier (§6.2
-  point 2), ses tests (point 3), et toute vérification réelle de frappe (point 4).
-  Autrement dit : **les backends Linux existent mais ne sont encore atteints par
-  rien** — `daemon.js:101` et `scripts/zed.mjs:63` construisent toujours un
-  `KeyboardRunner`/`LazyKeyboard` par défaut, et `zedControl.keyboard` /
-  `zedControl.unsafeFocus` n'existent pas encore dans `config.js`.
-- Une piste non vérifiée, laissée de côté : `assertTarget()` du backend xdotool
-  s'appuie sur `xdotool getactivewindow`, qui a besoin d'un gestionnaire de
-  fenêtres. Sous `Xvfb` nu il n'y en a pas (`gnome-shell` est présent, `mutter`
-  et `openbox` non) : le garde-fou pourrait devoir tolérer une absence de réponse
-  au lieu de la faire remonter comme un échec. **À trancher au premier essai
-  réel**, en gardant l'exigence : ne jamais taper dans une autre fenêtre.
+- **Committé** : étapes 0 à 5 (7 commits, §1) + le fix réel PATH/systemd
+  (`2ea61cc`). Suite de tests verte (**750 / 0 échec / 2 sauts préexistants**),
+  daemon installé et actif en `systemd --user` (unité **réinstallée** avec le
+  PATH de la session — `install --apply` + `stop` + `start` faits, vérifié :
+  `which pi` passe dans l'environnement du daemon), ZRA branché dans Zed
+  (`pi-zra`), PWA appairée en réel depuis un Android et relecture d'un thread
+  fermé vérifiée (290 événements, 1090 ms, §6.3).
+- **Étape 5 sur cette machine : terminée.** Câblage config/daemon/`zed.mjs`,
+  26 tests, vérification Xvfb réelle (frappes prouvées par `xev`, keysyms à
+  l'appui, §6.2). Ce qui reste de l'étape 5 ne peut PAS se faire ici : c'est
+  la vérification contre Zed sur la cible X11 (§6.5).
+- **Non fait** : étape 6 (docs : `LINUX.md`, `SPEC.md` §2, `ROADMAP.md`,
+  `DEPLOY.md` certbot/systemd) et étape 7 (CI). Ce sont les deux seules choses
+  à reprendre sur cette machine.
+- La piste « assertTarget sans WM » de la note précédente est **tranchée et
+  vérifiée sous Xvfb** : `getactivewindow` muet/échoué sans WM ≠ autre fenêtre
+  au premier plan, la recette continue ; une autre fenêtre **identifiée**
+  arrête toujours net (§6.2, correction 1).
+- Piège vécu, à ne pas reproduire : ne jamais nommer un processus de test
+  `zed-editor` — un `pkill -x zed-editor` de nettoyage a tué le VRAI Zed (la
+  session de dev tourne dedans). Les vérifications Xvfb utilisent des pid/id
+  explicites (§2, §6.2).
 
-Reprendre à §6.2 point 2.
+Reprendre à §8 : étape 6 (docs), puis étape 7 (CI).

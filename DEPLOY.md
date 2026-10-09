@@ -258,57 +258,22 @@ daemon (`npm run service -- stop && start`) pour qu'il relise le certificat.
 
 ---
 
-## 5.3 Linux : pilotage clavier sous Wayland (ydotoold)
+## 5.3 Linux : pilotage clavier sous Wayland
 
-Sous X11, `xdotool` marche sans installation. Sous Wayland, le pilotage clavier
-demande `ydotoold` — le daemon qui injecte les frappes via `/dev/uinput`.
+Sous X11, `xdotool` marche sans installation. Sous Wayland, Zed est forcé sous
+XWayland via `WAYLAND_DISPLAY=` dans le `.desktop` de Zed
+(`~/.local/share/applications/dev.zed.Zed.desktop`), ce qui permet à `xdotool`
+de voir ses fenêtres et de les cibler.
 
-**Installation** (Ubuntu 24.04 : le paquet `ydotool` ne livre que le client) :
-
-```bash
-# Compiler le daemon (demande cmake + build-essential)
-sudo apt-get install -y cmake build-essential
-git clone https://github.com/ReimuNotMoe/ydotool /tmp/ydotool-build
-cd /tmp/ydotool-build && mkdir -p build && cd build
-cmake -DBUILD_DOCS=OFF .. && make
-# Les binaires sont dans build/, pas Daemon/
-sudo cp ydotoold ydotool /usr/local/bin/
-
-# Configurer udev (accès à /dev/uinput pour le groupe uinput)
-echo 'KERNEL=="uinput", GROUP="uinput", MODE="0660"' | sudo tee /etc/udev/rules.d/99-uinput.rules
-sudo groupadd -f uinput
-sudo usermod -aG uinput $USER
-sudo udevadm control --reload-rules
-sudo udevadm trigger    # recharge /dev/uinput immédiatement
-
-# Activer le groupe dans la session courante (ou logout/login)
-newgrp uinput
+```ini
+# Dans le .desktop de Zed, remplacer :
+Exec=/chemin/vers/zed %U
+# par :
+Exec=env WAYLAND_DISPLAY= /chemin/vers/zed %U
 ```
 
-**Vérification** : `ls -la /dev/uinput` doit montrer `root uinput` (pas `root root`).
-
-**Vérification** :
-
-```bash
-ydotoold &                   # démarre le daemon en arrière-plan
-sleep 1
-ydotool type bonjour         # doit taper dans la fenêtre active
-```
-
-Si `ydotoold` est déjà lancé : `error: Another ydotoold is running with the same socket`.
-Arrête-le avec `pkill ydotoold` avant de relancer.
-
-**Note** : sous Wayland, `xinput` peut afficher un warning (`unable to find device
-pointer: ydotoold virtual device`) — c'est normal, ydotool n'utilise pas X11,
-il injecte directement via `/dev/uinput`.
-
-**Note** : sur Arch/Fedora, `ydotool` est packagé avec le daemon → `pacman -S ydotool`
-ou `dnf install ydotool`, rien à compiler.
-
-**Si ydotoold n'est pas disponible** : le daemon ZRA démarre quand même, refuse
-l'injection clavier avec un message explicite (« backend clavier indisponible,
-passez au backend acp »), et tout le reste fonctionne. Alternative : forcer Zed
-sous XWayland (`WAYLAND_DISPLAY= zed`) pour utiliser `xdotool`.
+**Trade-off** : Zed sous XWayland est un peu moins fluide (pas de vsync natif),
+mais le pilotage clavier marche.
 
 ---
 

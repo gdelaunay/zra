@@ -141,13 +141,11 @@ Le schéma `sidebar_threads` est **identique** à Windows (mêmes colonnes).
   `/usr/bin` sont invisibles au daemon)
 
 **Backend clavier** :
-- X11 → `xdotool` (cible Debian/KDE/X11)
-- Wayland → `ydotool` si `ydotoold` tourne, sinon `wtype`, sinon `none`
+- `xdotool` partout (X11 natif, ou Wayland + XWayland pour Zed)
+- Zed est forcé sous XWayland via `WAYLAND_DISPLAY=` dans le `.desktop`
 - `none` = refus explicite qui renvoie vers `acp`
-- Sur Ubuntu 24.04 le paquet `ydotool` ne livre que le client (pas `ydotoold`)
 
-**Non vérifié** : titres réels des fenêtres Zed sous X11, recettes de la keymap
-Linux de Zed, branche `registry/binary` sous Linux (aucun agent binaire installé).
+**Non vérifié** : recettes de la keymap Linux de Zed, branche `registry/binary` sous Linux (aucun agent binaire installé).
 
 ---
 

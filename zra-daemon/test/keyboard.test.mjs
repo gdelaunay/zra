@@ -13,8 +13,8 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
 import {
-  KEY_NAMES, NoneKeyboard, WtypeKeyboard, XdotoolKeyboard, YdotoolKeyboard,
-  createKeyboard, defaultKeyboardRunner, parseChord, toEvdevCodes, toWtypeArgs, toX11Keysym,
+  KEY_NAMES, NoneKeyboard, XdotoolKeyboard,
+  createKeyboard, defaultKeyboardRunner, parseChord, toX11Keysym,
 } from '../zed/keyboard.js'
 import { KeyboardRunner } from '../zed/driver.js'
 import { KEYBOARD_BACKENDS } from '../platform.js'
@@ -53,22 +53,6 @@ test('toX11Keysym : ce que `xdotool key` attend', () => {
   assert.equal(toX11Keysym('win+l'), 'super+l')
   assert.equal(toX11Keysym('f5'), 'f5', 'F1-F12 : keysyms X11 littéraux')
   assert.throws(() => toX11Keysym('ctrl+inconnu'), /touche inconnue/)
-})
-
-test('toEvdevCodes : presser dans l’ordre, relâcher dans l’ordre inverse', () => {
-  // enter = 28 (input-event-codes.h). Forme « code:1 » (appui) / « code:0 » (relâchement).
-  assert.deepEqual(toEvdevCodes('enter'), ['28:1', '28:0'])
-  assert.deepEqual(toEvdevCodes('ctrl+a'), ['29:1', '30:1', '30:0', '29:0'])
-  assert.deepEqual(toEvdevCodes('ctrl+shift+p'), ['29:1', '42:1', '25:1', '25:0', '42:0', '29:0'])
-  assert.throws(() => toEvdevCodes('ctrl+inconnu'), /touche inconnue/)
-})
-
-test('toWtypeArgs : modificateurs pressés/relâchés autour de la touche', () => {
-  assert.deepEqual(toWtypeArgs('ctrl+a'), ['-P', 'ctrl', '-k', 'a', '-p', 'ctrl'])
-  assert.deepEqual(toWtypeArgs('ctrl+shift+p'), ['-P', 'ctrl', '-P', 'shift', '-k', 'p', '-p', 'shift', '-p', 'ctrl'])
-  assert.deepEqual(toWtypeArgs('enter'), ['-k', 'Return'])
-  assert.deepEqual(toWtypeArgs('control'), ['-P', 'ctrl', '-p', 'ctrl', '-P', 'ctrl', '-p', 'ctrl'],
-    'modificateur seul : wtype n’a pas de « tap », on presse/relâche explicitement')
 })
 
 // ---------------------------------------------------------------------------
@@ -216,39 +200,6 @@ test('LinuxKeyboard : deux recettes ne s’entrelacent pas (le clavier est une r
   assert.deepEqual(order, ['début 40', 'fin 1', 'début 5', 'fin 2'])
 })
 
-test('ydotool / wtype : recette ciblée refusée sans unsafeFocus, admise avec', async () => {
-  for (const Ctor of [YdotoolKeyboard, WtypeKeyboard]) {
-    const strict = new Ctor({ timeoutMs: 2000 })
-    await assert.rejects(
-      () => strict.execute({ op: 'run', project: 'zra', steps: [{ keys: 'enter' }] }),
-      /unsafeFocus|aucune API/,
-    )
-    const loose = new Ctor({ timeoutMs: 2000, unsafeFocus: true })
-    const calls = []
-    loose.exec = async (cmd, args) => { calls.push([cmd, ...args]); return '' }
-    const res = await loose.execute({ op: 'run', project: 'zra', steps: [{ keys: 'enter' }] })
-    assert.equal(res.ok, true)
-    assert.equal(res.window, undefined, 'aucune fenêtre visée : le focus courant n’est pas vérifiable')
-    assert.match(res.log[0], /focus courant/)
-    assert.ok(calls.length > 0, 'la frappe part (dans le focus courant, assumé)')
-    assert.equal(strict.canTargetWindows, false)
-  }
-})
-
-test('ydotool : la frappe passe par les codes evdev, wtype par sa propre syntaxe', async () => {
-  const y = new YdotoolKeyboard({ timeoutMs: 2000, unsafeFocus: true })
-  const yCalls = []
-  y.exec = async (cmd, args) => { yCalls.push([cmd, ...args]); return '' }
-  await y.execute({ op: 'run', steps: [{ keys: 'ctrl+a' }] })
-  assert.deepEqual(yCalls.at(-1), ['ydotool', 'key', '29:1', '30:1', '30:0', '29:0'])
-
-  const w = new WtypeKeyboard({ timeoutMs: 2000, unsafeFocus: true })
-  const wCalls = []
-  w.exec = async (cmd, args) => { wCalls.push([cmd, ...args]); return '' }
-  await w.execute({ op: 'run', steps: [{ keys: 'ctrl+a' }] })
-  assert.deepEqual(wCalls.at(-1), ['wtype', '-P', 'ctrl', '-k', 'a', '-p', 'ctrl'])
-})
-
 test('none : refus explicite qui renvoie vers acp, probe inoffensif', async () => {
   const k = new NoneKeyboard()
   await assert.rejects(() => k.execute({ op: 'run', dryRun: true, steps: [{ keys: 'enter' }] }),
@@ -282,12 +233,7 @@ test('createKeyboard : Windows → KeyboardRunner, sans rien sonder', async () =
   assert.equal(k.canTargetWindows, true)
 })
 
-test('createKeyboard : un backend imposé est respecté même absent (il échouera en disant pourquoi)', async () => {
-  const k = await createKeyboard({ backend: 'wtype', platform: 'linux', env: {} })
-  assert.ok(k instanceof WtypeKeyboard, 'pas de bascule silencieuse sur un autre backend')
-})
-
-test('createKeyboard : none imposé → NoneKeyboard, quel que soit l’OS', async () => {
+test('createKeyboard : none imposé → NoneKeyboard, quel que soit l\'OS', async () => {
   const k = await createKeyboard({ backend: 'none', platform: 'linux', env: {} })
   assert.ok(k instanceof NoneKeyboard)
 })
@@ -298,13 +244,11 @@ test('defaultKeyboardRunner : KeyboardRunner sous Windows, résolution paresseus
   assert.equal(lazy.name, 'auto', 'rien n’est résolu avant le premier run()')
   assert.equal(lazy.canTargetWindows, false)
   // Sous node --test, run() refuse même un probe (garde-fou gelé) : on déclenche
-  // la résolution puis on sonde le backend résolu directement. Sur cette
-  // machine (Wayland, xdotool installé, ydotoold absent) lequel sort dépend du
-  // poste : on vérifie le contrat, pas le nom.
+  // la résolution puis on sonde le backend résolu directement.
   await assert.rejects(() => lazy.run({ op: 'probe' }), /refusé sous node --test/)
   const res = await lazy.resolved.execute({ op: 'probe' })
   assert.equal(res.ok, true)
-  assert.ok(['xdotool', 'ydotool', 'wtype', 'none'].includes(lazy.name), lazy.name)
+  assert.ok(['xdotool', 'none'].includes(lazy.name), lazy.name)
   assert.notEqual(lazy.name, 'auto', 'résolu après le premier run()')
 })
 
