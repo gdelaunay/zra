@@ -187,16 +187,16 @@ test('forceIdle() sur un tour au repos : rien à rendre, aucun change', () => {
 
 test('sweep() signale le silence, pas la durée : un tour qui vit n’est pas stalled', () => {
   const s = make({ turnTimeoutMs: 1000 })
+  // `t0` avant le prompt : `lastActivity` est forcément ≥ t0, donc les seuils
+  // testés ne dépendent pas de l’heure à laquelle le test s’exécute.
+  const t0 = Date.now()
   s.promptSent('a', 'k1')
 
   const events = spy(s)
-  s.sweep(Date.now())                     // rien : le prompt vient de partir
+  s.sweep(t0 + 999)                      // sous le seuil, quoi qu’il se soit écoulé
   assert.deepEqual(events, [])
 
-  s.sweep(Date.now() + 999)                // encore sous le seuil
-  assert.deepEqual(events, [])
-
-  s.sweep(Date.now() + 1000)
+  s.sweep(t0 + 1001)
   assert.equal(events.length, 1)
   assert.equal(events[0][0], 'stalled')
   assert.equal(events[0][1], 'a')
