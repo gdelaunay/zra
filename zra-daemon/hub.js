@@ -149,8 +149,11 @@ export class Hub {
 
   /**
    * Client pas encore reconnu : seuls `hello` (avec un jeton) et `pair` (avec
-   * le code) passent. Le reste est ignoré sans réponse — une PWA rejoue sa file
-   * à la connexion, on ne l'inonde pas d'erreurs.
+   * le code) passent — plus `ping`, traité avant ce contrôle dans `handle()` :
+   * le heartbeat de la PWA doit vivre pendant la saisie du code, sinon elle
+   * croit le lien mort et se reconnecte en boucle. Tout le reste est ignoré
+   * sans réponse : une PWA rejoue sa file à la connexion, on ne l'inonde pas
+   * d'erreurs.
    */
   handleUnpaired(client, msg) {
     const { conn } = client

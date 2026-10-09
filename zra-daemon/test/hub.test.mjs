@@ -1166,9 +1166,8 @@ test('client distant non appairé : hello sans jeton → auth_required, le reste
 })
 
 test('ping est répondu même avant appairage : le heartbeat tient pendant la saisie du code', () => {
-  // Écart avec le commentaire de `handleUnpaired` (« le reste est ignoré sans
-  // réponse ») : `ping` est traité avant le contrôle d’appairage. Voir
-  // FINDINGS.md — rien ne fuit, mais le contrat écrit n’est pas celui-là.
+  // `handle()` traite `ping` avant le contrôle d'appairage : voulu, et écrit
+  // comme tel dans la doc de `handleUnpaired` (FINDINGS.md, écart clos par la doc).
   const pairing = new Pairing({ file: null })
   const ctx = boot({ pairing })
   const conn = client(ctx)
