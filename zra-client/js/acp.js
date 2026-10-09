@@ -131,9 +131,16 @@ export class Timeline {
   chunk(role, content, meta) {
     const type = role === 'thought' ? 'thought' : role === 'user' ? 'user' : 'agent'
     let entry = this.last()
+    // Messages utilisateur : un par bulle, sauf blocs d'un même prompt — le
+    // shim horodate tous les blocs d'un prompt avec le même `at` (acp.js
+    // publishUserMessage). Sans ça, un tour interrompu avant toute réponse de
+    // l'agent fait coller deux messages que le rejeu enchaîne sans séparation.
+    // `at` absent (historique §5.2) : regroupement comme avant, au pire.
+    const sameUserMessage = type === 'user' && entry?.type === 'user'
+      && (meta.at === undefined || entry.at === meta.at)
     // Un écho local (message envoyé depuis le mobile) ne se complète jamais :
     // le message réel arrive dans sa propre bulle, et l'écho lui cède la place.
-    if (!entry || entry.type !== type || entry.closed || entry.local) {
+    if (!entry || entry.type !== type || entry.closed || entry.local || (type === 'user' && !sameUserMessage)) {
       const added = this.push({ type, blocks: [], at: meta.at })
       entry = added.entry
       appendBlock(entry, content)

@@ -20,6 +20,27 @@ test('user et agent ne se mélangent pas', () => {
   assert.deepEqual(tl.entries.map((e) => e.type), ['user', 'agent'])
 })
 
+test('deux messages utilisateur de tours différents ne fusionnent pas (tour interrompu)', () => {
+  const tl = new Timeline()
+  const userChunk = (t) => ({ sessionUpdate: 'user_message_chunk', content: { type: 'text', text: t } })
+  // Tour 1 interrompu avant que l'agent ne réponde, puis tour 2 : le rejeu
+  // enchaîne deux user_message_chunk sans rien entre eux.
+  tl.apply(userChunk('je fais des tests'), { at: '2026-10-09T14:26:54.000Z' })
+  tl.apply(userChunk('JE CONTINUE DES TESTER'), { at: '2026-10-09T14:28:47.000Z' })
+  assert.deepEqual(tl.entries.map((e) => `${e.type}:${blocksText(e.blocks)}`),
+    ['user:je fais des tests', 'user:JE CONTINUE DES TESTER'])
+})
+
+test('un prompt multi-blocs reste une seule bulle (même `at`)', () => {
+  const tl = new Timeline()
+  const userChunk = (t) => ({ sessionUpdate: 'user_message_chunk', content: { type: 'text', text: t } })
+  // publishUserMessage horodate tous les blocs d'un même prompt avec le même `at`.
+  tl.apply(userChunk('texte '), { at: '2026-10-09T14:26:54.000Z' })
+  tl.apply(userChunk('+ ressource'), { at: '2026-10-09T14:26:54.000Z' })
+  assert.equal(tl.entries.length, 1)
+  assert.equal(blocksText(tl.entries[0].blocks), 'texte + ressource')
+})
+
 test('un tool call coupe le regroupement des messages', () => {
   const tl = new Timeline()
   tl.apply(chunk('avant'))
