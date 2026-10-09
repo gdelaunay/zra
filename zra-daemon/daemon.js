@@ -160,7 +160,8 @@ export async function startDaemon(config) {
 
   threads.start()
 
-  const presence = new ZedPresence({ intervalMs: config.zedProbeMs })
+  // `config.zedProbe` : sonde factice, pour les tests (Zed ouvert ou non, au choix).
+  const presence = new ZedPresence({ intervalMs: config.zedProbeMs, detect: config.zedProbe })
   presence.onChange((running) => {
     machine.zedRunning = running
     log.info(running ? 'Zed est lancé' : 'Zed est fermé')
@@ -168,6 +169,13 @@ export async function startDaemon(config) {
     threads.refresh()
     hub.broadcast({ type: 'machine', ...machine.describe() })
   })
+  // Le premier état est lu **avant** d'écouter : le `machine` du hello dit déjà
+  // la vérité, et aucun second `machine` ne vient s'intercaler entre `machine`
+  // et `threads` (protocole §1). Fait mesuré sur MX Linux 23 / Xfce / X11, Zed
+  // 1.23.2 étant lancé : `Machine` naît avec `zedRunning = false`, la sonde
+  // asynchrone le faisait basculer juste après le hello et rediffusait
+  // `machine` — le client voyait `machine, machine, threads`.
+  await presence.probe()
   presence.start()
 
   // Le registry d'agents peut changer sans redémarrage (édition de settings.json).

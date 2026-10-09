@@ -601,6 +601,14 @@ test('le message utilisateur est publié par le shim, qu’il vienne de Zed ou d
   client.send({ type: 'send', threadId: VIVANT, text: 'depuis le mobile', mode: 'queue' })
   const duMobile = await client.until((m) => m.type === 'acp_event' && m.update.content?.text === 'depuis le mobile', { label: 'message du mobile' })
   assert.equal(duMobile.update._meta.zra.origin, 'mobile')
+  // Le shim publie vers le daemon (acp.js:711) **puis** écrit vers Zed
+  // (acp.js:712) : deux consommateurs différents, aucun ordre de remise garanti.
+  // Attendre l'écho avant de compter, sinon le client WebSocket peut gagner la
+  // course et `zed.updates` est encore vide (relevé sur MX Linux 23, Zed lancé).
+  await zed.until(
+    (m) => m.method === 'session/update' && m.params?.update?.content?.text === 'depuis le mobile',
+    { label: 'écho vers Zed (🟠6)' },
+  )
   // Vers Zed ne part que le message du mobile (risque 🟠6), une fois ; le sien ne lui revient jamais.
   const versZed = zed.updates.filter((u) => u?.sessionUpdate === 'user_message_chunk')
   assert.deepEqual(versZed.map((u) => u.content?.text), ['depuis le mobile'])

@@ -104,10 +104,16 @@ export async function isZedRunning() {
   }
 }
 
-/** Sonde de présence, mise en cache : inutile de lancer `tasklist` à chaque client. */
+/**
+ * Sonde de présence, mise en cache : inutile de lancer `tasklist` à chaque client.
+ *
+ * `detect` est injectable (même seam que `config.interfaces` pour le réseau) :
+ * les tests n'ont pas à dépendre d'un Zed réellement ouvert sur la machine.
+ */
 export class ZedPresence {
-  constructor({ intervalMs = 5000 } = {}) {
+  constructor({ intervalMs = 5000, detect = isZedRunning } = {}) {
     this.intervalMs = intervalMs
+    this.detect = detect
     this.running = false
     this.checkedAt = 0
     this.timer = null
@@ -120,7 +126,7 @@ export class ZedPresence {
   }
 
   async probe() {
-    const running = await isZedRunning()
+    const running = await this.detect()
     this.checkedAt = Date.now()
     if (running !== this.running) {
       this.running = running
@@ -130,7 +136,9 @@ export class ZedPresence {
   }
 
   start() {
-    this.probe().catch(() => {})
+    // Le daemon sonde déjà avant d'écouter (`await presence.probe()`) : ne pas
+    // relancer `pgrep`/`tasklist` pour rien. `checkedAt` en tient lieu.
+    if (!this.checkedAt) this.probe().catch(() => {})
     this.timer = setInterval(() => this.probe().catch(() => {}), this.intervalMs)
     this.timer.unref?.()
     return this

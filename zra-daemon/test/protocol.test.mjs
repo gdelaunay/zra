@@ -138,6 +138,27 @@ test('bootstrap : machine, threads, puis un thread_state par thread (§1)', asyn
   assert.equal(types[1], 'threads')
 })
 
+test('bootstrap : Zed déjà lancé ne glisse pas un second `machine` avant `threads` (§1)', async (t) => {
+  // Fait mesuré sur MX Linux 23 / Xfce / X11, Zed 1.23.2 ouvert (pid 11085) :
+  // `Machine` naît avec `zedRunning = false`, la sonde de présence le faisait
+  // basculer à `true` juste après le hello et rediffusait `machine` — le client
+  // voyait `machine, machine, threads`. La sonde est désormais faite avant
+  // d'écouter. Elle est injectée ici pour que le test ne dépende pas d'un Zed
+  // réellement ouvert sur la machine qui le joue.
+  await boot(t, { zedProbe: async () => true })
+  const c = await Client.open(t)
+  c.send({ type: 'hello', clientId: 'test' })
+
+  const machine = await c.until((m) => m.type === 'machine')
+  assert.equal(machine.zedRunning, true, 'le hello dit déjà que Zed tourne')
+  await c.until((m) => m.type === 'threads')
+
+  const types = c.messages.map((m) => m.type)
+  assert.equal(types[0], 'machine')
+  assert.equal(types[1], 'threads')
+  assert.equal(c.of('machine').length, 1, 'un seul `machine` : aucun doublon après le hello')
+})
+
 test('statiques : le client est servi en mode dev, avec les bons types MIME (§1)', async (t) => {
   await boot(t)
   const index = await fetch(`http://${HOST}:${PORT}/`)

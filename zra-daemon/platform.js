@@ -227,16 +227,16 @@ export function serviceBackend(opts = {}) {
  * vérification de ce qui est réellement installé (c'est le rôle de
  * `zed/keyboard.js`, qui a besoin de lancer des processus).
  *
- * Fait établi ici : la session est Wayland sous GNOME.
- *   $ echo $XDG_SESSION_TYPE $WAYLAND_DISPLAY → wayland wayland-0
- *   $ loginctl show-session … -p Type         → Type=wayland
- * Un client X11 (`xdotool`) ne voit pas les fenêtres Wayland natives : Zed est
- * un client Wayland (GPUI), donc `xdotool` est inopérant dans cette session,
- * même installé. `DISPLAY=:0` est posé quand même — c'est XWayland, pour les
- * applications X11.
+ * `d911219` a simplifié : **xdotool partout**, `ydotool`/`wtype` supprimés.
+ * Un client X11 ne voit pas les fenêtres Wayland natives, donc sous Wayland Zed
+ * est forcé sous XWayland (`WAYLAND_DISPLAY=` dans son `.desktop`, voir
+ * `scripts/lib/wayland.mjs`) — et xdotool retrouve ses fenêtres. Sous X11, rien
+ * à forcer.
  *
- * La cible de production du projet est Debian 13 / KDE / **X11** : `xdotool`
- * reste donc le backend principal à terme, il est seulement inutile *ici*.
+ * Deux sessions mesurées :
+ *   Ubuntu 24.04 / GNOME : `echo $XDG_SESSION_TYPE $WAYLAND_DISPLAY` → `wayland wayland-0`
+ *   MX Linux 23 / Xfce   : `x11`, `DISPLAY=:0`, `WAYLAND_DISPLAY` vide
+ * Dans les deux cas la préférence est la même : `xdotool`, puis `none`.
  *
  * @returns {string[]} du plus préféré au moins préféré, `none` en dernier
  */

@@ -117,16 +117,20 @@ test('linux : Zed tourne sous le nom zed-editor, pas zed', () => {
   assert.deepEqual(zedProcessNames({ platform: 'darwin' }), ['Zed', 'zed-editor', 'zed'])
 })
 
-test('linux : l’ordre des backends clavier suit la session', () => {
-  // Wayland (cette machine) : xdotool ne voit pas les fenêtres Wayland natives.
-  assert.deepEqual(keyboardPreference({ platform: 'linux', env: { XDG_SESSION_TYPE: 'wayland', WAYLAND_DISPLAY: 'wayland-0' } }),
-    ['ydotool', 'wtype', 'xdotool', 'none'])
-  // X11 (Debian 13 / KDE, la cible de production) : xdotool d'abord.
-  assert.deepEqual(keyboardPreference({ platform: 'linux', env: { XDG_SESSION_TYPE: 'x11', DISPLAY: ':0' } }),
-    ['xdotool', 'ydotool', 'wtype', 'none'])
-  // Session inconnue : on ne devine pas, on garde l'ordre X11.
-  assert.deepEqual(keyboardPreference({ platform: 'linux', env: {} }),
-    ['xdotool', 'ydotool', 'wtype', 'none'])
+test('linux : un seul backend clavier, quel que soit le type de session', () => {
+  // `d911219` : xdotool partout, ydotool/wtype supprimés. Sous Wayland, Zed est
+  // forcé sous XWayland (`WAYLAND_DISPLAY=` dans le .desktop, `scripts/lib/wayland.mjs`),
+  // donc xdotool voit ses fenêtres ; sous X11, il les voit nativement.
+  // Mesuré sur MX Linux 23 / Xfce / X11 : `XDG_SESSION_TYPE=x11`, `DISPLAY=:0`,
+  // `WAYLAND_DISPLAY` vide → xdotool liste la fenêtre Zed (`title: "zra"`).
+  const sessions = [
+    { XDG_SESSION_TYPE: 'wayland', WAYLAND_DISPLAY: 'wayland-0' },
+    { XDG_SESSION_TYPE: 'x11', DISPLAY: ':0' },
+    {},
+  ]
+  for (const env of sessions) {
+    assert.deepEqual(keyboardPreference({ platform: 'linux', env }), ['xdotool', 'none'])
+  }
   for (const order of ['wayland', 'x11', 'inconnue']) {
     const env = order === 'wayland' ? { XDG_SESSION_TYPE: 'wayland' } : order === 'x11' ? { XDG_SESSION_TYPE: 'x11' } : {}
     const pref = keyboardPreference({ platform: 'linux', env })
