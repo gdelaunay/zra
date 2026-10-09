@@ -285,9 +285,17 @@ sudo udevadm control --reload-rules
 **Vérification** :
 
 ```bash
-systemctl start ydotoold     # ou ydotoold en foreground pour tester
+ydotoold &                   # démarre le daemon en arrière-plan
+sleep 1
 ydotool type bonjour         # doit taper dans la fenêtre active
 ```
+
+Si `ydotoold` est déjà lancé : `error: Another ydotoold is running with the same socket`.
+Arrête-le avec `pkill ydotoold` avant de relancer.
+
+**Note** : sous Wayland, `xinput` peut afficher un warning (`unable to find device
+pointer: ydotoold virtual device`) — c'est normal, ydotool n'utilise pas X11,
+il injecte directement via `/dev/uinput`.
 
 **Note** : sur Arch/Fedora, `ydotool` est packagé avec le daemon → `pacman -S ydotool`
 ou `dnf install ydotool`, rien à compiler.
