@@ -114,8 +114,12 @@ test('systemd : la session graphique est recopiée dans l’unité', () => {
   assert.match(unit, /Environment=WAYLAND_DISPLAY=wayland-0/)
   assert.match(unit, /Environment=DISPLAY=:0/)
   assert.match(unit, /Environment=XDG_SESSION_TYPE=wayland/)
-  assert.ok(!/Environment=PATH=/.test(unit), 'PATH n’est pas recopié : systemd a le sien')
-  for (const k of GRAPHICS_ENV) assert.ok(['XDG_SESSION_TYPE', 'WAYLAND_DISPLAY', 'DISPLAY', 'XDG_CURRENT_DESKTOP', 'XDG_RUNTIME_DIR'].includes(k))
+  // PATH AUSSI, et c'est un bug réel vu sur la machine de portage : systemd
+  // donne au service un PATH minimal, `pi-acp` n'y trouve pas `pi`
+  // (~/.pi/agent/bin) et la relecture d'un thread fermé échoue avec
+  // « Could not start pi: executable not found ».
+  assert.match(unit, /Environment=PATH=\/usr\/bin/)
+  for (const k of GRAPHICS_ENV) assert.ok(['XDG_SESSION_TYPE', 'WAYLAND_DISPLAY', 'DISPLAY', 'XDG_CURRENT_DESKTOP', 'XDG_RUNTIME_DIR', 'PATH'].includes(k))
   // Une installation depuis une session sans graphique ne produit pas d’unité invalide.
   assert.match(buildUnit({ ...lx, env: {} }), /# \(aucune variable de session graphique relevée à l’installation\)/)
 })

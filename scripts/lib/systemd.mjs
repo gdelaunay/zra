@@ -68,10 +68,22 @@ export function quoteUnitArg(value) {
  * fenêtre. Elles sont relevées au moment de l'installation — c'est-à-dire
  * depuis la session graphique, donc des valeurs réelles, pas devinées.
  *
+ * `PATH` aussi, et c'est un bug réel vu en vrai : systemd donne au service un
+ * PATH minimal (`/usr/local/sbin:…:/snap/bin`), qui ne contient ni
+ * `~/.pi/agent/bin` ni `~/.local/bin`. Conséquence observée : la relecture d'un
+ * thread fermé lance `pi-acp`, qui ne trouve pas `pi` et répond
+ * « Could not start pi: executable not found … Pi needs to be installed » —
+ * alors que tout fonctionne dans Zed, lancé depuis la session interactive.
+ * (`pi-acp` accepte `PI_ACP_PI_COMMAND`, mais recopier le PATH de la session
+ * règle le problème pour TOUS les agents, pas seulement pi.)
+ *
  * Fait établi ici : `DISPLAY=:0`, `WAYLAND_DISPLAY=wayland-0`,
- * `XDG_SESSION_TYPE=wayland`, `XDG_CURRENT_DESKTOP=ubuntu:GNOME`.
+ * `XDG_SESSION_TYPE=wayland`, `XDG_CURRENT_DESKTOP=ubuntu:GNOME`, et
+ * `cat /proc/<pid daemon>/environ | tr '\0' '\n' | grep ^PATH=` →
+ * `PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin`
+ * (le PATH minimal de systemd, sans `~/.pi/agent/bin` où vit `pi`).
  */
-export const GRAPHICS_ENV = ['XDG_SESSION_TYPE', 'WAYLAND_DISPLAY', 'DISPLAY', 'XDG_CURRENT_DESKTOP', 'XDG_RUNTIME_DIR']
+export const GRAPHICS_ENV = ['XDG_SESSION_TYPE', 'WAYLAND_DISPLAY', 'DISPLAY', 'XDG_CURRENT_DESKTOP', 'XDG_RUNTIME_DIR', 'PATH']
 
 /**
  * Contenu de l'unité. Fonction pure : les tests la vérifient sans rien
@@ -100,6 +112,8 @@ ExecStart=${exec}
 Restart=on-failure
 RestartSec=5
 # Session graphique : sans elles, le pilotage de Zed au clavier est impossible.
+# PATH : celui de la session, sans lequel les agents lancés par le daemon
+# (relecture d'un thread fermé) ne trouvent pas leurs exécutables (~/.pi, ~/.local).
 ${vars.join('\n') || '# (aucune variable de session graphique relevée à l’installation)'}
 
 [Install]
