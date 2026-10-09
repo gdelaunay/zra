@@ -1,6 +1,6 @@
 # Portage Linux — note d'avancement
 
-État au commit `a33dd88`, branche `linux`. À lire avant de reprendre :
+État au commit `d66eacb`, branche `linux`. À lire avant de reprendre :
 `prompts/portage-linux.md` (le prompt d'origine, ses deux règles et son
 inventaire `fichier:ligne`). Cette note dit ce qui est fait, ce qui est prouvé,
 ce qui reste.
@@ -25,6 +25,7 @@ X11 sur HP Pavilion x2 (§3.2). Reste : Debian 13 / KDE, la cible de production.
 
 ```
 a33dd88  fix(daemon,test)   la suite est verte que Zed tourne ou non (MX Linux)
+d66eacb  feat(service)      backend autostart XDG — Linux sans systemd en init
 30e2b4f  docs(portage)      note d'avancement — portage terminé
 875a0a6  feat(setup)        forcer XWayland automatiquement sous Wayland
 d911219  refactor(keyboard) simplification — xdotool partout, suppression ydotool/wtype
@@ -49,12 +50,12 @@ eb70e6f  étape 1            feat(platform): un seul module sait sur quel OS tou
 | 1. Module plateforme + `zedPaths()` injectable | **fait** — `eb70e6f` |
 | 2. Chemins Linux (inventaire A) + fixtures Linux | **fait** — `e2c05e4` |
 | 3. `agent-commands` : registry et exécutables | **fait**, fondu dans l'étape 2 |
-| 4. `service.mjs` : backend systemd --user | **fait et vérifié en réel** — `ef395df` |
+| 4. `service.mjs` : backend systemd --user | **fait et vérifié en réel** — `ef395df` ; complété par un backend autostart XDG pour les machines sans systemd en init (`d66eacb`) |
 | 5. Backend clavier pluggable | **fait** — `xdotool` partout, XWayland forcé automatiquement sous Wayland (`875a0a6`) |
 | 6. Docs (`SPEC.md` §2.4, `ROADMAP.md`, `DEPLOY.md`) | **fait** — `a2699ca` |
 | 7. CI GitHub Actions | **exclu** (priorité basse, machine de dev vaut mieux) |
 
-**Suite de tests** : 746 tests, 744 pass, 0 fail, 2 skipped (les 2 préexistants :
+**Suite de tests** : 758 tests, 756 pass, 0 fail, 2 skipped (les 2 préexistants :
 `keyboard.ps1` réservé à Windows, `wg.exe` absent). Vert **que Zed tourne ou non**
 depuis `a33dd88` — ce n'était pas le cas avant, voir §3.2.
 
@@ -69,12 +70,28 @@ depuis `a33dd88` — ce n'était pas le cas avant, voir §3.2.
 - Linux : `~/.local/share/zed`, `~/.config/zed`, `~/.local/state/zra`
 - Windows : inchangé (`%LOCALAPPDATA%\Zed`, `%APPDATA%\Zed`)
 
-### 2.2 Service systemd --user
+### 2.2 Service : systemd --user, et autostart XDG quand systemd n'est pas l'init
 
 - `scripts/service.mjs` : backend `systemd` ajouté à côté de `schtasks` (gelé)
 - `install`, `start`, `stop`, `status`, `logs`, `uninstall` — mêmes sous-commandes que Windows
 - `loginctl enable-linger` : sans sudo, rc=0
 - Bug réel corrigé (`2ea61cc`) : le PATH de la session est recopié dans l'unité (sinon les CLI hors `/usr/bin` sont invisibles)
+- **Troisième backend (`d66eacb`)** : `scripts/lib/autostart.mjs`, pour les
+  machines dont l'init n'est pas systemd — MX Linux et dérivés. Mêmes six verbes.
+  `~/.config/autostart/zra-daemon.desktop` + un lanceur `.zra/service/zra-daemon.sh`
+  (une entrée `.desktop` n'a pas de clé `Environment=` : c'est le lanceur qui
+  porte `DISPLAY` et le PATH de la session).
+- Détection : `/run/systemd/system` (le marqueur de `sd_booted()`), injectable
+  dans `serviceBackend({ systemdInit })`. **La version de systemd n'est pas le
+  critère** : la MX a systemd 252 et `systemctl --user` y répond `offline`.
+- `stop` sans `systemctl` : pidfile + validation de la ligne de commande dans
+  `/proc` avant le kill (un pid recyclé est nettoyé, pas tué).
+- Deux limites affichées par `status` : aucune supervision (pas de
+  `Restart=on-failure`) et arrêt à la fermeture de session (pas de linger).
+- Deux bugs trouvés en le testant pour de vrai : le lanceur mourait avant
+  l'`exec` (`cannot create …/.zra/logs/service.log: Directory nonexistent` — le
+  `mkdir -p` manquait), et `status` disait toujours « arrêté » (`autostartState()`
+  ne renvoyait pas le champ `running` qu'il testait).
 
 ### 2.3 Backend clavier
 
@@ -168,11 +185,33 @@ $ zed --version             → Zed 1.23.2 c0199504b9cce79bc27524950022ed701bc3e
       0 fail, 2 skip`. Le « 748 pass, 0 fail » des versions précédentes de cette
       note **n'a pas été reproduit** — il supposait Zed fermé et un test périmé
       qui n'avait pas été rejoué
+- ❌ **Étape 6 de la procédure en échec** : `npm run service -- install --apply`
+      → `✗ systemctl --user daemon-reload a échoué : Failed to reload daemon:
+      Process org.freedesktop.systemd1 exited with status 1`. Cause mesurée :
+      `cat /proc/1/comm` → `init`, `ls /run/systemd/system` → inexistant,
+      `systemctl --user is-system-running` → `offline`, `ls /run/user/1000/systemd`
+      → inexistant, `journalctl --user` → `No journal files were found`.
+      **sysvinit est l'init de MX Linux** : `systemd --user` n'a personne à qui
+      parler. Corrigé par le backend autostart (`d66eacb`, §2.2)
+- ✅ **Backend autostart, cycle complet en réel** :
+      `install --apply` → `~/.config/autostart/zra-daemon.desktop` (379 o) +
+      `.zra/service/zra-daemon.sh` (mode 0755) ; `start` → `✓ daemon lancé
+      (http://127.0.0.1:7777, pid 43107)` ; `status` → `processus : ✓ lancé,
+      pid 43107` + `daemon … : ✓ http, depuis …` ; `stop` → `✓ daemon arrêté
+      (pid 43107)`, plus aucun processus, pidfile nettoyé
+- ✅ Garde-fou du pidfile : `echo 1 > .zra/service/zra-daemon.pid` (le pid de
+      l'init) → `status` dit « pidfile périmé », `stop` le nettoie **sans tuer**,
+      `ps -p 1` → toujours vivant
+- ❌ **Non vérifié, et qui ne peut pas l'être d'ici** : que Xfce lise l'entrée à
+      l'ouverture de session. Demande une déconnexion/reconnexion réelles
 
 ### 3.3 Ce qui n'a pas été testé
 
 - ❌ Recettes clavier en frappe réelle (`try submit --apply`) dans Zed 1.23.2
-- ❌ `service install --apply` et `setup install --apply` sur MX Linux
+- ❌ `setup install --apply` sur MX Linux (settings.json + keymap.json de Zed)
+- ❌ Que Xfce lance réellement l'entrée d'autostart à l'ouverture de session
+- ❌ Le daemon lancé par la session (et non par `service -- start`) : même
+      lanceur, mais l'environnement vient de Xfce, pas du terminal
 - ❌ Registry `binary` sous Linux (aucun agent binaire installé)
 - ❌ Debian 13 / KDE (la cible de production), Fedora, Arch
 - ❌ Zed installé via Flatpak/Snap
@@ -208,12 +247,15 @@ C'est une machine spéciale pour tester la compatibilité :
   - xdotool : paquet standard, devrait marcher
   - Zed : vérifier qu'il existe en version compatible (pas de build i386 officiel ?)
 
-**Résultat du 9 octobre (commit `a33dd88`)** : étapes 1 à 5 de la procédure
-faites, tout est vert sauf le point Node ci-dessous. Étapes 6 à 8 restant à faire.
-Les pièges annoncés étaient tous levés sauf Node :
+**Résultat (commits `a33dd88` puis `d66eacb`)** : étapes 1 à 7 de la procédure
+faites. Étapes 8 à 10 restant à faire (frappe réelle, recette `newThread`, mobile).
+Sur les pièges annoncés, un seul était réel — et un autre, non annoncé, est tombé :
 
 - CPU 64 bits → le tarball x64 de Node marche, le boot 32 bits ne gêne pas
-- systemd 252 ≥ 232 → `--user` et `linger` disponibles
+- ❌ **systemd 252 installé, mais pas comme init** → `systemctl --user` répond
+      `offline`, l'étape 6 échouait. C'était le piège que cette note n'avait pas
+      vu : elle raisonnait en version de systemd, pas en init. Backend autostart
+      ajouté (`d66eacb`), cycle complet vérifié en réel (§3.2)
 - `xdotool` présent, session X11 → aucun patch `.desktop` à faire
 - Zed 1.23.2 installé classiquement (`~/.local/zed.app`), ni Flatpak ni Snap
 - ⚠️ **Node 22 par défaut dans le PATH** (nvm) alors que `engines: ">=24"` :
@@ -233,7 +275,7 @@ node -v  # doit être >= 24, sinon installer
 npm install
 
 # 4. Lancer les tests
-npm test  # doit être vert (746 tests, 744 pass, 2 skip)
+npm test  # doit être vert (758 tests, 756 pass, 2 skip)
 
 # 5. Installer ZRA dans Zed
 npm run setup -- install --apply
@@ -272,14 +314,21 @@ npm run zed -- try submit --apply
 - **Node.js pur** : zéro dépendance native, zéro build → n'importe quelle distro avec Node ≥ 24
 - **xdotool** : paquet standard (apt, dnf, pacman, zypper)
 - **Chemins XDG** : standard Linux, pas spécifique Ubuntu
-- **systemd --user** : standard sur Debian 12+, Ubuntu 22.04+, Fedora 38+, Arch
+- **Démarrage à l'ouverture de session** : `systemd --user` si systemd est
+  l'init, sinon l'autostart XDG (`~/.config/autostart`, lu par Xfce, GNOME, KDE,
+  LXQt) — les deux sans sudo
 - **.desktop** : standard freedesktop.org, emplacement universel
 
 ### 5.2 Ce qui pourrait varier ⚠️
 
 1. **Nom du processus Zed** : `['zed-editor', 'zed']` dans `platform.js`. Si une distro a un nom différent → `pgrep` ne le trouvera pas
 2. **Emplacement du binaire Zed** : testé `~/.local/zed.app/bin/zed` et `/usr/bin/zed`. Si Zed est ailleurs → le `.desktop` ne sera pas patché
-3. **systemd version** : `linger` et `--user` depuis systemd 232 (2017). Vieilles distros (CentOS 7, Debian 8) → le service ne marchera pas
+3. **L'init, pas la version de systemd** : `linger` et `--user` demandent systemd
+   en PID 1 (marqueur : `/run/systemd/system`). Sans lui — MX Linux, sysvinit —
+   c'est le backend autostart qui prend le relais, avec ses deux limites
+   (pas de supervision, arrêt à la fermeture de session). L'affirmation précédente
+   de cette note (« systemd < 232 → le service ne marchera pas ») était à côté :
+   la MX a systemd 252 et ne peut pas s'en servir
 4. **Node 24** : `engines: ">=24"`. Les distros avec Node 22 → l'utilisateur doit installer Node 24 manuellement
 
 ### 5.3 Ce qui n'a pas été testé ❌
@@ -316,17 +365,23 @@ Check-list inverse pour s'assurer que rien n'a cassé Windows :
 cd ~/Documents/zra
 git checkout linux && git log --oneline -5
 node -v                                  # doit être >= 24
-npm test                                 # 746 tests, 744 pass, 0 fail, 2 skip
+npm test                                 # 758 tests, 756 pass, 0 fail, 2 skip
 node scripts/service.mjs status          # daemon tourne-t-il ?
 command -v xdotool                       # doit être installé
 ```
 
 Sur la machine MX Linux, `nvm use 24` d'abord (le PATH donne Node 22 par défaut).
-Reste, dans l'ordre de la procédure §4.2 :
+Le service est installé et vérifié (backend autostart, §3.2). Reste, dans l'ordre
+de la procédure §4.2 :
 
 ```bash
-npm run service -- install --apply && npm run service -- status
-npm run setup   -- install --apply
+npm run setup   -- install --apply      # settings.json + keymap.json de Zed
 npm run zed     -- probe
-npm run zed     -- try submit --apply     # frappe réelle dans la fenêtre Zed
+npm run zed     -- try submit --project zra --text "test MX" --apply
+npm run zed     -- try newThread --title "test MX" --project zra --apply
+npm run pair                            # puis un message depuis Android
 ```
+
+Et une déconnexion/reconnexion, seule façon de savoir si Xfce lit bien l'entrée
+d'autostart — ensuite `npm run service` doit montrer le daemon lancé sans que
+personne n'ait rien tapé.

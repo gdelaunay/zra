@@ -62,8 +62,10 @@ shim » ci-dessous.
 
 ## Portabilité Linux — ✅ fait (branche `linux`)
 
-Portage terminé : module plateforme (`platform.js`), chemins Linux, service
-`systemd --user`, backend clavier pluggable (`xdotool`/`ydotool`/`wtype`/`none`).
+Portage terminé : module plateforme (`platform.js`), chemins Linux, démarrage à
+l'ouverture de session (`systemd --user`, ou l'autostart XDG quand systemd n'est
+pas l'init — MX Linux), backend clavier `xdotool` partout (`none` en repli).
+Vérifié sur Ubuntu 24.04 / GNOME / Wayland et MX Linux 23 / Xfce / X11.
 Voir `SPEC.md` §2.4 et `prompts/portage-linux-avancement.md`.
 
 ## Tous les threads par le shim
