@@ -35,3 +35,13 @@ tourne en production.
   ou lui attacher tout de suite un `catch` neutre. Démontré par
   `zra-daemon/test/zed-control.test.mjs` (« BUG : un refus qui tombe pendant la
   recette produit un rejet non géré », marqué `todo`).
+- **`zra-client/js/views/entry.js` — une permission déjà tranchée reste
+  cliquable sur l'option choisie.** Le verrou est `disabled: locked && !chosen` :
+  l'option cochée d'un encart `resolved` n'est donc pas désactivée, et
+  `store.respondPermission()` ne regarde pas `entry.resolved` avant d'écrire. Un
+  second appui renvoie un `respond_permission` au daemon, qui répondra
+  `permission_expired` — l'utilisateur voit une erreur pour une action déjà
+  faite. Rien de cassé côté agent (le shim arbitre et refuse), mais l'encart
+  devrait être muet une fois la coche affichée. Figé par
+  `zra-client/test/entry.test.mjs` (« BUG : une permission tranchée reste
+  cliquable sur l'option choisie », marqué `todo`).
