@@ -142,6 +142,34 @@ Ce que ça règle d'un coup :
    développer côté JS. La promesse « aucune dépendance runtime » reste vraie
    côté utilisateur, à assumer dans la doc (binaire téléchargé au setup).
 
+### Distribution : trajectoire A → C
+
+- **Maintenant (MVP) — le tray seul** : `npm run setup` télécharge le binaire
+  prébuild (GitHub Releases) dans `.zra/bin/` ; il pilote le daemon du repo
+  cloné. Flux dev inchangé, versions tray/daemon cohérentes (même repo).
+- **Cible — l'archive « app » par plateforme** (option C) :
+
+  ```
+  zra-<version>-<plateforme>.zip
+   ├── zra-tray(.exe)     ← point d'entrée unique : onboarding au 1er lancement
+   │                        (setup : agents Zed, keymap, autostart, pare-feu),
+   │                        puis supervision ; updates via les releases
+   └── app/               ← daemon + client + shim, même version que le tray
+  ```
+
+  Double-clic, ça marche. `npm` reste le chemin des contributeurs.
+- **Runtime Node : système par défaut, pas embarqué.** ZRA exige déjà Node ≥ 24
+  (README) et l'audience cible a Zed — dont les agents ACP sont souvent Node
+  eux-mêmes. Embarquer serait redondant (~50 Mo, deux Node en concurrence).
+  Le chemin **absolu** de `node` est de toute façon figé au setup (Zed lance
+  le shim avec son propre environnement ; l'autostart a un PATH appauvri — bug
+  systemd déjà vu). Repli OOB : si Node ≥ 24 est introuvable au premier
+  lancement, le tray propose de télécharger un runtime dans `app/runtime/`
+  (à la Gradle/Playwright/Volta). L'embarquement systématique ne deviendra
+  pertinent que si la V2 (broker) vise un public sans Zed.
+- Écarté : tirer le repo git à l'installation (git requis, fragile hors-ligne,
+  découplage des versions). Artefacts versionnés uniquement.
+
 ### Ordre
 
 1. Merger `linux` dans `main` (le tray s'appuie sur l'autostart XDG et
@@ -153,7 +181,9 @@ Ce que ça règle d'un coup :
    trois environnements de la campagne de portage (KDE X11 ×2, GNOME Wayland) ;
 4. CI releases + téléchargement au `setup` ;
 5. Sucre : icône qui change d'état (thread live / réponse en attente) — les
-   événements existent déjà dans le daemon.
+   événements existent déjà dans le daemon ;
+6. Option C : l'archive « app » par plateforme (onboarding au premier
+   lancement, détection Node + repli runtime téléchargé, updates).
 
 ## Tous les threads par le shim
 
