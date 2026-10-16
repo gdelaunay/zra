@@ -167,8 +167,9 @@ Ce que ça règle d'un coup :
   détecte Node ≥ 24 ; s'il manque, écran clair « Node 24 requis » avec lien
   vers nodejs.org, et c'est tout. Le chemin **absolu** de `node` est figé au
   setup (Zed lance le shim avec son propre environnement ; l'autostart a un
-  PATH appauvri — bug systemd déjà vu). Si la V2 (broker) vise un public sans
-  Zed, l'embarquement sera à reconsidérer.
+  PATH appauvri — bug systemd déjà vu). Si ZRA visait un jour un public sans
+  Zed, l'embarquement serait à reconsidérer — le conteneur serait alors sans
+  doute la bonne réponse plutôt que l'embarquement dans le tray.
 - Écarté : tirer le repo git à l'installation (git requis, fragile hors-ligne,
   découplage des versions). Artefacts versionnés uniquement.
 
@@ -220,8 +221,10 @@ statiques et relaie `wss://zra.exemple.fr/to/<ip>/ws` vers
 - relais limité aux IP privées (réseau local, tunnel), sinon c'est un proxy
   ouvert ;
 - l'appairage reste de bout en bout, entre la PWA et le daemon : le relais ne
-  voit passer que des trames ;
-- premier pas vers le broker de la V2.
+  voit passer que des trames.
+
+(Idée écrite comme « premier pas vers le broker » — elle reste pleinement
+valable sans broker : une seule config HTTPS pour tous les postes.)
 
 ## Tailscale : réseau et HTTPS sans configuration
 
@@ -232,7 +235,10 @@ certificats HTTPS (`*.ts.net`, `tailscale serve` devant `:7777`), ce qui règle
 le contenu mixte sans reverse proxy. À essayer, puis à proposer comme chemin
 par défaut dans `DEPLOY.md`.
 
-## Version 1 — Homelab (choix actuel, pragmatique)
+## Homelab — la réponse retenue au problème central
+
+Le broker étant archivé (voir ci-dessous), c'est **la** réponse au problème du
+desktop éveillé, plus une « Version 1 » en attendant une V2.
 
 L'audience cible = les gens qui ont déjà un homelab. Le "probleme" du desktop awake se contourne ainsi :
 
@@ -243,7 +249,25 @@ L'audience cible = les gens qui ont déjà un homelab. Le "probleme" du desktop 
 
 Ça marche chez moi. C'est pas universel, mais c'est exactement le profil des gens qui veulent ça.
 
-## Version 2 — Broker (LE vrai workaround)
+## Broker — idée archivée (décision)
+
+**Décidé : on ne fait pas de broker.** ZRA reste ce qu'il est : un addon de
+Zed — le meilleur compagnon mobile de Zed, point. Raisons :
+
+- **le positionnement unique de ZRA, c'est précisément de ne pas posséder
+  l'agent** : il observe et pilote celui de Zed, avec les clés API, les threads
+  et l'historique de l'utilisateur, chez lui. Un broker transforme un couteau
+  suisse élégant en plateforme d'agents remote — un périmètre déjà occupé par
+  des acteurs qui le font mieux (Conductor, Cursor background agents, les
+  clouds des labos), avec des équipes infra et du financement ;
+- devenir broker, c'est assumer infra, support et sécurité (héberger des
+  sessions et des clés), et entrer en concurrence avec l'écosystème dont ZRA
+  est l'invité ;
+- les vrais problèmes que la V2 voulait résoudre (desktop éveillé, HTTPS,
+  accès distant) se contournent **en restant addon** : WOL depuis le homelab,
+  Tailscale, relais HTTPS — tout est déjà dans cette roadmap.
+
+Le texte d'origine est conservé ci-dessous à titre d'archive.
 
 > Le daemon cloud ne fait **pas** tourner Zed. Il fait tourner un **proxy de sessions ACP**.
 
@@ -279,6 +303,9 @@ Les deux partagent :
 
 **V1 → V2** c'est la même vision, deux niveaux de décentralisation. V1 prouve le concept, V2 libère du desktop.
 
+*(Archive : la V1 « homelab » ci-dessus est devenue le produit ; la V2 broker
+est l'idée archivée par la décision en tête de section.)*
+
 ## Pour montrer à Zed
 
-Le tweet/issue à l'équipe Zed dit : "ACP est portable sur mobile en ~1000 lignes vanilla JS". La V1 suffit. La V2, c'est la suite si ils veulent. 🚀
+Le tweet/issue à l'équipe Zed dit : "ACP est portable sur mobile en ~1000 lignes vanilla JS". L'addon V1 se suffit à lui-même — et c'est justement ce qui le rend intéressant pour eux : un invité poli dans l'écosystème Zed, pas une plateforme concurrente. 🚀
