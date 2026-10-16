@@ -158,15 +158,17 @@ Ce que ça règle d'un coup :
   ```
 
   Double-clic, ça marche. `npm` reste le chemin des contributeurs.
-- **Runtime Node : système par défaut, pas embarqué.** ZRA exige déjà Node ≥ 24
-  (README) et l'audience cible a Zed — dont les agents ACP sont souvent Node
-  eux-mêmes. Embarquer serait redondant (~50 Mo, deux Node en concurrence).
-  Le chemin **absolu** de `node` est de toute façon figé au setup (Zed lance
-  le shim avec son propre environnement ; l'autostart a un PATH appauvri — bug
-  systemd déjà vu). Repli OOB : si Node ≥ 24 est introuvable au premier
-  lancement, le tray propose de télécharger un runtime dans `app/runtime/`
-  (à la Gradle/Playwright/Volta). L'embarquement systématique ne deviendra
-  pertinent que si la V2 (broker) vise un public sans Zed.
+- **Runtime Node : système, en prérequis affiché.** ZRA exige déjà Node ≥ 24
+  (README). Zed est natif (pas de Node requis), mais ses agents ACP
+  (`claude-code-acp`, `qwen-code`…) sont très majoritairement des apps Node —
+  l'utilisateur cible l'a donc presque toujours. Embarquer un runtime serait
+  redondant (~50 Mo, deux Node en concurrence) ; le téléchargement automatique
+  d'un runtime est écarté aussi : pas de magie. À l'onboarding, le tray
+  détecte Node ≥ 24 ; s'il manque, écran clair « Node 24 requis » avec lien
+  vers nodejs.org, et c'est tout. Le chemin **absolu** de `node` est figé au
+  setup (Zed lance le shim avec son propre environnement ; l'autostart a un
+  PATH appauvri — bug systemd déjà vu). Si la V2 (broker) vise un public sans
+  Zed, l'embarquement sera à reconsidérer.
 - Écarté : tirer le repo git à l'installation (git requis, fragile hors-ligne,
   découplage des versions). Artefacts versionnés uniquement.
 
@@ -178,12 +180,14 @@ Ce que ça règle d'un coup :
    minimal (état, ouvrir ZRA, copier code, logs, quitter). `npm run service`
    installe la tâche planifiée qui lance le tray → la fenêtre PowerShell meurt ;
 3. Linux : même binaire, `.desktop` autostart → tray, vérification sur les
-   trois environnements de la campagne de portage (KDE X11 ×2, GNOME Wayland) ;
+   environnements de la campagne de portage (Ubuntu 24.04 / GNOME / Wayland,
+   MX Linux 23 / Xfce / X11, Debian 13 / KDE / X11) ;
 4. CI releases + téléchargement au `setup` ;
 5. Sucre : icône qui change d'état (thread live / réponse en attente) — les
    événements existent déjà dans le daemon ;
 6. Option C : l'archive « app » par plateforme (onboarding au premier
-   lancement, détection Node + repli runtime téléchargé, updates).
+   lancement avec détection Node ≥ 24 — écran « Node requis » + lien s'il
+   manque — et updates).
 
 ## Tous les threads par le shim
 
