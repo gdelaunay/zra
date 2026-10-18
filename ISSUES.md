@@ -13,9 +13,6 @@ Fait → effet → à mesurer. La campagne de portage Linux est close (voir
 
 | Section | Statut |
 | --- | --- |
-| Pilotage indisponible non signalé à l'utilisateur | `à faire` |
-| `scripts/zed.mjs --project <x>` avec `--apply` | `à faire` |
-| `scripts/service.mjs status` affiche un pid stale | `à faire` |
 | Wayland natif, sans XWayland forcé | `accepté` |
 | Zed via Flatpak / Snap | `accepté` |
 | WSL2 | `accepté` |
@@ -38,14 +35,6 @@ Lecture, injection `acp` et permissions marchent toujours (via le shim).
 → XWayland forcé via le `.desktop` patché **est** la voie supportée ; pas de
 retour à `ydotool`/`wtype` (droits `uinput`, fragilité par compositeur).
 
-## Pilotage indisponible non signalé à l'utilisateur — `à faire`
-
-Découle de la section précédente : quand `createKeyboard()` renvoie `none`
-(Wayland natif non patché, `xdotool` absent…), rien ne dit aujourd'hui que le
-pilotage est **indisponible** plutôt que **cassé**. Un `probe`/`status` explicite
-serait le minimum : backend clavier résolu, et surface dans la PWA du fait que
-lecture/injection marchent mais pas ouverture de thread ni `submit`.
-
 ## WSL2 — `accepté`
 
 Jamais lancé. systemd pas toujours init, WSLg fournit X11/Wayland mais `xdotool`
@@ -59,22 +48,3 @@ Node ≥ 24 à installer à la main (les Node de distro sont plus vieux) ; `xdot
 est un paquet standard partout. Code Node pur, sans dépendance native, chemins
 XDG : effet attendu nul.
 → `npm install && npm test`, puis la procédure §4.2 de la note de portage.
-
-## `scripts/zed.mjs --project <x>` avec `--apply` ouvre un faux fichier — `à faire`
-
-Ligne 125 : `open([opts.project])` passe l'argument **brut** à la CLI Zed.
-Si `<x>` n'est pas un chemin existant (ex. juste le nom `zra` depuis
-`~/Documents/zra`), Zed l'interprète comme un fichier à créer → ouvre un
-buffer non-sauvegardé et la recette tape dedans.
-Jamais déclenché sur la MX : les tests étaient faits **en simulation** ; en
-production c'est le daemon qui passe `thread.folderPaths` (absolu).
-→ Fix : `path.resolve()` sur `opts.project`, refuser si le dossier n'existe
-pas. Contournement : `--project ~/Documents/zra`.
-
-## `scripts/service.mjs status` affiche un pid stale — `à faire`
-
-Après arrêt propre de l'unité, `status` rend `inactive (dead), pid 991223`
-alors que `systemctl --user show -p MainPID --value zra-daemon` renvoie `0`.
-Le champ `pid` garde la dernière valeur vue au lieu de s'effacer.
-→ Cosmétique, rien de fonctionnel. Nettoyer le rendu quand l'unité n'est pas
-`active`.
