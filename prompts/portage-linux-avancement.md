@@ -277,12 +277,14 @@ $ zed --version             → Zed 1.23.2 c0199504b9cce79bc27524950022ed701bc3e
 
 ### 3.3 Ce qui n'a pas été testé
 
-- ❌ Registry `binary` sous Linux (aucun agent binaire installé)
-- ❌ Debian 13 / KDE (la cible de production), Fedora, Arch
-- ❌ Zed installé via Flatpak/Snap
-- ❌ Le backend autostart sur un autre bureau que Xfce (GNOME, KDE, LXQt lisent le
-      même dossier, mais ce n'est pas mesuré)
-- ❌ Wayland natif sans XWayland forcé, WSL2
+Dans la campagne de portage (§4) :
+
+- ❌ Registry `binary` sous Linux (aucun agent binaire installé sur les deux
+      machines)
+- ❌ Debian 13 / KDE (la cible de production)
+
+Hors campagne, remis à plus tard → **`ISSUES.md`** : Flatpak/Snap, Wayland natif
+sans XWayland, autostart hors Xfce, WSL2, autres distros.
 
 ---
 
@@ -414,13 +416,11 @@ npm run zed -- try submit --apply
 
 ### 5.3 Ce qui n'a pas été testé ❌
 
-- **Wayland natif sans XWayland** : si quelqu'un refuse de forcer XWayland → backend `none`
-- **Zed via Flatpak/Snap** : chemins différents (`~/.var/app/...`) → pas testé
-- **WSL2** : pas de systemd par défaut, pas de GUI native → pas testé
 - **Registry `binary`** sous Linux : aucun agent binaire installé sur les deux
-  machines de test
-- **Backend autostart hors Xfce** : GNOME, KDE et LXQt lisent le même dossier,
-  mais ce n'est pas mesuré
+  machines de test — reste dans la campagne (§4.1)
+- Le reste est hors campagne, décrit dans **`ISSUES.md`** : Wayland natif sans
+  XWayland (→ backend `none`), Flatpak/Snap (chemins `~/.var/app/...`), WSL2,
+  autostart hors Xfce
 
 ### 5.4 Leçon à retenir pour la suite
 

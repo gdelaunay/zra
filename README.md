@@ -49,4 +49,5 @@ Configuration : copier `zra.config.example.json` (commenté) en `zra.config.json
 | `SPEC.md` | spécification, risques, check-list de re-test |
 | `PROTOCOL.md` | protocole PWA ↔ daemon |
 | `ROADMAP.md` | état, ce qui reste ouvert, idées |
+| `ISSUES.md` | issues connues et zones non vérifiées, remises à plus tard |
 | `DEPLOY.md` | mise en service sur le téléphone : réseau local, tunnel, HTTPS, service |
