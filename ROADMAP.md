@@ -6,9 +6,7 @@ Version **0.3** : tout le périmètre de `SPEC.md` §1 fonctionne — en local, 
 distance et en HTTPS — vérifié sur un poste Windows avec Zed et un téléphone
 Android, **et** sur trois postes Linux (Ubuntu 24.04/GNOME/Wayland,
 MX Linux 23/Xfce/X11, Debian 13/KDE/X11 — portage clos, non-régression Windows
-revérifiée). La « v1 » au sens produit a désormais un repère fixe : le jour où
-`zra-tray` rend le double-clic « ça marche » sans terminal (jalon 0.5, voir
-« Notation des versions »). Les décisions qui engagent la suite sont dans
+revérifiée). Les décisions qui engagent la suite sont dans
 `SPEC.md` §13, la check-list de re-test au §12. L'historique détaillé du
 développement est dans git (`ROADMAP.md` au commit `ab52aca`).
 
@@ -16,18 +14,13 @@ développement est dans git (`ROADMAP.md` au commit `ab52aca`).
 
 ## Notation des versions
 
-`0.1`, `0.2`, `0.3`… un numéro par jalon, rien d'autre — pas de sous-jalons,
-les corrections entre jalons vivent dans git seul. `CHANGELOG.md` porte les
-jalons, `package.json` porte le numéro courant. `1.0` le jour où `zra-tray`
-rend le double-clic « ça marche » sans terminal.
+`0.1`, `0.2`, `0.3`… un numéro par jalon, pas de sous-jalons. 
+`CHANGELOG.md` porte les jalons, `package.json` porte le numéro courant.
 
 Version courante : **0.3** (portage Linux).
 
 - **0.4 — coller au panneau agent de Zed** (retouches d'interface, la
   prochaine étape, commencée tout de suite) ;
-- **entre 0.4 et 0.5** — les idées qui ne valent pas un jalon à elles seules
-  (commandes `/`, mentions `@`, push, et ce qui se fait du « vrac ») : à faire
-  **avant** la 0.5, pas tout obligatoire ;
 - **0.5 — `zra-tray`** : le tray natif Rust et la distribution binaire.
 
 ---
@@ -42,22 +35,11 @@ Version courante : **0.3** (portage Linux).
   entrées et sorties brutes) ;
 - forme et couleurs des commandes, des messages, etc. ;
 - mise en page des réflexions ;
+- **indicateur de génération dans la liste des threads** : un thread dont une
+  réponse est en cours de génération doit se voir différemment du simple
+  « live » (la pastille actuelle ne dit pas si l'agent tourne) ;
 - l'icône définitive de l'indicateur de tour (`loader` en attendant).
 
-### Démarrage automatique : une fenêtre PowerShell reste ouverte
-
-La tâche planifiée « ZRA daemon » démarre bien le daemon, mais une fenêtre
-PowerShell s'ouvre à l'ouverture de session et **reste affichée**. Le lanceur
-est `powershell.exe -WindowStyle Hidden` (`scripts/service.mjs`). Cause
-probable : quand Windows Terminal est le terminal par défaut, il ouvre la
-console et ignore `-WindowStyle Hidden`.
-
-**Clos par le tray natif** (milestone 0.5, section « zra-tray » ci-dessous) : le binaire Rust
-spawn `node` directement (`CREATE_NO_WINDOW` sous Windows), PowerShell
-disparaît du chemin. En attendant, repli possible : `conhost.exe --headless`,
-un lanceur `wscript` (`.vbs`), ou lancer `node` directement. Si on ne peut pas
-la masquer proprement, mieux vaut une fenêtre qui reste affichée qu'une
-fenêtre qui flashe.
 
 ### Threads créés hors ZRA : lecture seule
 
@@ -71,7 +53,7 @@ shim » ci-dessous — à faire avant la 0.5.
 
 # Roadmap / Idées d'architecture
 
-## Avant la 0.5 — utile rapidement, mais pas jalon à soi seul
+## Avant la 0.5 — utile rapidement
 
 - **commandes `/`** : taper `/` dans le composer propose les commandes de
   l'agent. ACP les annonce (`available_commands_update`), la PWA les mémorise
@@ -86,17 +68,6 @@ shim » ci-dessous — à faire avant la 0.5.
   L'architecture est prévue mais inactive : `sw.js` gère déjà `push` et
   `notificationclick` (`SPEC.md`, `zra-client/README.md`). Exige le HTTPS.
 
-## Portabilité Linux — ✅ fait et vérifié sur 3 machines (branche `linux`)
-
-Portage terminé : module plateforme (`platform.js`), chemins Linux, démarrage à
-l'ouverture de session (`systemd --user`, ou l'autostart XDG quand systemd n'est
-pas l'init — MX Linux), backend clavier `xdotool` partout (`none` en repli).
-Vérifié sur **Ubuntu 24.04 / GNOME / Wayland**, **MX Linux 23 / Xfce / X11**
-et **Debian 13 / KDE / X11** (cible de production, campagne `2fd075c`).
-Registry `binary` validé sous Linux (`amp-acp`). Non-régression Windows
-revérifiée (voir §6 de la note de portage). Un bug non regressif découvert
-sur la cible (shims fantômes après fermeture de Zed) → `ISSUES.md`.
-Voir `SPEC.md` §2.4.
 
 ## Tray natif — `zra-tray` (décidé, **jalon 0.5**)
 
@@ -221,15 +192,10 @@ Ce que ça règle d'un coup :
 Que `npm run setup` fasse passer l'entrée d'origine (`claude-acp`) elle-même
 par le shim, plutôt que d'ajouter `claude-zra` à côté. Tous les threads,
 anciens compris, deviendraient pilotables, et il n'y aurait plus deux familles
-d'agents. Plus proche de ce que le produit devrait faire de base que d'une
-évolution V2. À faire avant la 0.5. À peser : on touche l'agent d'origine, et
+d'agents. À faire avant la 0.5. À peser : on touche l'agent d'origine, et
 Zed pourrait ne plus le mettre à jour lui-même (entrée `registry` remplacée par
 une commande).
 
-
-## Problème central
-
-Le daemon est couplé à un desktop éveillé avec Zed ouvert. Ça limite les cas d'usage : pas de live si le PC dort.
 
 ## Relais HTTPS livré avec le client
 
@@ -267,7 +233,7 @@ défaut** (décision).
 
 ## Homelab — la réponse retenue au problème central
 
-Le broker étant archivé (voir ci-dessous), c'est **la** réponse au problème du
+Le broker étant archivé, c'est **la** réponse au problème du
 desktop éveillé, plus une « Version 1 » en attendant une V2. À formaliser en
 doc avant la 0.5 (si possible — pas obligatoire).
 
@@ -279,64 +245,3 @@ L'audience cible = les gens qui ont déjà un homelab. Le "probleme" du desktop 
 - Accès via WireGuard (LAN virtualisé, pas d'exposition publique)
 
 Ça marche chez moi. C'est pas universel, mais c'est exactement le profil des gens qui veulent ça.
-
-## Broker — idée archivée (décision)
-
-**Décidé : on ne fait pas de broker.** ZRA reste ce qu'il est : un addon de
-Zed — le meilleur compagnon mobile de Zed, point. Raisons :
-
-- **le positionnement unique de ZRA, c'est précisément de ne pas posséder
-  l'agent** : il observe et pilote celui de Zed, avec les clés API, les threads
-  et l'historique de l'utilisateur, chez lui. Un broker transforme un couteau
-  suisse élégant en plateforme d'agents remote — un périmètre déjà occupé par
-  des acteurs qui le font mieux (Conductor, Cursor background agents, les
-  clouds des labos), avec des équipes infra et du financement ;
-- devenir broker, c'est assumer infra, support et sécurité (héberger des
-  sessions et des clés), et entrer en concurrence avec l'écosystème dont ZRA
-  est l'invité ;
-- les vrais problèmes que la V2 voulait résoudre (desktop éveillé, HTTPS,
-  accès distant) se contournent **en restant addon** : WOL depuis le homelab,
-  Tailscale, relais HTTPS — tout est déjà dans cette roadmap.
-
-Le texte d'origine est conservé ci-dessous à titre d'archive.
-
-> Le daemon cloud ne fait **pas** tourner Zed. Il fait tourner un **proxy de sessions ACP**.
-
-Principe :
-- L'ACP est un duplex client (Zed) ↔ serveur (l'agent)
-- Un **broker** intercepte ce duplex côté serveur
-- Il reçoit le prompt depuis n'importe quel device
-- Il lance l'agent lui-même (worker cloud ou local, peu importe)
-- Il **diffuse** la réponse en push vers tous les devices abonnés
-- Si Zed est ouvert sur le desktop, il **rejoint** le flux au lieu de le posséder
-
-### Pourquoi c'est pas un SaaS dégueulasse
-
-- C'est exactement ce que font Conductor / Cursor background agents
-- Sauf que **self-hosted** et open-source
-- L'agent tourne sur ton serveur, tes clés API sur ton serveur
-- Zed devient un client optionnel parmi d'autres (PWA, TUI, API…)
-
-### Les deux versions se touchent
-
-| V1 (homelab) | V2 (broker) |
-|---|---|
-| Zed possède l'agent, daemon observe | Broker possède l'agent, Zed observe |
-| Desktop obligé (WOL pour réveiller) | Pas de desktop requis |
-| PWA + daemon local | PWA + broker sur VPS ou homelab |
-| Faisable ce weekend | Vrai projet d'infra |
-
-Les deux partagent :
-- Le même protocole WS (PROTOCOL.md)
-- La même PWA zra-client
-- Les mêmes agents ACP (shim devient optionnel en V2)
-- Le même modèle d'auth (pairing)
-
-**V1 → V2** c'est la même vision, deux niveaux de décentralisation. V1 prouve le concept, V2 libère du desktop.
-
-*(Archive : la V1 « homelab » ci-dessus est devenue le produit ; la V2 broker
-est l'idée archivée par la décision en tête de section.)*
-
-## Pour montrer à Zed
-
-Le tweet/issue à l'équipe Zed dit : "ACP est portable sur mobile en ~1000 lignes vanilla JS". L'addon V1 se suffit à lui-même — et c'est justement ce qui le rend intéressant pour eux : un invité poli dans l'écosystème Zed, pas une plateforme concurrente. 🚀
