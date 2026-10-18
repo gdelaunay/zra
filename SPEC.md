@@ -113,9 +113,9 @@ enveloppe l'agent ainsi résolu.
 
 ### 2.4 Linux — faits établis
 
-Vérifiés sur Ubuntu 24.04 / GNOME / Wayland (machine de dev). La cible de
-production est Debian 13 / KDE / X11, où `xdotool` reste le backend clavier
-principal.
+Vérifiés sur Ubuntu 24.04 / GNOME / Wayland (machine de dev) et **revérifiés
+sur Debian 13 / KDE / X11** (cible de production, `p350`, Zed 1.23.2,
+Node 24 via nvm). Mêmes faits des deux côtés.
 
 | Linux | Windows | Rôle |
 |---|---|---|
@@ -167,8 +167,29 @@ Le schéma `sidebar_threads` est **identique** à Windows (mêmes colonnes).
 `WM_NAME="zra"` (le nom du dossier seul), `WM_CLASS="dev.zed.Zed"` ;
 `matchesProject` le reconnaît par `t === p`.
 
-**Non vérifié** : la branche `registry/binary` sous Linux (aucun agent binaire
-installé sur les machines de test).
+**Vérifié sur Debian 13 / KDE / X11** (campagne `2fd075c`, mesures brutes) :
+- `npm test` → `tests 761 / pass 759 / fail 0 / skipped 2` (identique aux
+  autres postes)
+- `echo $XDG_SESSION_TYPE` → `x11` ; titre de fenêtre Zed = `zra` (dossier
+  seul) ou `zra — <fichier>` quand un fichier est ouvert ; `matchesProject`
+  reconnaît les deux cas
+- **Focus stealing prevention de Plasma laissé à sa valeur par défaut** :
+  `xdotool` active la fenêtre et lui envoie les touches sans aucune\  config
+  utilisateur. Les 4 recettes (newThreadKey/newThread/openThread/submit) sont
+  jouées avec succès
+- Service systemd --user : `install --apply` écrit l'unité avec
+  `Environment=XDG_SESSION_TYPE=x11 DISPLAY=:10.0 XDG_CURRENT_DESKTOP=KDE` et
+  le PATH complet de la session → le fix `2ea61cc` est opérationnel sous
+  KDE/X11 ; `enabled` + `loginctl enable-linger` → survit au boot sans
+  redémarrage à prouver ; `kill -9 <MainPID>` → relance automatique
+  (`relances : 1`, `dernier résultat : success`, état `active` en quelques
+  secondes)
+- **Registry `binary`** (`amp-acp` 0.10.0, clé `linux-x86_64`, cmd
+  `./amp-acp`) : `resolveAgentCommand` retourne le chemin absolu du binaire
+  (`source: registry/binary`), et `npm run probe:agent amp-acp` fait la
+  poignée de main ACP à travers le shim
+  (`[acp] amp-acp v0.10.0 initialized`, protocole 1, `loadSession=oui`).
+  Le dernier « non vérifié » de cette section est donc levé.
 
 ---
 

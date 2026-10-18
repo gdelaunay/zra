@@ -80,7 +80,7 @@ test('toX11Keysym : les touches de fonction partent en MAJUSCULES, comme les key
   }
 })
 
-test('xdotool : une touche laissée tomber est une erreur, pas un succès', async (t) => {
+test('xdotool : une touche laissée tomber est une erreur, pas un succès', { skip: process.platform === 'win32' && 'faux xdotool lancé comme un shell-script : réservé aux OS POSIX' }, async (t) => {
   // xdotool écrit son avertissement sur stderr et sort en **0** : sans ce
   // contrôle, `exec` résolvait et la recette annonçait « ✓ envoyé ».
   // Sortie réelle recopiée :

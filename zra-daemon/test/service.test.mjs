@@ -126,7 +126,7 @@ test('systemd : la session graphique est recopiée dans l’unité', () => {
   assert.match(buildUnit({ ...lx, env: {} }), /# \(aucune variable de session graphique relevée à l’installation\)/)
 })
 
-test('systemd : l’unité va dans XDG_CONFIG_HOME/systemd/user', () => {
+test('systemd : l’unité va dans XDG_CONFIG_HOME/systemd/user', { skip: process.platform === 'win32' && 'chemin POSIX : `path.join` Windows retourne des antislashes' }, () => {
   assert.equal(unitFile({ env: {}, home: '/home/test' }), '/home/test/.config/systemd/user/zra-daemon.service')
   assert.equal(unitFile({ env: { XDG_CONFIG_HOME: '/conf' }, home: '/home/test' }), '/conf/systemd/user/zra-daemon.service')
   assert.equal(UNIT, 'zra-daemon.service')
@@ -190,7 +190,7 @@ test('autostart : le backend suit l’init, pas la version de systemd', () => {
   assert.equal(systemdIsInit({ platform: 'win32' }), false, 'Windows ne cherche pas /run/systemd/system')
 })
 
-test('autostart : l’entrée va dans XDG_CONFIG_HOME/autostart', () => {
+test('autostart : l’entrée va dans XDG_CONFIG_HOME/autostart', { skip: process.platform === 'win32' && 'chemin POSIX : `path.join` Windows retourne des antislashes' }, () => {
   assert.equal(desktopFile({ env: {}, home: '/home/test' }), '/home/test/.config/autostart/zra-daemon.desktop')
   assert.equal(desktopFile({ env: { XDG_CONFIG_HOME: '/conf' }, home: '/home/test' }), '/conf/autostart/zra-daemon.desktop')
   assert.equal(DESKTOP, 'zra-daemon.desktop')
@@ -220,7 +220,7 @@ test('autostart : Exec= protège un chemin contenant des espaces', () => {
   assert.equal(quoteDesktopArg('/chemin/sans-espace'), '/chemin/sans-espace')
 })
 
-test('autostart : le lanceur crée le dossier du journal AVANT de rediriger', () => {
+test('autostart : le lanceur crée le dossier du journal AVANT de rediriger', { skip: process.platform === 'win32' && 'lanceur shell POSIX' }, () => {
   // Premier essai réel sur MX Linux, `npm run service -- start` :
   //   .zra/service/zra-daemon.sh: 30: cannot create
   //   /home/gdelaunay/Documents/zra/.zra/logs/service.log: Directory nonexistent
@@ -233,7 +233,7 @@ test('autostart : le lanceur crée le dossier du journal AVANT de rediriger', ()
   assert.match(sh, /mkdir -p '\/home\/test\/Mes projets\/zra\/\.zra\/logs'/)
 })
 
-test('autostart : le lanceur porte la session graphique et le PATH', () => {
+test('autostart : le lanceur porte la session graphique et le PATH', { skip: process.platform === 'win32' && 'lanceur shell POSIX' }, () => {
   const sh = buildLauncher({ node: '/usr/bin/node', ...paths(ax), env: ax.env })
   assert.match(sh, /^#!\/bin\/sh/)
   // Sans DISPLAY, xdotool ne vise aucune fenêtre : mêmes variables que l’unité.
@@ -287,7 +287,7 @@ test('autostart : pidMatches reconnaît le daemon et le lanceur, et rien d’aut
   assert.ok(!pidMatches(null, p))
 })
 
-test('autostart : install écrit l’entrée et un lanceur exécutable, uninstall les supprime', async (t) => {
+test('autostart : install écrit l’entrée et un lanceur exécutable, uninstall les supprime', { skip: process.platform === 'win32' && 'chmod +x et lancement POSIX' }, async (t) => {
   const root = mkdtempSync(join(tmpdir(), 'zra-root-'))
   const home = mkdtempSync(join(tmpdir(), 'zra-home-'))
   t.after(() => { rmSync(root, { recursive: true, force: true }); rmSync(home, { recursive: true, force: true }) })
@@ -334,7 +334,7 @@ test('autostart : un pidfile périmé est nettoyé, pas suivi', async (t) => {
   assert.equal(autostartState(ctx).stalePid, null, 'du texte n’est pas un pid')
 })
 
-test('autostart : start lance le daemon, stop l’arrête — sans systemd', async (t) => {
+test('autostart : start lance le daemon, stop l’arrête — sans systemd', { skip: process.platform === 'win32' && 'spawn d’un shell-script : impossible en Windows' }, async (t) => {
   const root = mkdtempSync(join(tmpdir(), 'zra-root-'))
   const home = mkdtempSync(join(tmpdir(), 'zra-home-'))
   // Faux node : il garde sa ligne de commande (donc le chemin du daemon reste

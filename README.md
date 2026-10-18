@@ -3,12 +3,18 @@
 Suivre et piloter depuis le mobile les threads d'agents ACP de Zed : liste, streaming live, envoi, permissions, nouvelle session.
 ZRA relaie le flux ACP tel quel : ce que Zed affiche, la PWA l'affiche.
 
+> **Pilotage par clavier** — ZRA envoie des touches réelles à Zed (`xdotool`
+> sous Linux, PowerShell sous Windows) pour créer ou ouvrir un thread, lui donner le
+> focus etc. Réglé par `zedControl.enabled` dans `zra.config.json`.
+
 Développé avec Opus 5.5 dans Claude Code, et Qwen3.8-Max / Qwen3.8-Flash dans Pi,
 avec une relecture minimale.
 
 ## Démarrage rapide
 
-Windows, Zed, Node ≥ 24. Rien à installer : aucune dépendance runtime.
+**Prérequis** : Zed, Node ≥ 24.
+
+**Prérequis Linux** : `xdotool` — `sudo apt install xdotool`.
 
 1. `npm run setup install apply`. Chaque agent de Zed reçoit une entrée ZRA
    (`claude-zra`…) : l'agent d'origine n'est pas touché.

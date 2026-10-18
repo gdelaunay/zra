@@ -64,13 +64,17 @@ shim » ci-dessous.
   L'architecture est prévue mais inactive : `sw.js` gère déjà `push` et
   `notificationclick` (`SPEC.md`, `zra-client/README.md`). Exige le HTTPS.
 
-## Portabilité Linux — ✅ fait (branche `linux`)
+## Portabilité Linux — ✅ fait et vérifié sur 3 machines (branche `linux`)
 
 Portage terminé : module plateforme (`platform.js`), chemins Linux, démarrage à
 l'ouverture de session (`systemd --user`, ou l'autostart XDG quand systemd n'est
 pas l'init — MX Linux), backend clavier `xdotool` partout (`none` en repli).
-Vérifié sur Ubuntu 24.04 / GNOME / Wayland et MX Linux 23 / Xfce / X11.
-Voir `SPEC.md` §2.4 et `prompts/portage-linux-avancement.md`.
+Vérifié sur **Ubuntu 24.04 / GNOME / Wayland**, **MX Linux 23 / Xfce / X11**
+et **Debian 13 / KDE / X11** (cible de production, campagne `2fd075c`).
+Registry `binary` validé sous Linux (`amp-acp`). Non-régression Windows
+revérifiée (voir §6 de la note de portage). Un bug non regressif découvert
+sur la cible (shims fantômes après fermeture de Zed) → `ISSUES.md`.
+Voir `SPEC.md` §2.4.
 
 ## Tray natif — `zra-tray` (décidé, à faire)
 
