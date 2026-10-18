@@ -10,6 +10,17 @@ git (`ROADMAP.md` au commit `ab52aca`).
 
 ---
 
+## Notation des versions
+
+`0.1`, `0.2`, `0.3`… un numéro par jalon, rien d'autre — pas de sous-jalons,
+les corrections entre jalons vivent dans git seul. `CHANGELOG.md` porte les
+jalons, `package.json` porte le numéro courant. `1.0` le jour où `zra-tray`
+rend le double-clic « ça marche » sans terminal.
+
+Version courante : **0.3** (portage Linux). Prochain jalon : **0.4** — `zra-tray` MVP.
+
+---
+
 ## Ouvert
 
 ### Retouches d'interface 🟡
