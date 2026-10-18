@@ -105,6 +105,8 @@ export async function createServers({ config, addresses, onConnection, onShim, s
 
   /** @type {Map<string, import('node:http').Server>} adresse → serveur à l'écoute */
   const instances = new Map()
+  /** Serveur → poignée WebSocket, pour arrêter le balayage de vie à la fermeture. */
+  const wsHandles = new Map()
   let allowed = []
 
   const recomputeAllowed = () => {
@@ -146,7 +148,7 @@ export async function createServers({ config, addresses, onConnection, onShim, s
       ? createHttps({ cert: tls.cert, key: tls.key, highWaterMark: SOCKET_HWM }, handler)
       : createHttp({ highWaterMark: SOCKET_HWM }, handler)
 
-    attachWebSocket(server, {
+    const ws = attachWebSocket(server, {
       log,
       routes: [
         {
@@ -176,6 +178,7 @@ export async function createServers({ config, addresses, onConnection, onShim, s
         },
       ],
     })
+    wsHandles.set(server, ws)
     return server
   }
 
@@ -212,6 +215,8 @@ export async function createServers({ config, addresses, onConnection, onShim, s
     instances.delete(address)
     recomputeAllowed()
     return new Promise((resolve) => {
+      wsHandles.get(server)?.stop()
+      wsHandles.delete(server)
       server.closeAllConnections?.()
       server.close(() => resolve())
     })

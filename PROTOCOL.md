@@ -64,6 +64,13 @@ modules ne chargent pas : `.js → text/javascript`, `.css → text/css`,
    socket dépasse sa ligne d'eau (4 Mo) et que le client ne le draine pas, la
    connexion est détruite plutôt que de gonfler la mémoire du daemon. Côté PWA,
    c'est une coupure ordinaire : reconnexion + `subscribe`, point 3.
+6. Le daemon **sonde la vie de chaque connexion** : un PING de la RFC 6455 toutes
+   les 20 s, et une connexion coupée après 75 s sans aucun signe du pair. Tout
+   client WebSocket répond au PING de lui-même, au niveau protocole — la PWA n'a
+   rien à faire, et le `ping` applicatif du point 4 reste son propre garde-fou.
+   Sans cette sonde, un pair disparu sans fermer (mobile endormi, tunnel coupé,
+   shim tué par Zed) laisse une connexion morte au registre : c'était le bug des
+   shims fantômes (`ISSUES.md`).
 
 > **Le daemon ne conserve aucun état par client.** Un client qui revient doit
 > pouvoir tout reconstruire avec `hello` + `list_threads` + `subscribe`.

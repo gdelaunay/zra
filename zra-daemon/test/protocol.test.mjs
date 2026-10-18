@@ -20,6 +20,8 @@ const PORT = 7812
 const HOST = '127.0.0.1'
 const ORIGIN = 'https://zra.exemple.fr'
 
+const wait = (ms) => new Promise((r) => setTimeout(r, ms))
+
 /** Threads de la fixture, référencés par leur identité. */
 const VIVANT = '0000000000000000000000000000000a'
 const AUTRE = '0000000000000000000000000000000b'
@@ -488,4 +490,49 @@ test('ping → pong, même avant hello : le heartbeat de la PWA (§3)', async (t
   c.send({ type: 'ping' })
   await c.until((m) => m.type === 'pong', { label: 'pong' })
   assert.deepEqual(c.messages.map((m) => m.type), ['pong'], 'ni erreur, ni bootstrap')
+})
+
+// ---- sonde de vie protocol-level -------------------------------------------
+
+/**
+ * Le heartbeat applicatif ci-dessus ne suffit pas : un pair disparu sans fermer
+ * (mobile endormi, tunnel coupé, shim tué) ne l'enverra jamais non plus. D'où le
+ * PING/PONG de la RFC 6455, que tout client WebSocket répond de lui-même.
+ */
+test('ws : un pair muet est coupé par la sonde de vie, un pair vivant non', async (t) => {
+  const { createServer } = await import('node:http')
+  const { attachWebSocket } = await import('../ws.js')
+
+  const server = createServer()
+  const cuts = []
+  const ws = attachWebSocket(server, {
+    path: '/ws',
+    pingMs: 25,
+    pongTimeoutMs: 90,
+    onConnection: (conn) => conn.on('close', () => cuts.push(conn.id)),
+  })
+  t.after(() => { ws.stop(); server.close() })
+  await new Promise((resolve) => server.listen(0, HOST, resolve))
+  const port = server.address().port
+
+  // Un client brut ne répond pas au PING : il doit être coupé.
+  const mute = connect(port, HOST)
+  t.after(() => mute.destroy())
+  await new Promise((resolve) => mute.once('connect', resolve))
+  mute.write(
+    `GET /ws HTTP/1.1\r\nHost: ${HOST}:${port}\r\n` +
+    'Upgrade: websocket\r\nConnection: Upgrade\r\n' +
+    'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nSec-WebSocket-Version: 13\r\n\r\n',
+  )
+  await new Promise((resolve) => mute.once('data', resolve))
+
+  // Un vrai client WebSocket répond au PING sans code applicatif : il reste.
+  const live = new WebSocket(`ws://${HOST}:${port}/ws`)
+  t.after(() => live.close())
+  await new Promise((resolve) => live.addEventListener('open', resolve, { once: true }))
+
+  await wait(400)
+  assert.equal(cuts.length, 1, 'seul le muet est coupé')
+  assert.equal(ws.clients.size, 1, 'le client vivant reste attaché')
+  assert.equal(live.readyState, 1, 'et sa connexion est toujours ouverte')
 })

@@ -234,6 +234,34 @@ test('ws : un client qui ne lit pas est coupé, pas nourri (G1, backpressure)', 
   assert.ok(socket.destroyed, 'et détruire la socket')
 })
 
+test('ws : close() tranche la socket si le pair ne boucle pas la fermeture', (t) => {
+  // Le pair est mort : il ne rendra jamais le FIN. Sans garde-fou, `end()`
+  // laisse le socket en CLOSE_WAIT et l'événement `close` ne vient jamais —
+  // c'est le mécanisme des shims fantômes (ISSUES.md).
+  t.mock.timers.enable({ apis: ['setTimeout'], now: Date.now() })
+  const calls = []
+  const socket = {
+    write(c) { calls.push('write'); return true },
+    end() { calls.push('end') },
+    destroy() { calls.push('destroy') },
+    setNoDelay() {}, on() {},
+  }
+  const conn = new WsConnection(socket, { log: null })
+  let closed = 0
+  conn.on('close', () => closed++)
+
+  conn.close(1001)
+  assert.deepEqual(calls, ['write', 'end'], 'trame CLOSE puis FIN')
+  assert.equal(closed, 1)
+  assert.ok(!calls.includes('destroy'), 'pas encore : le pair a son délai')
+
+  t.mock.timers.tick(2000)
+  assert.ok(calls.includes('destroy'), 'délai passé, la socket est tranchée')
+
+  conn.destroy()
+  assert.equal(closed, 1, '`close` n’est émis qu’une fois')
+})
+
 // ---- index : normalisations ------------------------------------------------
 
 test('toIso : nanosecondes, format SQLite, valeur vide', () => {

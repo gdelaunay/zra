@@ -10,6 +10,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
+import { connect } from 'node:net'
+import { randomBytes } from 'node:crypto'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -113,6 +115,35 @@ async function startShim(t, { sessionId = SESSION_VIVANT, zed = {}, env = {} } =
   const fakeZed = new FakeZed({ toShim: child.stdin, fromShim: child.stdout, ...zed })
   await fakeZed.boot({ cwd: CWD })
   return { child, zed: fakeZed }
+}
+
+/**
+ * Shim brut sur `/shim` : handshake à la main et trames masquées (RFC 6455
+ * impose le masquage côté client). De quoi choisir la mort du pair — un vrai
+ * sous-processus ne permet pas un FIN sans trame CLOSE à la demande.
+ */
+async function rawShim(t, sessionId, shimId = `raw-${sessionId}`) {
+  const sock = connect(PORT, HOST)
+  t.after(() => sock.destroy())
+  await new Promise((resolve) => sock.once('connect', resolve))
+  sock.write(
+    'GET /shim HTTP/1.1\r\n' + `Host: ${HOST}:${PORT}\r\n` +
+    'Upgrade: websocket\r\nConnection: Upgrade\r\n' +
+    'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nSec-WebSocket-Version: 13\r\n\r\n',
+  )
+  const hello = await new Promise((resolve) => sock.once('data', resolve))
+  assert.match(String(hello).split('\r\n')[0], /101/, 'handshake accepté')
+  sock.write(masked({ type: 'shim_hello', shimId, agentId: 'fake-acp', sessions: [] }))
+  sock.write(masked({ type: 'session', sessionId, source: 'new' }))
+  return sock
+}
+
+function masked(msg) {
+  const data = Buffer.from(JSON.stringify(msg))
+  const mask = randomBytes(4)
+  const body = Buffer.from(data)
+  for (let i = 0; i < body.length; i++) body[i] ^= mask[i % 4]
+  return Buffer.concat([Buffer.from([0x81, 0x80 | data.length]), mask, body])
 }
 
 /** Client de test : même forme que celui du lot A. */
@@ -543,6 +574,43 @@ test('shim perdu : le thread redevient closed et la file perdue est annoncée', 
   const dernier = client.of('thread_state').at(-1)
   assert.equal(dernier.turn, 'idle')
   assert.deepEqual(dernier.queue, [])
+})
+
+// ===========================================================================
+// Le shim fantôme (ISSUES.md, `priorité`)
+// ===========================================================================
+
+test('shim tué net (FIN sans trame CLOSE) : registre vidé, pas de fantôme', async (t) => {
+  const daemon = await boot(t)
+  const client = await (await Client.open(t)).hello()
+  const sock = await rawShim(t, SESSION_VIVANT)
+
+  for (let i = 0; i < 400 && !daemon.shims.hasSession(SESSION_VIVANT); i++) await wait(10)
+  assert.equal(daemon.shims.hasSession(SESSION_VIVANT), true, 'le shim brut est au registre')
+  await client.until(
+    (m) => m.type === 'threads' && m.threads.find((x) => x.threadId === VIVANT)?.state === 'live',
+    { label: 'live' },
+  )
+
+  // Zed tue le shim : le socket meurt sans trame CLOSE WebSocket, le daemon ne
+  // reçoit qu'un FIN. En `allowHalfOpen` (sockets d'upgrade HTTP), `close` ne
+  // vient jamais de lui-même : c'était le mécanisme du fantôme.
+  sock.end()
+
+  for (let i = 0; i < 400 && daemon.shims.shims.size > 0; i++) await wait(10)
+  assert.equal(daemon.shims.shims.size, 0, 'le registre ne doit pas garder un shim mort')
+  assert.equal(daemon.host.conns.size, 0, 'la connexion doit être détachée')
+  assert.equal(daemon.shims.hasSession(SESSION_VIVANT), false)
+
+  // L'effet fonctionnel : `hub.send()` doit reprendre la branche `zed.reopen()`
+  // au lieu d'attendre 20 s l'accusé d'un shim qui n'existe plus.
+  await subscribe(client, VIVANT)
+  client.clear()
+  const t0 = Date.now()
+  client.send({ type: 'send', threadId: VIVANT, text: 'réveille-toi', mode: 'queue' })
+  await client.until((m) => m.type === 'error' || m.type === 'ack', { label: 'réponse au send' })
+  const elapsed = Date.now() - t0
+  assert.ok(elapsed < 5000, `le send a traîné ${elapsed} ms au lieu de revenir vite`)
 })
 
 // ===========================================================================

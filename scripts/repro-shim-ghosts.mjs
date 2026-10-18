@@ -15,15 +15,20 @@
 //
 // Les trois morts possibles d'un shim :
 //
-//   term   SIGTERM — le chemin réel : le shim transmet à l'agent, l'agent sort,
-//          `shim.stop()` ferme le lien puis `process.exit()` **dans la même
-//          foulée** (`zra-shim/index.js`). La trame CLOSE WebSocket peut ne
-//          jamais partir : le daemon ne voit qu'un FIN.
-//   kill   SIGKILL — l'OS ferme le socket, FIN brut, sans trame CLOSE.
+//   term   SIGTERM — le shim transmet à l'agent, l'agent sort, `shim.stop()`
+//          ferme le lien puis `process.exit()` : la trame CLOSE part (le plus
+//          souvent), le daemon ferme proprement.
+//   kill   SIGKILL — l'OS ferme le socket : FIN brut, **sans** trame CLOSE.
+//          C'est le cas qui produisait le fantôme (sockets en `allowHalfOpen`).
 //   group  SIGKILL sur le groupe de processus — Zed qui emporte ses enfants.
 //
-// Sortie attendue si le bug est là : `shims` ne retombe pas à 0, des sockets
-// restent en `CLOSE-WAIT` côté daemon, et le `send` final échoue après ~20 s
+// Depuis le correctif (`zra-daemon/ws.js` : `'end'` pris comme fin de
+// connexion, délai de 2 s après notre trame CLOSE, sonde de vie PING/PONG), les
+// trois modes doivent rendre « non reproduit ». Ce script reste l'outil de
+// vérification croisée sur la machine qui a vu le bug.
+//
+// Sortie si le bug revient : `shims` ne retombe pas à 0, des sockets restent en
+// `CLOSE-WAIT` côté daemon, et le `send` final échoue après ~20 s
 // (`le shim n'a pas répondu à temps`) au lieu de revenir vite.
 //
 // Un `send` qui répond `not_zra_thread` en ~100 ms est le signe **sain** : la
@@ -32,8 +37,9 @@
 // n'enveloppe pas. Rien à voir avec le bug.
 //
 // Windows ne livre pas les signaux POSIX aux processus enfants : `term` et
-// `group` y dégénèrent en `kill`. Le chemin intéressant (`term`, celui de Zed)
-// ne se teste que sous Linux.
+// `group` y dégénèrent en `kill`, et un socket fermé par `TerminateProcess`
+// repart en RST plutôt qu'en FIN — la plateforme ne couvre donc pas le chemin
+// fautif. À lancer sous Linux.
 
 import { spawn, execFileSync } from 'node:child_process'
 import { mkdtempSync, rmSync } from 'node:fs'

@@ -2,7 +2,9 @@
 //
 // Le daemon bouchon (`zra-client/tools/mock-server.mjs`) avait déjà prouvé qu'une
 // centaine de lignes suffisent. Cette version durcit ce qui manquait pour du
-// long-running : fragmentation, ping/pong, fermeture propre, taille bornée.
+// long-running : fragmentation, ping/pong, fermeture propre, taille bornée, et
+// détection des pairs morts — un daemon qui sert des shims et des mobiles sur
+// des heures ne peut pas se contenter d'attendre que le pair parle.
 
 import { EventEmitter } from 'node:events'
 import { createHash, randomUUID } from 'node:crypto'
@@ -21,6 +23,19 @@ export const SOCKET_HWM = 4 * 1024 * 1024
 
 /** Garde-fou mémoire : un prompt mobile légitime ne pèse pas 16 Mo. */
 const MAX_MESSAGE = 16 * 1024 * 1024
+
+/**
+ * Sonde de vie. `http.Server` ouvre ses sockets en `allowHalfOpen` : un pair qui
+ * disparaît sans fermer — téléphone qui s'endort, tunnel coupé, shim tué — laisse
+ * le socket ouvert pour toujours côté daemon. On ping donc périodiquement, et on
+ * coupe qui ne répond pas. Navigateurs comme undici répondent au PING au niveau
+ * protocole, sans code applicatif.
+ */
+const PING_MS = 20_000
+/** Trois sondes sans réponse : le pair est parti, pas juste lent. */
+const PONG_TIMEOUT_MS = 75_000
+/** Délai laissé au pair pour boucler la fermeture après notre trame CLOSE. */
+const CLOSE_GRACE_MS = 2_000
 
 const OP = { CONT: 0x0, TEXT: 0x1, BIN: 0x2, CLOSE: 0x8, PING: 0x9, PONG: 0xa }
 
@@ -141,6 +156,10 @@ export class WsConnection extends EventEmitter {
     this.origin = origin || null
     this.remoteAddress = remoteAddress || null
     this.alive = true
+    /** Dernier signe de vie du pair : trame reçue, PONG, ou ouverture. */
+    this.lastSeen = Date.now()
+    /** Tranche le socket si le pair ne boucle pas la fermeture (voir `close()`). */
+    this.killTimer = null
     this.log = log
     /** Tampon d'écriture bouché : `write` a rendu `false`, pas encore de `drain`. */
     this.plugged = false
@@ -173,6 +192,32 @@ export class WsConnection extends EventEmitter {
     }
   }
 
+  /** Un signe du pair — trame quelconque, PONG compris — suffit à le dire vivant. */
+  touch() {
+    this.lastSeen = Date.now()
+  }
+
+  /** Sonde de vie : PING protocol-level, le pair doit répondre PONG. */
+  ping() {
+    if (!this.alive) return false
+    try {
+      this.socket.write(encodeFrame(Buffer.alloc(0), OP.PING))
+      return true
+    } catch {
+      this.destroy()
+      return false
+    }
+  }
+
+  /**
+   * Fermeture WebSocket propre : trame CLOSE puis FIN.
+   *
+   * `socket.end()` seul est un **half-close** : il attend le FIN retour. Un pair
+   * déjà mort ne l'enverra jamais, et le socket reste en CLOSE_WAIT côté daemon
+   * sans que l'événement `close` ne se déclenche — c'est ainsi que les shims
+   * fantômes s'accumulaient au registre après la fermeture de Zed (ISSUES.md).
+   * On laisse au pair un court délai pour boucler, puis on tranche.
+   */
   close(code = 1000) {
     if (!this.alive) return
     this.alive = false
@@ -182,14 +227,22 @@ export class WsConnection extends EventEmitter {
       this.socket.write(encodeFrame(payload, OP.CLOSE))
       this.socket.end()
     } catch { /* déjà fermé */ }
+    this.killTimer = setTimeout(() => this.destroySocket(), CLOSE_GRACE_MS)
+    this.killTimer.unref?.()
     this.emit('close')
   }
 
+  /** Coupe net : pas de trame CLOSE, pas d'attente. `close` n'est émis qu'une fois. */
   destroy() {
-    if (!this.alive) return
+    const was = this.alive
     this.alive = false
+    this.destroySocket()
+    if (was) this.emit('close')
+  }
+
+  destroySocket() {
+    if (this.killTimer) { clearTimeout(this.killTimer); this.killTimer = null }
     try { this.socket.destroy() } catch { /* déjà fermé */ }
-    this.emit('close')
   }
 }
 
@@ -203,7 +256,10 @@ export class WsConnection extends EventEmitter {
  * `verify({ req, origin })` retourne `true`, ou `{ ok:false, status, reason }`
  * pour refuser avant l'upgrade (allowlist d'Origin, `authenticate()`).
  */
-export function attachWebSocket(server, { path = '/ws', verify, onConnection, routes, log } = {}) {
+export function attachWebSocket(server, {
+  path = '/ws', verify, onConnection, routes, log,
+  pingMs = PING_MS, pongTimeoutMs = PONG_TIMEOUT_MS,
+} = {}) {
   const clients = new Set()
   const table = routes?.length ? routes : [{ path, verify, onConnection }]
 
@@ -236,6 +292,7 @@ export function attachWebSocket(server, { path = '/ws', verify, onConnection, ro
 
     const decode = createDecoder()
     socket.on('data', (chunk) => {
+      conn.touch()
       for (const ev of decode(chunk)) {
         if (ev.error) { log?.debug(`client ${conn.id} : ${ev.error}`); conn.close(ev.code); return }
         if (ev.close) { conn.closeCode = ev.code; conn.close(1000); return }
@@ -252,16 +309,39 @@ export function attachWebSocket(server, { path = '/ws', verify, onConnection, ro
     const bye = () => { clients.delete(conn); conn.destroy() }
     socket.on('close', bye)
     socket.on('error', bye)
+    // Le pair a fermé son côté en écriture : un shim tué par Zed n'envoie qu'un
+    // FIN, sans trame CLOSE. En `allowHalfOpen`, `close` ne viendrait jamais de
+    // lui-même — le FIN **est** la fin de la connexion, on la prend comme telle.
+    socket.on('end', bye)
     conn.on('close', () => clients.delete(conn))
 
     route.onConnection?.(conn)
   })
+
+  // Balayage de vie : qui n'a rien dit depuis `pongTimeoutMs` est parti.
+  const sweeper = pingMs > 0 ? setInterval(() => {
+    const now = Date.now()
+    for (const conn of [...clients]) {
+      if (now - conn.lastSeen > pongTimeoutMs) {
+        log?.info(`client ${conn.id} : muet depuis ${Math.round((now - conn.lastSeen) / 1000)} s, connexion coupée`)
+        clients.delete(conn)
+        conn.destroy()
+        continue
+      }
+      conn.ping()
+    }
+  }, pingMs) : null
+  sweeper?.unref?.()
 
   return {
     clients,
     closeAll(code = 1001) {
       for (const c of [...clients]) c.close(code)
       clients.clear()
+    },
+    /** Arrête le balayage : à appeler quand l'écoute est fermée. */
+    stop() {
+      if (sweeper) clearInterval(sweeper)
     },
   }
 }
