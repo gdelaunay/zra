@@ -9,12 +9,10 @@ Fait → effet → à mesurer. La campagne de portage Linux est close (voir
 | --- | --- |
 | `priorité` | Bug fonctionnel qui casse un usage réel → à corriger en premier. |
 | `à faire` | À corriger ou à mesurer, mais sans urgence fonctionnelle. |
-| `corrigé` | Correctif écrit, en attente de vérification sur la machine qui l'a vu. |
 | `accepté` | État connu, on ne fera rien (hors périmètre / effet nul / pas de demande). |
 
 | Section | Statut |
 | --- | --- |
-| Shims fantômes après fermeture de Zed | `corrigé` |
 | Pilotage indisponible non signalé à l'utilisateur | `à faire` |
 | `scripts/zed.mjs --project <x>` avec `--apply` | `à faire` |
 | `scripts/service.mjs status` affiche un pid stale | `à faire` |
@@ -61,37 +59,6 @@ Node ≥ 24 à installer à la main (les Node de distro sont plus vieux) ; `xdot
 est un paquet standard partout. Code Node pur, sans dépendance native, chemins
 XDG : effet attendu nul.
 → `npm install && npm test`, puis la procédure §4.2 de la note de portage.
-
-## Shims fantômes après fermeture de Zed — `corrigé`
-
-Reproduit sur Debian 13 / KDE / X11 (campagne `2fd075c`), puis de façon
-automatisée par `npm run repro:ghosts` : Zed fermé → les process shims meurent
-avec lui mais le daemon garde leurs entrées au registre (`status` affiche
-`7 shim(s)` pour 0 process), avec `7` sockets en `CLOSE-WAIT` côté daemon.
-→ **Effet fonctionnel** : `shims.hasSession()` reste vrai → le chemin
-`this.zed.reopen(thread)` dans `hub.js` n'est jamais emprunté → **envoyer un
-message depuis la PWA vers un thread « Zed fermé » timeout** (`le shim n'a pas
-répondu à temps`, mesuré à 20 s) au lieu de réveiller Zed.
-→ **Cause** : les sockets d'upgrade HTTP sont en `allowHalfOpen`. Un shim tué net
-ne laisse qu'un FIN, sans trame CLOSE WebSocket ; rien n'écoutait `'end'`, donc
-`socket.on('close')` ne partait jamais et `detach()` non plus. Le registre se
-vidait bien quand le shim avait le temps d'envoyer sa trame CLOSE — d'où le
-contraste mesuré : `--mode=term` sain (251 ms), `--mode=kill` et `--mode=group`
-fantômes (7 shims toujours là après 10 s).
-→ **Corrigé** dans `zra-daemon/ws.js` : (1) `socket.on('end')` pris comme la fin
-de la connexion ; (2) `close()` tranche le socket après 2 s si le pair ne boucle
-pas la fermeture ; (3) sonde de vie RFC 6455 — PING toutes les 20 s, connexion
-coupée après 75 s de silence — qui couvre aussi le pair disparu **sans** FIN
-(mobile endormi, tunnel coupé). Verrouillé par trois tests : `ws : close()
-tranche la socket…` (unit), `shim tué net (FIN sans trame CLOSE)` (lot B, échoue
-sans le correctif), `un pair muet est coupé par la sonde de vie` (protocole).
-Documenté au protocole §6.
-→ **À vérifier sur la machine Debian 13 / KDE** : `npm test`, puis
-`npm run repro:ghosts -- --mode=kill --shims=3` et `--mode=group --shims=7`
-doivent tous deux rendre « non reproduit », et le `status` d'un daemon réel ne
-doit plus compter de shims après fermeture de Zed. Non reproduit sous Windows
-(même en `kill`, le socket y meurt avec un RST) : la plateforme ne couvre pas ce
-chemin, d'où la vérification croisée sur Linux.
 
 ## `scripts/zed.mjs --project <x>` avec `--apply` ouvre un faux fichier — `à faire`
 
