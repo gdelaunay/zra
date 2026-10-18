@@ -46,6 +46,8 @@ class Machine {
     this.version = version
     this.agents = agents
     this.zedRunning = false
+    /** Backend clavier résolu (`xdotool`, `powershell`, `none`…) — null tant que non résolu. */
+    this.keyboard = null
     /** Adresses par lesquelles le poste se joint, hors loopback (protocole §4). */
     this.urls = []
   }
@@ -56,6 +58,7 @@ class Machine {
       os: this.os,
       version: this.version,
       zedRunning: this.zedRunning,
+      keyboard: this.keyboard,
       agents: this.agents,
       urls: this.urls,
     }
@@ -123,6 +126,9 @@ export async function startDaemon(config) {
     timeoutMs: zc.timeoutMs,
     log: logger('zed'),
   })
+  // Pilotage indisponible ≠ pilotage cassé : la PWA doit pouvoir dire lequel.
+  // `none` = lecture/injection OK, mais pas d'ouverture de thread au clavier.
+  machine.keyboard = driver.runner?.name ?? null
 
   // Le backend publie ses événements par le hub, qui n'existe pas encore :
   // liaison tardive plutôt qu'une dépendance circulaire à l'import.
@@ -196,6 +202,7 @@ export async function startDaemon(config) {
       version: machine.version,
       startedAt,
       injection: backend.name,
+      keyboard: machine.keyboard,
       zedRunning: machine.zedRunning,
       clients: hub.clients.size,
       threads: counts,

@@ -168,7 +168,9 @@ export function unitState() {
     enabled: show.unitfilestate ?? '?',
     active: show.activestate ?? '?',
     sub: show.substate ?? '?',
-    pid: show.execmainpid || null,
+    // Le pid n'a de sens que si l'unité tourne : après un arrêt propre,
+    // ExecMainPID peut garder la dernière valeur vue (rendu « stale »).
+    pid: show.activestate === 'active' && show.execmainpid && show.execmainpid !== '0' ? show.execmainpid : null,
     since: show.activeentertimestamp || null,
     result: show.result || null,
     restarts: show.nrestarts || '0',

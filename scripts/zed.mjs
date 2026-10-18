@@ -13,6 +13,9 @@
 // de lâcher clavier et souris ; si la fenêtre Zed perd le premier plan en
 // cours de route, la recette s'interrompt d'elle-même.
 
+import { statSync } from 'node:fs'
+import { resolve } from 'node:path'
+
 import { loadConfig } from '../zra-daemon/config.js'
 import {
   CANDIDATE_RECIPES, DEFAULT_RECIPES, ZedCli, checkRecipe, createKeyboard, expandRecipe, projectWindow,
@@ -101,7 +104,14 @@ async function main() {
       steps = opts.candidate ? CANDIDATE_RECIPES[name] : recipes[name]
       if (!steps) throw new Error(`recette « ${name} » ${opts.candidate ? 'sans piste candidate' : 'non établie (essayer --candidate)'}`)
     }
-    const project = opts.project ? projectWindow([opts.project]) : null
+    // `--project` doit être un dossier existant : passé brut à la CLI de Zed,
+    // un chemin relatif (ou une faute de frappe) ouvre un BUFFER NON SAUVEGARDÉ
+    // et la recette tape dedans. Résolu en absolu et vérifié avant toute frappe.
+    const projectDir = opts.project ? resolve(process.cwd(), opts.project) : null
+    if (projectDir && !statSync(projectDir, { throwIfNoEntry: false })?.isDirectory()) {
+      throw new Error(`--project : dossier introuvable : ${projectDir}`)
+    }
+    const project = projectDir ? projectWindow([projectDir]) : null
     const expanded = expandRecipe(checkRecipe(name, steps), {
       text: 'message de test ZRA', title: '', agent: '', agentName: '', project: project ?? '', ...opts.vars,
     })
@@ -122,8 +132,8 @@ async function main() {
     }
     process.stdout.write('\n')
     if (project) {
-      await new ZedCli(zc.cli ? { command: zc.cli } : {}).open([opts.project])
-      console.log(`✓ CLI de Zed : ${opts.project}`)
+      await new ZedCli(zc.cli ? { command: zc.cli } : {}).open([projectDir])
+      console.log(`✓ CLI de Zed : ${projectDir}`)
     }
     const res = await runner.run(request)
     console.log(`✓ envoyé :\n  ${res.log.slice(1).join('\n  ')}`)

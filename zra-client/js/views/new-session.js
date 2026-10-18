@@ -56,6 +56,12 @@ export function newSessionButton({ machineId, project, title = 'Nouveau thread' 
 export function openAgentMenu(anchor, { machineId, project }) {
   const m = store.state.machines.get(machineId)
   if (!m || m.status !== 'online') return toast('poste hors ligne', { level: 'warn' })
+  // Backend clavier `none` (Wayland natif non patché, xdotool absent…) :
+  // la lecture et l'injection marchent, mais Zed ne peut pas être piloté —
+  // le dire tout de suite plutôt que de laisser l'activité tourner 45 s.
+  if (m.info?.keyboard === 'none') {
+    return toast('ouverture de thread indisponible sur ce poste : aucun backend clavier (installer xdotool, ou lancer Zed via le .desktop patché XWayland). Lecture et réponses marchent toujours.', { level: 'warn' })
+  }
 
   const where = project?.folderPaths?.length ? project.name : null
   const items = agentsOf(m).map((agent) => ({
