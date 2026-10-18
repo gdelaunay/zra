@@ -20,17 +20,6 @@ Lecture, injection `acp` et permissions marchent toujours (via le shim).
 → Mesurer ce que voit l'utilisateur : rien ne dit aujourd'hui que le pilotage est
 indisponible plutôt que cassé. Un `probe`/`status` explicite serait le minimum.
 
-## Backend autostart hors Xfce
-
-Exercé en réel que sur MX Linux 23 / Xfce (déconnexion/reconnexion mesurée).
-Sur Ubuntu 24.04 / GNOME c'est `systemd --user` qui a servi, donc l'autostart n'y
-a jamais été emprunté. GNOME, KDE et LXQt lisent le même `~/.config/autostart`,
-mais le lanceur `.zra/service/zra-daemon.sh` porte `DISPLAY` et le PATH — sous
-GNOME/Wayland `DISPLAY` peut être absent, et GNOME n'exécute pas les `.desktop`
-comme Xfce.
-→ Mesurer sur GNOME et KDE, en forçant le backend autostart (cas exotique : GNOME
-sans systemd en init).
-
 ## WSL2
 
 Jamais lancé. systemd pas toujours init, WSLg fournit X11/Wayland mais `xdotool`

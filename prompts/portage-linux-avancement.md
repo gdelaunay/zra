@@ -284,7 +284,7 @@ Dans la campagne de portage (§4) :
 - ❌ Debian 13 / KDE (la cible de production)
 
 Hors campagne, remis à plus tard → **`ISSUES.md`** : Flatpak/Snap, Wayland natif
-sans XWayland, autostart hors Xfce, WSL2, autres distros.
+sans XWayland, WSL2, autres distros.
 
 ---
 
@@ -419,8 +419,7 @@ npm run zed -- try submit --apply
 - **Registry `binary`** sous Linux : aucun agent binaire installé sur les deux
   machines de test — reste dans la campagne (§4.1)
 - Le reste est hors campagne, décrit dans **`ISSUES.md`** : Wayland natif sans
-  XWayland (→ backend `none`), Flatpak/Snap (chemins `~/.var/app/...`), WSL2,
-  autostart hors Xfce
+  XWayland (→ backend `none`), Flatpak/Snap (chemins `~/.var/app/...`), WSL2
 
 ### 5.4 Leçon à retenir pour la suite
 

@@ -3,7 +3,8 @@
 Suivre et piloter depuis le mobile les threads d'agents ACP de Zed : liste, streaming live, envoi, permissions, nouvelle session.
 ZRA relaie le flux ACP tel quel : ce que Zed affiche, la PWA l'affiche.
 
-Développé intégralement avec Claude (Opus 5.5), avec une relecture minimale.
+Développé avec Opus 5.5 dans Claude Code, et Qwen3.8-Max / Qwen3.8-Flash dans Pi,
+avec une relecture minimale.
 
 ## Démarrage rapide
 

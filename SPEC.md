@@ -167,10 +167,8 @@ Le schéma `sidebar_threads` est **identique** à Windows (mêmes colonnes).
 `WM_NAME="zra"` (le nom du dossier seul), `WM_CLASS="dev.zed.Zed"` ;
 `matchesProject` le reconnaît par `t === p`.
 
-**Non vérifié** : recettes de la keymap Linux de Zed en frappe réelle, branche
-`registry/binary` sous Linux (aucun agent binaire installé), et — pour le backend
-autostart — que la session lise bien l'entrée à l'ouverture (demande une
-déconnexion/reconnexion réelles).
+**Non vérifié** : la branche `registry/binary` sous Linux (aucun agent binaire
+installé sur les machines de test).
 
 ---
 
