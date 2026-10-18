@@ -17,15 +17,22 @@ les corrections entre jalons vivent dans git seul. `CHANGELOG.md` porte les
 jalons, `package.json` porte le numéro courant. `1.0` le jour où `zra-tray`
 rend le double-clic « ça marche » sans terminal.
 
-Version courante : **0.3** (portage Linux). Prochain jalon : **0.4** — `zra-tray` MVP.
+Version courante : **0.3** (portage Linux).
+
+- **0.4 — coller au panneau agent de Zed** (retouches d'interface, la
+  prochaine étape, commencée tout de suite) ;
+- **entre 0.4 et 0.5** — les idées qui ne valent pas un jalon à elles seules
+  (commandes `/`, mentions `@`, push, et ce qui se fait du « vrac ») : à faire
+  **avant** la 0.5, pas tout obligatoire ;
+- **0.5 — `zra-tray`** : le tray natif Rust et la distribution binaire.
 
 ---
 
 ## Ouvert
 
-### Retouches d'interface 🟡
+### 0.4 — Retouches d'interface : coller au panneau agent de Zed 🎯
 
-Pour coller au plus près du panneau agent de Zed :
+**Le jalon en cours.** Pour coller au plus près du panneau agent de Zed :
 
 - **tool calls** : dépliement / repliement et affichage (en-tête, corps,
   entrées et sorties brutes) ;
@@ -41,7 +48,7 @@ est `powershell.exe -WindowStyle Hidden` (`scripts/service.mjs`). Cause
 probable : quand Windows Terminal est le terminal par défaut, il ouvre la
 console et ignore `-WindowStyle Hidden`.
 
-**Clos par le tray natif** (section « zra-tray » ci-dessous) : le binaire Rust
+**Clos par le tray natif** (milestone 0.5, section « zra-tray » ci-dessous) : le binaire Rust
 spawn `node` directement (`CREATE_NO_WINDOW` sous Windows), PowerShell
 disparaît du chemin. En attendant, repli possible : `conhost.exe --headless`,
 un lanceur `wscript` (`.vbs`), ou lancer `node` directement. Si on ne peut pas
@@ -53,14 +60,14 @@ fenêtre qui flashe.
 Les threads d'un agent que ZRA n'enveloppe pas (`claude-acp`, créés avant ZRA)
 se lisent mais ne s'écrivent pas une fois fermés : Zed les rouvre avec l'agent
 d'origine, sans shim (`not_zra_thread`). La PWA le signale (cadenas à la place
-de la pastille, bandeau dans le thread). Piste : voir « Tous les threads par le
-shim » ci-dessous.
+de la pastille, bandeau dans le thread). Piste : « Tous les threads par le
+shim » ci-dessous — à faire avant la 0.5.
 
 -----
 
 # Roadmap / Idées d'architecture
 
-## V1.1 — plus tard, pas avant la fin de la v1
+## Avant la 0.5 — utile rapidement, mais pas jalon à soi seul
 
 - **commandes `/`** : taper `/` dans le composer propose les commandes de
   l'agent. ACP les annonce (`available_commands_update`), la PWA les mémorise
@@ -87,7 +94,7 @@ revérifiée (voir §6 de la note de portage). Un bug non regressif découvert
 sur la cible (shims fantômes après fermeture de Zed) → `ISSUES.md`.
 Voir `SPEC.md` §2.4.
 
-## Tray natif — `zra-tray` (décidé, à faire)
+## Tray natif — `zra-tray` (décidé, **jalon 0.5**)
 
 Un petit binaire Rust distribué par plateforme, à la fois **icône de zone de
 notification** et **superviseur du daemon**. Il ne remplace rien : le daemon
@@ -159,7 +166,7 @@ Ce que ça règle d'un coup :
 
 ### Distribution : trajectoire A → C
 
-- **Maintenant (MVP) — le tray seul** : `npm run setup` télécharge le binaire
+- **Maintenant (MVP, donc jalon 0.5) — le tray seul** : `npm run setup` télécharge le binaire
   prébuild (GitHub Releases) dans `.zra/bin/` ; il pilote le daemon du repo
   cloné. Flux dev inchangé, versions tray/daemon cohérentes (même repo).
 - **Cible — l'archive « app » par plateforme** (option C) :
@@ -190,8 +197,8 @@ Ce que ça règle d'un coup :
 
 ### Ordre
 
-1. Merger `linux` dans `main` (le tray s'appuie sur l'autostart XDG et
-   `platform.js`) ;
+1. ~~Merger `linux` dans `main`~~ (fait — le tray s'appuie sur l'autostart XDG
+   et `platform.js`) ;
 2. MVP Windows : event loop tao + tray-icon, spawn/supervision de node, menu
    minimal (état, ouvrir ZRA, copier code, logs, quitter). `npm run service`
    installe la tâche planifiée qui lance le tray → la fenêtre PowerShell meurt ;
@@ -211,8 +218,9 @@ Que `npm run setup` fasse passer l'entrée d'origine (`claude-acp`) elle-même
 par le shim, plutôt que d'ajouter `claude-zra` à côté. Tous les threads,
 anciens compris, deviendraient pilotables, et il n'y aurait plus deux familles
 d'agents. Plus proche de ce que le produit devrait faire de base que d'une
-évolution V2. À peser : on touche l'agent d'origine, et Zed pourrait ne plus le
-mettre à jour lui-même (entrée `registry` remplacée par une commande).
+évolution V2. À faire avant la 0.5. À peser : on touche l'agent d'origine, et
+Zed pourrait ne plus le mettre à jour lui-même (entrée `registry` remplacée par
+une commande).
 
 
 ## Problème central
@@ -220,6 +228,8 @@ mettre à jour lui-même (entrée `registry` remplacée par une commande).
 Le daemon est couplé à un desktop éveillé avec Zed ouvert. Ça limite les cas d'usage : pas de live si le PC dort.
 
 ## Relais HTTPS livré avec le client
+
+À faire avant la 0.5 si possible — pas obligatoire.
 
 Un client servi en `https://` ne peut ouvrir que des `wss://`
 (contenu mixte bloqué) : aujourd'hui, chaque poste a besoin de son propre
@@ -247,13 +257,15 @@ Joindre un poste hors du réseau local demande aujourd'hui WireGuard, un
 proxy HTTPS par poste et du routage Docker (`DEPLOY.md` §3.1, §4.1). Tailscale
 donnerait tout ça d'office : IP fixe par appareil, aucun port ouvert, et des
 certificats HTTPS (`*.ts.net`, `tailscale serve` devant `:7777`), ce qui règle
-le contenu mixte sans reverse proxy. À essayer, puis à proposer comme chemin
-par défaut dans `DEPLOY.md`.
+le contenu mixte sans reverse proxy. À essayer, puis à proposer dans
+`DEPLOY.md` **comme une option parmi d'autres — pas comme le chemin par
+défaut** (décision).
 
 ## Homelab — la réponse retenue au problème central
 
 Le broker étant archivé (voir ci-dessous), c'est **la** réponse au problème du
-desktop éveillé, plus une « Version 1 » en attendant une V2.
+desktop éveillé, plus une « Version 1 » en attendant une V2. À formaliser en
+doc avant la 0.5 (si possible — pas obligatoire).
 
 L'audience cible = les gens qui ont déjà un homelab. Le "probleme" du desktop awake se contourne ainsi :
 
