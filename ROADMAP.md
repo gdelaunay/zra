@@ -2,11 +2,15 @@
 
 ## État
 
-La v1 est terminée : tout le périmètre de `SPEC.md` §1 fonctionne, vérifié sur
-un poste Windows avec Zed et un téléphone Android, en local, à distance et en
-HTTPS. Les décisions qui engagent la suite sont dans `SPEC.md` §13, la
-check-list de re-test au §12. L'historique détaillé du développement est dans
-git (`ROADMAP.md` au commit `ab52aca`).
+Version **0.3** : tout le périmètre de `SPEC.md` §1 fonctionne — en local, à
+distance et en HTTPS — vérifié sur un poste Windows avec Zed et un téléphone
+Android, **et** sur trois postes Linux (Ubuntu 24.04/GNOME/Wayland,
+MX Linux 23/Xfce/X11, Debian 13/KDE/X11 — portage clos, non-régression Windows
+revérifiée). La « v1 » au sens produit a désormais un repère fixe : le jour où
+`zra-tray` rend le double-clic « ça marche » sans terminal (jalon 0.5, voir
+« Notation des versions »). Les décisions qui engagent la suite sont dans
+`SPEC.md` §13, la check-list de re-test au §12. L'historique détaillé du
+développement est dans git (`ROADMAP.md` au commit `ab52aca`).
 
 ---
 
