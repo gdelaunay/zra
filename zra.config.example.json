@@ -28,11 +28,11 @@
   "serveStatic": true,
   "staticDir": "zra-client",
 
-  // Origines autorisées à ouvrir le WebSocket. Indispensable : le navigateur
-  // n'applique pas la same-origin policy aux WebSockets, donc sans cette liste
-  // n'importe quelle page visitée depuis le tunnel pourrait piloter le poste.
-  // L'origine propre du daemon est ajoutée d'office quand il sert les statiques.
-  "allowedOrigins": ["https://zra.exemple.fr"],
+  // Origines autorisées à ouvrir le WebSocket. Le navigateur n'applique pas
+  // la same-origin policy aux WebSockets : cette liste ferme le canal aux
+  // pages tierces. Vide = l'origine propre du daemon seulement (ajoutée
+  // d'office quand il sert les statiques). Client servi ailleurs : son origine ici.
+  "allowedOrigins": [],
 
   // TLS. Absent => HTTP + ws:// : l'app fonctionne, mais le navigateur refuse
   // le service worker, l'installation sur l'écran d'accueil et le Web Push.
@@ -57,8 +57,11 @@
   // Pilotage de la fenêtre Zed au clavier : ouvrir une session depuis le « + »
   // du mobile, rouvrir un thread fermé, backend "uia". Zed n'expose rien à UI
   // Automation : ce sont des frappes réelles, envoyées à la fenêtre Zed et
-  // interrompues si elle perd le premier plan. Désactivé tant qu'on ne l'a pas
-  // voulu. Mise au point : `npm run zed -- probe | recipes | try <recette>`.
+  // interrompues si elle perd le premier plan.
+  // ⚠ ACTIVÉ PAR DÉFAUT : tout appareil appairé peut faire taper Zed au clavier
+  // (le daemon l'avertit au démarrage). Mettre false pour l'interdire — le « + »
+  // et la réouverture des threads fermés seront alors indisponibles.
+  // Mise au point : `npm run zed -- probe | recipes | try <recette>`.
   "zedControl": {
     "enabled": true,
     // "window": "zra",        // fenêtre Zed dont le titre contient ce texte

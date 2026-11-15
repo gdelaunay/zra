@@ -202,3 +202,22 @@ test('permission : une réponse déjà en vol, ou déjà tranchée, ne repart pa
     machine.link.send = send
   }
 })
+
+test('écriture périmée pendant la coupure : écho en échec, texte revenu au brouillon', () => {
+  const k = 'mock-desk/thread-perime'
+  store.ensureState(k).historyComplete = true
+  store.sendMessage(k, 'supprime le dossier build')
+  const echo = store.ensureTimeline(k).entries.at(-1)
+  assert.equal(echo.pending, true)
+
+  machine.link.emit('dropped', { type: 'send', threadId: 'thread-perime', text: 'supprime le dossier build' })
+  assert.equal(echo.pending, false)
+  assert.equal(echo.failed, true)
+  assert.equal(store.getDraft(k), 'supprime le dossier build')
+
+  // Un brouillon déjà saisi n'est jamais écrasé : le texte abandonné s'y ajoute.
+  store.setDraft(k, 'autre chose')
+  machine.link.emit('dropped', { type: 'send', threadId: 'thread-perime', text: 'second' })
+  assert.equal(store.getDraft(k), 'autre chose\nsecond')
+  store.setDraft(k, '')
+})

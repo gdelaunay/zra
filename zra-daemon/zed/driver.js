@@ -6,8 +6,9 @@
 // surchargeables dans `zra.config.json` (`zedControl.recipes`) : c'est au test
 // réel qu'on établit les bons raccourcis, et ça ne doit pas demander de code.
 //
-// **Désactivé par défaut** (`zedControl.enabled: false`). Envoyer des touches à
-// un poste de travail n'est pas anodin : on l'active en connaissance de cause.
+// **Activé par défaut** (`zedControl.enabled: true`, décision : le « + » et la
+// réouverture en dépendent) ; le daemon avertit au démarrage. Envoyer des touches
+// à un poste de travail n'est pas anodin : `false` pour l'interdire.
 
 import { execFile } from 'node:child_process'
 

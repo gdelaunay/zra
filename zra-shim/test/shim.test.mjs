@@ -769,3 +769,34 @@ test('une réponse tardive ne confirme pas le verdict d’un autre prompt', asyn
   bridge.observeFromAgent({ jsonrpc: '2.0', id: sent.at(-1).id, result: { stopReason: 'end_turn' } })
   bridge.shutdown()
 })
+
+test('filet : une exception non rattrapée journalise sans tuer le processus', async (t) => {
+  const { safetyNet } = await import('../index.js')
+  const logs = []
+  const before = {
+    uncaught: process.listeners('uncaughtException'),
+    rejection: process.listeners('unhandledRejection'),
+  }
+  safetyNet({ error: (m) => logs.push(m) })
+  t.after(() => {
+    for (const fn of process.listeners('uncaughtException')) if (!before.uncaught.includes(fn)) process.off('uncaughtException', fn)
+    for (const fn of process.listeners('unhandledRejection')) if (!before.rejection.includes(fn)) process.off('unhandledRejection', fn)
+  })
+  process.listeners('uncaughtException').at(-1)(new Error('boom'))
+  process.listeners('unhandledRejection').at(-1)(new Error('rejet'))
+  assert.equal(logs.length, 2)
+  assert.match(logs[0], /boom/)
+  assert.match(logs[1], /rejet/)
+})
+
+test('sortie : stdout est vidé avant process.exit', async () => {
+  const { flushThenExit } = await import('../index.js')
+  const stream = { writableLength: 10 }
+  const exits = []
+  flushThenExit(stream, 7, (c) => exits.push(c))
+  await new Promise((r) => setTimeout(r, 60))
+  assert.deepEqual(exits, [], 'tant que le tampon est plein, on attend')
+  stream.writableLength = 0
+  await new Promise((r) => setTimeout(r, 60))
+  assert.deepEqual(exits, [7])
+})

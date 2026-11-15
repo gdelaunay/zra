@@ -4,8 +4,7 @@
 
 ## Résumé exécutif
 
-- **Le projet n'est pas publiable en l'état : 2 points bloquants**, tous corrigeables en quelques heures chacun.
-- **Le fichier d'exemple de config active le pilotage clavier** alors que la doc le dit désactivé par défaut.
+- **Le projet n'est pas publiable en l'état : 1 point bloquant**, corrigeable en quelques heures.
 - **Pas de licence** : sans fichier `LICENSE`, personne n'a le droit d'utiliser le code publié.
 - Le reste de la sécurité réseau est solide : contrôle d'`Origin` de `/ws`, path traversal, trames WebSocket malformées, stockage du jeton. Tout a été testé sur une instance isolée.
 - À décider en connaissance de cause : appairage toujours ouvert avec un code à 6 chiffres, trafic en clair par défaut, conversations enregistrées sur disque par défaut, frappes clavier envoyées « à l'aveugle ».
@@ -47,14 +46,6 @@
 - **Écoute** (lecture) : jamais `0.0.0.0`, `/shim` refusé hors loopback, aucun `shell: true`, aucune commande construite par concaténation.
 
 ### Problèmes
-
-- **[Bloquant] Le fichier d'exemple de config active le pilotage clavier**
-  - Où : `zra.config.example.json:63` (`"enabled": true`), contre `zra-daemon/config.js:117` (`enabled: false`) et le commentaire `zra.config.example.json:60` (« Désactivé tant qu'on ne l'a pas voulu »)
-  - Problème : le README demande de copier ce fichier. Celui qui le fait active l'envoi de frappes réelles sans l'avoir décidé. L'exemple contient aussi une origine fictive (`https://zra.exemple.fr`) qui sera autorisée telle quelle.
-  - Scénario concret : un nouvel utilisateur copie l'exemple pour changer le port ; tout appareil appairé peut alors faire taper Zed au clavier.
-  - Correction suggérée : mettre `"enabled": false` et `"allowedOrigins": []` dans l'exemple.
-  - Effort : S
-  - Confiance : vérifié (lecture des deux fichiers)
 
 - **[Important] La loopback dispense de toute authentification : un tunnel ou proxy local l'étend au monde**
   - Où : `zra-daemon/hub.js:62`, `server.js:124,129`
@@ -109,22 +100,6 @@
 ## Axe 2 — Correction et robustesse
 
 Le relais lui-même est sain : recopie octet pour octet, observation isolée par `try/catch` (`zra-shim/proxy.js:42-49`), identifiants injectés préfixés `zra-` donc sans collision avec ceux de Zed. Le changement de schéma de la base de Zed est géré (mode dégradé, `threads-index.js:122-132`). Les tests dits instables n'ont pas échoué (axe 7).
-
-- **[Important] Un message tapé hors ligne part tout seul à la reconnexion, sans limite d'âge**
-  - Où : `zra-client/js/link.js:158-162,192-210`
-  - Problème : tout message non envoyé est mis en file (`pending`) et rejoué à la reconnexion, `send` compris. La file n'a ni taille maximale ni date de péremption.
-  - Scénario concret : dans le métro, l'utilisateur envoie « supprime le dossier build et relance », ne voit rien partir, range son téléphone. Deux heures plus tard la PWA se reconnecte et l'agent exécute la consigne, dans un contexte qui a changé.
-  - Correction suggérée : ne rejouer que les lectures (`subscribe`, `load_history`) ; pour les écritures, abandonner au-delà de quelques secondes et laisser le texte dans le composeur.
-  - Effort : S
-  - Confiance : lecture
-
-- **[Important] Le shim n'a pas de filet : une exception hors du relais tue l'agent dans Zed**
-  - Où : `zra-shim/index.js:281-297` (aucun `uncaughtException`), à comparer à `zra-daemon/index.js:94-95`
-  - Problème : le relais est protégé, mais pas les minuteries (garde-fou de tour, interruption) ni les gestionnaires du lien daemon. Une exception non rattrapée y arrête le processus, donc l'agent et la session Zed. Par ailleurs `process.exit` à la sortie de l'agent (`index.js:288`) n'attend pas que les dernières trames soient écrites vers Zed.
-  - Scénario concret : une trame inattendue du daemon ou d'un agent nouveau déclenche une erreur dans une minuterie ; le thread se ferme dans Zed en plein tour.
-  - Correction suggérée : ajouter au shim les deux gestionnaires `uncaughtException` / `unhandledRejection` qui journalisent sans arrêter ; vider `stdout` avant de sortir.
-  - Effort : S
-  - Confiance : probable (aucun cas reproduit)
 
 - **[Important] Un thread fermé rouvert depuis le mobile prend le clavier du poste**
   - Où : `zra-daemon/hub.js:275-299`, `zed/keyboard.ps1:183-192`
@@ -307,7 +282,6 @@ Conséquence : l'état de Zed et celui de l'agent peuvent diverger. Deux prompts
 
 | # | Action | Points couverts | Effort |
 |---|---|---|---|
-| A3 | Exemple de config : `zedControl.enabled: false`, `allowedOrigins: []` | Config d'exemple | S |
 | A4 | Choisir et ajouter une licence ; statuer sur les thèmes et icônes repris de Zed | Licence | S (hors décision juridique) |
 
 ### B. À faire avant ou juste après la publication
@@ -318,8 +292,6 @@ Conséquence : l'état de Zed et celui de l'agent peuvent diverger. Deux prompts
 | B2 | Appairage par fenêtre ouverte à la demande, ou limite globale | Appairage | S |
 | B3 | Enregistrement des trames désactivé par défaut ; rotation d'`injections.log` | Données sur disque | S |
 | B4 | Désinstallation : séquence complète documentée ; patch Wayland en étape explicite | Désinstallation, Wayland, chemins absolus | S |
-| B5 | PWA : ne plus rejouer les écritures anciennes à la reconnexion | Message hors ligne | S |
-| B6 | Shim : gestionnaires d'erreurs globaux, vidage de `stdout` à la sortie | Filet du shim | S |
 | B7 | CI GitHub Actions Windows + Linux | CI | S |
 | B8 | Ménage : scripts orphelins, noms `lot-*`, options mortes, commentaires d'historique, bouchon hors production | Fichiers de chantier | M |
 
@@ -328,6 +300,13 @@ Conséquence : l'état de Zed et celui de l'agent peuvent diverger. Deux prompts
 - Garder ou retirer `uia`, `auto` et `wireguard` de la version publiée.
 - Accepter le risque des frappes à l'aveugle (documenté) ou limiter le clavier au seul « + ».
 - LAN de confiance ou non : la réponse fixe le niveau d'exigence de B1 et B2.
+
+## Décisions
+
+- **Connexions non appairées** : plafonnées (8/IP, 64 global, coupure à 120 s, buffer 64 Ko avant appairage). Option A de l'arbitrage.
+- **Flatpak / Snap** : non supportés explicitement à la publication ; piste dans `ISSUES.md`. Option A.
+- **`-ExecutionPolicy Bypass`** : conservé, limité au processus lancé, documenté (`DEPLOY.md` §5). Option A.
+- **`zedControl.enabled`** : `true` par défaut (le « + » et la réouverture des threads fermés en dépendent), avertissement au démarrage du daemon et dans README/exemple ; `false` reste possible, les erreurs côté PWA sont explicites. L'écart exemple/code de l'audit (A3) est clos par cette décision, pas par `false`.
 
 ## Méthode de travail
 L'agent avance en autonomie, un item ou un lot cohérent à la fois, vite et sans effort gaspillé. À la fin de chaque lot : tests lancés, item retiré de ce document, puis arrêt pour faire valider la solution et confirmer le commit (message proposé). Les décisions déjà notées (« Décision ») ne se rediscutent pas.

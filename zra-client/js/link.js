@@ -23,6 +23,17 @@ const PROBE_TIMEOUT_MS = 3000
 /** Silence au-delà duquel une connexion « ouverte » est suspecte avant un envoi. */
 const STALE_MS = HEARTBEAT_MS + PONG_TIMEOUT_MS
 
+/**
+ * File hors ligne : les lectures (abonnements, historique, liste) se rejouent
+ * toujours ; les écritures périment. Un « supprime le dossier build » tapé dans
+ * le métro ne doit pas partir deux heures plus tard, dans un contexte qui a
+ * changé : au-delà du délai, il est abandonné et le texte revient au composeur
+ * (événement `dropped`, repris par le store).
+ */
+const WRITE_TTL_MS = 10_000
+const PENDING_MAX = 100
+const READS = new Set(['subscribe', 'unsubscribe', 'load_history', 'list_threads', 'pair'])
+
 export function wsUrl(base) {
   const u = new URL(base, location.href)
   u.protocol = u.protocol === 'https:' ? 'wss:' : 'ws:'
@@ -158,7 +169,22 @@ export class DaemonLink {
   flush() {
     const queued = this.pending
     this.pending = []
-    for (const msg of queued) this.send(msg)
+    for (const { msg, at } of queued) {
+      if (!READS.has(msg.type) && Date.now() - at > WRITE_TTL_MS) {
+        this.emit('dropped', msg)
+        continue
+      }
+      this.send(msg)
+    }
+  }
+
+  /** File bornée : au plafond, le plus ancien part (une écriture est signalée). */
+  queue(msg) {
+    if (this.pending.length >= PENDING_MAX) {
+      const old = this.pending.shift()
+      if (!READS.has(old.msg.type)) this.emit('dropped', old.msg)
+    }
+    this.pending.push({ msg, at: Date.now() })
   }
 
   scheduleRetry() {
@@ -195,7 +221,7 @@ export class DaemonLink {
     // sans erreur sur une socket morte. Il part à la réponse, ou à la reconnexion.
     if (!this.probing && msg.type !== 'hello' && Date.now() - this.lastRx > STALE_MS) this.probe()
     if (this.probing && msg.type !== 'hello') {
-      this.pending.push(msg)
+      this.queue(msg)
       return false
     }
     if (this.ws?.readyState === WebSocket.OPEN) {
@@ -204,8 +230,8 @@ export class DaemonLink {
       else if (msg.type === 'unsubscribe') this.subs.delete(msg.threadId)
       return true
     }
-    // Les intentions utilisateur (envoi, abonnement) sont rejouées à la reconnexion.
-    if (msg.type !== 'hello') this.pending.push(msg)
+    // Les lectures sont rejouées à la reconnexion ; les écritures périment (flush).
+    if (msg.type !== 'hello') this.queue(msg)
     return false
   }
 

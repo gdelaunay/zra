@@ -87,6 +87,28 @@ function wire(machine) {
   })
 
   machine.link.on('message', (msg) => handle(machine, msg))
+
+  // Écriture périmée pendant la coupure : l'écho local le dit, et le texte
+  // revient dans le brouillon du thread — rien ne part sans que l'utilisateur
+  // le voie encore (audit B5).
+  machine.link.on('dropped', (msg) => {
+    if (msg.type !== 'send' || !msg.threadId) return
+    const k = `${machine.id}/${msg.threadId}`
+    const st = state.threadStates.get(k)
+    if (st) {
+      const idx = st.localEchoes.findIndex((e) => e.pending && blocksText(e.blocks).trim() === String(msg.text).trim())
+      if (idx !== -1) {
+        const [echo] = st.localEchoes.splice(idx, 1)
+        echo.pending = false
+        echo.failed = true
+        echo.rev++
+        emit(`timeline:${k}`, { changes: [{ op: 'update', entry: echo }] })
+      }
+    }
+    const draft = getDraft(k)
+    setDraft(k, draft ? `${draft}\n${msg.text}` : msg.text)
+    emit(`draft:${k}`, getDraft(k))
+  })
 }
 
 /** Liste et abonnements, après une reconnexion ou un appairage. */

@@ -516,6 +516,8 @@ export function ThreadView({ key, navigate }) {
   const offs = [
     store.on(`timeline:${key}`, onTimeline),
     store.on(`state:${key}`, onState),
+    // Écriture abandonnée après une coupure : le texte revient dans le champ.
+    store.on(`draft:${key}`, () => composer.refreshDraft()),
     store.on('machines', () => { syncHeader(); repaintPermissions() }),
     store.on('threads', () => { syncHeader(); composer.sync(st) }),
     // Zed n'a pas rouvert le thread : le bandeau d'attente s'efface, le toast d'erreur dit pourquoi.
@@ -704,5 +706,8 @@ function Composer({ key, onSend, onStop }) {
     ].filter(Boolean).join('\n')
   }
 
-  return { el, sync, setUsage, focus: () => input.focus() }
+  return { el, sync, setUsage, focus: () => input.focus(), refreshDraft() {
+    const d = store.getDraft(key)
+    if (input.value !== d) { input.value = d; autoGrow() }
+  } }
 }

@@ -110,11 +110,13 @@ export const DEFAULTS = {
 
   /**
    * Pilotage de la fenêtre Zed au clavier — ouvrir une session (spec §6.7),
-   * rouvrir un thread fermé (§6.3), backend `uia`. **Désactivé par défaut** :
-   * envoyer des touches au poste s'active en connaissance de cause.
+   * rouvrir un thread fermé (§6.3), backend `uia`. **Activé par défaut**
+   * (décision : le « + » et la réouverture en dépendent) ; le daemon avertit
+   * au démarrage que des frappes réelles seront envoyées. `false` pour tout
+   * désactiver — les erreurs côté PWA le disent explicitement.
    */
   zedControl: {
-    enabled: false,
+    enabled: true,
     /** Filtre sur le titre de la fenêtre Zed visée. `null` => la plus récente. */
     window: null,
     stepDelayMs: 120,
@@ -222,6 +224,9 @@ export async function loadConfig({ file = process.env.ZRA_CONFIG || (UNDER_TEST 
   const cfg = { ...DEFAULTS, ...fromFile, ...envOverrides(), ...overrides }
   // Fusion d'un niveau : `"zedControl": { "enabled": true }` ne doit pas effacer le reste.
   cfg.zedControl = { ...DEFAULTS.zedControl, ...fromFile.zedControl, ...overrides.zedControl }
+  // Sous test, le défaut reste désactivé (le garde-fou du clavier refuse de
+  // toute façon les frappes réelles) ; une surcharge explicite peut l'activer.
+  if (UNDER_TEST && overrides.zedControl?.enabled === undefined) cfg.zedControl.enabled = false
   if (process.env.ZRA_ZED_CONTROL) cfg.zedControl.enabled = process.env.ZRA_ZED_CONTROL !== '0'
   if (process.env.ZRA_ZED_KEYBOARD) cfg.zedControl.keyboard = process.env.ZRA_ZED_KEYBOARD
   cfg.auth = { ...DEFAULTS.auth, ...fromFile.auth, ...overrides.auth }

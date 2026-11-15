@@ -5,7 +5,9 @@ ZRA relaie le flux ACP tel quel : ce que Zed affiche, la PWA l'affiche.
 
 > **Pilotage par clavier** — ZRA envoie des touches réelles à Zed (`xdotool`
 > sous Linux, PowerShell sous Windows) pour créer ou ouvrir un thread, lui donner le
-> focus etc. Réglé par `zedControl.enabled` dans `zra.config.json`.
+> focus etc. **Activé par défaut** (`zedControl.enabled` dans `zra.config.json`) :
+> le daemon l'avertit au démarrage ; mettre `false` pour l'interdire — le « + »
+> et la réouverture des threads fermés deviennent indisponibles.
 
 Développé avec Opus 5.5 dans Claude Code, et Qwen3.8-Max / Qwen3.8-Flash dans Pi,
 avec une relecture minimale.

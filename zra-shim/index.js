@@ -237,7 +237,32 @@ export async function resolveAgent(argv, config) {
   return { ...resolved, agentId }
 }
 
+/**
+ * Filet (audit B6) : une exception hors du relais (minuterie, lien daemon)
+ * journalise sans arrêter le processus — l'agent et la session Zed doivent
+ * survivre à un bug de ZRA. Fail-open jusqu'au bout.
+ */
+export function safetyNet(logger = log) {
+  process.on('uncaughtException', (err) => logger.error(`exception non rattrapée : ${err?.stack || err}`))
+  process.on('unhandledRejection', (err) => logger.error(`promesse rejetée non rattrapée : ${err?.stack || err}`))
+}
+
+/**
+ * `process.exit` tranche ce qui reste dans le tampon de stdout vers Zed :
+ * on attend qu'il se vide (borné) avant de sortir, pour ne pas perdre les
+ * dernières trames du tour.
+ */
+export function flushThenExit(stream, code, exit = process.exit) {
+  const deadline = Date.now() + 2000
+  const tick = () => {
+    if (stream.writableLength === 0 || Date.now() > deadline) return exit(code)
+    setTimeout(tick, 20).unref?.()
+  }
+  tick()
+}
+
 export async function main(argv = process.argv.slice(2)) {
+  safetyNet()
   const config = await readConfig()
   const agent = await resolveAgent(argv, config)
 
@@ -285,7 +310,7 @@ export async function main(argv = process.argv.slice(2)) {
   child.on('exit', (code, signal) => {
     shim.stop()
     log.info(`agent terminé (code=${code ?? '—'}, signal=${signal ?? '—'})`)
-    process.exit(code ?? 0)
+    flushThenExit(process.stdout, code ?? 0)
   })
 }
 

@@ -178,3 +178,29 @@ test('une reconnexion réussie remet le backoff à zéro', (t) => {
   l.lost(FakeSocket.all[2], 'perdue')
   assert.equal(retries.at(-1), 1000, 'repart du premier échelon')
 })
+
+test('écriture hors ligne périmée : non rejouée, signalée par dropped ; les lectures passent', (t) => {
+  const l = link(t)
+  FakeSocket.all[0].open()
+  l.wake()
+  const dropped = []
+  l.on('dropped', (m) => dropped.push(m))
+  l.send({ type: 'send', threadId: 'a', text: 'coucou' })
+  l.send({ type: 'load_history', threadId: 'a' })
+  clock.tick(3000) // sonde sans réponse → offline
+  clock.tick(1400) // reconnexion en cours
+  clock.tick(12000) // l'écriture a plus de 10 s
+  FakeSocket.all[1].open()
+  assert.deepEqual(FakeSocket.all[1].types(), ['hello', 'load_history'])
+  assert.deepEqual(dropped.map((m) => m.type), ['send'])
+  assert.equal(dropped[0].text, 'coucou')
+})
+
+test('file hors ligne bornée : au plafond, la plus ancienne écriture est abandonnée', (t) => {
+  const l = link(t)
+  const dropped = []
+  l.on('dropped', (m) => dropped.push(m))
+  for (let i = 0; i < 101; i++) l.send({ type: 'send', threadId: 'a', text: `m${i}` })
+  assert.equal(dropped.length, 1)
+  assert.equal(dropped[0].text, 'm0')
+})

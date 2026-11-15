@@ -334,3 +334,10 @@ test('config : une surcharge partielle de zedControl ne perd pas keyboard', asyn
   assert.equal(cfg.zedControl.enabled, true)
   assert.equal(cfg.zedControl.keyboard, 'auto', 'la fusion d’un niveau conserve les défauts')
 })
+
+test('config : pilotage activé par défaut (décision), désactivé par défaut sous test', async () => {
+  const { DEFAULTS } = await import('../config.js')
+  assert.equal(DEFAULTS.zedControl.enabled, true, 'le « + » et la réouverture en dépendent')
+  const cfg = await loadConfig()
+  assert.equal(cfg.zedControl.enabled, false, 'garde-fou : jamais activé par le défaut sous node --test')
+})
