@@ -108,6 +108,15 @@ export async function createServers({ config, addresses, onConnection, onShim, s
   /** Serveur → poignée WebSocket, pour arrêter le balayage de vie à la fermeture. */
   const wsHandles = new Map()
   let allowed = []
+  /** En-têtes `Host` légitimes : les nôtres + ceux des origines autorisées (proxy). */
+  let allowedHosts = new Set()
+  /** Origines acceptées sur le HTTP local : les autorisées + les nôtres, toujours. */
+  let httpOrigins = []
+
+  const hostHeader = (h) => {
+    const suffix = (tls && config.port === 443) || (!tls && config.port === 80) ? '' : `:${config.port}`
+    return `${h.includes(':') ? `[${h}]` : h}${suffix}`.toLowerCase()
+  }
 
   const recomputeAllowed = () => {
     allowed = [...new Set([
@@ -116,9 +125,39 @@ export async function createServers({ config, addresses, onConnection, onShim, s
         ? selfOrigins({ addresses: [...instances.keys()], port: config.port, tls, names: tls?.names })
         : []),
     ])]
+    const hosts = new Set([...instances.keys()].map(hostHeader))
+    if (instances.has('127.0.0.1')) hosts.add(hostHeader('localhost'))
+    if (tls) for (const n of tls.names) hosts.add(hostHeader(n))
+    // Derrière un reverse proxy (DEPLOY.md §4.1), le `Host` transmis peut être
+    // le nom public : il vient des origines autorisées, pas des écoutes.
+    for (const o of config.allowedOrigins) {
+      try { hosts.add(new URL(o).host.toLowerCase()) } catch { /* origine invalide : ignorée */ }
+    }
+    allowedHosts = hosts
+    httpOrigins = [...new Set([
+      ...allowed,
+      ...selfOrigins({ addresses: [...instances.keys()], port: config.port, tls, names: tls?.names }),
+    ])]
   }
 
   const handler = (req, res) => {
+    // DNS rebinding : une page du poste peut faire re-résoudre son domaine vers
+    // 127.0.0.1 et lire les routes locales. Le `Host` qu'elle envoie reste le
+    // domaine tiers : on ne répond qu'aux nôtres.
+    if (!allowedHosts.has(String(req.headers.host || '').toLowerCase())) {
+      log.warn(`HTTP refusé : hôte ${req.headers.host || 'absent'} non autorisé`)
+      res.writeHead(403, { 'content-type': 'text/plain; charset=utf-8' })
+      res.end('hôte non autorisé')
+      return
+    }
+    // CSRF : une page du poste peut poster vers 127.0.0.1 avec un `Host`
+    // légitime ; son `Origin`, lui, est celui de la page tierce.
+    if (!checkOrigin(req.headers.origin || null, httpOrigins)) {
+      log.warn(`HTTP refusé : origine ${req.headers.origin} non autorisée`)
+      res.writeHead(403, { 'content-type': 'text/plain; charset=utf-8' })
+      res.end('origine non autorisée')
+      return
+    }
     // Diagnostic du poste (`npm run setup`), en local uniquement : il liste les
     // shims et les sessions, rien à exposer sur le tunnel.
     if (status && req.url === '/status' && isLoopback(req.socket.remoteAddress)) {
@@ -168,13 +207,19 @@ export async function createServers({ config, addresses, onConnection, onShim, s
           onConnection,
         },
         {
-          // Les shims, en local uniquement (spec §3.1).
+          // Les shims, en local uniquement (spec §3.1). Un shim est un client
+          // natif : il n'envoie jamais d'`Origin`. Un en-tête présent signe une
+          // page web du poste (WebSocket vers 127.0.0.1) : refusée.
           path: '/shim',
-          verify: ({ req }) => (
-            isLoopback(req.socket.remoteAddress)
-              ? true
-              : { ok: false, status: 403, reason: 'canal des shims réservé au poste local' }
-          ),
+          verify: ({ req }) => {
+            if (!isLoopback(req.socket.remoteAddress)) {
+              return { ok: false, status: 403, reason: 'canal des shims réservé au poste local' }
+            }
+            if (req.headers.origin) {
+              return { ok: false, status: 403, reason: 'origine interdite sur le canal des shims' }
+            }
+            return true
+          },
           onConnection: onShim,
         },
       ],

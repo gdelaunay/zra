@@ -41,6 +41,17 @@ test('GET / sert index.html', async () => {
   assert.equal(text(res), readFileSync(join(ROOT, 'index.html'), 'utf8'))
 })
 
+test('CSP sur toutes les réponses : script-src self, pas d inline ni d externe', async () => {
+  for (const url of ['/', '/app.js', '/introuvable']) {
+    const res = await call('GET', url)
+    const csp = res.headers['content-security-policy']
+    assert.ok(csp, url)
+    assert.match(csp, /script-src 'self'/)
+    assert.doesNotMatch(csp, /unsafe-inline.*script|script-src[^;]*unsafe/)
+    assert.match(csp, /object-src 'none'/)
+  }
+})
+
 test('le chemin est résolu sous la racine, query string comprise', async () => {
   const a = await call('GET', '/app.js')
   const b = await call('GET', '/app.js?v=3&x=1')

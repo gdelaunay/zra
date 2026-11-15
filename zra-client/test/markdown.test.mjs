@@ -89,3 +89,53 @@ test('rendu par blocs : un élément par bloc de premier niveau, même HTML au t
   assert.deepEqual(next.slice(0, 4), blocks.slice(0, 4))
   assert.notEqual(next[4], blocks[4])
 })
+
+// ---- chemins d'attaque de l'audit (A1) ------------------------------------
+
+test('sécurité : lien + autolien imbriqués ne produisent pas d attribut événementiel', () => {
+  // Charge de l'audit : l'autolien se déclenchait dans le href déjà écrit et
+  // y injectait un guillemet, faisant du reste de l'URL des attributs.
+  const url = 'https://a/(https://b/onmouseover=location=/javascript:alert%281%29/.source//'
+  const html = inline(`[x](${url})`)
+  assert.equal(html, `<a href="${url}" target="_blank" rel="noreferrer">x</a>`)
+  const img = inline(`![x](${url})`)
+  assert.equal(img, `<a href="${url}" target="_blank" rel="noreferrer">🖼 x</a>`)
+})
+
+test('sécurité : un href produit n est jamais réanalysé (pas de lien imbriqué)', () => {
+  const html = inline('[https://a](https://b)')
+  assert.equal((html.match(/<a /g) ?? []).length, 1)
+  assert.match(html, />https:\/\/a<\/a>/)
+})
+
+test('sécurité : les URL javascript: et file: restent refusées, échappées ou non', () => {
+  for (const url of ['javascript:alert(1)', 'file:///etc/passwd', 'JaVaScRiPt:alert(1)', 'java\tscript:alert(1)']) {
+    assert.doesNotMatch(inline(`[x](${url})`), /<a /, url)
+  }
+  assert.doesNotMatch(inline('[x](https://a/"onmouseover="alert(1))'), /onmouseover="alert/)
+})
+
+test('performance : des milliers de liens non refermés ne gèlent pas le rendu', () => {
+  for (const hostile of ['[a]('.repeat(20_000), '`'.repeat(50_000), '[a](https://a/'.repeat(20_000)]) {
+    const t0 = Date.now()
+    inline(hostile)
+    assert.ok(Date.now() - t0 < 1000, `rendu en ${Date.now() - t0} ms`)
+  }
+  const t0 = Date.now()
+  renderMarkdown('```\n' + '"'.repeat(50_000) + '\n```')
+  assert.ok(Date.now() - t0 < 1000, 'bloc de code hostile')
+})
+
+test('bloc démesuré : tronqué, pas de gel', () => {
+  const html = renderMarkdown('x'.repeat(200_000))
+  assert.match(html, /bloc tronqué/)
+  assert.ok(html.length < 120_000)
+})
+
+test('URL avec esperluette : échappée une seule fois dans le href', () => {
+  assert.match(inline('[x](https://a/?a=1&b=2)'), /href="https:\/\/a\/\?a=1&amp;b=2"/)
+})
+
+test('emphase dans le texte d un lien', () => {
+  assert.match(inline('[**gras**](https://a)'), /<a href="https:\/\/a"[^>]*><strong>gras<\/strong><\/a>/)
+})

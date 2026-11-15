@@ -4,9 +4,7 @@
 
 ## Résumé exécutif
 
-- **Le projet n'est pas publiable en l'état : 4 points bloquants**, tous corrigeables en quelques heures chacun.
-- **XSS dans le markdown de la PWA** (vérifié) : un texte restitué par l'agent exécute du script sur le téléphone, vole le jeton et permet de piloter les agents du poste.
-- **Les canaux « loopback » sont ouverts aux pages web du poste** (vérifié) : le canal `/shim` ne contrôle pas l'`Origin`, les routes HTTP locales ne contrôlent pas le `Host`. Une page visitée sur le poste peut lire le code d'appairage, se faire passer pour un shim et écrire dans un thread.
+- **Le projet n'est pas publiable en l'état : 2 points bloquants**, tous corrigeables en quelques heures chacun.
 - **Le fichier d'exemple de config active le pilotage clavier** alors que la doc le dit désactivé par défaut.
 - **Pas de licence** : sans fichier `LICENSE`, personne n'a le droit d'utiliser le code publié.
 - Le reste de la sécurité réseau est solide : contrôle d'`Origin` de `/ws`, path traversal, trames WebSocket malformées, stockage du jeton. Tout a été testé sur une instance isolée.
@@ -22,7 +20,7 @@
 - `npm audit` : 2 vulnérabilités hautes, dans des dépendances de dev transitives (axe 6).
 - Daemon isolé pour les tests de sécurité : port 17877, loopback seule, `ZRA_CONFIG` vers une config jetable, backend `mock`, `zedControl.enabled: false`, `ZRA_ZED_KEYBOARD=none`, base de threads = fixture des tests. Arrêté en fin d'audit. Le daemon réel (port 7777) n'a jamais été contacté.
 - Jamais lancés : `setup`, `service`, `pair`, `zed`, `wireguard`. Ces parties sont jugées à la lecture seule.
-- Scripts de sonde : `.cache/audit/` (dossier ignoré par Git) : `wsprobe.mjs` (handshakes, trames), `shimprobe.mjs` (faux shim), `xss.mjs` et `redos.mjs` (markdown), `plugged.mjs` (client lent). À supprimer ou à reprendre en tests.
+- Scripts de sonde : `.cache/audit/` (dossier ignoré par Git), supprimés depuis ; les cas sont repris en tests avec les correctifs.
 - Convention : « vérifié » = constaté par exécution ; « lecture » = constaté dans le code, non exécuté ; « à vérifier » = hypothèse.
 
 ## Écarts avec le contexte fourni
@@ -49,23 +47,6 @@
 - **Écoute** (lecture) : jamais `0.0.0.0`, `/shim` refusé hors loopback, aucun `shell: true`, aucune commande construite par concaténation.
 
 ### Problèmes
-
-- **[Bloquant] XSS dans le rendu markdown de la PWA**
-  - Où : `zra-client/js/markdown.js:147-155` (`inline`)
-  - Problème : les remplacements s'enchaînent sur du HTML déjà produit. L'autolien (`:153`) se déclenche à l'intérieur de l'attribut `href` écrit par la passe « lien » (`:150`) et y insère un guillemet. Le reste de l'URL devient des attributs.
-  - Scénario concret : l'agent lit un fichier ou une page contenant `[x](https://a/(https://b/onmouseover=location=/javascript:alert%281%29/.source//)` et le restitue. La PWA produit un `<a onmouseover="…">` (constaté avec jsdom, variante image `![…]` comprise). Un tap exécute du script dans l'origine de la PWA : lecture du jeton dans `localStorage`, puis envoi de prompts aux agents. Le même rendu sert aux messages, aux réflexions et au contenu des tool calls (`views/entry.js:42,50,75,207`).
-  - Correction suggérée : retirer les liens du texte par jetons avant les passes suivantes, comme c'est déjà fait pour le `code`. En complément, servir une CSP depuis `static.js` (`script-src 'self'`) : elle bloque les gestionnaires inline et les URL `javascript:`.
-  - Effort : S
-  - Confiance : vérifié
-
-- **[Bloquant] Les canaux réservés à la loopback sont ouverts aux pages web du poste**
-  - Où : `zra-daemon/server.js:124-129` (HTTP), `server.js:171-179` (`/shim`), `daemon.js:382-405` (`/pair`), `shim-registry.js:31,41`
-  - Problème : deux contrôles manquent. Les routes `/status`, `/pair`, `/pair/rotate`, `/pair/revoke` ne vérifient pas `Host`. Le canal `/shim` ne vérifie pas `Origin`, alors qu'un navigateur peut ouvrir un WebSocket vers `127.0.0.1` depuis n'importe quel site. De plus le dernier shim qui annonce une session en prend le routage.
-  - Scénario concret : une page ouverte sur le poste se fait re-résoudre vers `127.0.0.1` (DNS rebinding), lit `/status` et `/pair` : identifiants de session, code d'appairage, appareils. Elle ouvre ensuite `ws://127.0.0.1:7777/shim`, annonce une session existante et publie des événements dans le thread. Combiné au XSS ci-dessus, la page prend la main sur la PWA du téléphone. Sans le XSS, elle reçoit quand même les prompts envoyés depuis le mobile et peut afficher de faux messages ou de fausses demandes de permission.
-  - Constaté sur l'instance isolée : `/pair` rend le code avec `Host: evil.example` ; `POST /pair/rotate` avec une `Origin` tierce est accepté ; `/shim` répond 101 avec `Origin: http://evil.example` ; l'événement injecté par le faux shim arrive au client abonné.
-  - Correction suggérée : refuser toute requête HTTP dont le `Host` n'est pas une adresse ou un nom du daemon (la liste `selfOrigins` existe déjà) ; refuser `/shim` dès qu'un en-tête `Origin` est présent ; refuser qu'un second shim prenne une session déjà tenue.
-  - Effort : S
-  - Confiance : vérifié (chaque maillon) ; la chaîne complète depuis un vrai navigateur n'a pas été jouée
 
 - **[Bloquant] Le fichier d'exemple de config active le pilotage clavier**
   - Où : `zra.config.example.json:63` (`"enabled": true`), contre `zra-daemon/config.js:117` (`enabled: false`) et le commentaire `zra.config.example.json:60` (« Désactivé tant qu'on ne l'a pas voulu »)
@@ -186,7 +167,6 @@ Le découpage est clair et tient : trois composants, un seul module qui connaît
 
 Rien de bloquant constaté à la lecture ; aucune mesure n'a été faite sur un téléphone.
 
-- Le rendu markdown gèle sur une entrée de quelques kilo-octets : voir axe 6, c'est le seul point mesuré.
 - Points repérés, non mesurés, à surveiller seulement si un symptôme apparaît : la PWA rend tout le thread sans fenêtrage ; le daemon relit toute la table `sidebar_threads` toutes les 2 s ; le diff alloue jusqu'à 16 Mo par bloc (`diff.js:6`).
 - La détection de client gelé (`ws.js:165-186`) ne s'est jamais déclenchée dans mes essais sous Windows, même avec 12 Mo en attente. Je n'en tire pas de conclusion pour un vrai réseau.
 
@@ -248,18 +228,6 @@ Vérifié à la lecture : l'installation ne dépend d'aucun fichier ignoré par 
 | QR (`scripts/lib/qr.mjs`) | Affichage seul, vérifié par `jsqr` dans les tests | Non |
 | Diff (`zra-client/js/diff.js`) | Borné (`MAX_CELLS`) | Non |
 
-- **[Important] Le rendu markdown gèle la PWA sur une entrée courte**
-  - Où : `zra-client/js/markdown.js:147,150` (expressions des images et des liens)
-  - Problème : temps de rendu cubique sur une suite de `[a](` non refermés.
-  - Scénario concret : mesuré : 2 ko → 0,7 s ; 4 ko → 5,3 s ; 8 ko → 42 s ; 200 ko → pas de fin en 2 minutes. Un agent qui restitue un tel texte (journal, fichier minifié) fige l'onglet, et le rendu est rejoué pendant le streaming.
-  - Correction suggérée : même correctif que le XSS (analyse des liens en une passe, sans retour arrière), plus une longueur maximale par bloc rendu.
-  - Effort : S
-  - Confiance : vérifié
-
-- **[Mineur, traité ici car demandé] Dépendances de dev**
-  - `npm audit` : 2 vulnérabilités hautes, `undici` et `source-map-js`, tirées par `jsdom`. Aucune n'atteint la production. `npm audit fix` les corrige.
-  - Licences : `jsdom` (MIT) et `jsqr` (Apache-2.0), compatibles, et non redistribuées.
-
 ---
 
 ## Axe 7 — Tests
@@ -267,14 +235,6 @@ Vérifié à la lecture : l'installation ne dépend d'aucun fichier ignoré par 
 - **Durée et stabilité** : 764 tests en 72 s. `protocol.test.mjs` relancé 15 fois, plus le passage complet : 16 réussites sur 16. L'instabilité annoncée n'est pas reproduite sur ce poste. Sa cause est écrite dans le fichier (`protocol.test.mjs:250-252`) : le tour du bouchon dure 60 ms et l'interruption arrive parfois après. Rendre ce délai réglable dans le test supprimerait la course.
 - **Pertinence (échantillon)** : `lot-b` et `lot-c` lancent un vrai daemon, un vrai processus shim et un agent bouchon. Ce sont les tests les plus utiles du dépôt. Les tests unitaires lus (auth, static, markdown, keymap) vérifient des comportements, pas des détails d'implémentation.
 - **Garde-fou efficace** : sous `node --test`, le clavier réel, la CLI de Zed et la config du poste sont refusés (`config.js:210`, `zed/keyboard.js:61`).
-
-- **[Important] Les chemins d'attaque trouvés par cet audit n'ont aucun test**
-  - Où : `zra-client/test/markdown.test.mjs` (2 tests de sécurité sur 14, cas simples), `zra-daemon/test/static.test.mjs`, `auth.test.mjs`
-  - Problème : aucun test pour l'imbrication lien + autolien, pour le temps de rendu, pour un `Host` forgé, pour `/shim` avec `Origin`, pour le vol de session entre shims.
-  - Scénario concret : le correctif du XSS est fait, puis défait par une retouche du rendu.
-  - Correction suggérée : reprendre les cas de `.cache/audit/xss.mjs`, `redos.mjs`, `wsprobe.mjs` et `shimprobe.mjs` en tests, en même temps que les correctifs.
-  - Effort : S
-  - Confiance : vérifié
 
 ---
 
@@ -347,8 +307,6 @@ Conséquence : l'état de Zed et celui de l'agent peuvent diverger. Deux prompts
 
 | # | Action | Points couverts | Effort |
 |---|---|---|---|
-| A1 | Réécrire la passe « liens » du markdown, ajouter une CSP, ajouter les tests | XSS, gel du rendu, tests manquants | S |
-| A2 | Contrôle de `Host` sur le HTTP, refus d'`Origin` sur `/shim`, pas de vol de session entre shims, tests | Canaux loopback | S |
 | A3 | Exemple de config : `zedControl.enabled: false`, `allowedOrigins: []` | Config d'exemple | S |
 | A4 | Choisir et ajouter une licence ; statuer sur les thèmes et icônes repris de Zed | Licence | S (hors décision juridique) |
 

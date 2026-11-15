@@ -24,11 +24,18 @@ export class ShimRegistry extends EventEmitter {
       shimId: shim.shimId,
       agentId: shim.agentId ?? null,
       capabilities: shim.capabilities ?? {},
-      sessions: new Set(shim.sessions ?? []),
+      sessions: new Set(),
       since: new Date().toISOString(),
     }
     this.shims.set(entry.shimId, entry)
-    for (const s of entry.sessions) this.bySession.set(s, entry.shimId)
+    for (const s of shim.sessions ?? []) {
+      // Une session déjà tenue par un autre shim vivant ne se prend pas :
+      // sinon un faux shim local détourne le routage d'un thread existant.
+      const holder = this.bySession.get(s)
+      if (holder && holder !== entry.shimId) continue
+      entry.sessions.add(s)
+      this.bySession.set(s, entry.shimId)
+    }
     this.emit('change', { added: entry.shimId })
     return entry
   }
@@ -37,6 +44,8 @@ export class ShimRegistry extends EventEmitter {
   addSession(shimId, sessionId) {
     const shim = this.shims.get(shimId)
     if (!shim || !sessionId || shim.sessions.has(sessionId)) return false
+    const holder = this.bySession.get(sessionId)
+    if (holder && holder !== shimId) return false
     shim.sessions.add(sessionId)
     this.bySession.set(sessionId, shimId)
     this.emit('change', { session: sessionId })

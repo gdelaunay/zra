@@ -22,6 +22,18 @@ const MIME = {
   '.txt': 'text/plain; charset=utf-8',
 }
 
+/**
+ * CSP du client servi ici : aucun script inline ni `eval` (le gestionnaire
+ * d'événements est posé en propriété DOM, pas en attribut HTML), aucune
+ * ressource externe. C'est le filet du rendu markdown : même si une passe
+ * laissait passer un attribut événementiel ou une URL `javascript:`, le
+ * navigateur refuse de l'exécuter. `style-src 'unsafe-inline'` : les images
+ * du fil portent un attribut `style`.
+ */
+const CSP = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; " +
+  "font-src 'self'; connect-src 'self'; worker-src 'self'; manifest-src 'self'; " +
+  "object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+
 export function createStaticHandler(dir) {
   const root = resolve(dir)
 
@@ -57,6 +69,7 @@ export function createStaticHandler(dir) {
         // version périmée du client après une mise à jour.
         'cache-control': 'no-cache',
         'x-content-type-options': 'nosniff',
+        'content-security-policy': CSP,
       })
       res.end(req.method === 'HEAD' ? undefined : body)
     } catch {
@@ -70,6 +83,7 @@ function send(res, status, type, body) {
     'content-type': type,
     'content-length': Buffer.byteLength(body),
     'x-content-type-options': 'nosniff',
+    'content-security-policy': CSP,
   })
   res.end(body)
 }

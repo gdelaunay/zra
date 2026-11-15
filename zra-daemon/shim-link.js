@@ -27,6 +27,9 @@ const PENDING_MAX = 2000
 /** Une commande sans accusé au-delà de ce délai est considérée perdue. */
 const COMMAND_TIMEOUT = 20_000
 
+/** Messages bornés à une session : leur shim doit en être le détenteur. */
+const SESSION_SCOPED = new Set(['session', 'acp_update', 'state', 'session_replay', 'permission_resolved', 'permission_expired', 'notice'])
+
 export class ShimHost extends EventEmitter {
   /**
    * @param {{
@@ -132,6 +135,17 @@ export class ShimHost extends EventEmitter {
   // =========================================================================
 
   handle(entry, msg) {
+    // Un shim ne parle que pour ses sessions : `session` peut en revendiquer
+    // une libre, les autres messages exigent qu'il la tienne déjà. Sans ça,
+    // un faux shim local publie de faux événements dans n'importe quel thread.
+    if (msg && msg.sessionId && SESSION_SCOPED.has(msg.type)) {
+      const owner = this.shims.bySession.get(msg.sessionId)
+      const mine = owner === entry.shimId
+      if (!entry.shimId || (msg.type === 'session' ? owner && !mine : !mine)) {
+        log.warn(`shim ${entry.shimId ?? entry.conn.id} : ${msg.type} ignoré, session ${msg.sessionId} ${owner ? `tenue par ${owner}` : 'non revendiquée'}`)
+        return
+      }
+    }
     switch (msg.type) {
       case 'shim_hello': return this.hello(entry, msg)
       case 'session': return this.session(entry, msg)
@@ -165,6 +179,12 @@ export class ShimHost extends EventEmitter {
 
   session(entry, msg) {
     if (!msg.sessionId) return
+    // Session déjà tenue par un autre shim : ni reprise, ni état, ni émission.
+    const holder = this.shims.bySession.get(msg.sessionId)
+    if (holder && holder !== entry.shimId) {
+      log.warn(`shim ${entry.shimId ?? entry.conn.id} : session ${msg.sessionId} tenue par ${holder}, annonce ignorée`)
+      return
+    }
     if (msg.source === 'new') this.whole.add(msg.sessionId)
     if (entry.shimId) this.shims.addSession(entry.shimId, msg.sessionId)
     this.state(msg)
