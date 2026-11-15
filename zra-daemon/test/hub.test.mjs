@@ -27,11 +27,12 @@ const NO_SESSION = 'thread-sans-session'
 /** Connexion PWA factice : ce que le hub en utilise. */
 class FakeConn extends EventEmitter {
   static seq = 0
-  constructor({ remoteAddress = '203.0.113.9', origin = 'https://zra.exemple.fr' } = {}) {
+  constructor({ remoteAddress = '203.0.113.9', origin = 'https://zra.exemple.fr', forwarded = false } = {}) {
     super()
     this.id = `c${++FakeConn.seq}`
     this.remoteAddress = remoteAddress
     this.origin = origin
+    this.forwarded = forwarded
     this.sent = []
     this.closeCode = null
   }
@@ -1277,6 +1278,14 @@ test('auth.exemptLoopback = false : la loopback doit s’appairer aussi', () => 
   const pairing = new Pairing({ file: null })
   const ctx = boot({ pairing, config: { auth: { exemptLoopback: false } } })
   const conn = client(ctx, { remoteAddress: '127.0.0.1' })
+  conn.emit('message', { type: 'hello' })
+  assert.equal(conn.last().type, 'auth_required')
+})
+
+test('loopback relayée par un proxy local (en-têtes forwarded) : appairage requis', () => {
+  const pairing = new Pairing({ file: null })
+  const ctx = boot({ pairing })
+  const conn = client(ctx, { remoteAddress: '127.0.0.1', forwarded: true })
   conn.emit('message', { type: 'hello' })
   assert.equal(conn.last().type, 'auth_required')
 })

@@ -61,7 +61,7 @@ export function parseArgs(argv) {
     else if (!a.startsWith('-')) out.agents.push(a)
     else throw new Error(`option inconnue : ${a}`)
   }
-  if (!['status', 'install', 'uninstall', 'help'].includes(out.command)) {
+  if (!['status', 'install', 'uninstall', 'xwayland', 'help'].includes(out.command)) {
     throw new Error(`commande inconnue : ${out.command}`)
   }
   if (out.name && out.agents.length > 1) throw new Error('--name ne vaut que pour un seul agent')
@@ -76,6 +76,8 @@ const USAGE = `zra setup — brancher ZRA dans Zed
   install [agent…]     une entrée ZRA par agent dans agent_servers. Sans agent
                        nommé : tous ceux que Zed sait lancer sur ce poste
   uninstall [--name]   retire les entrées ZRA (toutes, ou celle nommée)
+  xwayland             (Linux/Wayland) force Zed sous XWayland pour le clavier :
+                       modifie le .desktop de Zed, étape séparée de l'installation
 
   --apply              écrire pour de vrai (sans : simulation, rien n'est écrit) ;
                        « apply » tout court marche aussi, si npm avale le --apply
@@ -354,15 +356,29 @@ async function install(opts, config) {
     console.log(`\n✓ keymap.json écrit.${backup ? ` Sauvegarde : ${backup}` : ''}`)
   }
 
-  // Wayland : forcer Zed sous XWayland pour que xdotool voie ses fenêtres
+  // Wayland : le forçage XWayland est une étape séparée et explicite — il
+  // change le rendu de Zed pour tout le poste et peut échouer sur un .desktop
+  // système. L'installation ne le fait plus d'office (audit B4).
+  if (isWayland()) {
+    console.log('\nWayland détecté : le pilotage clavier exige Zed sous XWayland.')
+    console.log('  Étape séparée : npm run setup -- xwayland --apply (modifie le .desktop de Zed, sauvegardé).')
+  }
+}
+
+/** Forçage XWayland du .desktop de Zed — étape explicite, simulation par défaut. */
+async function xwayland(opts) {
   const desktop = await patchDesktopForXWayland(opts.apply)
   if (desktop.action === 'patched') {
-    console.log(`\n✓ .desktop de Zed modifié pour forcer XWayland. Sauvegarde : ${desktop.backup}`)
+    console.log(`✓ .desktop de Zed modifié pour forcer XWayland. Sauvegarde : ${desktop.backup}`)
     console.log('  Redémarrer Zed pour que le changement prenne effet.')
   } else if (desktop.action === 'dry-run') {
-    console.log('\n.desktop de Zed : forcer XWayland sous Wayland (simulation) :\n')
+    console.log('.desktop de Zed : forcer XWayland (simulation) :\n')
     console.log(lineDiff(desktop.original, desktop.patched))
-    console.log('\nsimulation : le .desktop n\'a pas été modifié. Relancer avec --apply pour appliquer.')
+    console.log('\nsimulation : rien n’a été écrit. Relancer avec --apply pour appliquer.')
+  } else if (desktop.action === 'unchanged') {
+    console.log(`✓ ${desktop.file} déjà patché : rien à faire.`)
+  } else {
+    console.log(`— ${desktop.reason}`)
   }
 }
 
@@ -413,6 +429,8 @@ async function uninstall(opts, config) {
   if (desktop.action === 'restored') {
     console.log(`\n✓ .desktop de Zed restauré (XWayland retiré). Sauvegarde : ${desktop.backup}`)
     console.log('  Redémarrer Zed pour que le changement prenne effet.')
+  } else if (desktop.action === 'unwritable') {
+    console.log(`\n⚠ ${desktop.reason}`)
   } else if (desktop.action === 'dry-run') {
     console.log('\n.desktop de Zed : retirer le forçage XWayland (simulation) :\n')
     console.log(lineDiff(desktop.original, desktop.restored))
@@ -425,6 +443,7 @@ async function uninstall(opts, config) {
 async function main() {
   const opts = parseArgs(process.argv.slice(2))
   if (opts.command === 'help') return console.log(USAGE)
+  if (opts.command === 'xwayland') return xwayland(opts)
   const config = await loadConfig()
   if (opts.command === 'status') return status(opts, config)
   if (opts.command === 'install') return install(opts, config)

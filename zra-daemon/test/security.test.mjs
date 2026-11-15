@@ -32,13 +32,14 @@ async function servers(t, { status = null, admin = null, allowedOrigins = [] } =
 }
 
 /** Requête HTTP brute : permet de forger Host et Origin librement. */
-function http({ path = '/status', host = `${HOST}:${PORT}`, method = 'GET', origin } = {}) {
+function http({ path = '/status', host = `${HOST}:${PORT}`, method = 'GET', origin, headers = {} } = {}) {
   return new Promise((resolve, reject) => {
     const socket = connect(PORT, HOST)
     let buf = ''
+    const extra = Object.entries(headers).map(([k, v]) => `${k}: ${v}\r\n`).join('')
     socket.on('connect', () => socket.write(
       `${method} ${path} HTTP/1.1\r\nHost: ${host}\r\n` +
-      (origin ? `Origin: ${origin}\r\n` : '') +
+      (origin ? `Origin: ${origin}\r\n` : '') + extra +
       'Connection: close\r\n\r\n',
     ))
     socket.on('data', (d) => { buf += d })
@@ -104,6 +105,15 @@ test('/shim : une Origin présente signe une page web, refusée ; un client nati
   assert.match(await upgrade('/shim', 'http://evil.example'), /403/)
   assert.match(await upgrade('/shim', `http://${HOST}:${PORT}`), /403/)
   assert.match(await upgrade('/shim'), /101/)
+})
+
+test('routes locales : un en-tête de proxy signe un relais, plus la loopback du poste', async (t) => {
+  await servers(t, { status: () => ({ ok: true }) })
+  for (const h of ['X-Forwarded-For', 'Forwarded', 'Via']) {
+    const res = await http({ headers: { [h]: '203.0.113.9' } })
+    assert.doesNotMatch(res, /200/, h)
+  }
+  assert.match(await http(), /200/, 'sans en-tête : la loopback reste le poste')
 })
 
 test('registre : un second shim ne prend pas une session déjà tenue', () => {

@@ -158,14 +158,18 @@ export async function createServers({ config, addresses, onConnection, onShim, s
       res.end('origine non autorisée')
       return
     }
+    // Routes locales : loopback **et** sans en-tête de proxy — un tunnel local
+    // qui relaie vers 127.0.0.1 n'est plus le poste lui-même (audit, loopback).
+    const local = isLoopback(req.socket.remoteAddress) &&
+      !req.headers['x-forwarded-for'] && !req.headers.forwarded && !req.headers.via
     // Diagnostic du poste (`npm run setup`), en local uniquement : il liste les
     // shims et les sessions, rien à exposer sur le tunnel.
-    if (status && req.url === '/status' && isLoopback(req.socket.remoteAddress)) {
+    if (status && req.url === '/status' && local) {
       res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' })
       res.end(JSON.stringify(status()))
       return
     }
-    if (admin && isLoopback(req.socket.remoteAddress) && admin(req, res)) return
+    if (admin && local && admin(req, res)) return
     if (!serveStatic) {
       // API pure : on répond quelque chose d'explicite plutôt qu'un 404 sec, le
       // premier réflexe de diagnostic étant d'ouvrir l'URL dans un navigateur.

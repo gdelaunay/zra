@@ -47,14 +47,6 @@
 
 ### Problèmes
 
-- **[Important] La loopback dispense de toute authentification : un tunnel ou proxy local l'étend au monde**
-  - Où : `zra-daemon/hub.js:62`, `server.js:124,129`
-  - Problème : la confiance repose sur l'adresse du socket. Tout ce qui tourne sur le poste et relaie vers `127.0.0.1` rend le daemon accessible sans appairage, avec le code d'appairage en prime (`GET /pair`).
-  - Scénario concret : `cloudflared`, `tailscale serve`, `ssh -R`, ou un Caddy local posé devant le daemon. Même effet pour un autre compte utilisateur sur une machine partagée. `DEPLOY.md` §4.1 place le proxy sur une autre machine, donc ne crée pas ce cas, mais ne met pas en garde.
-  - Correction suggérée : ne plus exempter une requête qui porte `X-Forwarded-For`, `Forwarded` ou `Via` ; ajouter un avertissement en tête de `DEPLOY.md` ; proposer `auth.exemptLoopback: false` dans la doc (l'option existe, elle n'est documentée nulle part).
-  - Effort : S
-  - Confiance : vérifié (exemption), lecture (reste)
-
 - **[Important] Appairage toujours ouvert, code à 6 chiffres, limite par adresse seulement**
   - Où : `zra-daemon/auth.js:35,101-119`
   - Problème : le code ne périme jamais et reste valable tant que personne ne s'appaire. La limite est de 5 essais par minute **par adresse** ; la rotation après 20 échecs ne change pas la probabilité par essai (1 sur 1 000 000).
@@ -80,10 +72,10 @@
   - Confiance : lecture
 
 - **[Important] Conversations et prompts écrits sur disque par défaut, sans que la doc utilisateur le dise**
-  - Où : `scripts/setup.mjs:49,109-113` (`ZRA_RECORD=1` par défaut), `zra-shim/record.js:21,46` (purge à 14 jours, au lancement d'un shim seulement), `zra-daemon/log.js:92-104` (`injections.log`, sans rotation), `hub.js:93-99`
-  - Problème : toutes les trames ACP (conversations complètes, contenus de fichiers lus par l'agent) vont dans `.zra/records/`. Tous les prompts du mobile vont dans `injections.log`, qui grossit sans limite. Aucun fichier n'est créé avec des droits restreints. Le code d'appairage est aussi écrit dans `daemon.log` (`daemon.js:299`). Ni le README ni `DEPLOY.md` ne mentionnent ces enregistrements.
+  - Où : `scripts/setup.mjs:49,109-113` (`ZRA_RECORD=1` par défaut), `zra-shim/record.js:21,46` (purge à 14 jours, au lancement d'un shim seulement), `zra-daemon/log.js` (`injections.log`, rotation à 5 Mo faite), `hub.js:93-99`
+  - Problème : toutes les trames ACP (conversations complètes, contenus de fichiers lus par l'agent) vont dans `.zra/records/`. Tous les prompts du mobile vont dans `injections.log`. Aucun fichier n'est créé avec des droits restreints. Le code d'appairage est aussi écrit dans `daemon.log` (`daemon.js:299`). Ni le README ni `DEPLOY.md` ne mentionnent ces enregistrements.
   - Scénario concret : un utilisateur installe, oublie, et retrouve des mois de prompts en clair ; ou partage son dossier de projet avec `.zra/` dedans.
-  - Correction suggérée : enregistrement des trames désactivé par défaut (option `--record` pour le débogage) ; rotation d'`injections.log` ; une section « Ce que ZRA écrit sur le disque » dans le README.
+  - Correction suggérée : enregistrement des trames désactivé par défaut (option `--record` pour le débogage) — décision D3 ; une section « Ce que ZRA écrit sur le disque » dans le README.
   - Effort : S
   - Confiance : lecture
 
@@ -167,14 +159,6 @@ Vérifié à la lecture : l'installation ne dépend d'aucun fichier ignoré par 
   - Effort : S
   - Confiance : lecture ; le comportement de Zed sur ces threads n'a pas été testé
 
-- **[Important] Sous Wayland, l'installation modifie le lanceur de Zed sans l'annoncer dans le README**
-  - Où : `scripts/lib/wayland.mjs:32-65`, appelé par `scripts/setup.mjs:358`
-  - Problème : `install apply` réécrit le `.desktop` de Zed pour forcer XWayland. Cela change le rendu de Zed pour tout l'usage du poste. Si le fichier est dans `/usr/share/applications`, l'écriture échoue faute de droits, **après** que `settings.json` et `keymap.json` ont été modifiés. Le dossier de sauvegarde est calculé depuis le répertoire courant (`wayland.mjs:6`), pas depuis la racine du dépôt comme ailleurs.
-  - Scénario concret : utilisateur GNOME/Wayland ; l'installation se termine sur une erreur `EACCES` alors que deux fichiers sont déjà écrits ; ou Zed devient flou sur un écran HiDPI sans qu'il sache pourquoi.
-  - Correction suggérée : en faire une étape séparée et explicite (`setup xwayland --apply`), mentionnée dans le README ; rattraper l'erreur de droits avec un message clair.
-  - Effort : S
-  - Confiance : lecture
-
 - **[Important] Chemins absolus figés dans la config de Zed et dans le service**
   - Où : `scripts/setup.mjs:105-124` (`process.execPath`, racine du dépôt)
   - Problème : l'entrée écrite dans `settings.json` pointe vers le Node et le dossier du moment.
@@ -198,7 +182,7 @@ Vérifié à la lecture : l'installation ne dépend d'aucun fichier ignoré par 
 | Primitive | Verdict | Remplacer par une lib ? |
 |---|---|---|
 | WebSocket (`zra-daemon/ws.js`) | Robuste aux 23 trames hostiles testées | Non |
-| Markdown (`zra-client/js/markdown.js`) | **XSS et gel**, voir ci-dessous | Correctif ciblé suffisant ; une lib se justifie si le markdown doit s'enrichir |
+| Markdown (`zra-client/js/markdown.js`) | Corrigé : liens par jetons en une passe, blocs bornés, CSP | Non |
 | JSONC (`jsonc.js`, `zed-settings.js`) | Édition textuelle prudente, résultat revalidé avant écriture | Non |
 | QR (`scripts/lib/qr.mjs`) | Affichage seul, vérifié par `jsqr` dans les tests | Non |
 | Diff (`zra-client/js/diff.js`) | Borné (`MAX_CELLS`) | Non |
@@ -290,9 +274,8 @@ Conséquence : l'état de Zed et celui de l'agent peuvent diverger. Deux prompts
 |---|---|---|---|
 | B1 | Section « Sécurité » du README : modèle de menace, ce qui écoute, ce qui est écrit sur disque, pas de proxy sur le poste, HTTPS recommandé, `lanCidrs` | Docs, trafic en clair, écoute par défaut, loopback | S |
 | B2 | Appairage par fenêtre ouverte à la demande, ou limite globale | Appairage | S |
-| B3 | Enregistrement des trames désactivé par défaut ; rotation d'`injections.log` | Données sur disque | S |
-| B4 | Désinstallation : séquence complète documentée ; patch Wayland en étape explicite | Désinstallation, Wayland, chemins absolus | S |
-| B7 | CI GitHub Actions Windows + Linux | CI | S |
+| B3 | Enregistrement des trames désactivé par défaut (décision D3 ; rotation d'`injections.log` : faite) | Données sur disque | S |
+| B4 | Désinstallation : séquence complète documentée (patch Wayland : fait, étape `setup xwayland`) | Désinstallation, chemins absolus | S |
 | B8 | Ménage : scripts orphelins, noms `lot-*`, options mortes, commentaires d'historique, bouchon hors production | Fichiers de chantier | M |
 
 ### C. Décisions à prendre, sans code obligatoire

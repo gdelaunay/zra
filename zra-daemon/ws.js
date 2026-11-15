@@ -165,12 +165,14 @@ export function createDecoder({ maxMessage = MAX_MESSAGE } = {}) {
 
 /** Une connexion cliente. Émet `message` (objet JSON) et `close`. */
 export class WsConnection extends EventEmitter {
-  constructor(socket, { origin, remoteAddress, log }) {
+  constructor(socket, { origin, remoteAddress, log, forwarded = false }) {
     super()
     this.id = randomUUID().slice(0, 8)
     this.socket = socket
     this.origin = origin || null
     this.remoteAddress = remoteAddress || null
+    /** En-têtes de proxy présents : la loopback n'est plus le poste lui-même. */
+    this.forwarded = forwarded
     this.alive = true
     /** Dernier signe de vie du pair : trame reçue, PONG, ou ouverture. */
     this.lastSeen = Date.now()
@@ -324,7 +326,12 @@ export function attachWebSocket(server, {
     )
     socket.setNoDelay(true)
 
-    const conn = new WsConnection(socket, { origin, remoteAddress: ip, log })
+    const conn = new WsConnection(socket, {
+      origin, remoteAddress: ip, log,
+      // Un tunnel ou proxy local (cloudflared, tailscale serve, ssh -R) relaie
+      // vers 127.0.0.1 : ces en-têtes signent que le pair n'est pas le poste.
+      forwarded: Boolean(req.headers['x-forwarded-for'] || req.headers.forwarded || req.headers.via),
+    })
     clients.add(conn)
 
     let tracked = false

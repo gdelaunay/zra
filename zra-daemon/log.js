@@ -1,6 +1,6 @@
 // Journalisation : console lisible + journal d'injections (spec §9).
 
-import { appendFile, mkdir } from 'node:fs/promises'
+import { appendFile, mkdir, rename, stat } from 'node:fs/promises'
 import { appendFileSync, mkdirSync, renameSync, statSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { format } from 'node:util'
@@ -88,16 +88,25 @@ export function logger(scope) {
 /**
  * Journal d'injections — spec §9 : toute écriture venue du mobile est tracée.
  * Best-effort : une erreur d'écriture ne doit jamais interrompre le service.
+ * Rotation à `maxBytes` : une génération précédente (`.1`), pas de croissance
+ * sans limite (audit B3).
  */
-export function injectionLog(file) {
+export function injectionLog(file, { maxBytes = 5 * 1024 * 1024 } = {}) {
   let ready = null
+  let size = null
   return async function record(entry) {
     if (!file) return
     const line = JSON.stringify({ at: new Date().toISOString(), ...entry }) + '\n'
     try {
       ready ??= mkdir(dirname(file), { recursive: true })
       await ready
+      size ??= await stat(file).then((s) => s.size).catch(() => 0)
+      if (size + Buffer.byteLength(line) > maxBytes) {
+        await rename(file, `${file}.1`).catch(() => {})
+        size = 0
+      }
       await appendFile(file, line, 'utf8')
+      size += Buffer.byteLength(line)
     } catch (err) {
       emit('warn', 'log', "journal d'injections indisponible :", err.message)
     }

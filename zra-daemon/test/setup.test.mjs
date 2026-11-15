@@ -216,3 +216,9 @@ test('setup : nom d’entrée dérivé de l’agent', () => {
   assert.equal(zraName('qwen-code'), 'qwen-code-zra')
   assert.equal(zraName('pi-acp'), 'pi-zra')
 })
+
+test('parseArgs : xwayland est une commande à part, simulation par défaut', () => {
+  assert.equal(parseArgs(['xwayland']).command, 'xwayland')
+  assert.equal(parseArgs(['xwayland']).apply, false)
+  assert.equal(parseArgs(['xwayland', '--apply']).apply, true)
+})

@@ -58,8 +58,11 @@ export class Hub {
   // ---- cycle de vie des clients -------------------------------------------
 
   attach(conn) {
-    // La loopback, c'est le poste lui-même : rien à appairer.
-    const trusted = !this.pairing || (this.config.auth?.exemptLoopback !== false && isLoopback(conn.remoteAddress))
+    // La loopback, c'est le poste lui-même : rien à appairer. Mais un proxy
+    // local qui relaie vers 127.0.0.1 (en-têtes forwarded) étend la loopback
+    // au monde : cette connexion-là doit s'appairer comme une autre.
+    const trusted = !this.pairing ||
+      (this.config.auth?.exemptLoopback !== false && isLoopback(conn.remoteAddress) && !conn.forwarded)
     const client = { conn, clientId: null, subs: new Set(), authed: trusted, pairedId: null }
     if (trusted) conn.authenticate?.()
     this.clients.set(conn, client)

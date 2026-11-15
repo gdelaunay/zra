@@ -22,6 +22,11 @@
   // true : refuser de démarrer sans tunnel (--wait-tunnel : l'attendre).
   "requireTunnel": false,
 
+  // Authentification. Le poste lui-même (loopback) est exempté d'appairage ;
+  // un proxy/tunnel local qui relaie vers 127.0.0.1 est détecté (en-têtes
+  // forwarded) et doit s'appairer. false : la loopback s'appaire aussi.
+  "auth": { "exemptLoopback": true },
+
   // Client web. Le déploiement retenu (DEPLOY.md) : le daemon le sert lui-même,
   // en HTTPS sur l'IP du tunnel — même origine que le WebSocket. S'il est servi
   // ailleurs : false, et son origine dans "allowedOrigins".

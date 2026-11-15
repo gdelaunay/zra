@@ -595,3 +595,19 @@ test('relecture en cache : rendue tant que le thread n’a pas bougé, jamais ap
   loader.invalidate('s1')
   assert.deepEqual((await loader.load('t1')).updates, [3], 'invalidé en direct par le daemon')
 })
+
+test('journal d’injections : rotation au plafond, une génération précédente', async () => {
+  const { injectionLog } = await import('../log.js')
+  const { mkdtempSync, rmSync, statSync, existsSync } = await import('node:fs')
+  const { tmpdir } = await import('node:os')
+  const dir = mkdtempSync(join(tmpdir(), 'zra-log-'))
+  try {
+    const file = join(dir, 'injections.log')
+    const record = injectionLog(file, { maxBytes: 200 })
+    for (let i = 0; i < 10; i++) await record({ i, text: 'x'.repeat(40) })
+    assert.ok(existsSync(`${file}.1`), 'la génération précédente est conservée')
+    assert.ok(statSync(file).size < 200, 'le fichier courant reste borné')
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})

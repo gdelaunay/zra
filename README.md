@@ -17,7 +17,9 @@ avec une relecture minimale.
 **Prérequis** : Zed (installation native — Flatpak/Snap non supportés, voir
 `ISSUES.md`), Node ≥ 24.
 
-**Prérequis Linux** : `xdotool` — `sudo apt install xdotool`.
+**Prérequis Linux** : `xdotool` — `sudo apt install xdotool`. Sous Wayland, le
+pilotage clavier exige Zed sous XWayland : `npm run setup -- xwayland --apply`
+(étape séparée, modifie le `.desktop` de Zed, sauvegardé).
 
 1. `npm run setup install apply`. Chaque agent de Zed reçoit une entrée ZRA
    (`claude-zra`…) : l'agent d'origine n'est pas touché.

@@ -135,6 +135,13 @@ Le homelab porte le HTTPS, les postes restent en HTTP sur le réseau local ou
 le tunnel. Exemple avec Nginx Proxy Manager et un certificat
 wildcard déjà en place :
 
+> **Pas sur le poste lui-même.** Un proxy ou tunnel posé sur le poste
+> (`cloudflared`, `tailscale serve`, `ssh -R`, Caddy local…) relaie vers
+> `127.0.0.1` et étend la loopback au réseau. ZRA détecte les en-têtes
+> `forwarded` et exige l'appairage pour ces connexions ; pour aller plus loin,
+> `"auth": { "exemptLoopback": false }` dans `zra.config.json` — la loopback
+> s'appaire aussi.
+
 - proxy host `zra.exemple.fr` → le client statique servi sur le homelab
   (`python3 -m http.server 8080 --directory zra-client`, ou n'importe quel
   serveur statique), SSL forcé ;
@@ -319,6 +326,16 @@ Sous X11, `xdotool` marche sans installation. Sous Wayland, Zed est forcé sous
 XWayland via `WAYLAND_DISPLAY=` dans le `.desktop` de Zed
 (`~/.local/share/applications/dev.zed.Zed.desktop`), ce qui permet à `xdotool`
 de voir ses fenêtres et de les cibler.
+
+Le setup sait le faire — étape séparée de l'installation, simulation par
+défaut, sauvegarde dans `.zra/backups/` :
+
+```bash
+npm run setup -- xwayland            # montre le diff, ne touche à rien
+npm run setup -- xwayland --apply    # applique (redémarrer Zed ensuite)
+```
+
+Ou à la main :
 
 ```ini
 # Dans le .desktop de Zed, remplacer :
