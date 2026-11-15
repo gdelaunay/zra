@@ -14,6 +14,9 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { existsSync } from 'node:fs'
+import { resolve } from 'node:path'
+
+import { loadConfig } from '../config.js'
 
 import {
   KEYBOARD_BACKENDS, PATHS, defaultZedCli, keyboardPreference, processProbe,
@@ -69,6 +72,12 @@ test('windows (gelé) : CLI, processus et clavier', () => {
 
 const LX_HOME = '/home/test'
 const lx = zedPaths({ platform: 'linux', env: {}, home: LX_HOME })
+
+test('zedDb explicite prend le pas sur le chemin par défaut (Preview, Nightly)', async () => {
+  const file = resolve('zra-daemon', 'test', 'fixtures', 'zed-preview.sqlite')
+  const cfg = await loadConfig({ overrides: { zedDb: file } })
+  assert.equal(cfg.zedDb, file)
+})
 
 test('linux : les chemins de Zed suivent XDG, comme sur la machine de portage', () => {
   assert.equal(lx.dataDir, '/home/test/.local/share/zed')

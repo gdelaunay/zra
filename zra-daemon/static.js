@@ -31,7 +31,12 @@ export function createStaticHandler(dir) {
     }
 
     const url = new URL(req.url, 'http://localhost')
-    let path = decodeURIComponent(url.pathname)
+    let path
+    try {
+      path = decodeURIComponent(url.pathname)
+    } catch {
+      return send(res, 400, 'text/plain; charset=utf-8', 'URL mal encodée')
+    }
     if (path === '/' || path === '') path = '/index.html'
 
     const full = normalize(join(root, path))
@@ -51,6 +56,7 @@ export function createStaticHandler(dir) {
         // Le service worker gère le cache ; le daemon ne doit jamais servir une
         // version périmée du client après une mise à jour.
         'cache-control': 'no-cache',
+        'x-content-type-options': 'nosniff',
       })
       res.end(req.method === 'HEAD' ? undefined : body)
     } catch {
@@ -60,6 +66,10 @@ export function createStaticHandler(dir) {
 }
 
 function send(res, status, type, body) {
-  res.writeHead(status, { 'content-type': type, 'content-length': Buffer.byteLength(body) })
+  res.writeHead(status, {
+    'content-type': type,
+    'content-length': Buffer.byteLength(body),
+    'x-content-type-options': 'nosniff',
+  })
   res.end(body)
 }

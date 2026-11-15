@@ -422,6 +422,7 @@ test('permission : le mobile répond à la place de Zed, qui n’a pas encore cl
 
   const res = bridge.respondPermission(zed.sessionId, demande.requestId, 'allow')
   assert.deepEqual(res, { by: 'mobile', optionId: 'allow', optionName: 'Autoriser' })
+  assert.ok(!bridge.permissions.has(demande.requestId), 'la demande tranchée ne reste pas en mémoire')
   assert.deepEqual(resolutions, [{
     sessionId: zed.sessionId, requestId: demande.requestId,
     optionId: 'allow', optionName: 'Autoriser', by: 'mobile',
@@ -452,7 +453,7 @@ test('permission : le poste gagne la course, la réponse mobile est refusée', a
   await turn
 })
 
-test('permission : la réponse tardive du poste est avalée, l’agent n’en voit qu’une', async (t) => {
+test('permission tranchée du mobile : la réponse tardive du poste est avalée, l’agent n’en voit qu’une', async (t) => {
   const { bridge, zed, agent } = await boot(t, { zed: { answerPermission: 'reject', permissionDelayMs: 300 } })
   const erreurs = []
   agent.stderr.on('data', (c) => erreurs.push(c.toString()))

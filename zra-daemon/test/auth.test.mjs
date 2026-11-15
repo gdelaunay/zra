@@ -49,6 +49,27 @@ test('code à 6 chiffres, à usage unique ; le jeton n’est stocké que haché'
   assert.equal(p.verify(undefined), null)
 })
 
+test('vérifier un jeton ne réécrit pas auth.json à chaque connexion', () => {
+  const p = new Pairing({ file: fresh('auth-verify') })
+  const { token } = p.pair(p.code)
+  let saves = 0
+  const save = p.save.bind(p)
+  p.save = () => { saves++; save() }
+  assert.ok(p.verify(token))
+  assert.ok(p.verify(token))
+  assert.equal(saves, 0)
+})
+
+test('les échecs d’appairage expirés sont purgés, même pour les autres adresses', () => {
+  let t = 1_000_000
+  const p = new Pairing({ maxAttempts: 5, windowMs: 1_000, now: () => t })
+  const wrong = p.code === '000000' ? '111111' : '000000'
+  for (const address of ['A', 'B']) assert.throws(() => p.pair(wrong, { address }), AuthError)
+  t += 1_001
+  assert.throws(() => p.pair(wrong, { address: 'C' }), AuthError)
+  assert.deepEqual([...p.failures.keys()], ['C'])
+})
+
 test('le code se saisit avec ou sans espace', () => {
   const p = new Pairing()
   assert.ok(p.pair(p.display).token)

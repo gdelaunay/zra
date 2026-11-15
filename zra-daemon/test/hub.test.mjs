@@ -1136,6 +1136,15 @@ test('toute écriture est journalisée, aucune lecture', async () => {
   assert.equal(ctx.recorded[3].agentId, 'claude-zra')
 })
 
+test('une exception asynchrone d’un handler devient une erreur du protocole', async () => {
+  const ctx = boot()
+  const conn = pairedClient(ctx)
+  ctx.hub.handle = async () => { throw new Error('boum') }
+  conn.emit('message', { type: 'list_threads' })
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.deepEqual(conn.last(), { type: 'error', code: 'internal_error', message: 'boum' })
+})
+
 test('le clientId du hello est repris dans le journal', () => {
   const ctx = boot()
   const conn = pairedClient(ctx)

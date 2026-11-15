@@ -373,18 +373,9 @@ Conséquence : l'état de Zed et celui de l'agent peuvent diverger. Deux prompts
 
 ## Mineurs
 
-- Aucun en-tête `X-Content-Type-Options` sur les statiques (`static.js:53`).
-- Une URL mal encodée (`/%zz`) rend 500 au lieu de 400 (`static.js:34`).
 - Les connexions non appairées ne sont pas limitées en nombre ; chacune peut retenir 16 Mo (`ws.js:25`).
-- La table des échecs d'appairage par adresse n'est jamais purgée (`auth.js:44`).
-- `auth.json` est réécrit, de façon synchrone, à chaque connexion d'un appareil (`auth.js:91`).
-- La ligne de statut d'un refus WebSocket contient des caractères non ASCII (`server.js:160`).
-- Les liens `file:` sont acceptés par le markdown (`markdown.js:6`).
-- Chemin `db/0-stable` en dur : Zed Preview ou Nightly demandent `zedDb` (`platform.js:118`).
 - Zed sous Flatpak ou Snap non trouvé (déjà dans `ISSUES.md`).
-- `version: "0.3"` n'est pas un semver valide (`package.json:3`).
 - `-ExecutionPolicy Bypass` pour le script clavier et la tâche planifiée (`zed/keyboard.js:69`, `scripts/service.mjs:106`).
-- Les handlers asynchrones du hub ne sont pas attendus dans le `try/catch` : leurs erreurs finissent dans le journal global (`hub.js:67-75`).
-- Une permission tranchée depuis le mobile reste en mémoire du shim tant que Zed ne répond pas (`acp.js:816`).
-- `CHANGELOG.md` sans dates.
-- `prompt-audit.md` non suivi à la racine : à ne pas publier.
+
+## Méthode de travail
+L'agent avance en autonomie, un item ou un lot cohérent à la fois, vite et sans effort gaspillé. À la fin de chaque lot : tests lancés, item retiré de ce document, puis arrêt pour faire valider la solution et confirmer le commit (message proposé). Les décisions déjà notées (« Décision ») ne se rediscutent pas.

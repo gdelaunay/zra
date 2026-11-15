@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.3 — Portage Linux & tests de régression (`e752972`)
+## v0.3 — 2026-10-19 — Portage Linux & tests de régression (`e752972`)
 
 - Portage Linux complet : Debian 13/KDE/X11, MX Linux 23/Xfce/X11 vérifiés en réel
 - Détection de plateforme unifiée, chemins Zed/ZRA par OS
@@ -9,7 +9,7 @@
 - Campagne de tests de régression (764 tests verts)
 - Correction des shims fantômes (FIN écouté, sonde de vie)
 
-## v0.2 — HTTPS & accès distant (`ab9d00e`)
+## v0.2 — 2026-09-28 — HTTPS & accès distant (`ab9d00e`)
 
 - Round 3 validé : HTTPS derrière reverse proxy, port 443 par défaut
 - Accès distant via VPN (WireGuard)
@@ -20,7 +20,7 @@
 - Threads regroupés par projet, cadenas lecture seule, auto-scroll à l'envoi
 - Permissions propres, hiérarchie visuelle poste/projet/thread
 
-## v0.1 — Client multi-agents (`b8e577a`)
+## v0.1 — 2026-09-22 — Client multi-agents (`b8e577a`)
 
 - Architecture daemon / shim / client en place
 - Protocole ZRA, index des threads, plomberie ACP

@@ -225,7 +225,7 @@ export class AcpBridge extends EventEmitter {
     this.agentRequests.delete(k)
     if (!pending) return
 
-    if (pending.method === M.requestPermission) return this.noteDesktopPermission(k, msg)
+    if (pending.method === M.requestPermission) return this.noteDesktopPermission(k, msg, pending)
 
     if (pending.method === M.terminalOutput || pending.method === M.terminalWaitForExit) {
       this.publishTerminal(pending, msg.result)
@@ -237,13 +237,13 @@ export class AcpBridge extends EventEmitter {
    * deux réponses pour le même `id` JSON-RPC embrouilleraient l'agent. C'est la
    * seule entorse au relai intégral, et elle est locale (spec §6.6).
    */
-  noteDesktopPermission(k, msg) {
-    const perm = this.permissions.get(k)
-    if (!perm) return
-    if (perm.resolvedBy) {
-      this.log?.debug(`permission ${perm.requestId} déjà tranchée depuis le mobile : réponse du poste avalée`)
+  noteDesktopPermission(k, msg, pending) {
+    if (pending.mobileResponse) {
+      this.log?.debug(`permission ${k} déjà tranchée depuis le mobile : réponse du poste avalée`)
       return 'drop'
     }
+    const perm = this.permissions.get(k)
+    if (!perm) return
     perm.resolvedBy = 'desktop'
     this.permissions.delete(k)
     const optionId = msg.result?.outcome?.optionId ?? null
@@ -819,6 +819,11 @@ export class AcpBridge extends EventEmitter {
     this.write({ jsonrpc: '2.0', id, result: { outcome: { outcome: 'selected', optionId } } })
 
     const optionName = perm.options.find((o) => o.optionId === optionId)?.name ?? null
+    // La réponse tardive de Zed reste identifiable dans agentRequests, sans
+    // conserver toute la demande après son arbitrage.
+    const pending = this.agentRequests.get(requestId)
+    if (pending) pending.mobileResponse = true
+    this.permissions.delete(requestId)
     this.emit('permission_resolved', { sessionId, requestId, optionId, optionName, by: 'mobile' })
     return { by: 'mobile', optionId, optionName }
   }

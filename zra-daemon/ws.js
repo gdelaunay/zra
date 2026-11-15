@@ -8,6 +8,7 @@
 
 import { EventEmitter } from 'node:events'
 import { createHash, randomUUID } from 'node:crypto'
+import { STATUS_CODES } from 'node:http'
 
 const GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11'
 
@@ -347,6 +348,7 @@ export function attachWebSocket(server, {
 }
 
 function refuse(socket, status, reason) {
-  const text = `HTTP/1.1 ${status} ${reason}\r\nConnection: close\r\nContent-Length: 0\r\n\r\n`
+  // La raison détaillée va au journal ; le statut HTTP reste ASCII.
+  const text = `HTTP/1.1 ${status} ${STATUS_CODES[status] ?? 'Error'}\r\nConnection: close\r\nContent-Length: 0\r\n\r\n`
   try { socket.write(text); socket.destroy() } catch { /* déjà fermé */ }
 }

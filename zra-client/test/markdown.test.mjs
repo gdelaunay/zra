@@ -36,10 +36,11 @@ test('code inline échappé, hors markdown', () => {
   assert.match(html, /<code>a &lt; b &amp;&amp; \*gras\*<\/code>/)
 })
 
-test('liens : schéma sûr accepté, javascript: refusé', () => {
+test('liens : schéma sûr accepté, javascript: et file: refusés', () => {
   assert.match(inline('[zed](https://zed.dev)'), /<a href="https:\/\/zed.dev"/)
-  const bad = inline('[x](javascript:alert(1))')
-  assert.doesNotMatch(bad, /<a /)
+  for (const url of ['javascript:alert(1)', 'file:///C:/secret.txt']) {
+    assert.doesNotMatch(inline(`[x](${url})`), /<a /, url)
+  }
 })
 
 test('gras et italique', () => {

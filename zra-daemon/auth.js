@@ -87,8 +87,9 @@ export class Pairing {
       return known.length === hash.length && timingSafeEqual(known, hash)
     })
     if (hit) {
+      // Date de dernière visite volatile : ne pas bloquer chaque connexion sur
+      // une écriture disque. Elle sera persistée au prochain appairage ou retrait.
       hit.lastSeenAt = new Date(this.now()).toISOString()
-      try { this.save() } catch { /* date de dernière visite : best-effort */ }
     }
     return hit ?? null
   }
@@ -100,7 +101,12 @@ export class Pairing {
    */
   pair(code, { label = 'appareil', address = '?' } = {}) {
     const t = this.now()
-    const recent = (this.failures.get(address) ?? []).filter((at) => t - at < this.windowMs)
+    for (const [ip, attempts] of this.failures) {
+      const active = attempts.filter((at) => t - at < this.windowMs)
+      if (active.length) this.failures.set(ip, active)
+      else this.failures.delete(ip)
+    }
+    const recent = this.failures.get(address) ?? []
     this.failures.set(address, recent)
     if (recent.length >= this.maxAttempts) {
       const retryIn = Math.ceil((this.windowMs - (t - recent[0])) / 1000)

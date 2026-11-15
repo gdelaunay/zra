@@ -37,6 +37,7 @@ test('GET / sert index.html', async () => {
   const res = await call('GET', '/')
   assert.equal(res.status, 200)
   assert.equal(res.headers['content-type'], 'text/html; charset=utf-8')
+  assert.equal(res.headers['x-content-type-options'], 'nosniff')
   assert.equal(text(res), readFileSync(join(ROOT, 'index.html'), 'utf8'))
 })
 
@@ -67,6 +68,13 @@ test('un nom de fichier pourcent-encodé est décodé', async () => {
   const res = await call('GET', `/${encodeURIComponent(name)}`)
   assert.equal(res.status, 200)
   assert.equal(text(res), readFileSync(join(ROOT, name), 'utf8'))
+})
+
+test('une URL mal encodée vaut 400, avec nosniff', async () => {
+  const res = await call('GET', '/%zz')
+  assert.equal(res.status, 400)
+  assert.equal(res.headers['x-content-type-options'], 'nosniff')
+  assert.equal(text(res), 'URL mal encodée')
 })
 
 test('cache-control: no-cache et content-length exact sur chaque fichier servi', async () => {

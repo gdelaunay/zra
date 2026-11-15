@@ -465,7 +465,9 @@ test('origine : seules les origines déclarées peuvent ouvrir le WebSocket (§9
   assert.match(await upgrade(`http://${HOST}:${PORT}`), /101/, 'origine propre du daemon')
   // Le trou que ferme l'allowlist : une page quelconque visitée depuis le
   // tunnel pourrait sinon piloter l'agent, il n'y a aucune auth en v1.
-  assert.match(await upgrade('https://site-malveillant.fr'), /403/)
+  const denied = await upgrade('https://site-malveillant.fr')
+  assert.match(denied, /403/)
+  assert.match(denied, /^[\x20-\x7e]+$/, 'ligne de statut ASCII')
   // Client non-navigateur : pas d'Origin, accepté.
   assert.match(await upgrade(null), /101/)
 })

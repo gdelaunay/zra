@@ -65,12 +65,15 @@ export class Hub {
     log.info(`client ${conn.id} connecté (origin=${conn.origin ?? '—'}, ip=${conn.remoteAddress})`)
 
     conn.on('message', (msg) => {
-      try {
-        this.handle(client, msg)
-      } catch (err) {
+      const failed = (err) => {
         // Un message malformé ne doit jamais faire tomber le daemon.
         log.warn(`client ${conn.id} : ${msg?.type} a échoué —`, err.message)
         this.error(conn, err instanceof InjectionError ? err.code : 'internal_error', err.message, msg?.threadId)
+      }
+      try {
+        Promise.resolve(this.handle(client, msg)).catch(failed)
+      } catch (err) {
+        failed(err)
       }
     })
 
