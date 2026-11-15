@@ -154,6 +154,7 @@ export async function createServers({ config, addresses, onConnection, onShim, s
         {
           // La PWA, à travers le tunnel (protocole §1).
           path: '/ws',
+          unpaired: true,
           verify: ({ req, origin }) => {
             if (!checkOrigin(origin, allowed)) {
               log.warn(`WebSocket refusé : origine ${origin} non autorisée (allowedOrigins)`)

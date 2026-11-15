@@ -371,11 +371,5 @@ Conséquence : l'état de Zed et celui de l'agent peuvent diverger. Deux prompts
 - Accepter le risque des frappes à l'aveugle (documenté) ou limiter le clavier au seul « + ».
 - LAN de confiance ou non : la réponse fixe le niveau d'exigence de B1 et B2.
 
-## Mineurs
-
-- Les connexions non appairées ne sont pas limitées en nombre ; chacune peut retenir 16 Mo (`ws.js:25`).
-- Zed sous Flatpak ou Snap non trouvé (déjà dans `ISSUES.md`).
-- `-ExecutionPolicy Bypass` pour le script clavier et la tâche planifiée (`zed/keyboard.js:69`, `scripts/service.mjs:106`).
-
 ## Méthode de travail
 L'agent avance en autonomie, un item ou un lot cohérent à la fois, vite et sans effort gaspillé. À la fin de chaque lot : tests lancés, item retiré de ce document, puis arrêt pour faire valider la solution et confirmer le commit (message proposé). Les décisions déjà notées (« Décision ») ne se rediscutent pas.

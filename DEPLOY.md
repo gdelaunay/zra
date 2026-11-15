@@ -207,6 +207,11 @@ npm run service -- stop | uninstall --apply
 Le daemon y est relancé s'il s'arrête sur une erreur. Un daemon de dev déjà
 lancé tient le port : la tâche réessaie jusqu'à ce qu'il s'arrête.
 
+**Politique PowerShell** — le script clavier et la tâche planifiée lancent
+PowerShell avec `-ExecutionPolicy Bypass` : choix assumé pour que le pilotage
+marche quel que soit le poste. Le contournement ne vaut que pour le processus
+lancé ; la politique de la machine (et de l'utilisateur) n'est pas modifiée.
+
 ---
 
 ## 5.1 Linux : démarrage automatique
@@ -336,6 +341,7 @@ mais le pilotage clavier marche.
 | « appairage requis » en boucle | jeton révoqué ou `.zra/auth.json` effacé : ressaisir un code |
 | « code incorrect » | le code a changé (usage unique) : `npm run pair` |
 | « poste injoignable » | `npm run service` : le daemon répond-il ? `npm run service -- logs` |
+| Zed introuvable au setup | installation native requise ; Flatpak/Snap non supportés → `zedDb`/`zedSettings` dans `zra.config.json` (`ISSUES.md`) |
 | WebSocket refusé (403) | journal : « origine … non autorisée » → `allowedOrigins` |
 | pas d'installation proposée | page en `http://` : certificat absent (§4) |
 

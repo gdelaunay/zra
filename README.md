@@ -12,7 +12,8 @@ avec une relecture minimale.
 
 ## Démarrage rapide
 
-**Prérequis** : Zed, Node ≥ 24.
+**Prérequis** : Zed (installation native — Flatpak/Snap non supportés, voir
+`ISSUES.md`), Node ≥ 24.
 
 **Prérequis Linux** : `xdotool` — `sudo apt install xdotool`.
 

@@ -38,6 +38,18 @@ const PONG_TIMEOUT_MS = 75_000
 /** Délai laissé au pair pour boucler la fermeture après notre trame CLOSE. */
 const CLOSE_GRACE_MS = 2_000
 
+/**
+ * Plafonds des connexions pas encore appairées : sans eux, un client du réseau
+ * peut ouvrir autant de sockets qu'il veut et saturer la mémoire du daemon.
+ * Tant que le jeton n'est pas présenté, les messages sont limités à
+ * `UNPAIRED_MAX_MESSAGE` (l'appairage ne transporte que de petits objets) ;
+ * le délai laisse le temps de lire le code dans le journal et de le saisir.
+ */
+const UNPAIRED_PER_IP = 8
+const UNPAIRED_TOTAL = 64
+const UNPAIRED_TIMEOUT_MS = 120_000
+const UNPAIRED_MAX_MESSAGE = 64 * 1024
+
 const OP = { CONT: 0x0, TEXT: 0x1, BIN: 0x2, CLOSE: 0x8, PING: 0x9, PONG: 0xa }
 
 export function acceptKey(key) {
@@ -68,6 +80,8 @@ export function encodeFrame(payload, opcode = OP.TEXT) {
 /**
  * Décodeur incrémental. Renvoie les événements complets contenus dans le tampon :
  * `{text}`, `{ping, payload}`, `{pong}`, `{close, code}`, `{error}`.
+ * `maxMessage` peut être une fonction, réévaluée à chaque poussée (plafond
+ * réduit tant qu'une connexion n'est pas appairée, voir `attachWebSocket`).
  */
 export function createDecoder({ maxMessage = MAX_MESSAGE } = {}) {
   let buf = Buffer.alloc(0)
@@ -75,6 +89,7 @@ export function createDecoder({ maxMessage = MAX_MESSAGE } = {}) {
   let fragmentOp = null
 
   return function push(chunk) {
+    const limit = typeof maxMessage === 'function' ? maxMessage() : maxMessage
     buf = chunk ? Buffer.concat([buf, chunk]) : buf
     const out = []
 
@@ -96,7 +111,7 @@ export function createDecoder({ maxMessage = MAX_MESSAGE } = {}) {
       } else if (len === 127) {
         if (buf.length < 10) break
         const big = buf.readBigUInt64BE(2)
-        if (big > BigInt(maxMessage)) { out.push({ error: 'trame trop grande', code: 1009 }); break }
+        if (big > BigInt(limit)) { out.push({ error: 'trame trop grande', code: 1009 }); break }
         len = Number(big)
         off = 10
       }
@@ -132,7 +147,7 @@ export function createDecoder({ maxMessage = MAX_MESSAGE } = {}) {
       }
 
       const total = fragments.reduce((n, f) => n + f.length, 0)
-      if (total > maxMessage) { out.push({ error: 'message trop grand', code: 1009 }); break }
+      if (total > limit) { out.push({ error: 'message trop grand', code: 1009 }); break }
 
       if (fin) {
         const full = fragments.length === 1 ? fragments[0] : Buffer.concat(fragments)
@@ -159,6 +174,8 @@ export class WsConnection extends EventEmitter {
     this.alive = true
     /** Dernier signe de vie du pair : trame reçue, PONG, ou ouverture. */
     this.lastSeen = Date.now()
+    /** Jeton validé (ou loopback exemptée) : la connexion n'est plus comptée. */
+    this.authenticated = false
     /** Tranche le socket si le pair ne boucle pas la fermeture (voir `close()`). */
     this.killTimer = null
     this.log = log
@@ -196,6 +213,13 @@ export class WsConnection extends EventEmitter {
   /** Un signe du pair — trame quelconque, PONG compris — suffit à le dire vivant. */
   touch() {
     this.lastSeen = Date.now()
+  }
+
+  /** Le client a présenté un jeton valide (ou la loopback en est exemptée). */
+  authenticate() {
+    if (this.authenticated) return
+    this.authenticated = true
+    this.emit('authenticated')
   }
 
   /** Sonde de vie : PING protocol-level, le pair doit répondre PONG. */
@@ -258,11 +282,16 @@ export class WsConnection extends EventEmitter {
  * pour refuser avant l'upgrade (allowlist d'Origin, `authenticate()`).
  */
 export function attachWebSocket(server, {
-  path = '/ws', verify, onConnection, routes, log,
+  path = '/ws', verify, onConnection, routes, log, unpaired = false,
   pingMs = PING_MS, pongTimeoutMs = PONG_TIMEOUT_MS,
+  unpairedPerIp = UNPAIRED_PER_IP, unpairedTotal = UNPAIRED_TOTAL,
+  unpairedTimeoutMs = UNPAIRED_TIMEOUT_MS,
 } = {}) {
   const clients = new Set()
-  const table = routes?.length ? routes : [{ path, verify, onConnection }]
+  const table = routes?.length ? routes : [{ path, verify, onConnection, unpaired }]
+  /** Connexions comptées, en attente d'un jeton, par adresse distante. */
+  const unpairedByIp = new Map()
+  let unpairedCount = 0
 
   server.on('upgrade', (req, socket) => {
     const url = (req.url || '').split('?')[0].replace(/\/+$/, '') || '/'
@@ -273,11 +302,18 @@ export function attachWebSocket(server, {
     const version = req.headers['sec-websocket-version']
     if (!key || String(version) !== '13') return refuse(socket, 400, 'handshake invalide')
 
+    const ip = req.socket.remoteAddress || '?'
+    const counted = route.unpaired === true
+    if (counted && ((unpairedByIp.get(ip) ?? 0) >= unpairedPerIp || unpairedCount >= unpairedTotal)) {
+      log?.warn(`upgrade refusé (trop de connexions non appairées) ip=${ip}`)
+      return refuse(socket, 429, 'trop de connexions non appairées')
+    }
+
     const origin = req.headers.origin || null
     const verdict = route.verify ? route.verify({ req, origin }) : true
     if (verdict !== true) {
       const { status = 403, reason = 'refusé' } = verdict || {}
-      log?.warn(`upgrade refusé (${reason}) origin=${origin ?? '—'} ip=${req.socket.remoteAddress}`)
+      log?.warn(`upgrade refusé (${reason}) origin=${origin ?? '—'} ip=${ip}`)
       return refuse(socket, status, reason)
     }
 
@@ -288,10 +324,38 @@ export function attachWebSocket(server, {
     )
     socket.setNoDelay(true)
 
-    const conn = new WsConnection(socket, { origin, remoteAddress: req.socket.remoteAddress, log })
+    const conn = new WsConnection(socket, { origin, remoteAddress: ip, log })
     clients.add(conn)
 
-    const decode = createDecoder()
+    let tracked = false
+    let authTimer = null
+    if (counted) {
+      tracked = true
+      unpairedByIp.set(ip, (unpairedByIp.get(ip) ?? 0) + 1)
+      unpairedCount++
+      const release = () => {
+        if (!tracked) return
+        tracked = false
+        clearTimeout(authTimer)
+        const left = (unpairedByIp.get(ip) ?? 1) - 1
+        if (left > 0) unpairedByIp.set(ip, left)
+        else unpairedByIp.delete(ip)
+        unpairedCount--
+      }
+      authTimer = setTimeout(() => {
+        if (conn.authenticated) return release()
+        log?.info(`client ${conn.id} : appairage non terminé après ${Math.round(unpairedTimeoutMs / 1000)} s, connexion coupée`)
+        release()
+        conn.close(4401)
+      }, unpairedTimeoutMs)
+      authTimer.unref?.()
+      conn.once('authenticated', release)
+      conn.once('close', release)
+    }
+
+    const decode = createDecoder({
+      maxMessage: counted ? () => (conn.authenticated ? MAX_MESSAGE : UNPAIRED_MAX_MESSAGE) : MAX_MESSAGE,
+    })
     socket.on('data', (chunk) => {
       conn.touch()
       for (const ev of decode(chunk)) {

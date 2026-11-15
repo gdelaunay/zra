@@ -501,6 +501,120 @@ test('ping → pong, même avant hello : le heartbeat de la PWA (§3)', async (t
  * (mobile endormi, tunnel coupé, shim tué) ne l'enverra jamais non plus. D'où le
  * PING/PONG de la RFC 6455, que tout client WebSocket répond de lui-même.
  */
+/** Statut HTTP d'un handshake brut, sans ouvrir de WebSocket applicatif. */
+function upgradeStatus(port, path = '/ws') {
+  return new Promise((resolve, reject) => {
+    const socket = connect(port, HOST)
+    socket.on('connect', () => socket.write(
+      `GET ${path} HTTP/1.1\r\nHost: ${HOST}:${port}\r\n` +
+      'Upgrade: websocket\r\nConnection: Upgrade\r\n' +
+      'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\nSec-WebSocket-Version: 13\r\n\r\n',
+    ))
+    socket.once('data', (buf) => { socket.destroy(); resolve(String(buf).split('\r\n')[0]) })
+    socket.once('error', reject)
+    setTimeout(() => { socket.destroy(); reject(new Error('pas de réponse')) }, 3000)
+  })
+}
+
+test('ws : les connexions non appairées sont plafonnées, puis libérées', async (t) => {
+  const { createServer } = await import('node:http')
+  const { attachWebSocket } = await import('../ws.js')
+
+  const server = createServer()
+  const ws = attachWebSocket(server, {
+    path: '/ws', unpaired: true, unpairedPerIp: 1, unpairedTotal: 10, unpairedTimeoutMs: 5_000,
+  })
+  t.after(() => { ws.stop(); server.close() })
+  await new Promise((resolve) => server.listen(0, HOST, resolve))
+  const port = server.address().port
+
+  const first = new WebSocket(`ws://${HOST}:${port}/ws`)
+  t.after(() => first.close())
+  await new Promise((resolve) => first.addEventListener('open', resolve, { once: true }))
+  assert.match(await upgradeStatus(port), /429/, 'deuxième connexion non appairée refusée')
+
+  for (const conn of ws.clients) conn.authenticate()
+  await wait(10)
+  const second = new WebSocket(`ws://${HOST}:${port}/ws`)
+  t.after(() => second.close())
+  await new Promise((resolve) => second.addEventListener('open', resolve, { once: true }))
+  assert.match(await upgradeStatus(port), /429/, 'le plafond vaut pour la suivante')
+
+  second.close()
+  await wait(30)
+  const third = new WebSocket(`ws://${HOST}:${port}/ws`)
+  t.after(() => third.close())
+  await new Promise((resolve) => third.addEventListener('open', resolve, { once: true }))
+})
+
+test('ws : plafond global des connexions non appairées', async (t) => {
+  const { createServer } = await import('node:http')
+  const { attachWebSocket } = await import('../ws.js')
+
+  const server = createServer()
+  const ws = attachWebSocket(server, {
+    path: '/ws', unpaired: true, unpairedPerIp: 10, unpairedTotal: 1, unpairedTimeoutMs: 5_000,
+  })
+  t.after(() => { ws.stop(); server.close() })
+  await new Promise((resolve) => server.listen(0, HOST, resolve))
+  const port = server.address().port
+
+  const first = new WebSocket(`ws://${HOST}:${port}/ws`)
+  t.after(() => first.close())
+  await new Promise((resolve) => first.addEventListener('open', resolve, { once: true }))
+  assert.match(await upgradeStatus(port), /429/)
+})
+
+test('ws : une connexion non appairée est coupée après le délai', async (t) => {
+  const { createServer } = await import('node:http')
+  const { attachWebSocket } = await import('../ws.js')
+
+  const server = createServer()
+  const ws = attachWebSocket(server, { path: '/ws', unpaired: true, unpairedTimeoutMs: 50 })
+  t.after(() => { ws.stop(); server.close() })
+  await new Promise((resolve) => server.listen(0, HOST, resolve))
+  const port = server.address().port
+
+  const client = new WebSocket(`ws://${HOST}:${port}/ws`)
+  t.after(() => client.close())
+  const code = await new Promise((resolve) => {
+    client.addEventListener('open', () => {}, { once: true })
+    client.addEventListener('close', (ev) => resolve(ev.code), { once: true })
+  })
+  assert.equal(code, 4401)
+  assert.equal(ws.clients.size, 0)
+})
+
+test('ws : message borné tant que non appairé, pleine taille une fois appairé', async (t) => {
+  const { createServer } = await import('node:http')
+  const { attachWebSocket } = await import('../ws.js')
+
+  const server = createServer()
+  const received = []
+  const ws = attachWebSocket(server, {
+    path: '/ws', unpaired: true, onConnection: (conn) => conn.on('message', (m) => received.push(m)),
+  })
+  t.after(() => { ws.stop(); server.close() })
+  await new Promise((resolve) => server.listen(0, HOST, resolve))
+  const port = server.address().port
+  const big = JSON.stringify({ type: 'gros', pad: 'x'.repeat(100_000) })
+
+  const first = new WebSocket(`ws://${HOST}:${port}/ws`)
+  t.after(() => first.close())
+  await new Promise((resolve) => first.addEventListener('open', resolve, { once: true }))
+  first.send(big)
+  const code = await new Promise((resolve) => first.addEventListener('close', (ev) => resolve(ev.code), { once: true }))
+  assert.equal(code, 1009, 'message trop grand pour une connexion non appairée')
+
+  const second = new WebSocket(`ws://${HOST}:${port}/ws`)
+  t.after(() => second.close())
+  await new Promise((resolve) => second.addEventListener('open', resolve, { once: true }))
+  for (const conn of ws.clients) conn.authenticate()
+  second.send(big)
+  await wait(50)
+  assert.equal(received.length, 1, 'le même message passe une fois appairé')
+})
+
 test('ws : un pair muet est coupé par la sonde de vie, un pair vivant non', async (t) => {
   const { createServer } = await import('node:http')
   const { attachWebSocket } = await import('../ws.js')

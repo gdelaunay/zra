@@ -150,7 +150,7 @@ export function lineDiff(before, after) {
 // ---------------------------------------------------------------------------
 
 async function readSettings(file) {
-  if (!existsSync(file)) throw new Error(`settings.json de Zed introuvable : ${file}`)
+  if (!existsSync(file)) throw new Error(`settings.json de Zed introuvable : ${file} — ZRA supporte l'installation native de Zed (pas Flatpak/Snap) ; chemins personnalisables via zedDb/zedSettings dans zra.config.json`)
   const text = await readFile(file, 'utf8')
   let parsed
   try {

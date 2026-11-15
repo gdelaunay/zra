@@ -20,11 +20,19 @@ Fait → effet → à mesurer. La campagne de portage Linux est close (voir
 
 ## Zed via Flatpak / Snap — `accepté`
 
+**Décision : non supporté explicitement à la publication.** Installation native
+uniquement (README, DEPLOY.md §6) ; message clair au setup si Zed est
+introuvable. Échappatoire pour utilisateurs avancés : `zedDb`/`zedSettings`
+dans `zra.config.json`.
+
 `zedPaths()` renvoie les chemins XDG classiques (`~/.local/share/zed`,
 `~/.config/zed`). Sous Flatpak (`~/.var/app/dev.zed.Zed/…`) ou Snap
 (`~/snap/zed-editor/current/…`), index, settings et registry sont introuvables,
 et `findZedDesktop()` ne trouve pas le `.desktop` à patcher.
-→ Mesurer les chemins réels ; décider si `zedPaths()` les ajoute en candidats.
+→ Piste si des utilisateurs Flatpak/Snap se manifestent : mesurer les chemins
+réels, les ajouter en candidats dans `zedPaths()`, lancement via `flatpak run` /
+`snap run`, validation sur de vraies installations (Flatpak d'abord, le cas le
+plus fréquent).
 
 ## Wayland natif, sans XWayland forcé — `accepté`
 

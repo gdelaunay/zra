@@ -61,6 +61,7 @@ export class Hub {
     // La loopback, c'est le poste lui-même : rien à appairer.
     const trusted = !this.pairing || (this.config.auth?.exemptLoopback !== false && isLoopback(conn.remoteAddress))
     const client = { conn, clientId: null, subs: new Set(), authed: trusted, pairedId: null }
+    if (trusted) conn.authenticate?.()
     this.clients.set(conn, client)
     log.info(`client ${conn.id} connecté (origin=${conn.origin ?? '—'}, ip=${conn.remoteAddress})`)
 
@@ -187,6 +188,7 @@ export class Hub {
   admit(client, paired) {
     client.authed = true
     client.pairedId = paired.id
+    client.conn.authenticate?.()
     this.bootstrap(client)
   }
 
