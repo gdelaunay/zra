@@ -24,7 +24,8 @@ Mise en service sur le téléphone — réseau local, appairage, HTTPS, démarra
 - relaie le flux ACP des shims **verbatim** aux clients, avec un ring buffer
   de 2000 événements par thread, rejoué au `subscribe` ;
 - injecte depuis le mobile : envoi, file d'attente, interruption, options,
-  permissions (backends `acp` par défaut, `uia`, `auto`, `mock`) ;
+  permissions (backend `acp` par défaut et seul supporté ; `uia` et `auto`
+  expérimentaux ; `mock` pour les tests) ;
 - relit un thread fermé par `session/load`, cache 10 min ;
 - pilote Zed au clavier pour ouvrir un thread ou rouvrir un thread fermé ;
 - écoute la loopback, le réseau local et le tunnel, suivis à chaud, avec

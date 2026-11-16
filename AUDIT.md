@@ -9,7 +9,6 @@
 - Le reste de la sécurité réseau est solide : contrôle d'`Origin` de `/ws`, path traversal, trames WebSocket malformées, stockage du jeton. Tout a été testé sur une instance isolée.
 - Modèle de menace tranché (LAN de confiance, réseaux publics écartés) et documenté dans la section « Sécurité » du README.
 - Qualité générale bonne pour du code peu relu : relais ACP octet pour octet, installation prudente (simulation, sauvegardes, relecture), 764 tests en 72 s, 0 échec. Les 2 tests dits instables ne l'ont pas été en 16 exécutions.
-- Avant publication : désinstallation incomplète à documenter.
 
 ## Méthode et commandes lancées
 
@@ -59,14 +58,6 @@ Le relais lui-même est sain : recopie octet pour octet, observation isolée par
 
 Le découpage est clair et tient : trois composants, un seul module qui connaît l'OS (`platform.js`), un seul qui connaît les clients (`hub.js`), backends d'injection interchangeables. Pas de refonte à proposer.
 
-- **[Important] Surface large pour un projet à durée de vie courte**
-  - Où : `zra-daemon/inject/uia.js`, `inject/auto.js`, `scripts/wireguard.mjs` (291 lignes, « option de secours, non testée » selon `DEPLOY.md:344`), `scripts/cert.ps1`, rechargement TLS à chaud, détection de tunnel
-  - Problème : chaque voie supplémentaire est du code non relu à maintenir et à sécuriser. Les backends `uia` et `auto` tapent le texte du mobile au clavier ; le générateur WireGuard manipule des clés.
-  - Scénario concret : Zed change, il faut adapter trois voies d'injection au lieu d'une.
-  - Correction suggérée : publier avec `acp` seul comme voie supportée ; marquer `uia`, `auto` et `wireguard` comme expérimentaux dans la doc, ou les retirer.
-  - Effort : S (doc) à M (retrait)
-  - Confiance : lecture
-
 ---
 
 ## Axe 4 — Performance
@@ -89,22 +80,6 @@ Vérifié à la lecture : l'installation ne dépend d'aucun fichier ignoré par 
   - Correction suggérée : à traiter dans l'audit juridique ; je le signale parce que c'est un préalable matériel à la publication.
   - Effort : S
   - Confiance : vérifié
-
-- **[Important] La désinstallation annoncée ne retire pas tout**
-  - Où : `README.md:30-31`, `scripts/setup.mjs:404`
-  - Problème : « Tout retirer : `npm run setup -- uninstall --apply` » ne retire ni le service de démarrage, ni `.zra/`, ni le dossier d'application (`injections.log`). Le script prévient lui-même que les threads créés avec une entrée ZRA restent dans Zed « sans agent pour les rouvrir ».
-  - Scénario concret : l'utilisateur désinstalle, supprime le dépôt ; la tâche planifiée tourne en boucle sur un chemin disparu, et ses conversations faites via `claude-zra` ne se rouvrent plus.
-  - Correction suggérée : documenter la séquence complète (service, setup, dossiers) et la perte d'accès aux threads `*-zra`.
-  - Effort : S
-  - Confiance : lecture ; le comportement de Zed sur ces threads n'a pas été testé
-
-- **[Important] Chemins absolus figés dans la config de Zed et dans le service**
-  - Où : `scripts/setup.mjs:105-124` (`process.execPath`, racine du dépôt)
-  - Problème : l'entrée écrite dans `settings.json` pointe vers le Node et le dossier du moment.
-  - Scénario concret : déplacement du dépôt, ou mise à jour de Node par un gestionnaire de versions : les agents `*-zra` ne se lancent plus dans Zed. `npm run setup` (status) le détecte et dit de relancer `install`.
-  - Correction suggérée : une ligne dans le README.
-  - Effort : S
-  - Confiance : lecture
 
 ---
 
@@ -146,7 +121,6 @@ Le protocole documenté correspond au code pour les messages (`PROTOCOL.md` §3-
     - codes d'erreur émis mais absents de `PROTOCOL.md` : `not_zra_thread`, `prompt_refused`, `internal_error`, `zed_control_failed` ;
     - `PROTOCOL.md:26` et l'en-tête de `static.js` disent le client « servi ailleurs en production », `DEPLOY.md:24` dit que le daemon le sert ;
     - `ROADMAP.md` annonce trois postes Linux vérifiés, `CHANGELOG.md` deux ;
-    - `README.md:30` : désinstallation incomplète (axe 5).
   - Correction suggérée : aligner ; aucune commande documentée n'a été trouvée cassée à la lecture.
   - Effort : S
   - Confiance : vérifié (recherche textuelle)
@@ -195,11 +169,7 @@ Conséquence : l'état de Zed et celui de l'agent peuvent diverger. Deux prompts
 
 | # | Action | Points couverts | Effort |
 |---|---|---|---|
-| B4 | Désinstallation : séquence complète documentée (patch Wayland : fait, étape `setup xwayland`) | Désinstallation, chemins absolus | S |
-
-### C. Décisions à prendre, sans code obligatoire
-
-- Garder ou retirer `uia`, `auto` et `wireguard` de la version publiée.
+| B7 | Docs : « relaie tel quel » corrigé (README, SPEC) ; écarts docs/code de l'axe 8 | Docs | S |
 
 ## Décisions
 
@@ -209,6 +179,7 @@ Conséquence : l'état de Zed et celui de l'agent peuvent diverger. Deux prompts
 - **`zedControl.enabled`** : `true` par défaut (le « + » et la réouverture des threads fermés en dépendent), avertissement au démarrage du daemon et dans README/exemple ; `false` reste possible, les erreurs côté PWA sont explicites. L'écart exemple/code de l'audit (A3) est clos par cette décision, pas par `false`.
 - **Modèle de menace** : LAN de confiance, sauf réseau marqué « Public » (Windows : pas d'écoute dessus ; Linux : `lanCidrs`).
 - **Enregistrement des trames** : désactivé par défaut, `npm run setup -- install --record` pour le débogage.
+- **`uia`, `auto`, `wireguard`** : gardés, marqués expérimentaux (doc, exemple de config, avertissement au démarrage) ; `acp` seul supporté.
 - **Appairage** : verrouillé après 10 échecs, tous appareils confondus ; `npm run pair` le rouvre avec un nouveau code.
 
 ## Méthode de travail

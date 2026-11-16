@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Générer un tunnel WireGuard poste ↔ téléphone — DEPLOY.md, annexe.
 //
-// **Option de secours, non testée de bout en bout.** Le chemin retenu est le
+// **Expérimental, non testé de bout en bout.** Le chemin retenu est le
 // tunnel que l'utilisateur a déjà (wg-easy sur un homelab) : ce script n'est
 // utile qu'à qui n'en a pas. Il ne touche ni au daemon ni à sa configuration —
 // le daemon détecte un tunnel monté comme n'importe quelle interface.

@@ -22,7 +22,8 @@ pilotage clavier exige Zed sous XWayland : `npm run setup -- xwayland --apply`
 (étape séparée, modifie le `.desktop` de Zed, sauvegardé).
 
 1. `npm run setup install apply`. Chaque agent de Zed reçoit une entrée ZRA
-   (`claude-zra`…) : l'agent d'origine n'est pas touché.
+   (`claude-zra`…) : l'agent d'origine n'est pas touché. Les threads ouverts
+   avec une entrée ZRA ne se rouvriront plus dans Zed si ZRA est désinstallé.
 2. `npm run daemon`. Le daemon affiche son adresse (`http://192.168.x.x:7777`)
    et un code d'appairage.
 3. Sur le téléphone, même Wi-Fi : ouvrir cette adresse, puis saisir le code.
@@ -32,8 +33,24 @@ pilotage clavier exige Zed sous XWayland : `npm run setup -- xwayland --apply`
    s'écrivent pas une fois fermés.
 
 Ensuite : démarrage automatique (`npm run service -- install --apply`),
-accès à distance et HTTPS (`DEPLOY.md`). Tout retirer :
-`npm run setup -- uninstall --apply`.
+accès à distance et HTTPS (`DEPLOY.md`).
+
+L'entrée ZRA dans Zed et le service pointent vers ce dossier et ce Node en
+chemins absolus : après un déplacement du dépôt ou un changement de version de
+Node, relancer `npm run setup install apply` (`npm run setup` le signale) et
+`npm run service -- install --apply`.
+
+## Désinstaller
+
+1. `npm run service -- stop`, puis `npm run service -- uninstall --apply` :
+   arrête le daemon et retire le démarrage automatique.
+2. `npm run setup -- uninstall --apply` : retire les entrées ZRA et leurs
+   raccourcis dans Zed (et le forçage XWayland sous Linux), avec sauvegarde.
+3. Supprimer `.zra/` et le dossier `zra` de `%LOCALAPPDATA%` (Linux
+   `~/.local/state/zra/`) : journaux, appareils appairés, prompts.
+
+Les threads créés avec une entrée ZRA (`claude-zra`…) restent dans la liste de
+Zed, mais sans agent pour les rouvrir.
 
 ## Sécurité
 

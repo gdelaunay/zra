@@ -54,9 +54,9 @@
   "ringSize": 2000,
 
   // Backend d'injection (spec §6) :
-  //   "acp"   le shim émet lui-même le session/prompt — défaut
-  //   "uia"   Zed émet le prompt : ZRA le tape au clavier (exige zedControl)
-  //   "auto"  "acp", repli clavier si l'agent refuse le prompt
+  //   "acp"   le shim émet lui-même le session/prompt — défaut, seul supporté
+  //   "uia"   EXPÉRIMENTAL. Zed émet le prompt : ZRA le tape au clavier (exige zedControl)
+  //   "auto"  EXPÉRIMENTAL. "acp", repli clavier si l'agent refuse le prompt
   //   "mock"  backend bouchon, pour valider la chaîne sans agent (spec §10.6)
   "injection": "acp",
 

@@ -374,7 +374,7 @@ mais le pilotage clavier marche.
 
 ---
 
-## Annexe — générer un tunnel WireGuard (option de secours, non testée)
+## Annexe — générer un tunnel WireGuard (expérimental, non testé)
 
 Pour qui n'a pas déjà de tunnel : `npm run wireguard` fabrique un tunnel
 **entre le poste et le téléphone directement**, le poste servant de serveur.

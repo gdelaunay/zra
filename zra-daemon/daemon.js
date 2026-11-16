@@ -309,6 +309,7 @@ export async function startDaemon(config) {
   // s'ouvre plus du tout.
   const tlsWatch = config.tls ? watchTls({ config, servers }) : null
   log.info(`injection : backend ${backend.name}${backend.ownsQueue ? ' (file tenue par le shim)' : ''}`)
+  if (backend.name === 'uia' || backend.name === 'auto') log.warn(`backend ${backend.name} expérimental : le texte du mobile est tapé au clavier dans Zed`)
   if (driver.enabled) {
     log.info(`pilotage de Zed : backend clavier ${driver.runner?.name ?? '?'}`)
     log.warn(`pilotage de Zed au clavier ACTIVÉ${driver.dryRun ? ' (simulation, aucune touche envoyée)' : ''} — ` +
