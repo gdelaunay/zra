@@ -105,25 +105,7 @@ Vérifié à la lecture : l'installation ne dépend d'aucun fichier ignoré par 
 
 ## Axe 8 — Documentation
 
-Le protocole documenté correspond au code pour les messages (`PROTOCOL.md` §3-4 contre `hub.js`). Les écarts sont ailleurs.
-
-- **[Important] « Relaie le flux ACP tel quel » est inexact**
-  - Où : `README.md:4`, `SPEC.md:16`
-  - Problème : le shim émet ses propres requêtes vers l'agent, retire des réponses, envoie à Zed des messages synthétiques et répond aux permissions à sa place (`zra-shim/acp.js:243-246,488-499,529,816-819`).
-  - Scénario concret : un lecteur conclut que ZRA est un observateur passif et sous-estime ce qu'il peut casser.
-  - Correction suggérée : écrire « relaie tel quel ce qui passe entre Zed et l'agent, et y ajoute ce qui vient du mobile ».
-  - Effort : S
-  - Confiance : lecture
-
-- **[Important] Écarts ponctuels entre docs et code**
-  - Où : 4 occurrences
-  - Problème :
-    - codes d'erreur émis mais absents de `PROTOCOL.md` : `not_zra_thread`, `prompt_refused`, `internal_error`, `zed_control_failed` ;
-    - `PROTOCOL.md:26` et l'en-tête de `static.js` disent le client « servi ailleurs en production », `DEPLOY.md:24` dit que le daemon le sert ;
-    - `ROADMAP.md` annonce trois postes Linux vérifiés, `CHANGELOG.md` deux ;
-  - Correction suggérée : aligner ; aucune commande documentée n'a été trouvée cassée à la lecture.
-  - Effort : S
-  - Confiance : vérifié (recherche textuelle)
+Le protocole documenté correspond au code (`PROTOCOL.md` §3-4 contre `hub.js`) ; les écarts relevés sont corrigés.
 
 `ISSUES.md` et `ROADMAP.md` sont à jour avec le code lu. `SPEC.md` (761 lignes) et les README des composants gardent beaucoup de vocabulaire de chantier (lots, rounds, numéros de risques) : à alléger au fil de l'eau, sans urgence.
 
@@ -164,12 +146,6 @@ Conséquence : l'état de Zed et celui de l'agent peuvent diverger. Deux prompts
 | # | Action | Points couverts | Effort |
 |---|---|---|---|
 | A4 | Choisir et ajouter une licence ; statuer sur les thèmes et icônes repris de Zed | Licence | S (hors décision juridique) |
-
-### B. À faire avant ou juste après la publication
-
-| # | Action | Points couverts | Effort |
-|---|---|---|---|
-| B7 | Docs : « relaie tel quel » corrigé (README, SPEC) ; écarts docs/code de l'axe 8 | Docs | S |
 
 ## Décisions
 

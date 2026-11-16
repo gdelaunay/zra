@@ -1,9 +1,6 @@
-// Service des statiques — mode dev/repli uniquement.
-//
-// En production le client PWA est servi ailleurs (voir README) et le daemon
-// n'est qu'une API WebSocket. Le garder ici coûte peu et rend le poste testable
-// seul : sur `localhost`, le navigateur accorde le contexte sécurisé, donc le
-// service worker et l'installation fonctionnent sans certificat.
+// Service des statiques : le daemon sert lui-même le client PWA (même origine
+// pour la page et le WebSocket, `DEPLOY.md`). `serveStatic: false` le désactive
+// quand le client est servi ailleurs.
 
 import { readFile, stat } from 'node:fs/promises'
 import { extname, join, normalize, resolve, sep } from 'node:path'

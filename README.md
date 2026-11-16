@@ -1,7 +1,8 @@
 # ZRA — Zed Remote Agent
 
 Suivre et piloter depuis le mobile les threads d'agents ACP de Zed : liste, streaming live, envoi, permissions, nouvelle session.
-ZRA relaie le flux ACP tel quel : ce que Zed affiche, la PWA l'affiche.
+ZRA relaie tel quel ce qui passe entre Zed et l'agent, et y ajoute ce qui vient du mobile
+(prompts, réponses aux permissions) : ce que Zed affiche, la PWA l'affiche.
 
 > **Pilotage par clavier** — ZRA envoie des touches réelles à Zed (`xdotool`
 > sous Linux, PowerShell sous Windows) pour créer ou ouvrir un thread, lui donner le

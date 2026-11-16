@@ -13,7 +13,8 @@ les suivre en live, et leur répondre — sans toucher à l'IDE.
 
 **Règle d'architecture fondatrice :**
 
-> ZRA relaie le flux d'événements ACP **tel quel**.
+> ZRA relaie le flux d'événements ACP **tel quel**, et y ajoute ce qui vient
+> du mobile (prompts, réponses aux permissions, messages annoncés à Zed).
 > Tout ce que Zed sait afficher, la PWA peut l'afficher.
 
 Corollaires : aucun adapter par agent, aucun parsing de format propriétaire,

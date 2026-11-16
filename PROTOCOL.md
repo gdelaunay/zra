@@ -23,7 +23,7 @@ dans le bouchon.
 | | |
 |---|---|
 | API | un seul WebSocket : `ws://<hôte>:7777/ws`, ou `wss://` si le daemon a un certificat |
-| Statiques | **optionnelles** : le client est servi ailleurs en production ; en dev/repli `GET http://<hôte>:7777/` sert `zra-client/` tel quel |
+| Statiques | le daemon sert `zra-client/` tel quel sur `GET http://<hôte>:7777/` (`serveStatic: false` pour le servir ailleurs) |
 | Écoute | `127.0.0.1` + réseau local + tunnel éventuel, **jamais** `0.0.0.0` (§9 de la spec) |
 | Origine | allowlist stricte sur le handshake ; une requête sans `Origin` est acceptée |
 | Auth | appairage hors loopback : `hello.token`, sinon `auth_required` puis `pair` (§3) |
@@ -454,6 +454,10 @@ français. Codes attendus par la PWA (les autres passent aussi) :
 | `inject_failed` | l'agent a refusé le prompt (§12.1) | toast, le message reste affiché |
 | `permission_expired` | demande déjà tranchée | toast, encart verrouillé |
 | `new_thread_failed` | Zed n'a pas ouvert de session | toast |
+| `not_zra_thread` | thread fermé d'un agent sans entrée ZRA : Zed le rouvrirait sans shim | toast, lecture seule |
+| `prompt_refused` | l'agent a refusé le prompt injecté (mode `auto`, avant le repli clavier) | toast |
+| `zed_control_failed` | le pilotage de Zed (CLI, clavier) a échoué ou expiré | toast |
+| `internal_error` | erreur inattendue du daemon sur ce message | toast |
 | `unknown_message` | message non supporté | toast |
 | `pair_failed` | code d'appairage faux | toast, la saisie reste ouverte |
 | `pair_locked` | trop d'essais depuis cette adresse, ou appairage verrouillé | toast (le message dit quoi faire) |
