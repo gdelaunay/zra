@@ -63,7 +63,8 @@ New-NetFirewallRule -DisplayName "ZRA daemon" -Direction Inbound -Protocol TCP -
 
 Le Wi-Fi doit être en profil **Privé** (Paramètres › Réseau › Wi-Fi ›
 Propriétés) : sur un réseau **Public**, le daemon n'écoute pas du tout, et le dit
-au démarrage. Sous Linux, pas d'équivalent : restreindre l'écoute avec
+au démarrage. Les tunnels (WireGuard, Tailscale), que Windows marque toujours
+« Public », ne sont pas concernés. Sous Linux, pas d'équivalent : restreindre l'écoute avec
 `"lanCidrs": ["192.168.1.0/24"]` dans `zra.config.json`. Sur un poste d'entreprise, une stratégie peut bloquer toute règle
 locale : c'est à voir avec l'informatique.
 

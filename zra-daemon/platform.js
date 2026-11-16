@@ -297,11 +297,19 @@ export const KEYBOARD_BACKENDS = ['powershell', 'xdotool', 'none']
  * par Windows à la première connexion (café, hôtel). Le daemon n'y écoute pas.
  * Linux n'a pas d'équivalent standard : ensemble vide, `lanCidrs` fait le tri.
  *
+ * Les tunnels (WireGuard, Tailscale) sont exclus : Windows les marque toujours
+ * « Public » faute de pouvoir les identifier, alors qu'ils sont authentifiés.
+ *
  * @returns {Promise<{ names:Set<string>, error?:string }>}
  */
 export function publicNetworks({ platform = process.platform } = {}) {
   if (platform !== 'win32' || process.env.NODE_TEST_CONTEXT) return Promise.resolve({ names: new Set() })
-  const script = "Get-NetConnectionProfile | Where-Object NetworkCategory -eq 'Public' | ForEach-Object InterfaceAlias"
+  // `Get-NetAdapter` met plus de 10 s sur certains postes : l'API .NET répond vite.
+  const script = '[Console]::OutputEncoding = [Text.Encoding]::UTF8; ' +
+    '$tun = [System.Net.NetworkInformation.NetworkInterface]::GetAllNetworkInterfaces() | ' +
+    "Where-Object Description -match 'WireGuard|Tailscale|Wintun' | ForEach-Object Name; " +
+    "Get-NetConnectionProfile | Where-Object NetworkCategory -eq 'Public' | " +
+    'Where-Object { $tun -notcontains $_.InterfaceAlias } | ForEach-Object InterfaceAlias'
   return new Promise((resolve) => {
     execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], { timeout: 10_000, windowsHide: true }, (err, stdout) => {
       if (err) return resolve({ names: new Set(), error: err.message })
