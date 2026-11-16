@@ -1,4 +1,4 @@
-// Routage du protocole ZRA — PROTOCOL.md §3 et §4.
+// Routage du protocole ZRA — docs/protocol.md §3 et §4.
 //
 // Le hub est le seul endroit qui connaît les clients. Il applique les invariants
 // du §6 : verbatim, ordre, ring buffer, idempotence, aucun état par client,

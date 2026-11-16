@@ -3,7 +3,7 @@
 Ce document est **suffisant pour écrire `zra-daemon` sans lire le code de la PWA**.
 Il décrit le seul point de contact entre les deux : un WebSocket JSON sur `:7777`.
 
-- `SPEC.md` dit *pourquoi* et *comment* côté poste (shim, index SQLite, injection).
+- `docs/spec.md` dit *pourquoi* et *comment* côté poste (shim, index SQLite, injection).
 - Ce document dit *quoi exactement* passe sur le fil, et ce que le front fait de
   chaque message.
 - Implémentation de référence exécutable : `zra-client/tools/mock-server.mjs` +
@@ -13,7 +13,7 @@ Il décrit le seul point de contact entre les deux : un WebSocket JSON sur `:777
 - Implémentation réelle : `zra-daemon/`, avec `zra-daemon/test/protocol.test.mjs`
   comme suite de conformité (§8).
 
-Statut : **v1**. Tout changement ici doit être répercuté dans `SPEC.md` §7 et
+Statut : **v1**. Tout changement ici doit être répercuté dans `docs/spec.md` §7 et
 dans le bouchon.
 
 ---
@@ -70,7 +70,7 @@ modules ne chargent pas : `.js → text/javascript`, `.css → text/css`,
    rien à faire, et le `ping` applicatif du point 4 reste son propre garde-fou.
    Sans cette sonde, un pair disparu sans fermer (mobile endormi, tunnel coupé,
    shim tué par Zed) laisse une connexion morte au registre : c'était le bug des
-   shims fantômes (`ISSUES.md`).
+   shims fantômes.
 
 > **Le daemon ne conserve aucun état par client.** Un client qui revient doit
 > pouvoir tout reconstruire avec `hello` + `list_threads` + `subscribe`.
@@ -616,7 +616,7 @@ Le **vrai** daemon a sa propre suite, écrite comme une check-list de ce documen
 
 ```bash
 npm run daemon:dev                              # loopback seule, sans tunnel
-node --test zra-daemon/test/protocol.test.mjs   # conformité au PROTOCOL.md
+node --test zra-daemon/test/protocol.test.mjs   # conformité au docs/protocol.md
 node --test zra-daemon/test/e2e-shim.test.mjs      # la chaîne complète, avec shim
 ```
 

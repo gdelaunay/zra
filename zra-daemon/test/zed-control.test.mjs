@@ -281,8 +281,8 @@ test('new_thread : une ligne déjà dans l’index n’est pas prise pour la neu
 
 // `waitFor()` rend une promesse que `newThread`/`reopen` n'attachent qu'**après**
 // `await this.driver.…` : une preuve — ou un refus rapide — qui tombe pendant la
-// recette la rejetterait sans écouteur. `waitFor` l'attache donc neutralement
-// (FINDINGS.md, corrigé) : ce test vérifie que le rejet reste géré.
+// recette la rejetterait sans écouteur. `waitFor` l'attache donc neutralement :
+// ce test vérifie que le rejet reste géré.
 test('un refus qui tombe pendant la recette reste un rejet géré', async () => {
   const ctx = boot({ driver: fakeDriver({ slowMs: 30 }), timeoutMs: 5000 })
   const unhandled = []

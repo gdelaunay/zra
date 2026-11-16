@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Générer un tunnel WireGuard poste ↔ téléphone — DEPLOY.md, annexe.
+// Générer un tunnel WireGuard poste ↔ téléphone — docs/deploy.md, annexe.
 //
 // **Expérimental, non testé de bout en bout.** Le chemin retenu est le
 // tunnel que l'utilisateur a déjà (wg-easy sur un homelab) : ce script n'est
@@ -182,7 +182,7 @@ function nextSteps(state, config) {
 3. Joignabilité : le téléphone doit atteindre ${state.endpoint} en UDP.
    Même Wi-Fi : l'IP locale du poste suffit. Depuis la 4G : redirection du port
    UDP ${port ?? state.port} de la box vers ce poste (ou un réseau d'entreprise qui
-   l'autorise — sinon, voir DEPLOY.md « Si le poste n'est pas joignable »).
+   l'autorise — sinon, voir docs/deploy.md « Si le poste n'est pas joignable »).
 
 4. Le daemon détecte le tunnel tout seul (au besoin : "bindInterface": "${state.name}").
    Dans la PWA, ajouter le poste : http://${state.host.address}:${config.port}, puis l'appairer (npm run pair).

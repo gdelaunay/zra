@@ -1,7 +1,7 @@
 # zra-client — la PWA
 
 Front de ZRA. **Zéro build** : HTML + CSS + ESM natifs, servis tels quels par
-`zra-daemon` ou par n'importe quel serveur statique (`DEPLOY.md` §4.1). Aucune
+`zra-daemon` ou par n'importe quel serveur statique (`docs/deploy.md` §4.1). Aucune
 dépendance runtime, aucun bundler, aucun framework.
 
 ```
@@ -64,7 +64,7 @@ bar, il n'y a pas de bouton précédent.
 
 ## Contrat avec le daemon
 
-→ **`PROTOCOL.md`** à la racine : contrat complet, message par message, avec les
+→ **`docs/protocol.md`** à la racine : contrat complet, message par message, avec les
 séquences et les invariants. Résumé :
 
 - elle envoie `hello` `list_threads` `subscribe` `unsubscribe` `load_history`

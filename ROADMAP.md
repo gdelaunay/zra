@@ -1,26 +1,8 @@
-# ZRA — état et suite
+# ZRA — roadmap
 
-## État
+Version actuelle : **0.3**. Un numéro par jalon ; l'historique est dans `CHANGELOG.md`.
 
-Version **0.3** : tout le périmètre de `SPEC.md` §1 fonctionne — en local, à
-distance et en HTTPS — vérifié sur un poste Windows avec Zed et un téléphone
-Android, **et** sur trois postes Linux (Ubuntu 24.04/GNOME/Wayland,
-MX Linux 23/Xfce/X11, Debian 13/KDE/X11 — portage clos, non-régression Windows
-revérifiée). Les décisions qui engagent la suite sont dans
-`SPEC.md` §13, la check-list de re-test au §12. L'historique détaillé du
-développement est dans git (`ROADMAP.md` au commit `ab52aca`).
-
----
-
-## Notation des versions
-
-`0.1`, `0.2`, `0.3`… un numéro par jalon, pas de sous-jalons. 
-`CHANGELOG.md` porte les jalons, `package.json` porte le numéro courant.
-
-Version courante : **0.3** (portage Linux).
-
-- **0.4 — coller au panneau agent de Zed** (retouches d'interface, la
-  prochaine étape, commencée tout de suite) ;
+- **0.4 — coller au panneau agent de Zed** (retouches d'interface, en cours) ;
 - **0.5 — `zra-tray`** : le tray natif Rust et la distribution binaire.
 
 ---
@@ -57,7 +39,7 @@ shim » ci-dessous — à faire avant la 0.5.
 
 - **commandes `/`** : taper `/` dans le composer propose les commandes de
   l'agent. ACP les annonce (`available_commands_update`), la PWA les mémorise
-  déjà sans les afficher (`PROTOCOL.md` §4, `zra-client/js/acp.js`). Lancer une
+  déjà sans les afficher (`docs/protocol.md` §4, `zra-client/js/acp.js`). Lancer une
   commande, c'est envoyer son texte ;
 - **mentions `@`** : suggérer des fichiers et dossiers du projet. Ce n'est pas
   dans ACP, c'est Zed qui fournit la liste. Le daemon tourne sur le poste et
@@ -66,7 +48,7 @@ shim » ci-dessous — à faire avant la 0.5.
   ressource ACP, ou chemin en texte). Faisabilité à vérifier ;
 - **notifications push** quand une réponse arrive sur un thread (Web Push).
   L'architecture est prévue mais inactive : `sw.js` gère déjà `push` et
-  `notificationclick` (`SPEC.md`, `zra-client/README.md`). Exige le HTTPS.
+  `notificationclick` (`docs/spec.md`, `docs/client.md`). Exige le HTTPS.
 
 
 ## Tray natif — `zra-tray` (décidé, **jalon 0.5**)
@@ -116,7 +98,7 @@ Ce que ça règle d'un coup :
   est la surface complète, cohérente avec le mobile.
 - Comportement clic gauche/droit selon l'OS : géré par `tray-icon`
   (Windows : menu au clic droit ; KDE/GNOME plus variables — à tester sur les
-  environnements de la campagne de portage).
+  postes Linux vérifiés).
 
 ### Points de robustesse à ne pas rater
 
@@ -127,7 +109,7 @@ Ce que ça règle d'un coup :
 2. **Adopter un daemon déjà vivant** : si le port 7777 répond au démarrage
    (daemon lancé à la main, ancienne tâche planifiée), ne pas spawner un
    second — passer en mode observateur ou proposer de reprendre la main.
-3. **Petit bout de protocole** : soit le WS existant (`PROTOCOL.md`) avec un
+3. **Petit bout de protocole** : soit le WS existant (`docs/protocol.md`) avec un
    appairage local implicite, soit un `GET /status` loopback-only. Le daemon
    a déjà tout (état, code d'appairage), le tray ne fait qu'afficher.
 4. **Distribution binaire** : le seul vrai morceau neuf. GitHub Actions avec
@@ -178,7 +160,7 @@ Ce que ça règle d'un coup :
    minimal (état, ouvrir ZRA, copier code, logs, quitter). `npm run service`
    installe la tâche planifiée qui lance le tray → la fenêtre PowerShell meurt ;
 3. Linux : même binaire, `.desktop` autostart → tray, vérification sur les
-   environnements de la campagne de portage (Ubuntu 24.04 / GNOME / Wayland,
+   postes Linux vérifiés (Ubuntu 24.04 / GNOME / Wayland,
    MX Linux 23 / Xfce / X11, Debian 13 / KDE / X11) ;
 4. CI releases + téléchargement au `setup` ;
 5. Sucre : icône qui change d'état (thread live / réponse en attente) — les
@@ -203,7 +185,7 @@ une commande).
 
 Un client servi en `https://` ne peut ouvrir que des `wss://`
 (contenu mixte bloqué) : aujourd'hui, chaque poste a besoin de son propre
-proxy host HTTPS (`DEPLOY.md` §4.1). Le but de départ était de taper
+proxy host HTTPS (`docs/deploy.md` §4.1). Le but de départ était de taper
 seulement une IP.
 
 Idée : livrer le client **avec un relais**. Un petit serveur Node qui sert les
@@ -224,11 +206,11 @@ valable sans broker : une seule config HTTPS pour tous les postes.)
 ## Tailscale : réseau et HTTPS sans configuration
 
 Joindre un poste hors du réseau local demande aujourd'hui WireGuard, un
-proxy HTTPS par poste et du routage Docker (`DEPLOY.md` §3.1, §4.1). Tailscale
+proxy HTTPS par poste et du routage Docker (`docs/deploy.md` §3.1, §4.1). Tailscale
 donnerait tout ça d'office : IP fixe par appareil, aucun port ouvert, et des
 certificats HTTPS (`*.ts.net`, `tailscale serve` devant `:7777`), ce qui règle
 le contenu mixte sans reverse proxy. À essayer, puis à proposer dans
-`DEPLOY.md` **comme une option parmi d'autres — pas comme le chemin par
+`docs/deploy.md` **comme une option parmi d'autres — pas comme le chemin par
 défaut** (décision).
 
 ## Homelab — la réponse retenue au problème central

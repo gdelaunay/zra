@@ -3,7 +3,7 @@
 Passerelle ZRA d'un poste : lit l'index des threads de Zed, parle le protocole
 ZRA aux clients mobiles, et porte les backends d'injection.
 
-Un daemon par poste, long-running (`SPEC.md` §3.2). Aucune dépendance runtime :
+Un daemon par poste, long-running (`docs/spec.md` §3.2). Aucune dépendance runtime :
 Node ≥ 24 fournit SQLite (`node:sqlite`), le serveur HTTP et le test runner, et
 le WebSocket (RFC 6455) tient dans `ws.js`.
 
@@ -16,7 +16,7 @@ npm test                # suite complète, sans Zed ni agent
 ```
 
 Mise en service sur le téléphone — réseau local, appairage, HTTPS, démarrage automatique :
-**`DEPLOY.md`** à la racine.
+**`docs/deploy.md`** à la racine.
 
 ## Ce qu'il fait
 
@@ -66,7 +66,7 @@ leurs sessions. C'est ce qu'affiche `npm run setup`.
 
 Un deuxième chemin WebSocket sur le même port, **réservé à la loopback** :
 `ws://127.0.0.1:7777/shim`. C'est une conversation entre deux processus du même
-poste, distincte du `PROTOCOL.md` (qui ne décrit que la PWA ↔ daemon).
+poste, distincte du `docs/protocol.md` (qui ne décrit que la PWA ↔ daemon).
 
 ```
 shim → daemon   shim_hello · session · session_replay · acp_update · state ·
@@ -122,7 +122,7 @@ que le navigateur réserve aux *contextes sécurisés* :
 sans certificat.
 
 Une page `https://` ne peut ouvrir que des `wss://` (contenu mixte bloqué) :
-client en HTTPS ⇒ chaque daemon joint en HTTPS. Deux montages (`DEPLOY.md` §4) :
+client en HTTPS ⇒ chaque daemon joint en HTTPS. Deux montages (`docs/deploy.md` §4) :
 
 - **reverse proxy** HTTPS devant le daemon, qui reste en HTTP (validé) :
   ajouter l'origine du client à `allowedOrigins` ;
@@ -188,7 +188,7 @@ seulement) sert à `npm run pair`.
 | `threads-index.js` | lecture `sidebar_threads`, poll, projection |
 | `thread-state.js` | tour, file d'attente, options |
 | `ring-buffer.js` | 2000 événements par thread |
-| `shim-registry.js` | registre shim → sessions (multi-sessions, risque 🟡4) |
+| `shim-registry.js` | registre shim → sessions (multi-sessions : Zed lance un agent par fenêtre) |
 | `shim-link.js` | canal `/shim` : événements entrants, commandes sortantes |
 | `session-loader.js` | relecture d'un thread fermé, cache TTL 10 min |
 | `acp-client.js` | client ACP minimal et jetable, pour cette relecture |
@@ -204,12 +204,12 @@ seulement) sert à `npm run pair`.
 
 ```bash
 npm test                                          # tout, sans Zed ni agent
-node --test zra-daemon/test/protocol.test.mjs     # conformité au PROTOCOL.md
+node --test zra-daemon/test/protocol.test.mjs     # conformité au docs/protocol.md
 node --test zra-daemon/test/e2e-shim.test.mjs        # daemon + shim + agent bouchon
 npm run fixture                                   # régénère la fixture SQLite
 ```
 
-`test/protocol.test.mjs` se lit comme une check-list du `PROTOCOL.md` : chaque
+`test/protocol.test.mjs` se lit comme une check-list du `docs/protocol.md` : chaque
 test cite le message qu'il verrouille. `test/e2e-shim.test.mjs` monte la chaîne
 complète — daemon, vrai processus shim, agent ACP bouchon, faux Zed — et vérifie
 ce que la PWA verrait. La fixture

@@ -1,5 +1,5 @@
 // Service des statiques : le daemon sert lui-même le client PWA (même origine
-// pour la page et le WebSocket, `DEPLOY.md`). `serveStatic: false` le désactive
+// pour la page et le WebSocket, `docs/deploy.md`). `serveStatic: false` le désactive
 // quand le client est servi ailleurs.
 
 import { readFile, stat } from 'node:fs/promises'

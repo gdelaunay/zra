@@ -242,7 +242,7 @@ export class WsConnection extends EventEmitter {
    * `socket.end()` seul est un **half-close** : il attend le FIN retour. Un pair
    * déjà mort ne l'enverra jamais, et le socket reste en CLOSE_WAIT côté daemon
    * sans que l'événement `close` ne se déclenche — c'est ainsi que les shims
-   * fantômes s'accumulaient au registre après la fermeture de Zed (ISSUES.md).
+   * fantômes s'accumulaient au registre après la fermeture de Zed.
    * On laisse au pair un court délai pour boucler, puis on tranche.
    */
   close(code = 1000) {

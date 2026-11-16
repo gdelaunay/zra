@@ -1,7 +1,7 @@
 // Le daemon complet, de bout en bout, sur un vrai WebSocket — sans Zed, sans
 // agent, sans shim (spec §10).
 //
-// Lisible comme une check-list du PROTOCOL.md : chaque test cite le message
+// Lisible comme une check-list du docs/protocol.md : chaque test cite le message
 // qu'il verrouille.
 
 import { test } from 'node:test'

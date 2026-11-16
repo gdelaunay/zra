@@ -237,7 +237,7 @@ test('ws : un client qui ne lit pas est coupé, pas nourri (backpressure)', () =
 test('ws : close() tranche la socket si le pair ne boucle pas la fermeture', (t) => {
   // Le pair est mort : il ne rendra jamais le FIN. Sans garde-fou, `end()`
   // laisse le socket en CLOSE_WAIT et l'événement `close` ne vient jamais —
-  // c'est le mécanisme des shims fantômes (ISSUES.md).
+  // c'est le mécanisme des shims fantômes.
   t.mock.timers.enable({ apis: ['setTimeout'], now: Date.now() })
   const calls = []
   const socket = {

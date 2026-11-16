@@ -461,7 +461,7 @@ test('permission tranchée : coche sur l’option, encart clos, plus rien de cli
 
 // L'option choisie d'un encart tranché restait cliquable (`disabled: locked &&
 // !chosen`) et un second appui renvoyait une écriture que le daemon refusait en
-// `permission_expired`. Corrigé (FINDINGS.md) : verrouillé = tout le monde muet.
+// `permission_expired`. Verrouillé = tout le monde muet.
 test('une permission tranchée ne se rejoue pas, même sur l’option choisie', () => {
   let calls = 0
   const { node } = permRender({ pendingOptionId: 'allow', resolved: true, outcome: 'allow' },

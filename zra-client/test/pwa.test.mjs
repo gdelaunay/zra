@@ -330,7 +330,7 @@ test('permission : un refus est relayé tel quel', async () => {
   click(reject())
   await until(() => $$('.perm').pop().classList.contains('perm--done'), 4000, 'refus confirmé')
   // L'encart tranché est muet sur **toutes** ses options, la choisie comprise :
-  // c'est elle qui porte la coche (FINDINGS.md, corrigé).
+  // c'est elle qui porte la coche.
   assert.ok(reject().disabled, 'plus aucune option cliquable une fois tranchée')
   assert.ok(reject().querySelector('svg, .icon'), 'le refus est l’option cochée')
   await until(() => /je ne pousse pas/.test(doc.body.textContent), 5000, 'réponse de l’agent')

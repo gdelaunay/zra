@@ -6,7 +6,7 @@
 // jusqu'au proxy, et la reconnexion se fait en arrière-plan avec backoff.
 //
 // Le lien est local (`127.0.0.1`) : c'est une conversation entre deux processus
-// du même poste, distincte du protocole PWA ↔ daemon du `PROTOCOL.md`.
+// du même poste, distincte du protocole PWA ↔ daemon du `docs/protocol.md`.
 //
 //   shim → daemon   shim_hello · session · acp_update · state ·
 //                   permission_resolved · permission_expired · notice · ack

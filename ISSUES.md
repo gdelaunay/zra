@@ -1,58 +1,43 @@
-# ZRA — issues connues, remises à plus tard
+# ZRA — issues
 
-Fait → effet → à mesurer. La campagne de portage Linux est close (voir
-`SPEC.md` §2.4) ; les lignes ci-dessous sont ce qui reste hors campagne.
-
-**Codes de statut** (en tête de chaque section) :
+Fait → effet → à faire. Une issue acceptée (on ne fera rien) part dans
+`docs/limitations.md` ; une issue corrigée est retirée.
 
 | Code | Sens |
 | --- | --- |
-| `priorité` | Bug fonctionnel qui casse un usage réel → à corriger en premier. |
-| `à faire` | À corriger ou à mesurer, mais sans urgence fonctionnelle. |
-| `accepté` | État connu, on ne fera rien (hors périmètre / effet nul / pas de demande). |
+| `priorité` | Bloque un usage réel ou la publication → en premier. |
+| `à faire` | À corriger ou à mesurer, sans urgence. |
 
 | Section | Statut |
 | --- | --- |
-| Wayland natif, sans XWayland forcé | `accepté` |
-| Zed via Flatpak / Snap | `accepté` |
-| WSL2 | `accepté` |
-| Distros non essayées (Fedora, Arch, openSUSE) | `accepté` |
+| Licence | `priorité` |
+| Performance sur téléphone non mesurée | `à faire` |
+| Course dans `protocol.test.mjs` | `à faire` |
 
-## Zed via Flatpak / Snap — `accepté`
+## Licence — `priorité`
 
-**Décision : non supporté explicitement à la publication.** Installation native
-uniquement (README, DEPLOY.md §6) ; message clair au setup si Zed est
-introuvable. Échappatoire pour utilisateurs avancés : `zedDb`/`zedSettings`
-dans `zra.config.json`.
+Pas de `LICENSE`, `package.json` en `"private": true` sans champ `license` : un
+dépôt public resterait « tous droits réservés ». Le client embarque aussi des
+éléments repris du dépôt de Zed : thèmes (`scripts/gen-themes.mjs`) et icônes
+de marques d'agents (`scripts/gen-agent-icons.mjs`).
+→ Choisir une licence (MIT la plus simple), l'ajouter avec le champ `license`
+de `package.json`, et vérifier la licence des thèmes et icônes de Zed
+(attribution, ou retrait des icônes de marques).
 
-`zedPaths()` renvoie les chemins XDG classiques (`~/.local/share/zed`,
-`~/.config/zed`). Sous Flatpak (`~/.var/app/dev.zed.Zed/…`) ou Snap
-(`~/snap/zed-editor/current/…`), index, settings et registry sont introuvables,
-et `findZedDesktop()` ne trouve pas le `.desktop` à patcher.
-→ Piste si des utilisateurs Flatpak/Snap se manifestent : mesurer les chemins
-réels, les ajouter en candidats dans `zedPaths()`, lancement via `flatpak run` /
-`snap run`, validation sur de vraies installations (Flatpak d'abord, le cas le
-plus fréquent).
+## Performance sur téléphone non mesurée — `à faire`
 
-## Wayland natif, sans XWayland forcé — `accepté`
+Rien de bloquant à la lecture, aucune mesure sur un téléphone. À surveiller si
+un symptôme apparaît : la PWA rend tout le thread sans fenêtrage ; le daemon
+relit toute la table `sidebar_threads` toutes les 2 s ; le diff alloue jusqu'à
+16 Mo par bloc (`zra-client/js/diff.js`). La coupure d'un client gelé
+(`zra-daemon/ws.js`) ne s'est jamais déclenchée sous Windows, même avec 12 Mo en
+attente.
+→ Mesurer sur un long thread, sur un vrai réseau.
 
-`d911219` a supprimé `ydotool`/`wtype` : `createKeyboard()` ne renvoie que
-`xdotool` ou `none`. Sans le patch `WAYLAND_DISPLAY=` du `.desktop`, aucun
-backend clavier → pas d'ouverture de thread ni de `submit` depuis la PWA.
-Lecture, injection `acp` et permissions marchent toujours (via le shim).
-→ XWayland forcé via le `.desktop` patché **est** la voie supportée ; pas de
-retour à `ydotool`/`wtype` (droits `uinput`, fragilité par compositeur).
+## Course dans `protocol.test.mjs` — `à faire`
 
-## WSL2 — `accepté`
+Les tests `interrupt` et `cancel_queued` échouent parfois : le tour du bouchon
+dure 60 ms et l'interruption arrive parfois après (cause notée dans le fichier).
+Non reproduit en 16 passages.
+→ Rendre la durée du tour réglable dans le test.
 
-Jamais lancé. systemd pas toujours init, WSLg fournit X11/Wayland mais `xdotool`
-y vise un serveur X où la fenêtre Zed peut être absente, et sans bureau rien ne
-lit `~/.config/autostart`.
-→ Tout mesurer, si la demande apparaît.
-
-## Distros non essayées (Fedora, Arch, openSUSE) — `accepté`
-
-Node ≥ 24 à installer à la main (les Node de distro sont plus vieux) ; `xdotool`
-est un paquet standard partout. Code Node pur, sans dépendance native, chemins
-XDG : effet attendu nul.
-→ `npm install && npm test`, puis la procédure §4.2 de la note de portage.

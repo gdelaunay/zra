@@ -50,7 +50,7 @@ export function update(patch) {
  * Sans schéma, on prend celui de la page : une PWA servie en HTTPS ne peut
  * ouvrir qu'un `wss://` (contenu mixte bloqué). Sans port : en HTTP celui du
  * daemon, 7777 ; en HTTPS le port standard, 443 — le daemon est alors derrière
- * un reverse proxy (DEPLOY.md §4). Un port explicite est toujours respecté.
+ * un reverse proxy (docs/deploy.md §4). Un port explicite est toujours respecté.
  */
 export function normalizeUrl(input, pageProtocol = globalThis.location?.protocol) {
   let s = String(input || '').trim()

@@ -116,7 +116,7 @@ export async function createServers({ config, addresses, onConnection, onShim, s
     const hosts = new Set([...instances.keys()].map(hostHeader))
     if (instances.has('127.0.0.1')) hosts.add(hostHeader('localhost'))
     if (tls) for (const n of tls.names) hosts.add(hostHeader(n))
-    // Derrière un reverse proxy (DEPLOY.md §4.1), le `Host` transmis peut être
+    // Derrière un reverse proxy (docs/deploy.md §4.1), le `Host` transmis peut être
     // le nom public : il vient des origines autorisées, pas des écoutes.
     for (const o of config.allowedOrigins) {
       try { hosts.add(new URL(o).host.toLowerCase()) } catch { /* origine invalide : ignorée */ }

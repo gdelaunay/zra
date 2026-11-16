@@ -2,7 +2,7 @@
 
 ZRA (Zed Remote Agent) permet de suivre et de piloter depuis un téléphone les threads d'agents ACP ouverts dans l'éditeur Zed : liste des threads, flux en direct, envoi de messages, réponses aux permissions, ouverture d'une session.
 
-Ce document donne la carte. Le détail est ailleurs : `SPEC.md` (spécification et décisions), `PROTOCOL.md` (protocole PWA ↔ daemon), `DEPLOY.md` (mise en service).
+Ce document donne la carte. Le détail est ailleurs : `docs/spec.md` (spécification et décisions), `docs/protocol.md` (protocole PWA ↔ daemon), `docs/deploy.md` (mise en service).
 
 ## Vue d'ensemble
 
@@ -51,7 +51,7 @@ flowchart LR
 ### PWA ↔ daemon : HTTP et WebSocket `/ws`
 
 - Même port pour tout (7777 par défaut). HTTP sert `zra-client/` (`zra-daemon/static.js`).
-- WebSocket : protocole décrit dans `PROTOCOL.md`. `zra-daemon/hub.js` est le seul module qui connaît les clients.
+- WebSocket : protocole décrit dans `docs/protocol.md`. `zra-daemon/hub.js` est le seul module qui connaît les clients.
 - Les événements ACP sont rediffusés tels quels dans des `acp_event` numérotés (`seq`). Un tampon circulaire par thread (`zra-daemon/ring-buffer.js`, 2 000 événements) permet de reprendre après une coupure.
 - Routes HTTP réservées à la loopback : `/status`, `/pair`, `/pair/rotate`, `/pair/revoke` (utilisées par `npm run setup` et `npm run pair`).
 
@@ -67,14 +67,14 @@ flowchart LR
 | Nouvelle session (« + ») | `zed/driver.js` ouvre le projet avec la CLI de Zed, puis envoie la touche liée à l'agent dans `keymap.json` |
 | Permission | l'agent demande → le shim publie → le premier qui répond (Zed ou mobile) gagne, le shim arbitre |
 
-Backends d'injection (`zra-daemon/inject/`) : `acp` (défaut, le shim émet le prompt), `uia` (le texte est tapé au clavier dans Zed), `auto` (`acp`, repli clavier), `mock` (bouchon de test).
+Backends d'injection (`zra-daemon/inject/`) : `acp` (défaut et seul supporté, le shim émet le prompt), `uia` et `auto` (expérimentaux : le texte est tapé au clavier dans Zed), `mock` (bouchon de test).
 
 ## Sécurité : où sont les contrôles
 
-- Écoute : loopback, IPv4 privées du poste, interface de tunnel reconnue. Jamais `0.0.0.0` (`zra-daemon/net.js`).
+- Écoute : loopback, IPv4 privées du poste (hors réseaux marqués « Public » sous Windows), interface de tunnel reconnue. Jamais `0.0.0.0` (`zra-daemon/net.js`).
 - `Origin` du WebSocket `/ws` : liste exacte, origines propres du daemon ajoutées d'office (`zra-daemon/server.js`).
-- Appairage hors loopback : code à 6 chiffres contre un jeton, stocké haché dans `.zra/auth.json` (`zra-daemon/auth.js`). La loopback en est dispensée.
-- Pilotage clavier : désactivé par défaut (`zedControl.enabled`), vérification du premier plan avant chaque étape (`zra-daemon/zed/keyboard.js`, `keyboard.ps1`).
+- Appairage hors loopback : code à 6 chiffres contre un jeton, stocké haché dans `.zra/auth.json` (`zra-daemon/auth.js`). Verrouillé après 10 échecs. La loopback en est dispensée, sauf requête relayée par un proxy local.
+- Pilotage clavier : activé par défaut, désactivable (`zedControl.enabled`), vérification du premier plan avant chaque étape (`zra-daemon/zed/keyboard.js`, `keyboard.ps1`).
 
 ## Dépendances externes
 
@@ -99,14 +99,42 @@ Aucune dépendance npm en production. En développement : `jsdom` et `jsqr` (tes
 
 Les entrées écrites dans Zed et dans le service contiennent le chemin absolu du dépôt et de Node.
 
-État local : `.zra/` dans le dépôt (jetons hachés, journaux, sauvegardes, trames enregistrées) et le dossier d'application (`%LOCALAPPDATA%\zra` ou `$XDG_STATE_HOME/zra`) pour le journal des injections.
+État local : `.zra/` dans le dépôt (jetons hachés, journaux, sauvegardes, trames enregistrées avec `--record`) et le dossier d'application (`%LOCALAPPDATA%\zra` ou `$XDG_STATE_HOME/zra`) pour le journal des injections.
+
+## Fragilités
+
+- **Le shim n'est pas passif.** Il lance des tours que Zed n'a pas demandés, annonce à Zed des messages qu'il n'a pas émis, tranche des permissions à sa place et clôt d'office un tour muet depuis 10 min. L'état de Zed et celui de l'agent peuvent donc diverger ; deux prompts simultanés (Zed et mobile) sur une même session relèvent du comportement de l'agent.
+- **Relire un thread fermé lance un second agent** sur le poste (`session-loader.js`).
+- **Le clavier est la partie fragile** : frappes réelles dans la palette de Zed, libellés en dur (`zed/driver.js`). Seule partie qui peut écrire au mauvais endroit.
+
+Ce qui casse si Zed évolue, du plus probable au moins probable :
+
+1. libellés de la palette ou action `agent::NewExternalAgentThread` : plus de « + » ni de réouverture, erreur explicite après 30 s ;
+2. schéma de `sidebar_threads` ou chemin `db/0-stable` : mode dégradé « live seul », signalé ;
+3. format de `agent_servers` ou du registry d'agents : `setup` et la relecture d'historique échouent ;
+4. ACP : le relais continue, l'observation et l'injection sont à revoir dans `zra-shim/acp.js`.
+
+À préserver : le relais octet pour octet avec observation isolée, l'installation en simulation par défaut, le refus du clavier réel sous test, le contrôle d'`Origin` exact.
+
+## Décisions
+
+Tranchées, à ne pas rediscuter sans fait nouveau :
+
+- **Modèle de menace** : réseau local de confiance, sauf réseau marqué « Public » (Windows : pas d'écoute ; tunnels exclus). Linux : `lanCidrs`.
+- **Appairage** : code à usage unique, verrouillé après 10 échecs tous appareils confondus ; `npm run pair` le rouvre.
+- **Connexions non appairées** : plafonnées (8 par IP, 64 au total, coupure à 120 s, 64 Ko de tampon).
+- **`zedControl.enabled`** : `true` par défaut (le « + » et la réouverture en dépendent), avertissement au démarrage ; `false` reste possible.
+- **Injection** : `acp` seul supporté ; `uia`, `auto` et `wireguard` gardés comme expérimentaux.
+- **Enregistrement des trames** : désactivé par défaut, `npm run setup -- install --record` pour le débogage.
+- **Flatpak / Snap** : non supportés (`docs/limitations.md`).
+- **`-ExecutionPolicy Bypass`** : conservé, limité au processus lancé (`docs/deploy.md` §5).
 
 ## Par où commencer
 
 | Pour comprendre… | Lire |
 |---|---|
 | Le démarrage et le câblage du daemon | `zra-daemon/index.js`, `zra-daemon/daemon.js` |
-| Le protocole côté serveur | `zra-daemon/hub.js`, avec `PROTOCOL.md` |
+| Le protocole côté serveur | `zra-daemon/hub.js`, avec `docs/protocol.md` |
 | Le relais et l'injection ACP | `zra-shim/index.js`, `zra-shim/acp.js` |
 | L'état d'un thread côté client | `zra-client/js/store.js`, `zra-client/js/acp.js` |
 | Le rendu | `zra-client/js/views/thread.js`, `views/entry.js`, `markdown.js` |

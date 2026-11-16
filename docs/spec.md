@@ -1,8 +1,8 @@
 # ZRA — Zed Remote Agent
 
-Spec d'implémentation v1, implémentée et vérifiée sur la machine cible. Les risques
-identifiés au départ et leur issue sont au §12, avec la check-list de re-test
-sur une nouvelle machine.
+Spec d'implémentation v1, implémentée et vérifiée. Les risques identifiés au
+départ et leur issue sont au §12, avec la check-list à rejouer sur une nouvelle
+machine ou après une mise à jour de Zed.
 
 ---
 
@@ -168,7 +168,7 @@ Le schéma `sidebar_threads` est **identique** à Windows (mêmes colonnes).
 `WM_NAME="zra"` (le nom du dossier seul), `WM_CLASS="dev.zed.Zed"` ;
 `matchesProject` le reconnaît par `t === p`.
 
-**Vérifié sur Debian 13 / KDE / X11** (campagne `2fd075c`, mesures brutes) :
+**Vérifié sur Debian 13 / KDE / X11** (mesures brutes) :
 - `npm test` → `tests 761 / pass 759 / fail 0 / skipped 2` (identique aux
   autres postes)
 - `echo $XDG_SESSION_TYPE` → `x11` ; titre de fenêtre Zed = `zra` (dossier
@@ -180,7 +180,7 @@ Le schéma `sidebar_threads` est **identique** à Windows (mêmes colonnes).
   jouées avec succès
 - Service systemd --user : `install --apply` écrit l'unité avec
   `Environment=XDG_SESSION_TYPE=x11 DISPLAY=:10.0 XDG_CURRENT_DESKTOP=KDE` et
-  le PATH complet de la session → le fix `2ea61cc` est opérationnel sous
+  le PATH complet de la session → le service voit la session graphique sous
   KDE/X11 ; `enabled` + `loginctl enable-linger` → survit au boot sans
   redémarrage à prouver ; `kill -9 <MainPID>` → relance automatique
   (`relances : 1`, `dernier résultat : success`, état `active` en quelques
@@ -190,7 +190,6 @@ Le schéma `sidebar_threads` est **identique** à Windows (mêmes colonnes).
   (`source: registry/binary`), et `npm run probe:agent amp-acp` fait la
   poignée de main ACP à travers le shim
   (`[acp] amp-acp v0.10.0 initialized`, protocole 1, `loadSession=oui`).
-  Le dernier « non vérifié » de cette section est donc levé.
 
 ---
 
@@ -245,7 +244,7 @@ Proxy stdio transparent entre Zed et le vrai agent.
 - Porte les backends d'injection (§6).
 - Survit aux redémarrages de Zed ; les shims vont et viennent.
 
-### 3.3 `zra-app` — PWA
+### 3.3 `zra-client` — PWA
 
 Zéro build. HTML + CSS + ESM servis tels quels, par un hébergeur en production
 ou par le daemon en dev. Installable, dark, calquée sur le panel agent de Zed.
@@ -318,15 +317,14 @@ Le shim émet lui-même un `session/prompt` vers l'agent, comme s'il venait de Z
 - Zed n'ayant pas émis ce prompt, il ne le connaît pas : le shim le lui
   annonce en `user_message_chunk` (marqué `_meta.zra.synthetic`), comme
   l'agent le ferait au `session/load`. Le message s'affiche donc aussi dans
-  le panel de Zed (risque 🟠6, levé).
+  le panel de Zed.
 
 ### 6.2 Backend `uia` (repli clavier)
 
-Zed dessine lui-même son interface (GPUI) : son arbre UI Automation est vide
-(risque 🟠3). Le backend `uia` pilote donc la fenêtre Zed **au clavier**
+Zed dessine lui-même son interface (GPUI) : son arbre UI Automation est vide. Le backend `uia` pilote donc la fenêtre Zed **au clavier**
 (`SendInput`, texte en Unicode), par recettes de touches (`zra-daemon/zed/`),
 surchargeables dans `zra.config.json`. Arrêt immédiat si Zed perd le premier
-plan. Désactivé par défaut (`zedControl.enabled`).
+plan. Exige `zedControl.enabled` (activé par défaut). Expérimental.
 
 - **Fidélité parfaite** : c'est Zed qui émet le prompt, donc tout apparaît des deux côtés.
 - Fragile : dépend de la fenêtre, de la keymap, de la version de Zed.
@@ -337,7 +335,7 @@ Le mode `auto` tente `acp` et ne bascule sur le clavier que sur un **refus
 explicite** de l'agent : un silence ne prouve pas que le message est perdu, et
 le renvoyer au clavier le doublerait.
 
-Avec claude-acp, `acp` suffit (risque 🔴1 levé) : aucun message ne passe par le
+Avec claude-acp, `acp` suffit : aucun message ne passe par le
 clavier. Le clavier ne sert qu'à ouvrir ou rouvrir un thread (§6.3, §6.7).
 
 ### 6.3 Répondre à un thread fermé
@@ -570,7 +568,7 @@ Deux montages tiennent, et le daemon accepte les deux :
 
 En HTTPS, le navigateur refuse un `ws://` depuis une page `https://` (contenu
 mixte) : chaque daemon doit donc être joint en `wss://`. Deux montages
-(`DEPLOY.md` §4) : un **reverse proxy** HTTPS devant chaque daemon, qui reste
+(`docs/deploy.md` §4) : un **reverse proxy** HTTPS devant chaque daemon, qui reste
 en HTTP (vérifié), ou un certificat sur le daemon lui-même, par un
 vrai domaine pointant l'IP privée et Let's Encrypt en **DNS-01** (non essayé).
 
@@ -696,24 +694,24 @@ logon (optionnelle, script d'install fourni). Le shim n'est jamais lancé à la 
 
 ---
 
-## 12. Risques et re-test
+## 12. Risques et vérification
 
 | # | Risque | Détection | Repli |
 |---|---|---|---|
-| ✅ 1 | L'agent refuse un `session/prompt` qui ne vient pas de Zed | Log ACP au premier envoi mobile | **Levé** : `claude-agent-acp` accepte le prompt injecté, la réponse s'affiche des deux côtés. Le backend `uia` reste en repli pour d'autres agents |
-| ✅ 2 | `claude-agent-acp` ne déclare pas `loadSession` | Réponse à `initialize` | **Levé** : la version 0.80 installée déclare `loadSession: true`. Le repli `no_load_session` reste câblé et testé pour les autres agents |
-| 🟠 3 | L'arbre UIA de Zed n'expose pas le composer | Sonde UIA (`npm run zed -- probe`) | **Avéré** : arbre vide, 0 élément. Pilotage au clavier (`SendInput`) de la fenêtre Zed, par recettes |
-| 🟡 4 | Zed lance un agent par fenêtre, pas par thread | Observer les `session_id` d'un même shim | Le registre shim→sessions est déjà multi-sessions |
-| 🟡 5 | Schéma `sidebar_threads` modifié par une mise à jour de Zed | Vérification des colonnes au démarrage | Message d'erreur explicite, dégradation en « live seul » |
-| ✅ 6 | Message utilisateur invisible dans le panel Zed (§6.1) | **Avéré** : la réponse de l'agent s'affiche dans Zed, le message envoyé depuis le mobile non | **Levé** : le shim annonce à Zed le message du mobile en `user_message_chunk`. Il s'affiche dans le panneau, et reste affiché une seule fois après un redémarrage de Zed |
-| 🟡 7 | Séparateur de `folder_paths` inconnu pour un thread multi-dossiers | Aucun thread multi-dossiers sur la machine cible ; `folder_paths_order` est une liste d'indices séparés par des virgules | On ne découpe que si l'ordre annonce plusieurs entrées **et** que le découpage retombe sur le bon compte — sinon chemin unique. Un chemin Windows peut contenir une virgule |
+| 1 | L'agent refuse un `session/prompt` qui ne vient pas de Zed | Log ACP au premier envoi mobile | **Levé** : `claude-agent-acp` accepte le prompt injecté, la réponse s'affiche des deux côtés. Le backend `uia` reste en repli pour d'autres agents |
+| 2 | `claude-agent-acp` ne déclare pas `loadSession` | Réponse à `initialize` | **Levé** : la version 0.80 installée déclare `loadSession: true`. Le repli `no_load_session` reste câblé et testé pour les autres agents |
+| 3 | L'arbre UIA de Zed n'expose pas le composer | Sonde UIA (`npm run zed -- probe`) | **Avéré** : arbre vide, 0 élément. Pilotage au clavier (`SendInput`) de la fenêtre Zed, par recettes |
+| 4 | Zed lance un agent par fenêtre, pas par thread | Observer les `session_id` d'un même shim | Le registre shim→sessions est déjà multi-sessions |
+| 5 | Schéma `sidebar_threads` modifié par une mise à jour de Zed | Vérification des colonnes au démarrage | Message d'erreur explicite, dégradation en « live seul » |
+| 6 | Message utilisateur invisible dans le panel Zed (§6.1) | **Avéré** : la réponse de l'agent s'affiche dans Zed, le message envoyé depuis le mobile non | **Levé** : le shim annonce à Zed le message du mobile en `user_message_chunk`. Il s'affiche dans le panneau, et reste affiché une seule fois après un redémarrage de Zed |
+| 7 | Séparateur de `folder_paths` inconnu pour un thread multi-dossiers | Aucun thread multi-dossiers sur la machine cible ; `folder_paths_order` est une liste d'indices séparés par des virgules | On ne découpe que si l'ordre annonce plusieurs entrées **et** que le découpage retombe sur le bon compte — sinon chemin unique. Un chemin Windows peut contenir une virgule |
 
-### Re-test sur une nouvelle machine
+### Vérifier une nouvelle machine
 
-Après un portage, une nouvelle version de Zed ou un nouvel agent. Dans l'ordre :
+Sur une nouvelle machine, après une nouvelle version de Zed ou avec un nouvel agent. Dans l'ordre :
 chaque étape suppose la précédente. Tout ce que ZRA produit reste sous `.zra/`
 (ignoré par git) : `logs/shim.log` (**le premier endroit à lire**),
-`logs/daemon.log`, `records/*.jsonl` (trames Zed ↔ agent), `backups/`
+`logs/daemon.log`, `records/*.jsonl` (trames Zed ↔ agent, avec `setup install --record`), `backups/`
 (`settings.json` et `keymap.json` de Zed avant modification).
 
 1. **Sans Zed** : `npm test` vert ; `npm run probe:agent <agent>` fait la
@@ -735,7 +733,7 @@ chaque étape suppose la précédente. Tout ce que ZRA produit reste sous `.zra/
    suite ; un thread fermé se rouvre et le message part, y compris d'un projet
    fermé et plusieurs d'affilée. Mise au point des recettes :
    `npm run zed -- try <recette> [--apply]`, lancé hors de Zed.
-9. **Téléphone** (`DEPLOY.md`) : réseau local et appairage, révocation, tunnel
+9. **Téléphone** (`docs/deploy.md`) : réseau local et appairage, révocation, tunnel
    à distance, changement de réseau du poste sans redémarrage, service au
    logon, HTTPS, PWA installée et ouverte hors ligne.
 

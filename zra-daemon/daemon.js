@@ -264,7 +264,7 @@ export async function startDaemon(config) {
   const logSkipped = (list) => {
     if (!list?.length) return
     log.warn(`réseau marqué Public, pas d'écoute : ${list.map((i) => `${i.name} (${i.address})`).join(', ')} — ` +
-      'si c’est un réseau de confiance : Paramètres Windows › Réseau › propriétés du réseau › profil « Privé » (DEPLOY.md §1)')
+      'si c’est un réseau de confiance : Paramètres Windows › Réseau › propriétés du réseau › profil « Privé » (docs/deploy.md §1)')
   }
   logSkipped(skipped)
   if (!tunnel && !lan.length) log.warn('ni réseau local ni tunnel : écoute en loopback seule')
@@ -329,10 +329,10 @@ export async function startDaemon(config) {
   } else {
     log.warn('appairage désactivé (auth.required: false) : tout client du réseau local pilote ce poste')
   }
-  // Derrière un reverse proxy HTTPS (DEPLOY.md §4.1), le daemon parle HTTP
+  // Derrière un reverse proxy HTTPS (docs/deploy.md §4.1), le daemon parle HTTP
   // mais la PWA est servie en HTTPS : rien ne manque, rien à signaler.
   if (!servers.secure && !servers.allowedOrigins.some((o) => o.startsWith('https://'))) {
-    log.warn('HTTP sans reverse proxy HTTPS : la PWA ne s’installe pas et ne marche pas hors ligne (DEPLOY.md §4.1)')
+    log.warn('HTTP sans reverse proxy HTTPS : la PWA ne s’installe pas et ne marche pas hors ligne (docs/deploy.md §4.1)')
   }
 
   return {
@@ -365,7 +365,7 @@ function checkExpiry(tls) {
   const days = Math.floor((tls.validTo.getTime() - Date.now()) / 86_400_000)
   const names = tls.names.join(', ') || 'certificat'
   if (days < 0) log.error(`${names} : certificat EXPIRÉ depuis ${-days} j — la PWA ne s'ouvrira plus en HTTPS`)
-  else if (days < TLS_WARN_DAYS) log.warn(`${names} : certificat valable encore ${days} j — le renouveler (DEPLOY.md)`)
+  else if (days < TLS_WARN_DAYS) log.warn(`${names} : certificat valable encore ${days} j — le renouveler (docs/deploy.md)`)
   else log.info(`${names} : certificat valable jusqu'au ${tls.validTo.toISOString().slice(0, 10)}`)
 }
 

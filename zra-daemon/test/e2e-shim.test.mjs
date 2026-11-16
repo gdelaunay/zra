@@ -574,7 +574,7 @@ test('shim perdu : le thread redevient closed et la file perdue est annoncée', 
 })
 
 // ===========================================================================
-// Le shim fantôme (ISSUES.md, `priorité`)
+// Le shim fantôme
 // ===========================================================================
 
 test('shim tué net (FIN sans trame CLOSE) : registre vidé, pas de fantôme', async (t) => {

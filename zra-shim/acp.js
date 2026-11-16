@@ -37,7 +37,7 @@ export const M = {
   terminalWaitForExit: 'terminal/wait_for_exit',
 }
 
-/** Erreur portant un code du protocole ZRA (`PROTOCOL.md` §4). */
+/** Erreur portant un code du protocole ZRA (`docs/protocol.md` §4). */
 export class ShimError extends Error {
   constructor(code, message) {
     super(message)

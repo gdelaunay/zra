@@ -16,7 +16,7 @@ avec une relecture minimale.
 ## Démarrage rapide
 
 **Prérequis** : Zed (installation native — Flatpak/Snap non supportés, voir
-`ISSUES.md`), Node ≥ 24.
+`docs/limitations.md`), Node ≥ 24.
 
 **Prérequis Linux** : `xdotool` — `sudo apt install xdotool`. Sous Wayland, le
 pilotage clavier exige Zed sous XWayland : `npm run setup -- xwayland --apply`
@@ -28,13 +28,13 @@ pilotage clavier exige Zed sous XWayland : `npm run setup -- xwayland --apply`
 2. `npm run daemon`. Le daemon affiche son adresse (`http://192.168.x.x:7777`)
    et un code d'appairage.
 3. Sur le téléphone, même Wi-Fi : ouvrir cette adresse, puis saisir le code.
-   Si la page ne charge pas : pare-feu et profil réseau (`DEPLOY.md` §1).
+   Si la page ne charge pas : pare-feu et profil réseau (`docs/deploy.md` §1).
 4. Dans Zed, ouvrir un thread avec l'agent **ZRA** (`claude-zra`) : il est
    `live` sur le téléphone. Les threads des autres agents s'y lisent, mais ne
    s'écrivent pas une fois fermés.
 
 Ensuite : démarrage automatique (`npm run service -- install --apply`),
-accès à distance et HTTPS (`DEPLOY.md`).
+accès à distance et HTTPS (`docs/deploy.md`).
 
 L'entrée ZRA dans Zed et le service pointent vers ce dossier et ce Node en
 chemins absolus : après un déplacement du dépôt ou un changement de version de
@@ -62,7 +62,7 @@ Zed, mais sans agent pour les rouvrir.
   n'écoute jamais sur un réseau marqué « Public » par Windows ; sous Linux, le
   restreindre avec `lanCidrs` dans `zra.config.json`.
 - **Trafic en clair** en HTTP : jeton et conversations sont lisibles par qui
-  écoute le réseau. Hors de chez soi : tunnel ou HTTPS (`DEPLOY.md` §3-4).
+  écoute le réseau. Hors de chez soi : tunnel ou HTTPS (`docs/deploy.md` §3-4).
 - **Appairage** : code à 6 chiffres, à usage unique, verrouillé après 10 essais
   ratés ; `npm run pair` le rouvre avec un nouveau code.
 - **Loopback** exemptée d'appairage, sauf requête relayée par un proxy local
@@ -107,8 +107,12 @@ Configuration : copier `zra.config.example.json` (commenté) en `zra.config.json
 
 | Doc | Contenu |
 |---|---|
-| `SPEC.md` | spécification, risques, check-list de re-test |
-| `PROTOCOL.md` | protocole PWA ↔ daemon |
-| `ROADMAP.md` | état, ce qui reste ouvert, idées |
-| `ISSUES.md` | issues connues et zones non vérifiées, remises à plus tard |
-| `DEPLOY.md` | mise en service sur le téléphone : réseau local, tunnel, HTTPS, service |
+| `docs/architecture.md` | la carte : composants, échanges, flux, fragilités, décisions |
+| `docs/deploy.md` | mise en service sur le téléphone : réseau local, tunnel, HTTPS, service |
+| `docs/protocol.md` | protocole PWA ↔ daemon |
+| `docs/daemon.md`, `docs/shim.md`, `docs/client.md` | un composant chacun : rôle, fichiers, tests |
+| `docs/limitations.md` | ce qui n'est pas supporté, et pourquoi |
+| `docs/spec.md` | spécification d'origine, risques, check-list de vérification |
+
+Fichiers de travail, à la racine : `ROADMAP.md` (versions à venir, idées) et
+`ISSUES.md` (issues ouvertes).

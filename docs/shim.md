@@ -1,6 +1,6 @@
 # zra-shim
 
-Proxy stdio transparent entre Zed et un agent ACP (`SPEC.md` §3.1). Zed le lance
+Proxy stdio transparent entre Zed et un agent ACP (`docs/spec.md` §3.1). Zed le lance
 à la place de l'agent ; il relaie les octets dans les deux sens, en observe une
 copie, et parle au daemon local.
 
@@ -112,7 +112,7 @@ npm run probe:agent claude-acp    # contre le vrai agent, sans ouvrir de session
 `probe:agent` lance l'agent réel à travers le shim et ne fait qu'un
 `initialize` : la résolution de la commande, la transparence de la poignée de
 main et les capacités annoncées (dont `loadSession`) en un seul coup d'œil.
-C'est la première étape du re-test (`SPEC.md` §12).
+C'est la première étape de la vérification d'une machine (`docs/spec.md` §12).
 
 Le shim est monté entre un faux Zed (`test/fake-zed.mjs`, spec §10.2) et un
 agent ACP bouchon (`test/fake-agent.mjs`, spec §10.1) qui parle le vrai
