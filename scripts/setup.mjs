@@ -18,7 +18,8 @@
 // deux commentaires repères, retiré tel quel par `uninstall`.
 //
 // Tout ce que le shim produit reste dans le dépôt, sous `.zra/` (ignoré par
-// git) : journal, enregistrements de trames, sauvegardes du settings.json.
+// git) : journal, sauvegardes du settings.json, enregistrements de trames
+// (`--record`, débogage).
 //
 // Édition chirurgicale (`zra-daemon/zed-settings.js`) : le fichier n'est jamais
 // re-sérialisé, commentaires et mise en forme restent tels quels.
@@ -46,15 +47,15 @@ const SHIM = join(ROOT, 'zra-shim', 'index.js')
 // ---------------------------------------------------------------------------
 
 export function parseArgs(argv) {
-  const out = { command: 'status', apply: false, name: null, agents: [], record: true, port: null }
-  const rest = npmSafeArgs(argv, ['apply', 'no-record'])
+  const out = { command: 'status', apply: false, name: null, agents: [], record: false, port: null }
+  const rest = npmSafeArgs(argv, ['apply', 'record'])
   if (rest[0] && !rest[0].startsWith('-')) out.command = rest.shift()
   for (let i = 0; i < rest.length; i++) {
     const a = rest[i]
     if (a === '--apply') out.apply = true
     else if (a === '--name') out.name = rest[++i]
     else if (a === '--agent') out.agents.push(rest[++i])
-    else if (a === '--no-record') out.record = false
+    else if (a === '--record') out.record = true
     else if (a === '--port') out.port = Number(rest[++i])
     else if (a === '--help' || a === '-h') out.command = 'help'
     // Mot nu : un agent. npm transmet toujours les mots nus, jamais `--agent x`.
@@ -84,7 +85,8 @@ const USAGE = `zra setup — brancher ZRA dans Zed
   --agent <id>         agent à envelopper (répétable ; un mot nu suffit)
   --name <id>          nom de l'entrée dans Zed, pour un seul agent
                        (défaut : claude-acp → claude-zra, qwen-code → qwen-code-zra)
-  --no-record          ne pas enregistrer les trames (ZRA_RECORD)
+  --record             débogage : enregistre toutes les trames ACP dans
+                       .zra/records/ (ZRA_RECORD), conversations comprises
 
   ex. npm run setup install apply
       npm run setup install qwen-code pi-acp apply
@@ -233,7 +235,7 @@ async function status(opts, config) {
     const expected = buildEntry({ agent: entry.env?.ZRA_AGENT_ID ?? '?', record: entry.env?.ZRA_RECORD === '1', wrapped: servers[entry.env?.ZRA_AGENT_ID] })
     const upToDate = entry.command === expected.command && entry.args?.[0] === expected.args[0]
     console.log(`  ✓ entrée « ${id} » → enveloppe « ${entry.env?.ZRA_AGENT_ID ?? '?'} »` +
-      `${entry.env?.ZRA_RECORD === '1' ? ', enregistrement des trames' : ''}` +
+      `${entry.env?.ZRA_RECORD === '1' ? ', enregistrement des trames (débogage : relancer install sans --record pour l’arrêter)' : ''}` +
       `${upToDate ? '' : '  ⚠ chemins différents de ce dépôt : relancer install'}`)
     console.log(keys.has(id)
       ? `      nouveau thread : ${keys.get(id)} (keymap.json)`

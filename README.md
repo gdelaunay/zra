@@ -35,6 +35,37 @@ Ensuite : démarrage automatique (`npm run service -- install --apply`),
 accès à distance et HTTPS (`DEPLOY.md`). Tout retirer :
 `npm run setup -- uninstall --apply`.
 
+## Sécurité
+
+- **Un appareil appairé vaut un accès au poste** : ses prompts font exécuter
+  des commandes à l'agent, dans la limite des permissions de l'agent. Retirer un
+  appareil : `npm run pair -- revoke <id>`.
+- **Réseau local de confiance** (maison) : c'est l'hypothèse de ZRA. Le daemon
+  n'écoute jamais sur un réseau marqué « Public » par Windows ; sous Linux, le
+  restreindre avec `lanCidrs` dans `zra.config.json`.
+- **Trafic en clair** en HTTP : jeton et conversations sont lisibles par qui
+  écoute le réseau. Hors de chez soi : tunnel ou HTTPS (`DEPLOY.md` §3-4).
+- **Appairage** : code à 6 chiffres, à usage unique, verrouillé après 10 essais
+  ratés ; `npm run pair` le rouvre avec un nouveau code.
+- **Loopback** exemptée d'appairage, sauf requête relayée par un proxy local
+  (détectée) ; `"auth": { "exemptLoopback": false }` pour la supprimer.
+- **Frappes à l'aveugle** : ouvrir ou rouvrir un thread tape dans la palette de
+  Zed (fenêtre vérifiée, pas le champ actif) et prend le clavier quelques
+  secondes. Après une mise à jour de Zed, vérifier les recettes
+  (`npm run zed -- try <recette>`) ; `zedControl.enabled: false` pour l'interdire.
+
+## Ce que ZRA écrit sur le disque
+
+| Où | Quoi |
+|---|---|
+| `.zra/auth.json` | appareils appairés (jetons hachés) |
+| `.zra/logs/` | journaux du daemon et du shim |
+| `.zra/backups/` | sauvegardes du `settings.json` et du `keymap.json` de Zed avant chaque écriture |
+| `injections.log` (`%LOCALAPPDATA%\zra\`, Linux `~/.local/state/zra/`) | **chaque prompt envoyé depuis le mobile**, en clair (rotation à 5 Mo) |
+| `.zra/records/` | seulement avec `npm run setup -- install --record` (débogage) : **toutes les trames ACP**, conversations complètes, en clair, purgées après 14 jours |
+
+`.zra/` est ignoré par Git ; ne pas le partager avec le dossier du projet.
+
 ## Détails
 
 | Dossier | Rôle |

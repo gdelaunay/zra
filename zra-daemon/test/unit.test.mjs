@@ -8,7 +8,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { parseJsonc, stripJsonc } from '../jsonc.js'
-import { inCidr, isPrivate, findTunnel, findLan, resolveBinds, listInterfaces, bindAddresses, NetWatch, TunnelMissingError } from '../net.js'
+import { inCidr, isPrivate, findTunnel, findLan, resolveBinds, resolveNetwork, listInterfaces, bindAddresses, NetWatch, TunnelMissingError } from '../net.js'
 import { acceptKey, encodeFrame, createDecoder, WsConnection } from '../ws.js'
 import { toIso, splitFolderPaths } from '../threads-index.js'
 import { RingBuffers } from '../ring-buffer.js'
@@ -82,6 +82,10 @@ test('réseau local : IPv4 privées hors tunnel, jamais une IP publique', () => 
   assert.deepEqual(findLan({}, ifaces).map((i) => i.address), ['192.168.1.42'], 'le tunnel et l’IP publique à part')
   assert.deepEqual(findLan({ lanCidrs: ['10.0.0.0/8'] }, [{ name: 'Wi-Fi', address: '192.168.1.42' }]), [], 'restreint')
   assert.deepEqual(findLan({ bindLan: false }, ifaces), [])
+  const pub = [{ name: 'Wi-Fi café', address: '10.1.2.3', public: true }, { name: 'Ethernet', address: '192.168.1.42' }]
+  assert.deepEqual(findLan({}, pub).map((i) => i.name), ['Ethernet'], 'un réseau marqué Public n’est pas écouté')
+  assert.deepEqual(resolveNetwork({}, pub).skipped.map((i) => i.name), ['Wi-Fi café'])
+  assert.deepEqual(listInterfaces({ 'Wi-Fi': [{ family: 'IPv4', address: '10.1.2.3', internal: false }] }, new Set(['Wi-Fi']))[0].public, true)
 })
 
 test('resolveBinds : loopback, réseau local et tunnel, jamais 0.0.0.0', () => {

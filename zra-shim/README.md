@@ -97,10 +97,10 @@ L'agent enveloppé se désigne, par ordre de priorité :
 | `ZRA_LOG_LEVEL` | `debug` `info` `warn` `error` |
 | `ZRA_LOG_FILE` | double le journal dans ce fichier (`setup` : `.zra/logs/shim.log`) |
 
-`npm run setup` active `ZRA_RECORD` d'office, vers `.zra/records/`
-(`--no-record` pour s'en passer) : c'est le seul moyen de voir ce que Zed et
-l'agent se disent vraiment, et une session enregistrée devient une fixture de
-non-régression.
+`npm run setup -- install --record` active `ZRA_RECORD` vers `.zra/records/`.
+Outil de débogage, désactivé par défaut : c'est le seul moyen de voir ce que Zed
+et l'agent se disent vraiment, et une session enregistrée devient une fixture de
+non-régression — mais les conversations complètes sont écrites en clair.
 
 ## Tests
 

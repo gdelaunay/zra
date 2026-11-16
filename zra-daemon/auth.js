@@ -28,15 +28,16 @@ export class AuthError extends Error {
 export class Pairing {
   /**
    * @param {{ file?:string|null, maxAttempts?:number, windowMs?:number,
-   *           rotateAfter?:number, now?:()=>number, log?:object }} opts
-   *   `maxAttempts` essais ratés par adresse et par `windowMs` ; au-delà de
-   *   `rotateAfter` échecs, tous clients confondus, le code change.
+   *           lockAfter?:number, now?:()=>number, log?:object }} opts
+   *   `maxAttempts` essais ratés par adresse et par `windowMs` ; après
+   *   `lockAfter` échecs, tous clients confondus, l'appairage est verrouillé
+   *   jusqu'au prochain `rotate()` (`npm run pair`, depuis le poste).
    */
-  constructor({ file = null, maxAttempts = 5, windowMs = 60_000, rotateAfter = 20, now = Date.now, log = null } = {}) {
+  constructor({ file = null, maxAttempts = 5, windowMs = 60_000, lockAfter = 10, now = Date.now, log = null } = {}) {
     this.file = file
     this.maxAttempts = maxAttempts
     this.windowMs = windowMs
-    this.rotateAfter = rotateAfter
+    this.lockAfter = lockAfter
     this.now = now
     this.log = log
     /** @type {Array<{ id:string, hash:string, label:string, createdAt:string, lastSeenAt:string|null }>} */
@@ -52,9 +53,11 @@ export class Pairing {
   /** Code lisible : « 482 913 ». */
   get display() { return `${this.current.slice(0, 3)} ${this.current.slice(3)}` }
 
+  /** Nouveau code ; rouvre l'appairage s'il était verrouillé. */
   rotate() {
     this.current = String(randomInt(0, 1_000_000)).padStart(6, '0')
     this.failedSinceRotate = 0
+    this.locked = false
     return this.current
   }
 
@@ -100,6 +103,9 @@ export class Pairing {
    * @throws {AuthError} `pair_failed` (code faux) ou `pair_locked` (trop d'essais)
    */
   pair(code, { label = 'appareil', address = '?' } = {}) {
+    if (this.locked) {
+      throw new AuthError('pair_locked', 'appairage verrouillé après trop d’essais : lancer `npm run pair` sur le poste')
+    }
     const t = this.now()
     for (const [ip, attempts] of this.failures) {
       const active = attempts.filter((at) => t - at < this.windowMs)
@@ -117,9 +123,9 @@ export class Pairing {
     const expected = Buffer.from(this.current)
     if (given.length !== expected.length || !timingSafeEqual(given, expected)) {
       recent.push(t)
-      if (++this.failedSinceRotate >= this.rotateAfter) {
-        this.rotate()
-        this.log?.warn(`${this.rotateAfter} essais d'appairage ratés : nouveau code ${this.display}`)
+      if (++this.failedSinceRotate >= this.lockAfter) {
+        this.locked = true
+        this.log?.warn(`${this.lockAfter} essais d'appairage ratés : appairage verrouillé, \`npm run pair\` pour le rouvrir`)
       }
       throw new AuthError('pair_failed', 'code incorrect')
     }

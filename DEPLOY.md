@@ -20,8 +20,9 @@ config par défaut de wg-easy) fait arriver le téléphone sur ce même réseau 
 pas l'affaire de ZRA : le tunnel est déjà là, le daemon ne fait que lire les
 interfaces du poste.
 
-Le réseau local n'étant pas un lieu de confiance, **chaque appareil s'appaire
-une fois** avec un code (§2). Le daemon sert lui-même le client web : pas
+Le réseau local est tenu pour un lieu de confiance, sauf s'il est marqué
+« Public » : le daemon n'y écoute pas (§1). **Chaque appareil s'appaire tout de
+même une fois** avec un code (§2). Le daemon sert lui-même le client web : pas
 d'hébergeur à part, la page et le WebSocket ont la même origine.
 
 ---
@@ -33,13 +34,20 @@ npm run daemon          # loopback + réseau local (+ tunnel s'il y en a un sur 
 npm run daemon:dev      # loopback seule, pour le dev
 ```
 
-Le journal dit où il écoute et affiche le code d'appairage :
+Le journal dit où il écoute ; le code d'appairage s'affiche sur le terminal
+(jamais dans un journal) et se revoit avec `npm run pair` :
 
 ```
 écoute http://192.168.1.20:7777
 réseau local : Wi-Fi (192.168.1.20)
-appairage : code 482 913 — à saisir dans la PWA
+appairage : 0 appareil(s) appairé(s) — code : npm run pair
+
+  code d'appairage : 482 913
 ```
+
+Le code ne sert qu'une fois. Après 10 essais ratés, tous appareils confondus,
+l'appairage se verrouille : `npm run pair` sur le poste le rouvre avec un
+nouveau code.
 
 Il suit les changements d'adresse (Wi-Fi de la maison puis du bureau, bail DHCP
 renouvelé) sans redémarrer. Pour ne l'exposer qu'à un réseau précis :
@@ -54,7 +62,9 @@ New-NetFirewallRule -DisplayName "ZRA daemon" -Direction Inbound -Protocol TCP -
 ```
 
 Le Wi-Fi doit être en profil **Privé** (Paramètres › Réseau › Wi-Fi ›
-Propriétés). Sur un poste d'entreprise, une stratégie peut bloquer toute règle
+Propriétés) : sur un réseau **Public**, le daemon n'écoute pas du tout, et le dit
+au démarrage. Sous Linux, pas d'équivalent : restreindre l'écoute avec
+`"lanCidrs": ["192.168.1.0/24"]` dans `zra.config.json`. Sur un poste d'entreprise, une stratégie peut bloquer toute règle
 locale : c'est à voir avec l'informatique.
 
 **Vérification** — depuis le téléphone, sur le même Wi-Fi :
@@ -207,7 +217,7 @@ npm run service -- install            # montre la tâche, ne crée rien
 npm run service -- install --apply    # la crée
 npm run service -- start              # la lance tout de suite
 npm run service                       # état : tâche, daemon, fin du journal
-npm run service -- logs               # journal : .zra/logs/daemon.log (le code d'appairage y est)
+npm run service -- logs               # journal : .zra/logs/daemon.log (code d'appairage : npm run pair)
 npm run service -- stop | uninstall --apply
 ```
 

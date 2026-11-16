@@ -30,6 +30,7 @@
 // macOS n'a pas été vérifié : la
 // branche non-Windows est la branche XDG, elle n'affirme rien sur Darwin.
 
+import { execFile } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { posix, win32 } from 'node:path'
@@ -286,3 +287,25 @@ export function keyboardPreference(opts = {}) {
 
 /** Les backends que ZRA sait jouer. `none` = pas de clavier, refus explicite. */
 export const KEYBOARD_BACKENDS = ['powershell', 'xdotool', 'none']
+
+// ---------------------------------------------------------------------------
+// Réseaux marqués « Public »
+// ---------------------------------------------------------------------------
+
+/**
+ * Noms des interfaces dont le réseau est marqué « Public » — le choix proposé
+ * par Windows à la première connexion (café, hôtel). Le daemon n'y écoute pas.
+ * Linux n'a pas d'équivalent standard : ensemble vide, `lanCidrs` fait le tri.
+ *
+ * @returns {Promise<{ names:Set<string>, error?:string }>}
+ */
+export function publicNetworks({ platform = process.platform } = {}) {
+  if (platform !== 'win32' || process.env.NODE_TEST_CONTEXT) return Promise.resolve({ names: new Set() })
+  const script = "Get-NetConnectionProfile | Where-Object NetworkCategory -eq 'Public' | ForEach-Object InterfaceAlias"
+  return new Promise((resolve) => {
+    execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], { timeout: 10_000, windowsHide: true }, (err, stdout) => {
+      if (err) return resolve({ names: new Set(), error: err.message })
+      resolve({ names: new Set(stdout.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)) })
+    })
+  })
+}

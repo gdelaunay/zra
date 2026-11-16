@@ -85,12 +85,17 @@ test('trop d’essais depuis une adresse : verrouillée un moment, les autres no
   assert.ok(p.pair(p.code, { address: 'A' }).token, 'le verrou tombe')
 })
 
-test('trop d’échecs au total : le code change', () => {
-  const p = new Pairing({ maxAttempts: 100, rotateAfter: 4 })
-  const code = p.code
-  const wrong = code === '999999' ? '000000' : '999999'
-  for (let i = 0; i < 4; i++) assert.throws(() => p.pair(wrong, { address: `ip${i}` }))
-  assert.notEqual(p.code, code)
+test('trop d’échecs au total : appairage verrouillé, même le bon code, jusqu’au rotate', () => {
+  const p = new Pairing({ maxAttempts: 100, lockAfter: 4 })
+  const wrong = p.code === '999999' ? '000000' : '999999'
+  for (let i = 0; i < 4; i++) assert.throws(() => p.pair(wrong, { address: `ip${i}` }), (e) => e.code === 'pair_failed')
+  assert.equal(p.locked, true)
+  assert.throws(() => p.pair(p.code, { address: 'autre' }), (e) => e.code === 'pair_locked' && /npm run pair/.test(e.message))
+  const before = p.code
+  p.rotate()
+  assert.equal(p.locked, false)
+  assert.notEqual(p.code, before)
+  assert.ok(p.pair(p.code).token)
 })
 
 test('révocation : le jeton ne vaut plus rien', () => {

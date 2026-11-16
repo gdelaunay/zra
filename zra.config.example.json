@@ -11,7 +11,8 @@
   //
   // Réseau local (IPv4 privées) : le téléphone sur le même Wi-Fi, et à distance
   // à travers un tunnel « tout le trafic » (wg-easy, AllowedIPs 0.0.0.0/0) qui
-  // débouche sur ce réseau. "lanCidrs" : le restreindre, ex. ["192.168.1.0/24"].
+  // débouche sur ce réseau. Jamais un réseau marqué « Public » (Windows).
+  // "lanCidrs" : le restreindre, ex. ["192.168.1.0/24"] — recommandé sous Linux.
   "bindLan": true,
   "lanCidrs": null,
   // Tunnel monté sur le poste lui-même (facultatif) : "bindInterface" est le nom

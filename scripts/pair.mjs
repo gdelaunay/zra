@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Appairer un téléphone avec ce poste — spec §9, DEPLOY.md.
 //
-//   npm run pair                 le code à saisir dans la PWA, et les appareils appairés
+//   npm run pair                 le code à saisir dans la PWA, et les appareils appairés ;
+//                                rouvre l'appairage s'il a été verrouillé après 10 échecs
 //   npm run pair -- rotate       un nouveau code (l'ancien ne vaut plus rien)
 //   npm run pair -- revoke <id>  retirer un appareil : sa connexion est coupée, son jeton refusé
 //
@@ -35,7 +36,15 @@ async function main() {
   if (!config.auth.required) console.log('⚠ appairage désactivé dans zra.config.json (auth.required: false)')
 
   if (command === 'show') {
-    const res = await daemonRequest(config.port, '/pair')
+    let res = await daemonRequest(config.port, '/pair')
+    if (res.ok && res.status === 200 && res.body.locked) {
+      // Verrouillé après trop d'essais : être sur le poste suffit à le rouvrir.
+      const rotated = await daemonRequest(config.port, '/pair/rotate', { method: 'POST' })
+      if (rotated.ok && rotated.status === 200) {
+        console.log('⚠ appairage verrouillé après trop d’essais ratés (quelqu’un a peut-être tenté de deviner le code) : rouvert avec un nouveau code')
+        res = { ...res, body: { ...res.body, code: rotated.body.code } }
+      }
+    }
     if (res.ok && res.status === 200) {
       console.log(`\n  code d'appairage : ${res.body.code}\n`)
       console.log('  À saisir dans la PWA, sur l’écran « appairage requis » du poste. Il ne sert qu’une fois.\n')

@@ -17,7 +17,8 @@ import { SessionLoader } from './session-loader.js'
 import { ZedDriver, ZedCli, createKeyboard } from './zed/driver.js'
 import { ZedControl } from './zed/control.js'
 import { createServers } from './server.js'
-import { NetWatch, resolveBinds } from './net.js'
+import { NetWatch, listInterfaces, resolveBinds } from './net.js'
+import { publicNetworks } from './platform.js'
 import { ZedPresence, machineName, osLabel, readAgents } from './agents.js'
 import { injectionLog, logger } from './log.js'
 import { Pairing } from './auth.js'
@@ -67,8 +68,23 @@ class Machine {
 
 /** @param {object} config résultat de `loadConfig()` */
 export async function startDaemon(config) {
+  // Réseaux « Public » (Windows) : relus quand les interfaces changent, pas à
+  // chaque tour — PowerShell coûte plusieurs centaines de ms.
+  let publicNames = new Set()
+  let interfacesSeen = null
+  const refreshPublic = async () => {
+    const key = listInterfaces().map((i) => `${i.name}=${i.address}`).sort().join(',')
+    if (key === interfacesSeen) return
+    interfacesSeen = key
+    const res = await publicNetworks()
+    if (res.error) log.warn(`profils réseau illisibles (${res.error}) : réseaux publics non filtrés`)
+    publicNames = res.names
+  }
   // `config.interfaces` : interfaces factices, pour les tests du suivi du réseau.
-  const { addresses, tunnel, lan } = resolveBinds(config, config.interfaces?.())
+  const interfaces = config.interfaces ?? (() => listInterfaces(undefined, publicNames))
+  const loopbackOnly = config.bindLan === false && config.bindTunnel === false
+  if (!loopbackOnly && !config.interfaces) await refreshPublic()
+  const { addresses, tunnel, lan, skipped } = resolveBinds(config, interfaces())
 
   const shims = new ShimRegistry()
   // `machine` n'existe qu'à la ligne d'après ; lu au premier `refresh`, pas avant.
@@ -245,13 +261,19 @@ export async function startDaemon(config) {
   if (tunnel) log.info(`tunnel : ${tunnel.name} (${tunnel.address}, ${tunnel.how})`)
   else if (config.requireTunnel) log.warn('tunnel absent : on l’attend (--wait-tunnel)')
   if (lan.length) log.info(`réseau local : ${lan.map((i) => `${i.name} (${i.address})`).join(', ')}`)
+  const logSkipped = (list) => {
+    if (!list?.length) return
+    log.warn(`réseau marqué Public, pas d'écoute : ${list.map((i) => `${i.name} (${i.address})`).join(', ')} — ` +
+      'si c’est un réseau de confiance : Paramètres Windows › Réseau › propriétés du réseau › profil « Privé » (DEPLOY.md §1)')
+  }
+  logSkipped(skipped)
   if (!tunnel && !lan.length) log.warn('ni réseau local ni tunnel : écoute en loopback seule')
 
   // Le réseau vit sa vie : tunnel coupé puis rétabli, Wi-Fi de la maison puis
   // du bureau. Le daemon suit, sans jamais s'arrêter — les shims du poste ont
   // besoin de sa loopback.
   const watch = new NetWatch(config, {
-    intervalMs: config.tunnelPollMs, initial: { tunnel, lan, addresses }, interfaces: config.interfaces,
+    intervalMs: config.tunnelPollMs, initial: { tunnel, lan, addresses }, interfaces,
   })
   let rebinding = Promise.resolve()
   watch.onChange((next, previous) => {
@@ -260,6 +282,7 @@ export async function startDaemon(config) {
       if (next.tunnel && (!was || was.address !== next.tunnel.address)) {
         log.info(`tunnel ${was ? 'changé' : 'apparu'} : ${next.tunnel.name} (${next.tunnel.address}, ${next.tunnel.how})`)
       } else if (!next.tunnel && was) log.warn(`tunnel ${was.name} disparu`)
+      logSkipped(next.skipped)
       try {
         const { opened, closed } = await servers.setAddresses(next.addresses)
         for (const a of closed) log.info(`écoute ${a} fermée`)
@@ -273,8 +296,13 @@ export async function startDaemon(config) {
   })
   // En loopback seule (`--loopback-only`, dev et tests), rien à suivre ; et lire
   // les interfaces n'est pas gratuit sous Windows (25 à 60 ms, synchrone).
-  const loopbackOnly = config.bindLan === false && config.bindTunnel === false
-  if (!loopbackOnly) watch.start()
+  // Les profils réseau sont relus avant chaque tour, pour qu'un réseau public
+  // qui apparaît ne soit jamais écouté, même un instant.
+  const netTimer = loopbackOnly ? null : setInterval(async () => {
+    if (!config.interfaces) await refreshPublic().catch(() => {})
+    watch.check()
+  }, config.tunnelPollMs)
+  netTimer?.unref?.()
 
   // Certificat : renouvelé tous les 60 à 90 jours (Let's Encrypt). Relu à chaud,
   // et son échéance surveillée : un certificat expiré, c'est une PWA qui ne
@@ -294,8 +322,9 @@ export async function startDaemon(config) {
   if (!config.serveStatic) log.info('statiques désactivées : le client est servi ailleurs')
   log.info(`origines autorisées : ${servers.allowedOrigins.join(', ') || '(aucune — seuls les clients non-navigateur pourront se connecter)'}`)
   if (pairing) {
-    log.info(`appairage : code ${pairing.display} — à saisir dans la PWA (npm run pair pour le revoir), ` +
-      `${pairing.clients.length} appareil(s) appairé(s)`)
+    log.info(`appairage : ${pairing.clients.length} appareil(s) appairé(s) — code : npm run pair`)
+    // Le code va sur le terminal seulement, jamais dans un journal (service).
+    if (process.stdout.isTTY) console.log(`\n  code d'appairage : ${pairing.display}\n`)
   } else {
     log.warn('appairage désactivé (auth.required: false) : tout client du réseau local pilote ce poste')
   }
@@ -312,7 +341,7 @@ export async function startDaemon(config) {
     port: config.port,
 
     async close() {
-      watch.stop()
+      clearInterval(netTimer)
       tlsWatch?.stop()
       await rebinding
       clearInterval(agentsTimer)
@@ -385,12 +414,12 @@ function pairAdmin({ pairing, hub }) {
   return (req, res) => {
     const url = new URL(req.url, 'http://localhost')
     if (url.pathname === '/pair' && req.method === 'GET') {
-      json(res, 200, { code: pairing.display, clients: pairing.list() })
+      json(res, 200, { code: pairing.display, locked: pairing.locked, clients: pairing.list() })
       return true
     }
     if (url.pathname === '/pair/rotate' && req.method === 'POST') {
       pairing.rotate()
-      log.info(`nouveau code d'appairage : ${pairing.display}`)
+      log.info("nouveau code d'appairage (appairage ouvert)")
       json(res, 200, { code: pairing.display })
       return true
     }

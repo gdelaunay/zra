@@ -9,8 +9,9 @@
 //     sur ce même réseau. Une seule adresse pour les deux cas ;
 //   - l'interface d'un tunnel monté sur le poste lui-même, s'il y en a une.
 //
-// Le réseau local n'est pas un lieu de confiance : toute connexion qui n'est
-// pas la loopback doit être appairée (`auth.js`).
+// Le réseau local est tenu pour un lieu de confiance, sauf s'il est marqué
+// « Public » (Windows) : le daemon n'y écoute pas. Toute connexion qui n'est
+// pas la loopback doit tout de même être appairée (`auth.js`).
 //
 // WireGuard reste hors du code du daemon : il se contente de *lire* l'état des
 // interfaces, et suit leurs changements (Wi-Fi de la maison puis du bureau,
@@ -24,14 +25,17 @@ const WILDCARD = new Set(['0.0.0.0', '::', '*', ''])
 /** Motifs de nom d'adaptateur de tunnel (Windows nomme l'adaptateur d'après le tunnel). */
 const TUNNEL_NAME = /wireguard|wg\d*|^wg|zra|tailscale/i
 
-/** Aplatit `os.networkInterfaces()` en une liste d'IPv4 externes. */
-export function listInterfaces(raw = networkInterfaces()) {
+/**
+ * Aplatit `os.networkInterfaces()` en une liste d'IPv4 externes.
+ * `publicNames` : interfaces d'un réseau marqué « Public » (`platform.js`).
+ */
+export function listInterfaces(raw = networkInterfaces(), publicNames = new Set()) {
   const out = []
   for (const [name, addrs] of Object.entries(raw || {})) {
     for (const a of addrs || []) {
       if (a.family !== 'IPv4' && a.family !== 4) continue
       if (a.internal) continue
-      out.push({ name, address: a.address, cidr: a.cidr })
+      out.push({ name, address: a.address, cidr: a.cidr, ...(publicNames.has(name) ? { public: true } : {}) })
     }
   }
   return out
@@ -85,9 +89,18 @@ export function findTunnel(cfg, interfaces = listInterfaces()) {
 
 /**
  * Interfaces du réseau local : IPv4 privées (ou dans `lanCidrs`, pour
- * restreindre à un réseau précis), hors tunnel.
+ * restreindre à un réseau précis), hors tunnel et hors réseau public.
  */
 export function findLan(cfg, interfaces = listInterfaces(), tunnel = findTunnel(cfg, interfaces)) {
+  return lanCandidates(cfg, interfaces, tunnel).filter((i) => !i.public)
+}
+
+/** Réseaux locaux écartés parce que marqués « Public ». */
+export function publicLan(cfg, interfaces = listInterfaces(), tunnel = findTunnel(cfg, interfaces)) {
+  return lanCandidates(cfg, interfaces, tunnel).filter((i) => i.public)
+}
+
+function lanCandidates(cfg, interfaces, tunnel) {
   if (cfg.bindLan === false) return []
   const inLan = cfg.lanCidrs?.length ? (ip) => cfg.lanCidrs.some((c) => inCidr(ip, c)) : isPrivate
   return interfaces.filter((i) => inLan(i.address) && i.address !== tunnel?.address)
@@ -130,7 +143,7 @@ export function bindAddresses(cfg, tunnel, lan = []) {
 export function resolveNetwork(cfg, interfaces = listInterfaces()) {
   const tunnel = cfg.bindTunnel === false ? null : findTunnel(cfg, interfaces)
   const lan = findLan(cfg, interfaces, tunnel)
-  return { tunnel, lan, addresses: bindAddresses(cfg, tunnel, lan) }
+  return { tunnel, lan, skipped: publicLan(cfg, interfaces, tunnel), addresses: bindAddresses(cfg, tunnel, lan) }
 }
 
 /**

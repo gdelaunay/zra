@@ -7,7 +7,7 @@
 - **Le projet n'est pas publiable en l'état : 1 point bloquant**, corrigeable en quelques heures.
 - **Pas de licence** : sans fichier `LICENSE`, personne n'a le droit d'utiliser le code publié.
 - Le reste de la sécurité réseau est solide : contrôle d'`Origin` de `/ws`, path traversal, trames WebSocket malformées, stockage du jeton. Tout a été testé sur une instance isolée.
-- À décider en connaissance de cause : appairage toujours ouvert avec un code à 6 chiffres, trafic en clair par défaut, conversations enregistrées sur disque par défaut, frappes clavier envoyées « à l'aveugle ».
+- Modèle de menace tranché (LAN de confiance, réseaux publics écartés) et documenté dans la section « Sécurité » du README.
 - Qualité générale bonne pour du code peu relu : relais ACP octet pour octet, installation prudente (simulation, sauvegardes, relecture), 764 tests en 72 s, 0 échec. Les 2 tests dits instables ne l'ont pas été en 16 exécutions.
 - Avant publication : désinstallation incomplète à documenter.
 
@@ -45,61 +45,13 @@
 - **Jeton** (lecture) : 32 octets aléatoires, stocké haché, comparaison à temps constant (`auth.js:87`).
 - **Écoute** (lecture) : jamais `0.0.0.0`, `/shim` refusé hors loopback, aucun `shell: true`, aucune commande construite par concaténation.
 
-### Problèmes
-
-- **[Important] Appairage toujours ouvert, code à 6 chiffres, limite par adresse seulement**
-  - Où : `zra-daemon/auth.js:35,101-119`
-  - Problème : le code ne périme jamais et reste valable tant que personne ne s'appaire. La limite est de 5 essais par minute **par adresse** ; la rotation après 20 échecs ne change pas la probabilité par essai (1 sur 1 000 000).
-  - Scénario concret : un appareil du même réseau essaie en continu. Avec une adresse : 7 200 essais par jour, soit environ 0,7 % de chance par jour. Avec 20 adresses, qu'un attaquant du LAN s'attribue sans difficulté : environ 13 % par jour. Le daemon tourne en service, des semaines durant.
-  - Correction suggérée : n'accepter `pair` que pendant une fenêtre ouverte à la demande (`npm run pair`, quelques minutes), ou ajouter une limite globale avec délai croissant.
-  - Effort : S
-  - Confiance : lecture (calcul sur les constantes du code)
-
-- **[Important] Trafic en clair par défaut : le jeton se rejoue par simple écoute**
-  - Où : `zra-client/js/link.js:91-92` (jeton dans chaque `hello`), `daemon.js:307` (HTTP sans TLS par défaut)
-  - Problème : en HTTP, le jeton et les conversations circulent en clair sur le Wi-Fi. L'appairage protège contre un appareil non appairé, pas contre quelqu'un qui écoute le réseau.
-  - Scénario concret : Wi-Fi partagé (bureau, colocation). Un jeton capturé donne un accès permanent, jusqu'à révocation manuelle.
-  - Correction suggérée : c'est d'abord une décision de modèle de menace. Soit le LAN est de confiance et l'appairage est un confort : le dire. Soit il ne l'est pas (`DEPLOY.md:23`) : recommander le HTTPS de `DEPLOY.md` §4 comme mode normal, pas « facultatif ».
-  - Effort : S (doc)
-  - Confiance : lecture
-
-- **[Important] Écoute par défaut sur tout réseau privé rejoint par le poste**
-  - Où : `zra-daemon/config.js:45` (`bindLan: true`), `net.js:62-64,90-94`
-  - Problème : le daemon suit les changements de réseau et écoute chaque IPv4 privée, y compris la plage 100.64.0.0/10 (opérateurs, pas seulement Tailscale).
-  - Scénario concret : portable emmené dans un café ou un hôtel. La PWA et l'écran d'appairage y sont servis à tous les clients du Wi-Fi. Sous Windows le profil « Public » du pare-feu bloque en général ; sous Linux rien ne bloque par défaut.
-  - Correction suggérée : documenter `lanCidrs` dans le démarrage rapide du README comme réglage recommandé, ou n'écouter que les réseaux listés.
-  - Effort : S
-  - Confiance : lecture
-
-- **[Important] Conversations et prompts écrits sur disque par défaut, sans que la doc utilisateur le dise**
-  - Où : `scripts/setup.mjs:49,109-113` (`ZRA_RECORD=1` par défaut), `zra-shim/record.js:21,46` (purge à 14 jours, au lancement d'un shim seulement), `zra-daemon/log.js` (`injections.log`, rotation à 5 Mo faite), `hub.js:93-99`
-  - Problème : toutes les trames ACP (conversations complètes, contenus de fichiers lus par l'agent) vont dans `.zra/records/`. Tous les prompts du mobile vont dans `injections.log`. Aucun fichier n'est créé avec des droits restreints. Le code d'appairage est aussi écrit dans `daemon.log` (`daemon.js:299`). Ni le README ni `DEPLOY.md` ne mentionnent ces enregistrements.
-  - Scénario concret : un utilisateur installe, oublie, et retrouve des mois de prompts en clair ; ou partage son dossier de projet avec `.zra/` dedans.
-  - Correction suggérée : enregistrement des trames désactivé par défaut (option `--record` pour le débogage) — décision D3 ; une section « Ce que ZRA écrit sur le disque » dans le README.
-  - Effort : S
-  - Confiance : lecture
-
-- **[Important] Frappes envoyées sans savoir où est le curseur**
-  - Où : `zra-daemon/zed/driver.js:60-80` (recettes), `zed/keyboard.ps1:255-266`, `zed/keyboard.js:266-271`
-  - Problème : le contrôle porte sur la fenêtre au premier plan, pas sur le champ qui a le focus. La recette `openThread` ouvre la palette, tape une commande, puis tape le **titre du thread** et Entrée. Si la commande de palette n'existe plus ou n'a pas donné le focus au sidebar, le titre part dans le champ actif.
-  - Scénario concret : Zed renomme `multi workspace: focus workspace sidebar`. À la prochaine réouverture demandée par le mobile, le titre du thread (texte issu de la conversation) est tapé dans l'éditeur ou dans un terminal ouvert, suivi d'Entrée. Sous Linux, `xdotool type` ne revérifie le premier plan qu'entre deux étapes.
-  - Correction suggérée : l'assumer et le documenter comme risque connu, avec la consigne de vérifier les recettes (`npm run zed -- try`) après chaque mise à jour de Zed ; garder `zedControl.enabled: false` par défaut.
-  - Effort : S (doc)
-  - Confiance : lecture ; le comportement réel de Zed n'a pas été testé
+Les problèmes relevés (appairage, trafic en clair, écoute, frappes à l'aveugle) sont traités : voir « Décisions » et la section « Sécurité » du README.
 
 ---
 
 ## Axe 2 — Correction et robustesse
 
 Le relais lui-même est sain : recopie octet pour octet, observation isolée par `try/catch` (`zra-shim/proxy.js:42-49`), identifiants injectés préfixés `zra-` donc sans collision avec ceux de Zed. Le changement de schéma de la base de Zed est géré (mode dégradé, `threads-index.js:122-132`). Les tests dits instables n'ont pas échoué (axe 7).
-
-- **[Important] Un thread fermé rouvert depuis le mobile prend le clavier du poste**
-  - Où : `zra-daemon/hub.js:275-299`, `zed/keyboard.ps1:183-192`
-  - Problème : un simple `send` sur un thread fermé force la fenêtre Zed au premier plan et y tape pendant plusieurs secondes.
-  - Scénario concret : quelqu'un travaille sur le poste (ou l'utilisateur lui-même, via un autre appareil). Ses frappes se mélangent à celles de ZRA dans la palette de Zed.
-  - Correction suggérée : le documenter ; la PWA pourrait demander confirmation avant d'écrire dans un thread fermé.
-  - Effort : S
-  - Confiance : lecture
 
 ---
 
@@ -180,14 +132,6 @@ Vérifié à la lecture : l'installation ne dépend d'aucun fichier ignoré par 
 
 Le protocole documenté correspond au code pour les messages (`PROTOCOL.md` §3-4 contre `hub.js`). Les écarts sont ailleurs.
 
-- **[Important] Aucune page ne dit à l'utilisateur ce qu'il expose**
-  - Où : `README.md`, `DEPLOY.md:23`
-  - Problème : le modèle de menace n'est écrit nulle part de façon cohérente, et `DEPLOY.md` contredit l'hypothèse « LAN de confiance ». Manquent : ce qui écoute et où, ce que permet un appareil appairé (exécuter des commandes via l'agent), ce qui est écrit sur le disque, l'interdiction d'un proxy sur le poste et `auth.exemptLoopback` (documentés dans `DEPLOY.md` seulement).
-  - Scénario concret : un utilisateur installe sans mesurer qu'un téléphone appairé équivaut à un accès au poste.
-  - Correction suggérée : une section « Sécurité » d'une vingtaine de lignes dans le README.
-  - Effort : S
-  - Confiance : vérifié (recherche dans les docs)
-
 - **[Important] « Relaie le flux ACP tel quel » est inexact**
   - Où : `README.md:4`, `SPEC.md:16`
   - Problème : le shim émet ses propres requêtes vers l'agent, retire des réponses, envoie à Zed des messages synthétiques et répond aux permissions à sa place (`zra-shim/acp.js:243-246,488-499,529,816-819`).
@@ -251,16 +195,11 @@ Conséquence : l'état de Zed et celui de l'agent peuvent diverger. Deux prompts
 
 | # | Action | Points couverts | Effort |
 |---|---|---|---|
-| B1 | Section « Sécurité » du README : modèle de menace, ce qui écoute, ce qui est écrit sur disque, pas de proxy sur le poste, HTTPS recommandé, `lanCidrs` | Docs, trafic en clair, écoute par défaut, loopback | S |
-| B2 | Appairage par fenêtre ouverte à la demande, ou limite globale | Appairage | S |
-| B3 | Enregistrement des trames désactivé par défaut (décision D3 ; rotation d'`injections.log` : faite) | Données sur disque | S |
 | B4 | Désinstallation : séquence complète documentée (patch Wayland : fait, étape `setup xwayland`) | Désinstallation, chemins absolus | S |
 
 ### C. Décisions à prendre, sans code obligatoire
 
 - Garder ou retirer `uia`, `auto` et `wireguard` de la version publiée.
-- Accepter le risque des frappes à l'aveugle (documenté) ou limiter le clavier au seul « + ».
-- LAN de confiance ou non : la réponse fixe le niveau d'exigence de B1 et B2.
 
 ## Décisions
 
@@ -268,6 +207,9 @@ Conséquence : l'état de Zed et celui de l'agent peuvent diverger. Deux prompts
 - **Flatpak / Snap** : non supportés explicitement à la publication ; piste dans `ISSUES.md`. Option A.
 - **`-ExecutionPolicy Bypass`** : conservé, limité au processus lancé, documenté (`DEPLOY.md` §5). Option A.
 - **`zedControl.enabled`** : `true` par défaut (le « + » et la réouverture des threads fermés en dépendent), avertissement au démarrage du daemon et dans README/exemple ; `false` reste possible, les erreurs côté PWA sont explicites. L'écart exemple/code de l'audit (A3) est clos par cette décision, pas par `false`.
+- **Modèle de menace** : LAN de confiance, sauf réseau marqué « Public » (Windows : pas d'écoute dessus ; Linux : `lanCidrs`).
+- **Enregistrement des trames** : désactivé par défaut, `npm run setup -- install --record` pour le débogage.
+- **Appairage** : verrouillé après 10 échecs, tous appareils confondus ; `npm run pair` le rouvre avec un nouveau code.
 
 ## Méthode de travail
 L'agent avance en autonomie, un item ou un lot cohérent à la fois, vite et sans effort gaspillé. À la fin de chaque lot : tests lancés, item retiré de ce document, puis arrêt pour faire valider la solution et confirmer le commit (message proposé). Les décisions déjà notées (« Décision ») ne se rediscutent pas.

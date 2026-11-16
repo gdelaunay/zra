@@ -118,7 +118,9 @@ ou, pour un client hors loopback sans jeton valide, `auth_required`.
 Appairage (spec §9) : `code` est celui que le daemon affiche (6 chiffres,
 espaces tolérés), `label` nomme l'appareil (« Android · Chrome »). Réponse :
 `paired` puis le bootstrap, ou `error` `pair_failed` (code faux) /
-`pair_locked` (trop d'essais, le message dit quand réessayer).
+`pair_locked` (trop d'essais depuis cette adresse, le message dit quand
+réessayer ; ou 10 échecs au total, tous appareils confondus : appairage
+verrouillé jusqu'à `npm run pair` sur le poste).
 
 **Avant l'appairage**, le daemon ignore tout sauf `hello` et `pair`, sans
 répondre (la file rejouée par la PWA à la connexion ne produit pas une rafale
@@ -454,7 +456,7 @@ français. Codes attendus par la PWA (les autres passent aussi) :
 | `new_thread_failed` | Zed n'a pas ouvert de session | toast |
 | `unknown_message` | message non supporté | toast |
 | `pair_failed` | code d'appairage faux | toast, la saisie reste ouverte |
-| `pair_locked` | trop d'essais depuis cette adresse | toast (« réessaie dans N s ») |
+| `pair_locked` | trop d'essais depuis cette adresse, ou appairage verrouillé | toast (le message dit quoi faire) |
 
 ---
 
