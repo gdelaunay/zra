@@ -32,7 +32,8 @@ const { openSettings } = await import('../js/views/settings.js')
 const { closeAllOverlays } = await import('../js/ui.js')
 const { THEMES } = await import('../js/themes.js')
 
-store.init({ mock: true })
+const { MockLink } = await import('../js/mock/mock-link.js')
+store.init({ mock: MockLink })
 // `main.js` fait le lien entre `?mock=1` et les réglages persistés ; ici on le
 // pose à la main pour que le store et les réglages disent la même chose.
 settingsModule.update({ mock: true })

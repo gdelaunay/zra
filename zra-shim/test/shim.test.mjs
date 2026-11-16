@@ -117,7 +117,7 @@ test('shim : un EPIPE asynchrone vers Zed ne casse pas le relai (SPEC §3.1, fai
   agentIn.resume()
   // Zed ne lit plus : chaque écriture échoue en EPIPE au tick suivant. Le
   // try/catch de createShim/proxy.js est déjà sorti : sans écouteur 'error',
-  // l'erreur part en uncaughtException et le shim meurt en code 1 (G4).
+  // l'erreur part en uncaughtException et le shim meurt en code 1.
   const zedOut = new Writable({
     write(raw, enc, cb) { setImmediate(() => cb(Object.assign(new Error('write EPIPE'), { code: 'EPIPE' }))) },
   })
@@ -285,7 +285,7 @@ test('un prompt injecté part vers l’agent sans que Zed voie la requête', asy
   assert.ok(!zed.messages.some((m) => typeof m.id === 'string' && m.id.startsWith('zra-')))
 })
 
-test('le message du mobile est annoncé à Zed avant la réponse (🟠6)', async (t) => {
+test('le message du mobile est annoncé à Zed avant la réponse', async (t) => {
   const { bridge, zed } = await boot(t)
   await bridge.prompt(zed.sessionId, 'depuis le mobile')
   await until(() => zed.updates.some((u) => u.content?.text === 'reçu : depuis le mobile'), { label: 'réponse de l’agent' })
@@ -504,7 +504,7 @@ test('la sortie d’un terminal devient un zra/terminal_output', async (t) => {
 })
 
 // ---------------------------------------------------------------------------
-// Agent sans loadSession (risque 🟠2)
+// Agent sans loadSession
 // ---------------------------------------------------------------------------
 
 test('un agent sans loadSession est capté comme tel', async (t) => {
@@ -540,7 +540,7 @@ test('sans ZRA_RECORD, l’enregistreur ne touche à rien', () => {
   recorder.close()
 })
 
-test('record : les enregistrements sont purgés au démarrage du shim (G2)', () => {
+test('record : les enregistrements sont purgés au démarrage du shim', () => {
   const dir = mkdtempSync(join(tmpdir(), 'zra-record-'))
   try {
     const vieux = join(dir, '2026-01-01T00-00-00-000Z-a-1.jsonl')
@@ -564,7 +564,7 @@ test('record : les enregistrements sont purgés au démarrage du shim (G2)', () 
   }
 })
 
-// ---- confirmation d'un prompt injecté (mode auto, lot C) --------------------
+// ---- confirmation d'un prompt injecté (mode auto) --------------------
 
 test('prompt confirmé : accepté au premier update, refusé sur erreur, muet au délai', async () => {
   const { AcpBridge } = await import('../acp.js')
@@ -594,7 +594,7 @@ test('prompt confirmé : accepté au premier update, refusé sur erreur, muet au
   const mute = bridge.prompt('s1', 'trois', 'queue', { confirmMs: 50 })
   assert.deepEqual(await mute, { queued: false, confirmed: false })
 
-  // Sans confirmation demandée, un refus reste un avis, comme au lot B.
+  // Sans confirmation demandée, un refus reste un avis.
   bridge.observeFromAgent({ jsonrpc: '2.0', id: sent.at(-1).id, result: {} })
   await bridge.prompt('s1', 'quatre')
   bridge.observeFromAgent({ jsonrpc: '2.0', id: sent.at(-1).id, error: { code: -32000, message: 'refus' } })

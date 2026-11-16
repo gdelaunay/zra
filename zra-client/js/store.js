@@ -7,7 +7,6 @@ import { emitter } from './dom.js'
 import { DaemonLink } from './link.js'
 import { Timeline, blocksText } from './acp.js'
 import { settings, originMachine, tokenFor, setToken } from './settings.js'
-import { MockLink } from './mock/mock-link.js'
 
 const e = emitter()
 export const on = e.on
@@ -31,8 +30,12 @@ export const splitKey = (k) => {
   return { machineId: k.slice(0, i), threadId: k.slice(i + 1) }
 }
 
-export function init({ mock = false } = {}) {
-  state.mock = mock
+let MockLink = null
+
+/** `mock` : la classe `MockLink`, chargée à la demande par l'appelant (hors production). */
+export function init({ mock = null } = {}) {
+  MockLink = mock
+  state.mock = Boolean(mock)
   const configs = mock
     ? [{ id: 'mock-desk', url: 'mock://desk', label: 'DESK-ZED' }, { id: 'mock-laptop', url: 'mock://laptop', label: 'LAPTOP-ZED' }]
     : dedupe([originMachine(), ...settings.machines].filter(Boolean))

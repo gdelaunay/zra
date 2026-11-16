@@ -14,12 +14,12 @@
 // tests lisibles — `prompt('permission: …')` demande une autorisation,
 // `prompt('effort: …')` change l'effort côté agent (`config_option_update`).
 //
-//   ZRA_FAKE_NO_LOAD_SESSION=1   ne déclare pas `loadSession` (risque 🟠2)
+//   ZRA_FAKE_NO_LOAD_SESSION=1   ne déclare pas `loadSession`
 //   ZRA_FAKE_SLOW_MS=…           durée d'un tour long (défaut 400 ms)
 //   ZRA_FAKE_SESSION_ID=…        `session/new` renvoie cet id, pour le faire
 //                                correspondre à une ligne de `sidebar_threads`
 //   ZRA_FAKE_REFUSE_INJECTED=1   refuse tout `session/prompt` qui ne vient pas
-//                                du client (id `zra-N`) : le risque 🔴1 avéré
+//                                du client (id `zra-N`), comme certains agents réels
 
 import { createFramer, parseFrame } from '../framing.js'
 

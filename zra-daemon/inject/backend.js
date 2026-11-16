@@ -6,8 +6,8 @@
 //     interrupt(thread)
 //   }
 //
-// Un seul point de commutation pour toute l'écriture : `acp` (lot B), `uia` et
-// `auto` (lot C) s'enfichent ici sans que le reste du daemon bouge.
+// Un seul point de commutation pour toute l'écriture : `acp`, `uia` et
+// `auto` s'enfichent ici sans que le reste du daemon bouge.
 
 import { AcpBackend } from './acp.js'
 import { AutoBackend } from './auto.js'

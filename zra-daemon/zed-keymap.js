@@ -1,4 +1,4 @@
-// Raccourcis « nouveau thread » de ZRA dans le `keymap.json` de Zed — lot C.
+// Raccourcis « nouveau thread » de ZRA dans le `keymap.json` de Zed.
 //
 // Le menu « nouveau thread » de Zed ouvre le dernier agent utilisé, pas celui
 // choisi sur le mobile. L'action `agent::NewExternalAgentThread`, elle, prend

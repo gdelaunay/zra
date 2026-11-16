@@ -14,7 +14,7 @@ const log = logger('threads')
 
 /** Sans ces colonnes, l'index n'a plus de sens : on dégrade en « live seul ». */
 const REQUIRED = ['thread_id', 'session_id', 'agent_id', 'title', 'updated_at']
-/** Lues si présentes — une mise à jour de Zed peut les faire disparaître (risque 🟡5). */
+/** Lues si présentes — une mise à jour de Zed peut les faire disparaître. */
 const OPTIONAL = ['created_at', 'folder_paths', 'folder_paths_order', 'archived', 'interacted_at', 'title_override']
 
 /**
@@ -42,7 +42,7 @@ export function toIso(value) {
  * `folder_paths` accolé à `folder_paths_order` (une liste d'indices séparés par
  * des virgules). On ne découpe que si l'ordre annonce plusieurs entrées **et**
  * que le découpage retombe sur le bon compte — un chemin Windows peut contenir
- * une virgule, et se tromper vaut pire qu'un chemin unique (risque 🟡7).
+ * une virgule, et se tromper vaut pire qu'un chemin unique.
  */
 export function splitFolderPaths(raw, order) {
   if (raw === null || raw === undefined || raw === '') return []
@@ -126,7 +126,7 @@ export class ThreadsIndex extends EventEmitter {
         this.close()
         this.degrade(
           `schéma sidebar_threads inattendu — colonnes manquantes : ${missing.join(', ')}. ` +
-          'Une mise à jour de Zed a probablement changé la table (risque 🟡5). Dégradation en « live seul ».',
+          'Une mise à jour de Zed a probablement changé la table. Dégradation en « live seul ».',
         )
         return false
       }

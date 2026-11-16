@@ -1,7 +1,6 @@
 // Backend d'injection `auto` — spec §6.2 : `acp` d'abord, `uia` en repli.
 //
-// Le repli n'a lieu que sur un **refus explicite** de l'agent (`prompt_refused`,
-// risque 🔴1) : l'agent a répondu en erreur au `session/prompt` injecté, donc
+// Le repli n'a lieu que sur un **refus explicite** de l'agent (`prompt_refused`) : l'agent a répondu en erreur au `session/prompt` injecté, donc
 // rien n'est parti. Un silence de 5 s, lui, ne déclenche pas le repli, contrai-
 // rement à la lettre de la spec : un agent lent qui aurait bien reçu le message
 // le recevrait deux fois. L'envoi est alors considéré fait, non confirmé.

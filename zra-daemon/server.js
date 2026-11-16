@@ -18,18 +18,6 @@ import { logger } from './log.js'
 const log = logger('server')
 
 /**
- * Point d'extension d'authentification au handshake — spec §9.
- *
- * Retourne `true` : l'appairage se joue dans le protocole, pas ici (un
- * navigateur ne peut pas poser d'en-tête sur un WebSocket). Le jeton arrive
- * dans `hello`, le hub le vérifie (`auth.js`). Reste le point d'accroche d'un
- * contrôle plus tôt, si un jour il en faut un.
- */
-export function authenticate(/* { req, origin } */) {
-  return true
-}
-
-/**
  * Le navigateur n'applique **pas** la same-origin policy aux WebSockets : sans
  * filtrage, n'importe quelle page ouverte depuis le tunnel pourrait piloter les
  * agents du poste (il n'y a aucune auth en v1). L'en-tête `Origin` est posé par
@@ -186,7 +174,7 @@ export async function createServers({ config, addresses, onConnection, onShim, s
 
   function make() {
     // `highWaterMark` : plafond du tampon d'écriture des sockets, seuil auquel
-    // `WsConnection.send()` détecte un client gelé et le coupe (G1, ws.js).
+    // `WsConnection.send()` détecte un client gelé et le coupe (ws.js).
     const server = tls
       ? createHttps({ cert: tls.cert, key: tls.key, highWaterMark: SOCKET_HWM }, handler)
       : createHttp({ highWaterMark: SOCKET_HWM }, handler)
@@ -202,9 +190,6 @@ export async function createServers({ config, addresses, onConnection, onShim, s
             if (!checkOrigin(origin, allowed)) {
               log.warn(`WebSocket refusé : origine ${origin} non autorisée (allowedOrigins)`)
               return { ok: false, status: 403, reason: 'origine non autorisée' }
-            }
-            if (!authenticate({ req, origin })) {
-              return { ok: false, status: 401, reason: 'non authentifié' }
             }
             return true
           },

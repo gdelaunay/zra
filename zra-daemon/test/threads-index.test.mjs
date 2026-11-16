@@ -95,7 +95,7 @@ test('index : base absente => dégradation explicite, pas de plantage', (t) => {
   assert.match(index.degraded, /introuvable/)
 })
 
-test('index : schéma inattendu => « live seul » annoncé (risque 🟡5)', (t) => {
+test('index : schéma inattendu => « live seul » annoncé', (t) => {
   const dir = mkdtempSync(join(tmpdir(), 'zra-schema-'))
   t.after(() => rmSync(dir, { recursive: true, force: true }))
   const file = join(dir, 'db.sqlite')

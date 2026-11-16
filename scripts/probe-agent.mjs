@@ -1,6 +1,5 @@
 #!/usr/bin/env node
-// Sonde un agent ACP réel à travers le shim — première étape du re-test
-// (`SPEC.md` §12) : « le shim est-il transparent ? »
+// Sonde un agent ACP réel à travers le shim : « le shim est-il transparent ? »
 //
 //   node scripts/probe-agent.mjs claude-acp
 //
@@ -11,7 +10,7 @@
 //   · la commande de l'agent est bien retrouvée (registry de Zed ou config) ;
 //   · le shim la lance et relaie la poignée de main sans l'abîmer ;
 //   · les capacités annoncées — dont `loadSession`, qui décide de la relecture
-//     d'un thread fermé (risque 🟠2).
+//     d'un thread fermé.
 
 import { spawn } from 'node:child_process'
 import { dirname, join, resolve } from 'node:path'
@@ -73,7 +72,7 @@ shim.stdout.on('data', (chunk) => {
     console.log(`✓ poignée de main relayée par le shim`)
     console.log(`  agent            : ${info ? `${info.name} ${info.version ?? ''}`.trim() : '—'}`)
     console.log(`  protocolVersion  : ${msg.result?.protocolVersion}`)
-    console.log(`  loadSession      : ${caps.loadSession ? 'oui' : 'non — historique indisponible (risque 🟠2)'}`)
+    console.log(`  loadSession      : ${caps.loadSession ? 'oui' : 'non — historique indisponible'}`)
     console.log(`  capacités        : ${Object.keys(caps).join(', ') || '—'}`)
     shim.kill()
     process.exit(0)

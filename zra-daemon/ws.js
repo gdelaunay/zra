@@ -15,7 +15,7 @@ const GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11'
 /**
  * Ligne d'eau des sockets : plafond du tampon d'écriture par connexion, donc
  * de ce qu'un client gelé peut faire gonfler la mémoire du daemon avant que
- * `send()` ne le coupe (G1). Au-delà, `write` rend `false` — c'est le signal de
+ * `send()` ne le coupe. Au-delà, `write` rend `false` — c'est le signal de
  * saturation. Même esprit que `OUTBOX_MAX` côté shim (`zra-shim/daemon-link.js`) :
  * un bout du canal borné, l'autre aussi. La PWA coupée se reconnecte et rejoue
  * l'historique (protocole §6).
@@ -191,7 +191,7 @@ export class WsConnection extends EventEmitter {
     if (!this.alive) return false
     try {
       const flushed = this.socket.write(encodeFrame(JSON.stringify(msg)))
-      // Backpressure (G1) : `write` rend `false` quand le tampon déborde sa
+      // Backpressure : `write` rend `false` quand le tampon déborde sa
       // ligne d'eau. Un client vivant le draine (`drain` remet `plugged` à
       // faux) ; si on doit réécrire avant, le client est gelé (mobile bloqué,
       // cellule faible) — on le coupe plutôt que de gonfler la mémoire du
@@ -277,11 +277,11 @@ export class WsConnection extends EventEmitter {
  * Greffe le WebSocket sur un serveur HTTP/HTTPS.
  *
  * Plusieurs chemins cohabitent sur le même port : `/ws` pour la PWA (protocole
- * §1) et `/shim` pour les shims locaux (lot B). Chacun a sa propre vérification
+ * §1) et `/shim` pour les shims locaux. Chacun a sa propre vérification
  * — l'allowlist d'`Origin` d'un côté, la loopback de l'autre.
  *
  * `verify({ req, origin })` retourne `true`, ou `{ ok:false, status, reason }`
- * pour refuser avant l'upgrade (allowlist d'Origin, `authenticate()`).
+ * pour refuser avant l'upgrade (allowlist d'Origin, loopback).
  */
 export function attachWebSocket(server, {
   path = '/ws', verify, onConnection, routes, log, unpaired = false,

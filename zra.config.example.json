@@ -55,7 +55,7 @@
   // Backend d'injection (spec §6) :
   //   "acp"   le shim émet lui-même le session/prompt — défaut
   //   "uia"   Zed émet le prompt : ZRA le tape au clavier (exige zedControl)
-  //   "auto"  "acp", repli clavier si l'agent refuse le prompt (risque 🔴1)
+  //   "auto"  "acp", repli clavier si l'agent refuse le prompt
   //   "mock"  backend bouchon, pour valider la chaîne sans agent (spec §10.6)
   "injection": "acp",
 
@@ -73,7 +73,7 @@
     // "dryRun": true,         // tout résoudre, ne rien envoyer
     // "cli": "C:/…/Zed/bin/zed.exe",  // ouvre le projet d'un « + » (défaut : installation standard)
     // Backend clavier : "auto" (défaut) = keyboard.ps1 sous Windows, xdotool
-    // sous Linux. Plus de ydotool/wtype (supprimés par d911219) : sous Wayland,
+    // sous Linux. Sous Wayland,
     // Zed est forcé sous XWayland (WAYLAND_DISPLAY= dans son .desktop, voir
     // scripts/lib/wayland.mjs) et xdotool voit ses fenêtres.
     // Noms acceptés : "auto", "powershell", "xdotool", "none" — tout autre est
@@ -81,11 +81,6 @@
     // absent : il échoue en disant pourquoi.
     // Surcharge ponctuelle : ZRA_ZED_KEYBOARD=none npm run daemon:dev
     // "keyboard": "auto",
-    // BOUTON MORT depuis d911219 : il servait à ydotool/wtype, qui ne pouvaient
-    // ni viser une fenêtre ni vérifier le premier plan sous Wayland. Plus aucun
-    // code ne le lit (xdotool vérifie le premier plan à chaque étape). La clé
-    // reste acceptée pour ne pas casser une configuration existante.
-    // "unsafeFocus": false,
     // "recipes": {            // surcharge des recettes de zra-daemon/zed/driver.js
     //   "openThread": [ { "keys": "ctrl+shift+p" }, { "wait": 400 }, … ]
     // }

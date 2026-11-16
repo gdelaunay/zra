@@ -681,14 +681,13 @@ zra/
                  agents.js  jsonc.js  net.js  log.js
                  inject/   backend.js  mock.js  acp.js  uia.js  auto.js
                  zed/      driver.js  control.js  keyboard.ps1
-                 test/     unit  threads-index  protocol  lot-b  fixtures/
+                 test/     unit  threads-index  protocol  e2e-shim  e2e-zed-control  fixtures/
   zra-shim/      index.js  proxy.js  framing.js  acp.js  queue.js
                  daemon-link.js  record.js  log.js
                  test/     shim  fake-agent  fake-zed
   zra-client/    index.html  js/  css/  manifest.webmanifest  sw.js
                  tools/mock-server.mjs  test/
   scripts/       make-fixture.mjs  probe-zed-db.mjs  gen-themes.mjs
-                 dump_zed_threads.py        (existant, exploration)
 ```
 
 Distribution : `node zra-daemon/index.js`, plus une tâche planifiée Windows au

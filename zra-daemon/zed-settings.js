@@ -1,4 +1,4 @@
-// Édition chirurgicale du `settings.json` de Zed — lot C, installation.
+// Édition chirurgicale du `settings.json` de Zed, à l'installation.
 //
 // Brancher ZRA, c'est ajouter **une** entrée sous `agent_servers`, et rien
 // d'autre. Le fichier appartient à l'utilisateur et à Zed, qui le réécrit

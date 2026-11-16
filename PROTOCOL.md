@@ -611,7 +611,7 @@ Le **vrai** daemon a sa propre suite, écrite comme une check-list de ce documen
 ```bash
 npm run daemon:dev                              # loopback seule, sans tunnel
 node --test zra-daemon/test/protocol.test.mjs   # conformité au PROTOCOL.md
-node --test zra-daemon/test/lot-b.test.mjs      # la chaîne complète, avec shim
+node --test zra-daemon/test/e2e-shim.test.mjs      # la chaîne complète, avec shim
 ```
 
 `zra-daemon/test/protocol.test.mjs` verrouille, message par message : bootstrap
@@ -620,7 +620,7 @@ dépilage, interruption sèche, `send` en mode `interrupt`, options différées
 pendant un tour, thread sans session, trames illisibles, diffusion aux seuls
 abonnés, allowlist d'`Origin`.
 
-`zra-daemon/test/lot-b.test.mjs` fait la même chose contre la chaîne réelle —
+`zra-daemon/test/e2e-shim.test.mjs` fait la même chose contre la chaîne réelle —
 daemon, vrai processus shim, agent ACP bouchon, faux Zed — et couvre ce que le
 bouchon seul ne peut pas prouver : `acp_event` verbatim venus de l'agent, file
 d'attente tenue par le shim, `history` par `session/load`, les trois issues

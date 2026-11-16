@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Mettre au point le pilotage clavier de Zed — lot C, test réel.
+// Mettre au point le pilotage clavier de Zed sur le poste réel.
 //
 //   npm run zed -- probe                       fenêtres Zed et arbre UIA (aucune touche)
 //   npm run zed -- recipes                     recettes en vigueur (défauts + zra.config.json)
@@ -63,11 +63,10 @@ async function main() {
   const config = await loadConfig()
   const zc = config.zedControl
   const recipes = { ...DEFAULT_RECIPES, ...zc.recipes }
-  // Backend clavier de ce poste : `keyboard.ps1` sous Windows, xdotool/ydotool/
-  // wtype/none sous Linux (autodétection ou `zedControl.keyboard` de la config).
+  // Backend clavier de ce poste : `keyboard.ps1` sous Windows, xdotool/none sous
+  // Linux (autodétection ou `zedControl.keyboard` de la config).
   const runner = await createKeyboard({
     backend: zc.keyboard,
-    unsafeFocus: Boolean(zc.unsafeFocus),
     timeoutMs: 120_000,
   })
 
@@ -76,7 +75,7 @@ async function main() {
     if (!res.windows?.length) return console.log('aucune fenêtre Zed ouverte')
     for (const w of res.windows) {
       console.log(`« ${w.title} » (pid ${w.pid}) — arbre UIA : ${w.uiaDescendants} élément(s)` +
-        (w.uiaDescendants === 0 ? ' → pilotage au clavier uniquement (risque 🟠3)' : ''))
+        (w.uiaDescendants === 0 ? ' → pilotage au clavier uniquement' : ''))
     }
     return
   }

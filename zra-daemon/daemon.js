@@ -84,7 +84,7 @@ export async function startDaemon(config) {
     agents: await readAgents(config.zedSettings),
   })
 
-  // Les shims sont la source de tout ce qui est vivant (lot B) : flux ACP
+  // Les shims sont la source de tout ce qui est vivant : flux ACP
   // verbatim, tour, file d'attente, permissions.
   const host = new ShimHost({ shims, threads, states })
 
@@ -97,16 +97,14 @@ export async function startDaemon(config) {
     timeoutMs: config.historyTimeoutMs,
   })
 
-  // Pilotage de la fenêtre Zed (lot C) : ouvrir une session, rouvrir un thread,
-  // backend `uia`. Désactivé par défaut ; `zedControl.runner` sert aux tests.
-  // Le backend clavier est résolu ici (asynchrone : l'autodétection lance des
-  // processus) — Windows donne `keyboard.ps1`, Linux `xdotool`/`ydotool`/
-  // `wtype`/`none` selon la session et les outils installés (`zed/keyboard.js`).
+  // Pilotage de la fenêtre Zed : ouvrir une session, rouvrir un thread, backend
+  // `uia`. `zedControl.runner` sert aux tests. Le backend clavier est résolu ici
+  // (asynchrone : l'autodétection lance des processus) — Windows donne
+  // `keyboard.ps1`, Linux `xdotool` ou `none` (`zed/keyboard.js`).
   const zc = config.zedControl ?? {}
   const driver = new ZedDriver({
     runner: zc.runner ?? await createKeyboard({
       backend: zc.keyboard,
-      unsafeFocus: Boolean(zc.unsafeFocus),
       log: logger('zed'),
     }),
     enabled: Boolean(zc.enabled),

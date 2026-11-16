@@ -18,9 +18,9 @@
 // Faits établis sur la machine de portage (Ubuntu 24.04.3) :
 //   $ systemctl --version            → systemd 255 (255.4-1ubuntu8.17)
 //   $ systemctl --user is-system-running → running
-//   $ loginctl show-user gdelaunay -p Linger → Linger=no   (avant)
-//   $ loginctl enable-linger gdelaunay       → (silencieux, rc=0, SANS sudo)
-//   $ loginctl show-user gdelaunay -p Linger → Linger=yes  (après)
+//   $ loginctl show-user $USER -p Linger → Linger=no   (avant)
+//   $ loginctl enable-linger $USER         → (silencieux, rc=0, SANS sudo)
+//   $ loginctl show-user $USER -p Linger → Linger=yes  (après)
 //   $ ls ~/.config/systemd/user      → default.target.wants/  gnome-session.target.wants/
 
 import { spawnSync } from 'node:child_process'

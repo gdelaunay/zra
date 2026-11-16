@@ -1,23 +1,19 @@
 // Toute la spécificité plateforme de ZRA vit ici — et nulle part ailleurs.
 //
-// Règle du portage Linux : aucun `if (process.platform === 'win32')` dispersé
-// dans le code. Les modules appelants demandent un chemin, un nom de processus
-// ou un ordre de préférence à ce module ; ils ne savent pas sur quel OS ils
-// tournent. Le comportement Windows existant est **inchangé** : il est gelé, il
-// ne peut plus être testé d'ici, donc on ajoute des branches à côté, on ne
-// corrige rien.
+// Aucun `if (process.platform === 'win32')` dispersé dans le code : les modules
+// appelants demandent un chemin, un nom de processus ou un ordre de préférence
+// à ce module ; ils ne savent pas sur quel OS ils tournent.
 //
-// Chaque valeur Linux ci-dessous est un FAIT ÉTABLI sur la machine de portage,
-// recopié depuis la sortie réelle d'une commande (SPEC.md §2, discipline
-// appliquée de l'autre côté). Jamais une déduction de la documentation.
+// Les valeurs Linux sont relevées sur un poste réel, pas déduites de la
+// documentation :
 //
 //   $ cat /etc/os-release → PRETTY_NAME="Ubuntu 24.04.3 LTS"
-//   $ uname -a            → Linux Pavilion 6.17.0-14-generic … x86_64
+//   $ uname -a            → Linux <hôte> 6.17.0-14-generic … x86_64
 //   $ echo $XDG_SESSION_TYPE $WAYLAND_DISPLAY $DISPLAY $XDG_CURRENT_DESKTOP
 //     wayland wayland-0 :0 ubuntu:GNOME
-//   $ zed --version       → Zed 1.23.2 c0199504… – /home/gdelaunay/.local/zed.app/libexec/zed-editor
-//   $ which zed           → /home/gdelaunay/.local/bin/zed
-//     (symlink → /home/gdelaunay/.local/zed.app/bin/zed)
+//   $ zed --version       → Zed 1.23.2 c0199504… – ~/.local/zed.app/libexec/zed-editor
+//   $ which zed           → ~/.local/bin/zed
+//     (symlink → ~/.local/zed.app/bin/zed)
 //   $ ls -la ~/.local/share/zed
 //     db/ debug_adapters/ extensions/ external_agents/ hang_traces/ languages/
 //     logs/ node/ prettier/ prompts/ threads/ zed-stable.sock
@@ -31,7 +27,7 @@
 //     "… overrides the default platform-specific data directory location:
 //      `$XDG_DATA_HOME/zed`"   ← Zed lui-même annonce le chemin XDG
 //
-// macOS n'est pas dans le périmètre du portage et n'a pas été vérifié : la
+// macOS n'a pas été vérifié : la
 // branche non-Windows est la branche XDG, elle n'affirme rien sur Darwin.
 
 import { existsSync } from 'node:fs'
@@ -137,15 +133,15 @@ export const PATHS = zedPaths()
 /**
  * Candidats absolus, dans l'ordre, avant le repli sur `zed` dans le PATH.
  *
- * Le PATH n'est pas acquis : un service `systemd --user` (étape 4) démarre avec
+ * Le PATH n'est pas acquis : un service `systemd --user` démarre avec
  * un PATH minimal, et l'installeur de Zed pose un symlink dans `~/.local/bin`,
  * que `.profile` ajoute mais `.bashrc` non.
  *
  * Fait établi ici :
- *   $ which zed            → /home/gdelaunay/.local/bin/zed
+ *   $ which zed            → ~/.local/bin/zed
  *   $ ls -la ~/.local/bin/zed
- *     → /home/gdelaunay/.local/zed.app/bin/zed
- *   $ zed --version        → … /home/gdelaunay/.local/zed.app/libexec/zed-editor
+ *     → ~/.local/zed.app/bin/zed
+ *   $ zed --version        → … ~/.local/zed.app/libexec/zed-editor
  */
 export function zedCliCandidates(opts = {}) {
   const { platform, env, home, join } = ctx(opts)
@@ -267,7 +263,7 @@ export function systemdIsInit({ platform = process.platform } = {}) {
  * vérification de ce qui est réellement installé (c'est le rôle de
  * `zed/keyboard.js`, qui a besoin de lancer des processus).
  *
- * `d911219` a simplifié : **xdotool partout**, `ydotool`/`wtype` supprimés.
+ * **xdotool partout**.
  * Un client X11 ne voit pas les fenêtres Wayland natives, donc sous Wayland Zed
  * est forcé sous XWayland (`WAYLAND_DISPLAY=` dans son `.desktop`, voir
  * `scripts/lib/wayland.mjs`) — et xdotool retrouve ses fenêtres. Sous X11, rien

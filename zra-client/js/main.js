@@ -62,11 +62,11 @@ function parseRoute(hash) {
   return { name: 'threads' }
 }
 
-function boot() {
+async function boot() {
   applyTheme(settings.theme)
 
   const mock = isMock()
-  store.init({ mock })
+  store.init({ mock: mock ? (await import('./mock/mock-link.js')).MockLink : null })
 
   store.on('error', (err) => {
     toast(err.message || err.code || 'erreur daemon', { level: 'error' })
@@ -95,4 +95,4 @@ function boot() {
   if (mock) console.info('[ZRA] mode mock — daemon simulé, aucun Zed requis')
 }
 
-boot()
+await boot()

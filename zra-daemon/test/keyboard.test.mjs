@@ -2,12 +2,12 @@
 //
 // Rien ici ne touche au clavier réel : les sorties vers les outils (`exec`,
 // `tool`) sont bouchonnées et enregistrent les appels, comme dans
-// `lot-c.test.mjs`. Sous `node --test`, `run()` refuse de toute façon une
+// `e2e-zed-control.test.mjs`. Sous `node --test`, `run()` refuse de toute façon une
 // recette non simulée (`refuseUnderTest`) — les tests d'orchestration passent
 // donc par `execute()`, le garde-fou restant vérifié par ailleurs.
 //
 // Le backend Windows (`KeyboardRunner` / `keyboard.ps1`) est gelé : ses tests
-// vivent dans `lot-c.test.mjs` et ne sont pas rejoués ici.
+// vivent dans `e2e-zed-control.test.mjs` et ne sont pas rejoués ici.
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
@@ -309,16 +309,14 @@ test('defaultKeyboardRunner : KeyboardRunner sous Windows, résolution paresseus
 })
 
 // ---------------------------------------------------------------------------
-// Configuration : zedControl.keyboard / unsafeFocus
+// Configuration : zedControl.keyboard
 // ---------------------------------------------------------------------------
 
-test('config : défauts auto/false, validation, surcharge ZRA_ZED_KEYBOARD', async () => {
+test('config : défaut auto, validation, surcharge ZRA_ZED_KEYBOARD', async () => {
   const cfg = await loadConfig()
   assert.equal(cfg.zedControl.keyboard, 'auto')
-  assert.equal(cfg.zedControl.unsafeFocus, false)
 
   await assert.rejects(() => loadConfig({ overrides: { zedControl: { keyboard: 'magique' } } }), /zedControl\.keyboard inconnu/)
-  await assert.rejects(() => loadConfig({ overrides: { zedControl: { unsafeFocus: 'oui' } } }), /unsafeFocus : booléen/)
 
   process.env.ZRA_ZED_KEYBOARD = 'none'
   try {

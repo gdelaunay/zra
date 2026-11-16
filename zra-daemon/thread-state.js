@@ -6,9 +6,8 @@
 //           ▲                    │
 //           └────── dépile ──────┘
 //
-// En lot A c'est le daemon qui la tient, alimenté par le backend d'injection.
-// En lot B, le shim (seul à voir le trafic ACP réel) appellera `setTurn` : la
-// structure ne bouge pas, seule la source des transitions change.
+// Le shim, seul à voir le trafic ACP réel, en est la source (`setTurn`) ; sans
+// shim, le backend d'injection l'alimente.
 
 import { EventEmitter } from 'node:events'
 import { randomUUID } from 'node:crypto'
@@ -125,7 +124,7 @@ export class ThreadStates extends EventEmitter {
   }
 
   /**
-   * Recopie l'état que le **shim** tient pour vrai (lot B).
+   * Recopie l'état que le **shim** tient pour vrai.
    *
    * Le tour et la file vivent dans le shim, seul à voir le trafic ACP réel
    * (spec §6.4) : le daemon n'en garde qu'un miroir pour la PWA. On n'émet donc
@@ -146,7 +145,7 @@ export class ThreadStates extends EventEmitter {
     return st
   }
 
-  /** Options de session lues à l'`initialize` (lot B). */
+  /** Options de session lues à l'`initialize` . */
   setCapabilities(threadId, { modes, models, options, commands, currentModeId, currentModelId } = {}) {
     const st = this.get(threadId)
     if (modes !== undefined) st.modes = modes

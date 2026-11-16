@@ -1,4 +1,4 @@
-// Pilotage de la fenêtre Zed — lot C, spec §6.2, §6.3, §6.7.
+// Pilotage de la fenêtre Zed — spec §6.2, §6.3, §6.7.
 //
 // Zed n'expose rien à UI Automation (arbre vide, relevé sur la machine cible) :
 // on le pilote au clavier, par des **recettes** — suites de touches, de textes
@@ -147,7 +147,7 @@ export function refuseUnderTest(what) {
 // ---------------------------------------------------------------------------
 //
 // Le lanceur clavier est désormais **pluggable** : `keyboard.ps1` sous Windows
-// (gelé), `xdotool` / `ydotool` / `wtype` / `none` sous Linux. Le code vit dans
+// (gelé), `xdotool` / `none` sous Linux. Le code vit dans
 // `zed/keyboard.js` ; `KeyboardRunner` et `KEYBOARD_SCRIPT` sont ré-exportés ici
 // pour que les importateurs existants ne changent pas.
 
@@ -173,9 +173,9 @@ export function projectWindow(folderPaths) {
  * Linux les candidats absolus comptent : un service `systemd --user` démarre
  * avec un PATH minimal, et l'installeur de Zed pose un symlink dans
  * `~/.local/bin` que `.bashrc` n'ajoute pas (`.profile` seulement).
- * Fait établi ici : `which zed` → `/home/gdelaunay/.local/bin/zed` →
+ * Fait établi ici : `which zed` → `~/.local/bin/zed` →
  * `~/.local/zed.app/bin/zed`, et `zed --version` →
- * `Zed 1.23.2 … /home/gdelaunay/.local/zed.app/libexec/zed-editor`.
+ * `Zed 1.23.2 … ~/.local/zed.app/libexec/zed-editor`.
  */
 export function defaultZedCli() {
   return hostZedCli()
@@ -197,7 +197,7 @@ export function defaultZedCli() {
  * --dev-server-token, --dev-container), mais il est toujours accepté :
  *
  *   $ zed --classic --version
- *   Zed 1.23.2 c0199504… – /home/gdelaunay/.local/zed.app/libexec/zed-editor
+ *   Zed 1.23.2 c0199504… – ~/.local/zed.app/libexec/zed-editor
  *   $ zed --option-inexistante --version
  *   error: unexpected argument '--option-inexistante' found
  *
@@ -264,7 +264,7 @@ export class ZedDriver {
     return Array.isArray(this.recipes[name]) && this.recipes[name].length > 0
   }
 
-  /** Fenêtres Zed et taille de leur arbre UIA (risque 🟠3). Sans effet sur le poste. */
+  /** Fenêtres Zed et taille de leur arbre UIA. Sans effet sur le poste. */
   probe() {
     return this.runner.run({ op: 'probe' })
   }

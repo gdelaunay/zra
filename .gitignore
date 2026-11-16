@@ -3,8 +3,8 @@ node_modules/
 dist/
 *.log
 
-# fixtures fabriquées par les tests (celle du lot A est committée)
-zra-daemon/test/fixtures/lot-b.sqlite*
+# fixtures fabriquées par les tests (sidebar_threads.sqlite est committée)
+zra-daemon/test/fixtures/e2e-shim.sqlite*
 zra-daemon/test/fixtures/registry/
 zra-daemon/test/fixtures/settings-custom.json
 zra-daemon/test/fixtures/registry-args/
@@ -17,8 +17,8 @@ zra-daemon/test/fixtures/settings-discover.json
 .zra/
 zra-daemon/test/fixtures/settings-zra.json
 zra-daemon/test/fixtures/shim-state/
-zra-daemon/test/fixtures/lot-c.sqlite*
-zra-daemon/test/fixtures/settings-lot-c.json
+zra-daemon/test/fixtures/e2e-zed-control.sqlite*
+zra-daemon/test/fixtures/settings-e2e-zed-control.json
 zra-daemon/test/fixtures/deploy/
 zra-daemon/test/fixtures/keymap/
 zra-daemon/test/fixtures/open-projects/

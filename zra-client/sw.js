@@ -1,7 +1,7 @@
 // Service worker : coquille de cache (v1) + point d'ancrage Web Push, inactif.
 // Réseau d'abord partout (coquille comprise), cache en repli hors tunnel.
 
-const VERSION = 'zra-v2'
+const VERSION = 'zra-v3'
 /** Au-delà, le réseau est tenu pour absent (hors tunnel) : on sert le cache. */
 const NETWORK_TIMEOUT_MS = 3000
 const SHELL = [
@@ -31,8 +31,6 @@ const SHELL = [
   './js/views/devbar.js',
   './js/views/new-session.js',
   './js/views/pair.js',
-  './js/mock/mock-link.js',
-  './js/mock/scenarios.js',
 ]
 
 self.addEventListener('install', (ev) => {

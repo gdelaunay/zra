@@ -204,12 +204,12 @@ seulement) sert à `npm run pair`.
 ```bash
 npm test                                          # tout, sans Zed ni agent
 node --test zra-daemon/test/protocol.test.mjs     # conformité au PROTOCOL.md
-node --test zra-daemon/test/lot-b.test.mjs        # daemon + shim + agent bouchon
+node --test zra-daemon/test/e2e-shim.test.mjs        # daemon + shim + agent bouchon
 npm run fixture                                   # régénère la fixture SQLite
 ```
 
 `test/protocol.test.mjs` se lit comme une check-list du `PROTOCOL.md` : chaque
-test cite le message qu'il verrouille. `test/lot-b.test.mjs` monte la chaîne
+test cite le message qu'il verrouille. `test/e2e-shim.test.mjs` monte la chaîne
 complète — daemon, vrai processus shim, agent ACP bouchon, faux Zed — et vérifie
 ce que la PWA verrait. La fixture
 `test/fixtures/sidebar_threads.sqlite` reproduit le schéma relevé sur la machine

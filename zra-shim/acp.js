@@ -480,7 +480,7 @@ export class AcpBridge extends EventEmitter {
   }
 
   /**
-   * Risque 🟠6, levé au round 2 : le message du mobile, que Zed n'a pas émis,
+   * Le message du mobile, que Zed n'a pas émis,
    * lui est annoncé comme l'agent le ferait au `session/load`. Zed l'affiche
    * dans son panneau, et une seule fois après un redémarrage (l'agent ne le
    * rejoue qu'une fois).

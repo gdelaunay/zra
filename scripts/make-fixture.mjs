@@ -127,7 +127,7 @@ export const ROWS = [
 /**
  * Écrit une base au schéma de Zed avec les lignes données.
  *
- * Exporté pour que le lot B s'en fabrique une à sa mesure : relire un thread
+ * Exporté pour que les tests de bout en bout s'en fabriquent une à leur mesure : relire un thread
  * fermé relance l'agent dans le `cwd` du thread, qui doit donc exister, et les
  * `session_id` doivent être ceux que l'agent bouchon annonce.
  */

@@ -3,7 +3,7 @@
 // Le contrat tient en trois lignes : rien ne bloque, rien ne remonte, et un
 // daemon absent ne fait pas enfler le shim. On le vérifie ici avec un faux
 // WebSocket, sans réseau — les échanges réels sont couverts par `shim.test.mjs`
-// et par les lots B/C côté daemon.
+// et par les tests de bout en bout côté daemon.
 
 import { test, after } from 'node:test'
 import assert from 'node:assert/strict'

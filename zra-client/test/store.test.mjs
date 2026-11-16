@@ -18,7 +18,8 @@ globalThis.localStorage ??= {
 const store = await import('../js/store.js')
 const { blocksText } = await import('../js/acp.js')
 
-store.init({ mock: true })
+const { MockLink } = await import('../js/mock/mock-link.js')
+store.init({ mock: MockLink })
 const machine = store.machineOf('mock-desk/x')
 after(() => { store.dropMachine('mock-desk'); store.dropMachine('mock-laptop') })
 

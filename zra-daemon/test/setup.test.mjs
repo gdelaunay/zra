@@ -1,4 +1,4 @@
-// Installation dans Zed — lot C. Le settings.json appartient à l'utilisateur :
+// Installation dans Zed. Le settings.json appartient à l'utilisateur :
 // chaque test vérifie qu'on n'y change que la tranche voulue.
 
 import { test } from 'node:test'

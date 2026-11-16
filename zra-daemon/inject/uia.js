@@ -1,4 +1,5 @@
-// Backend d'injection `uia` — spec §6.2, repli du risque 🔴1.
+// Backend d'injection `uia` — spec §6.2, repli quand l'agent refuse un
+// prompt injecté par le shim.
 //
 // C'est Zed qui émet le prompt : ZRA amène le thread au premier plan, tape le
 // message dans le composer et valide. **Fidélité parfaite** — le message
@@ -7,7 +8,7 @@
 // (`zed/keyboard.ps1`) ; le nom `uia` reste celui de la spec et de la config.
 //
 // Seul `send` passe par le clavier. Couper un tour, changer d'option, répondre
-// à une permission restent des commandes ACP du shim : le risque 🔴1 ne porte
+// à une permission restent des commandes ACP du shim : le refus ne porte
 // que sur `session/prompt`, et le clavier n'apporterait que de la fragilité.
 //
 // La preuve que Zed a bien envoyé le message vient du shim : le tour du thread

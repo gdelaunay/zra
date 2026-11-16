@@ -218,9 +218,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
  * `dryRun`, et ne jamais entrelacer deux recettes.
  */
 class LinuxKeyboard {
-  constructor({ timeoutMs = 30_000, unsafeFocus = false, log = null } = {}) {
+  constructor({ timeoutMs = 30_000, log = null } = {}) {
     this.timeoutMs = timeoutMs
-    this.unsafeFocus = unsafeFocus
     this.log = log
     this.chain = Promise.resolve()
   }
@@ -263,9 +262,7 @@ class LinuxKeyboard {
       }
       log.push(p.kind === 'keys' ? `touches ${p.label}` : `texte (${p.text.length} caractère(s))`)
       if (dry) continue
-      // Garde-fou : la fenêtre visée doit toujours être au premier plan. Les
-      // backends sans fenêtre (Wayland) ne peuvent pas le vérifier — c'est
-      // `unsafeFocus`, assumé dans la configuration, qui le dit.
+      // Garde-fou : la fenêtre visée doit toujours être au premier plan.
       await this.assertTarget(target)
       await this.tool(...p.args)
       await sleep(delay)
@@ -503,15 +500,9 @@ export class NoneKeyboard extends LinuxKeyboard {
 // Choix du backend
 // ===========================================================================
 
-/** `true` si l'exécutable est lançable (ENOENT → absent). */
 /**
- * L'exécutable est-il lançable ? On teste le `spawn`, pas le code de sortie :
- * `ydotool --version` sort en **1** sur la version 0.1.8 d'Ubuntu alors que
- * l'outil est bien installé.
- *
- *   $ ydotool --version ; echo rc=$?  → rc=1
- *   $ xdotool --version ; echo rc=$?  → xdotool 3.20160805 (libxdo 3.201608051) ; rc=0
- *   $ wtype --version ; echo rc=$?    → rc=127 (absent)
+ * L'exécutable est-il lançable ? On teste le `spawn`, pas le code de sortie,
+ * que certains outils mettent à 1 sur `--version`.
  */
 async function installed(cmd) {
   return new Promise((resolve) => {
@@ -524,39 +515,16 @@ async function installed(cmd) {
 }
 
 /**
- * Le code de sortie tranche-t-il ? Distinct d'`installed()` à dessein : pour
- * `pgrep`, sortir en 1 veut dire « pas trouvé », et le confondre avec « l'outil
- * existe » fait prendre un backend inutilisable pour un backend disponible
- * (bug vu en vrai sur cette machine, cf. le rapport de portage).
- */
-async function exitsZero(cmd, args) {
-  return new Promise((resolve) => {
-    const child = spawn(cmd, args, { stdio: 'ignore' })
-    const done = (ok) => { try { child.kill() } catch { /* déjà sorti */ } resolve(ok) }
-    child.on('error', () => done(false))
-    child.on('close', (code) => done(code === 0))
-    setTimeout(() => done(false), 4000).unref?.()
-  })
-}
-
-/**
- * `ydotoold` tourne-t-il ? Sans lui, chaque frappe `ydotool` échoue. Message
- * réel relevé sur cette machine (ydotool 0.1.8, démon absent) :
- *
- *   $ ydotool type bonjour
- *   what():  failed to open uinput device
- */
-/**
  * Ce que ce poste peut réellement jouer, dans l'ordre de préférence.
  *
  * `auto` (le défaut) prend le premier disponible ; un nom imposé par la
  * configuration est respecté même s'il est absent — il échouera alors en
  * disant pourquoi, plutôt que de basculer en silence sur un autre backend.
  *
- * @param {{ backend?:string, platform?:string, env?:object, unsafeFocus?:boolean, log?:object, timeoutMs?:number }} opts
+ * @param {{ backend?:string, platform?:string, env?:object, log?:object, timeoutMs?:number }} opts
  */
-export async function createKeyboard({ backend = 'auto', platform = process.platform, env = process.env, unsafeFocus = false, log = null, timeoutMs = 30_000 } = {}) {
-  const opts = { unsafeFocus, log, timeoutMs }
+export async function createKeyboard({ backend = 'auto', platform = process.platform, env = process.env, log = null, timeoutMs = 30_000 } = {}) {
+  const opts = { log, timeoutMs }
   const named = { powershell: KeyboardRunner, xdotool: XdotoolKeyboard, none: NoneKeyboard }
 
   if (backend !== 'auto') {
@@ -588,8 +556,8 @@ export async function createKeyboard({ backend = 'auto', platform = process.plat
  * Résout le backend au premier `run()`, puis s'efface devant lui.
  *
  * Sert aux constructeurs synchrones (`new ZedDriver({ enabled: true })`) :
- * l'autodétection doit lancer des processus (`xdotool` est-il installé ?
- * `ydotoold` tourne-t-il ?), elle ne tient pas dans un constructeur. Le daemon
+ * l'autodétection doit lancer des processus (`xdotool` est-il installé ?),
+ * elle ne tient pas dans un constructeur. Le daemon
  * et `npm run zed` passent de toute façon un backend déjà résolu.
  */
 export class LazyKeyboard {

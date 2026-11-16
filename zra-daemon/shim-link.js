@@ -1,4 +1,4 @@
-// Côté daemon de la liaison avec les shims — spec §3.2, lot B.
+// Côté daemon de la liaison avec les shims — spec §3.2.
 //
 // Un shim est lancé par Zed pour un agent ; il se connecte ici en local et
 // devient la source de vérité de tout ce qui est *vivant* : les `session/update`

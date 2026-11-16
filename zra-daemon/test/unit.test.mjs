@@ -15,7 +15,7 @@ import { RingBuffers } from '../ring-buffer.js'
 import { ThreadStates } from '../thread-state.js'
 import { ShimRegistry } from '../shim-registry.js'
 import { agentLabel } from '../agents.js'
-import { checkOrigin, selfOrigins, authenticate, isLoopback } from '../server.js'
+import { checkOrigin, selfOrigins, isLoopback } from '../server.js'
 import { ShimHost } from '../shim-link.js'
 import { resolveAgentCommand, packageName, discoverAgents } from '../agent-commands.js'
 import { SessionLoader } from '../session-loader.js'
@@ -161,10 +161,6 @@ test('selfOrigins : en HTTPS, les noms du certificat sont des origines du daemon
     ['http://10.7.0.2:7777'])
 })
 
-test('authenticate : point d’extension v2, ouvert en v1', () => {
-  assert.equal(authenticate({ req: {}, origin: null }), true)
-})
-
 // ---- WebSocket -------------------------------------------------------------
 
 test('acceptKey : vecteur de la RFC 6455', () => {
@@ -218,7 +214,7 @@ test('ws : encodage des trois tailles d’en-tête', () => {
   assert.equal(encodeFrame('a'.repeat(70000)).length, 10 + 70000)
 })
 
-test('ws : un client qui ne lit pas est coupé, pas nourri (G1, backpressure)', () => {
+test('ws : un client qui ne lit pas est coupé, pas nourri (backpressure)', () => {
   const queued = []
   const socket = { // faux net.Socket : write accepte toujours, ne draine jamais
     writable: true, destroyed: false,
@@ -372,7 +368,7 @@ test('thread-state : file perdue signalée explicitement (spec §6.4)', () => {
 
 // ---- registre des shims ----------------------------------------------------
 
-test('shim-registry : plusieurs sessions par shim (risque 🟡4)', () => {
+test('shim-registry : plusieurs sessions par shim', () => {
   const shims = new ShimRegistry()
   shims.register({ shimId: 's1', agentId: 'claude-acp', sessions: ['sess-a'] })
   shims.addSession('s1', 'sess-b')

@@ -1,4 +1,4 @@
-// Le lot C sans Zed : ouvrir une session, rouvrir un thread, injecter au clavier.
+// Pilotage de Zed, sans Zed : ouvrir une session, rouvrir un thread, injecter au clavier.
 //
 // Le clavier est remplacé par un **faux lanceur** qui, au lieu d'envoyer des
 // touches, fait ce que Zed ferait en les recevant : lancer un shim qui ouvre
@@ -27,8 +27,8 @@ const HERE = dirname(fileURLToPath(import.meta.url))
 const ROOT = resolve(HERE, '..', '..')
 const FAKE_AGENT = join(ROOT, 'zra-shim', 'test', 'fake-agent.mjs')
 const SHIM = join(ROOT, 'zra-shim', 'index.js')
-const FIXTURE = join(HERE, 'fixtures', 'lot-c.sqlite')
-const SETTINGS = join(HERE, 'fixtures', 'settings-lot-c.json')
+const FIXTURE = join(HERE, 'fixtures', 'e2e-zed-control.sqlite')
+const SETTINGS = join(HERE, 'fixtures', 'settings-e2e-zed-control.json')
 
 const PORT = 7815
 const HOST = '127.0.0.1'
@@ -157,7 +157,7 @@ class Client {
     })
     t.after(() => ws.close())
     const client = new Client(ws)
-    client.send({ type: 'hello', clientId: 'test-lot-c' })
+    client.send({ type: 'hello', clientId: 'test-e2e-zed-control' })
     await client.until((m) => m.type === 'threads', { label: 'bootstrap' })
     return client
   }
@@ -523,7 +523,7 @@ test('uia sans recette openThread : on ne tape pas dans un thread que ZRA n’a 
   assert.equal(keyboard.calls.length, 0)
 })
 
-test('auto : l’agent refuse le prompt injecté (🔴1), repli clavier transparent', async (t) => {
+test('auto : l’agent refuse le prompt injecté, repli clavier transparent', async (t) => {
   let zed
   const keyboard = fakeKeyboard(async (recipe, text) => {
     if (recipe === 'submit') zed.prompt(text)
@@ -553,7 +553,7 @@ test('auto : l’agent accepte, aucune touche envoyée', async (t) => {
   assert.equal(keyboard.calls.length, 0)
 })
 
-test('acp : un refus de l’agent arrive en avis inject_failed (risque 🔴1 visible au test réel)', async (t) => {
+test('acp : un refus de l’agent arrive en avis inject_failed', async (t) => {
   await boot(t)
   await startShim(t, { sessionId: SESSION_VIVANT, env: { ZRA_FAKE_REFUSE_INJECTED: '1' } })
   const client = await Client.open(t)

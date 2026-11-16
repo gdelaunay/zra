@@ -1,5 +1,5 @@
 // Le daemon complet, de bout en bout, sur un vrai WebSocket — sans Zed, sans
-// agent, sans shim (spec §10, critère de sortie du lot A).
+// agent, sans shim (spec §10).
 //
 // Lisible comme une check-list du PROTOCOL.md : chaque test cite le message
 // qu'il verrouille.
@@ -380,8 +380,8 @@ test('thread sans session : ni écriture ni historique (spec §4)', async (t) =>
 
 test('ce qui manque à ce montage répond proprement, jamais en silence', async (t) => {
   // Backend bouchon, aucun shim, et un agent volontairement introuvable : les
-  // trois chemins qui échouent sans que rien ne soit cassé. Le lot B complet
-  // est vérifié par `lot-b.test.mjs`, contre un vrai shim et un vrai agent.
+  // trois chemins qui échouent sans que rien ne soit cassé. La chaîne complète
+  // est vérifiée par `e2e-shim.test.mjs`, contre un vrai shim et un vrai agent.
   await boot(t, { agentCommands: { 'claude-acp': { command: 'zra-agent-inexistant' } } })
   const c = await (await Client.open(t)).hello()
 
@@ -394,7 +394,7 @@ test('ce qui manque à ce montage répond proprement, jamais en silence', async 
   c.send({ type: 'respond_permission', threadId: VIVANT, requestId: 'r1', optionId: 'allow-once' })
   assert.equal((await c.until((m) => m.type === 'error')).code, 'permission_expired')
 
-  // Ouvrir une session demande de piloter Zed par UIA (spec §6.7) : lot C.
+  // Ouvrir une session demande de piloter Zed par UIA (spec §6.7).
   c.clear()
   c.send({ type: 'new_thread', agentId: 'claude-acp' })
   assert.equal((await c.until((m) => m.type === 'error')).code, 'new_thread_failed')

@@ -3,7 +3,7 @@
 // Le shim émet lui-même un `session/prompt` vers l'agent, comme s'il venait de
 // Zed : rapide, robuste, sans dépendance à l'état de la fenêtre.
 //
-// **Limite connue et assumée** (risque 🟡6) : Zed n'ayant pas émis ce prompt, le
+// **Limite connue et assumée** : Zed n'ayant pas émis ce prompt, le
 // message de l'utilisateur n'apparaîtra pas dans son panel. La réponse de
 // l'agent, elle, transite par le shim et s'affiche normalement des deux côtés.
 //

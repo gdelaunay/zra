@@ -130,7 +130,7 @@ test('linux : Zed tourne sous le nom zed-editor, pas zed', () => {
 })
 
 test('linux : un seul backend clavier, quel que soit le type de session', () => {
-  // `d911219` : xdotool partout, ydotool/wtype supprimés. Sous Wayland, Zed est
+  // xdotool partout. Sous Wayland, Zed est
   // forcé sous XWayland (`WAYLAND_DISPLAY=` dans le .desktop, `scripts/lib/wayland.mjs`),
   // donc xdotool voit ses fenêtres ; sous X11, il les voit nativement.
   // Mesuré sur MX Linux 23 / Xfce / X11 : `XDG_SESSION_TYPE=x11`, `DISPLAY=:0`,
@@ -163,7 +163,7 @@ test('machine de portage : les chemins par défaut pointent sur des fichiers qui
 })
 
 test('machine de portage : la CLI de Zed est trouvée sans dépendre du PATH', { skip: process.platform === 'win32' && 'Windows : branche gelée' }, () => {
-  // Fait établi : `which zed` → /home/gdelaunay/.local/bin/zed, symlink vers
+  // Fait établi : `which zed` → /home/user/.local/bin/zed, symlink vers
   // ~/.local/zed.app/bin/zed. Un service systemd --user n'aura pas ce PATH.
   const cli = defaultZedCli()
   assert.notEqual(cli, 'zed', 'un candidat absolu doit exister sur cette machine')

@@ -1,11 +1,8 @@
 // Registre des shims connectés — spec §3.2.
 //
 // Un shim est lancé par Zed pour un agent ; il peut porter plusieurs sessions
-// (risque 🟡4 : Zed lance un agent par fenêtre, pas par thread). C'est ce
+// (Zed lance un agent par fenêtre, pas par thread). C'est ce
 // registre qui détermine si un thread est `live`.
-//
-// Lot A : toujours vide, aucun shim n'existe encore. L'API est complète pour que
-// le lot B n'ait qu'à la remplir.
 
 import { EventEmitter } from 'node:events'
 

@@ -6,7 +6,7 @@
 //
 // Il lit l'index des threads de Zed, accueille les shims sur `/shim` et parle le
 // protocole ZRA à la PWA sur `/ws`. Le pilotage de la fenêtre Zed — ouvrir une
-// session, rouvrir un thread fermé — s'active dans `zedControl` (lot C).
+// session, rouvrir un thread fermé — s'active dans `zedControl`.
 
 import { loadConfig } from './config.js'
 import { startDaemon } from './daemon.js'

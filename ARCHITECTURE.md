@@ -111,6 +111,6 @@ Les entrées écrites dans Zed et dans le service contiennent le chemin absolu d
 | L'état d'un thread côté client | `zra-client/js/store.js`, `zra-client/js/acp.js` |
 | Le rendu | `zra-client/js/views/thread.js`, `views/entry.js`, `markdown.js` |
 | Les chemins et outils par OS | `zra-daemon/platform.js` |
-| Un scénario de bout en bout sans Zed | `zra-daemon/test/lot-b.test.mjs` (vrai daemon, vrai shim, agent bouchon) |
+| Un scénario de bout en bout sans Zed | `zra-daemon/test/e2e-shim.test.mjs` (vrai daemon, vrai shim, agent bouchon) |
 
 Tester sans Zed : `npm run daemon:dev -- --injection mock`, ou `npm run mock` (serveur bouchon de la PWA). Tests : `npm test` (environ 70 s).

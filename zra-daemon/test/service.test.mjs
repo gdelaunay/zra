@@ -223,7 +223,7 @@ test('autostart : Exec= protège un chemin contenant des espaces', () => {
 test('autostart : le lanceur crée le dossier du journal AVANT de rediriger', { skip: process.platform === 'win32' && 'lanceur shell POSIX' }, () => {
   // Premier essai réel sur MX Linux, `npm run service -- start` :
   //   .zra/service/zra-daemon.sh: 30: cannot create
-  //   /home/gdelaunay/Documents/zra/.zra/logs/service.log: Directory nonexistent
+  //   /home/user/Documents/zra/.zra/logs/service.log: Directory nonexistent
   // Le daemon crée ce dossier lui-même (`--log`), mais la redirection du shell
   // passe avant : sans `mkdir -p`, le lanceur meurt et le daemon ne part jamais.
   const sh = buildLauncher({ node: '/usr/bin/node', ...paths(ax), env: ax.env })
@@ -275,10 +275,10 @@ test('autostart : parsePid ne devine rien', () => {
 test('autostart : pidMatches reconnaît le daemon et le lanceur, et rien d’autre', () => {
   const p = paths(ax)
   // Sortie réelle de /proc/38537/cmdline, sur MX Linux, recopiée :
-  const live = '/home/gdelaunay/.config/nvm/versions/node/v24.21.0/bin/node --no-warnings ' +
-    '/home/gdelaunay/Documents/zra/zra-daemon/index.js --wait-tunnel --log ' +
-    '/home/gdelaunay/Documents/zra/.zra/logs/daemon.log'
-  assert.ok(pidMatches(live, { daemon: '/home/gdelaunay/Documents/zra/zra-daemon/index.js', launcher: p.launcher }))
+  const live = '/home/user/.config/nvm/versions/node/v24.21.0/bin/node --no-warnings ' +
+    '/home/user/Documents/zra/zra-daemon/index.js --wait-tunnel --log ' +
+    '/home/user/Documents/zra/.zra/logs/daemon.log'
+  assert.ok(pidMatches(live, { daemon: '/home/user/Documents/zra/zra-daemon/index.js', launcher: p.launcher }))
   // Pendant la temporisation, avant l’exec : c’est le lanceur qui tourne.
   assert.ok(pidMatches(`/bin/sh ${p.launcher} --now`, p))
   // Le garde-fou : un pid recyclé par un processus sans rapport n’est pas tué.

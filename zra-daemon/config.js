@@ -136,8 +136,7 @@ export const DEFAULTS = {
     /**
      * Backend clavier (portage Linux) : `auto` (défaut) choisit selon l'OS et
      * les outils réellement installés — `keyboard.ps1` sous Windows, `xdotool`
-     * sous Linux. Depuis `d911219` il n'y a plus de `ydotool`/`wtype` : sous
-     * Wayland, Zed est forcé sous XWayland (`WAYLAND_DISPLAY=` dans son
+     * sous Linux. Sous Wayland, Zed est forcé sous XWayland (`WAYLAND_DISPLAY=` dans son
      * `.desktop`, voir `scripts/lib/wayland.mjs`) et `xdotool` voit ses fenêtres.
      * Un nom imposé est respecté même si l'outil est absent : il échoue en
      * disant pourquoi, plutôt que de basculer en silence. Les noms acceptés sont
@@ -147,16 +146,6 @@ export const DEFAULTS = {
      * renvoie vers `acp`.
      */
     keyboard: 'auto',
-    /**
-     * **Bouton mort depuis `d911219`.** Il servait aux backends sans fenêtre
-     * (`ydotool`, `wtype`), qui ne pouvaient ni viser une fenêtre ni vérifier le
-     * premier plan sous Wayland : `true` assumait que les frappes partent dans
-     * le focus courant. Ces deux backends ont été supprimés, et plus aucun code
-     * ne lit cette valeur — `xdotool` vérifie le premier plan à chaque étape
-     * (`assertTarget`). La clé reste acceptée pour ne pas casser une
-     * configuration existante, mais elle ne fait rien.
-     */
-    unsafeFocus: false,
   },
 
   /**
@@ -262,8 +251,5 @@ function validate(cfg) {
   }
   if (cfg.zedControl && !['auto', ...KEYBOARD_BACKENDS].includes(cfg.zedControl.keyboard)) {
     throw new Error(`zedControl.keyboard inconnu : ${cfg.zedControl.keyboard} (auto, ${KEYBOARD_BACKENDS.join(', ')})`)
-  }
-  if (cfg.zedControl && typeof cfg.zedControl.unsafeFocus !== 'boolean') {
-    throw new Error('zedControl.unsafeFocus : booléen attendu')
   }
 }

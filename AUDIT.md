@@ -9,7 +9,7 @@
 - Le reste de la sécurité réseau est solide : contrôle d'`Origin` de `/ws`, path traversal, trames WebSocket malformées, stockage du jeton. Tout a été testé sur une instance isolée.
 - À décider en connaissance de cause : appairage toujours ouvert avec un code à 6 chiffres, trafic en clair par défaut, conversations enregistrées sur disque par défaut, frappes clavier envoyées « à l'aveugle ».
 - Qualité générale bonne pour du code peu relu : relais ACP octet pour octet, installation prudente (simulation, sauvegardes, relecture), 764 tests en 72 s, 0 échec. Les 2 tests dits instables ne l'ont pas été en 16 exécutions.
-- Avant publication, un ménage s'impose : fichiers de chantier, désinstallation incomplète, patch Wayland implicite, absence de CI.
+- Avant publication : désinstallation incomplète à documenter.
 
 ## Méthode et commandes lancées
 
@@ -107,19 +107,6 @@ Le relais lui-même est sain : recopie octet pour octet, observation isolée par
 
 Le découpage est clair et tient : trois composants, un seul module qui connaît l'OS (`platform.js`), un seul qui connaît les clients (`hub.js`), backends d'injection interchangeables. Pas de refonte à proposer.
 
-- **[Important] Fichiers et traces de chantier à retirer avant publication**
-  - Où : une quinzaine d'éléments. Exemples : `zra-daemon/test/lot-b.test.mjs`, `scripts/dump_zed_threads.py`, `scripts/verify-keyboard-xvfb.mjs`
-  - Problème, par catégorie :
-    - scripts sans appelant : `scripts/verify-keyboard-xvfb.mjs` (aucune référence), `scripts/dump_zed_threads.py` et `scripts/probe-zed-db.mjs` (cités seulement dans la doc), `scripts/probe-agent.mjs` et `scripts/repro-shim-ghosts.mjs` (outils de mise au point exposés dans `package.json`) ;
-    - noms de tests hérités du plan de développement : `lot-b.test.mjs`, `lot-c.test.mjs` ;
-    - option morte encore validée et transmise : `zedControl.unsafeFocus` (`config.js:157`, `daemon.js:109`) ; fonction `authenticate()` qui rend toujours `true` (`server.js:28`) ;
-    - commentaires qui racontent l'historique : références à des commits (`d911219`), à des lots, à des codes internes (`G1`, `risque 🔴1`) ; nom d'utilisateur personnel dans `platform.js:18-20,145-148` ;
-    - bouchon embarqué en production : `zra-client/js/mock/` (770 lignes) figure dans le cache du service worker (`sw.js:34-35`).
-  - Scénario concret : un lecteur du dépôt public ne sait pas ce qui est vivant ; tes règles de concision (pas d'historique dans le code) ne sont pas tenues.
-  - Correction suggérée : supprimer les scripts orphelins, renommer les deux fichiers de test (`e2e-shim`, `e2e-zed-control`), retirer `unsafeFocus` et `authenticate`, nettoyer les commentaires.
-  - Effort : M
-  - Confiance : vérifié (recherche de références)
-
 - **[Important] Surface large pour un projet à durée de vie courte**
   - Où : `zra-daemon/inject/uia.js`, `inject/auto.js`, `scripts/wireguard.mjs` (291 lignes, « option de secours, non testée » selon `DEPLOY.md:344`), `scripts/cert.ps1`, rechargement TLS à chaud, détection de tunnel
   - Problème : chaque voie supplémentaire est du code non relu à maintenir et à sécuriser. Les backends `uia` et `auto` tapent le texte du mobile au clavier ; le générateur WireGuard manipule des clés.
@@ -167,14 +154,6 @@ Vérifié à la lecture : l'installation ne dépend d'aucun fichier ignoré par 
   - Effort : S
   - Confiance : lecture
 
-- **[Important] Pas de CI**
-  - Où : dépôt (aucun workflow)
-  - Problème : rien ne rejoue les tests ; 15 tests POSIX ne tournent jamais sous Windows.
-  - Scénario concret : une contribution casse la branche Linux sans que personne le voie.
-  - Correction suggérée : un workflow GitHub Actions, matrice `windows-latest` et `ubuntu-latest`, Node 24 : `npm ci`, `npm test`, `npm audit --omit=dev`. La suite dure environ une minute.
-  - Effort : S
-  - Confiance : vérifié
-
 ---
 
 ## Axe 6 — Dépendances et primitives maison
@@ -192,7 +171,7 @@ Vérifié à la lecture : l'installation ne dépend d'aucun fichier ignoré par 
 ## Axe 7 — Tests
 
 - **Durée et stabilité** : 764 tests en 72 s. `protocol.test.mjs` relancé 15 fois, plus le passage complet : 16 réussites sur 16. L'instabilité annoncée n'est pas reproduite sur ce poste. Sa cause est écrite dans le fichier (`protocol.test.mjs:250-252`) : le tour du bouchon dure 60 ms et l'interruption arrive parfois après. Rendre ce délai réglable dans le test supprimerait la course.
-- **Pertinence (échantillon)** : `lot-b` et `lot-c` lancent un vrai daemon, un vrai processus shim et un agent bouchon. Ce sont les tests les plus utiles du dépôt. Les tests unitaires lus (auth, static, markdown, keymap) vérifient des comportements, pas des détails d'implémentation.
+- **Pertinence (échantillon)** : `e2e-shim` et `e2e-zed-control` lancent un vrai daemon, un vrai processus shim et un agent bouchon. Ce sont les tests les plus utiles du dépôt. Les tests unitaires lus (auth, static, markdown, keymap) vérifient des comportements, pas des détails d'implémentation.
 - **Garde-fou efficace** : sous `node --test`, le clavier réel, la CLI de Zed et la config du poste sont refusés (`config.js:210`, `zed/keyboard.js:61`).
 
 ---
@@ -203,7 +182,7 @@ Le protocole documenté correspond au code pour les messages (`PROTOCOL.md` §3-
 
 - **[Important] Aucune page ne dit à l'utilisateur ce qu'il expose**
   - Où : `README.md`, `DEPLOY.md:23`
-  - Problème : le modèle de menace n'est écrit nulle part de façon cohérente, et `DEPLOY.md` contredit l'hypothèse « LAN de confiance ». Manquent : ce qui écoute et où, ce que permet un appareil appairé (exécuter des commandes via l'agent), ce qui est écrit sur le disque, l'interdiction d'un proxy sur le poste, l'option `auth.exemptLoopback` (absente de toute la doc).
+  - Problème : le modèle de menace n'est écrit nulle part de façon cohérente, et `DEPLOY.md` contredit l'hypothèse « LAN de confiance ». Manquent : ce qui écoute et où, ce que permet un appareil appairé (exécuter des commandes via l'agent), ce qui est écrit sur le disque, l'interdiction d'un proxy sur le poste et `auth.exemptLoopback` (documentés dans `DEPLOY.md` seulement).
   - Scénario concret : un utilisateur installe sans mesurer qu'un téléphone appairé équivaut à un accès au poste.
   - Correction suggérée : une section « Sécurité » d'une vingtaine de lignes dans le README.
   - Effort : S
@@ -276,7 +255,6 @@ Conséquence : l'état de Zed et celui de l'agent peuvent diverger. Deux prompts
 | B2 | Appairage par fenêtre ouverte à la demande, ou limite globale | Appairage | S |
 | B3 | Enregistrement des trames désactivé par défaut (décision D3 ; rotation d'`injections.log` : faite) | Données sur disque | S |
 | B4 | Désinstallation : séquence complète documentée (patch Wayland : fait, étape `setup xwayland`) | Désinstallation, chemins absolus | S |
-| B8 | Ménage : scripts orphelins, noms `lot-*`, options mortes, commentaires d'historique, bouchon hors production | Fichiers de chantier | M |
 
 ### C. Décisions à prendre, sans code obligatoire
 

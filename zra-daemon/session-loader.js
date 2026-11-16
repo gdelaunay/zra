@@ -11,8 +11,7 @@
 // partagent la même instance — sans ça, ouvrir deux fois de suite lancerait
 // deux agents pour rien.
 //
-// Risque 🟠2 levé sur la machine cible : `claude-agent-acp` 0.80 déclare bien
-// `loadSession: true`. Le repli reste câblé (`no_load_session`) pour les agents
+// `claude-agent-acp` déclare `loadSession: true`. Le repli reste câblé (`no_load_session`) pour les agents
 // qui ne le déclarent pas — la PWA affiche « historique indisponible » et garde
 // le composer actif.
 

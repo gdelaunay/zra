@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Brancher ZRA dans Zed — lot C, installation.
+// Brancher ZRA dans Zed : installation.
 //
 //   npm run setup                       état : entrée Zed, agent, daemon
 //   npm run setup -- install            montre ce qui serait écrit, n'écrit rien

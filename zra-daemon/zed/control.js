@@ -1,4 +1,4 @@
-// Ouvrir une session, rouvrir un thread — lot C, spec §6.3 et §6.7.
+// Ouvrir une session, rouvrir un thread — spec §6.3 et §6.7.
 //
 // Le pilote (`driver.js`) sait taper dans Zed ; il ne sait pas si ça a marché.
 // La preuve vient d'ailleurs, et c'est tout l'intérêt de l'architecture : dès

@@ -1,11 +1,8 @@
-// Le lot B de bout en bout : PWA ↔ daemon ↔ shim ↔ agent — spec §10.
+// De bout en bout : PWA ↔ daemon ↔ shim ↔ agent — spec §10.
 //
 // Tout est réel sauf Zed et l'agent : un vrai daemon, un vrai WebSocket, un vrai
 // processus shim lancé comme Zed le lancerait, un agent bouchon en sous-processus.
 // Le « Zed » est le client bouchon du §10.2, branché sur le stdio du shim.
-//
-//   critère de sortie du lot B : `npm test` vert et PWA pilotable de bout en
-//   bout contre l'agent bouchon, **sans Zed lancé**.
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
@@ -27,7 +24,7 @@ const HERE = dirname(fileURLToPath(import.meta.url))
 const ROOT = resolve(HERE, '..', '..')
 const FAKE_AGENT = join(ROOT, 'zra-shim', 'test', 'fake-agent.mjs')
 const SHIM = join(ROOT, 'zra-shim', 'index.js')
-const FIXTURE = join(HERE, 'fixtures', 'lot-b.sqlite')
+const FIXTURE = join(HERE, 'fixtures', 'e2e-shim.sqlite')
 
 const PORT = 7814
 const HOST = '127.0.0.1'
@@ -146,7 +143,7 @@ function masked(msg) {
   return Buffer.concat([Buffer.from([0x81, 0x80 | data.length]), mask, body])
 }
 
-/** Client de test : même forme que celui du lot A. */
+/** Client de test : même forme que celui de `protocol.test.mjs`. */
 class Client {
   constructor(ws) {
     this.ws = ws
@@ -196,7 +193,7 @@ class Client {
   }
 
   async hello() {
-    this.send({ type: 'hello', clientId: 'test-lot-b' })
+    this.send({ type: 'hello', clientId: 'test-e2e-shim' })
     await this.until((m) => m.type === 'threads', { label: 'bootstrap' })
     return this
   }
@@ -216,7 +213,7 @@ test('un shim connecté fait passer le thread à live (protocole §4 threads)', 
   const daemon = await boot(t)
   const client = await (await Client.open(t)).hello()
 
-  // Sans shim, tout est fermé (lot A).
+  // Sans shim, tout est fermé.
   assert.equal(client.of('threads').at(-1).threads.find((x) => x.threadId === VIVANT).state, 'closed')
 
   await startShim(t)
@@ -518,7 +515,7 @@ test('load_history : deuxième appel servi par le cache, sans relancer l’agent
   assert.equal(daemon.loader.cache.get('lotb-session-0002'), premier)
 })
 
-test('agent sans loadSession : no_load_session, composer actif (risque 🟠2)', async (t) => {
+test('agent sans loadSession : no_load_session, composer actif', async (t) => {
   await boot(t, {
     agentCommands: {
       'fake-acp': {
@@ -614,7 +611,7 @@ test('shim tué net (FIN sans trame CLOSE) : registre vidé, pas de fantôme', a
 })
 
 // ===========================================================================
-// Le shim tel que l'installe `npm run setup` (lot C)
+// Le shim tel que l'installe `npm run setup`
 // ===========================================================================
 
 test('shim installé : journal dans un fichier, trames enregistrées, /status à jour', async (t) => {
@@ -651,7 +648,7 @@ test('shim installé : journal dans un fichier, trames enregistrées, /status à
 })
 
 // ===========================================================================
-// Relevé au test réel (round 1)
+// Relevé au test réel
 // ===========================================================================
 
 test('le message utilisateur est publié par le shim, qu’il vienne de Zed ou du mobile', async (t) => {
@@ -675,9 +672,9 @@ test('le message utilisateur est publié par le shim, qu’il vienne de Zed ou d
   // course et `zed.updates` est encore vide (relevé sur MX Linux 23, Zed lancé).
   await zed.until(
     (m) => m.method === 'session/update' && m.params?.update?.content?.text === 'depuis le mobile',
-    { label: 'écho vers Zed (🟠6)' },
+    { label: 'écho vers Zed' },
   )
-  // Vers Zed ne part que le message du mobile (risque 🟠6), une fois ; le sien ne lui revient jamais.
+  // Vers Zed ne part que le message du mobile, une fois ; le sien ne lui revient jamais.
   const versZed = zed.updates.filter((u) => u?.sessionUpdate === 'user_message_chunk')
   assert.deepEqual(versZed.map((u) => u.content?.text), ['depuis le mobile'])
 })
