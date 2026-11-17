@@ -39,7 +39,7 @@ Les deux ports sont **deux postes simulés**, pas deux versions : un daemon tour
 par machine (§3.2), le bouchon en lance deux pour exercer le multi-postes.
 
 Dans les deux cas, une **barre mock** apparaît en bas de l'écran : elle déclenche
-à la main les cas que la spec demande de vérifier — tour complet (réflexion,
+à la main les cas à vérifier — tour complet (réflexion,
 plan, lecture, diff, terminal, markdown streamé), tour long annulable, demande
 de permission, événement ACP inconnu, erreur daemon, poste hors ligne, perte du
 shim, nouveau thread ouvert dans Zed.

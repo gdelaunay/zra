@@ -1,4 +1,4 @@
-// Registre des shims connectés — spec §3.2.
+// Registre des shims connectés.
 //
 // Un shim est lancé par Zed pour un agent ; il peut porter plusieurs sessions
 // (Zed lance un agent par fenêtre, pas par thread). C'est ce

@@ -1,4 +1,4 @@
-// Serveur HTTP/HTTPS + WebSocket — protocole §1, spec §9.
+// Serveur HTTP/HTTPS + WebSocket — protocole §1.
 //
 // Une instance de serveur par adresse d'écoute : Node n'écoute qu'un hôte par
 // `listen()`, et écouter sur `0.0.0.0` est interdit (le port serait exposé hors
@@ -34,8 +34,8 @@ export function checkOrigin(origin, allowed) {
 }
 
 /**
- * Le canal des shims n'est ouvert qu'aux processus du **même poste** (spec §3.1
- * et §9). Un shim est lancé par Zed en local : rien de légitime ne s'y connecte
+ * Le canal des shims n'est ouvert qu'aux processus du **même poste**.
+ * Un shim est lancé par Zed en local : rien de légitime ne s'y connecte
  * depuis le tunnel, et ce canal-là injecte des prompts sans passer par la PWA.
  */
 export function isLoopback(address) {
@@ -196,7 +196,7 @@ export async function createServers({ config, addresses, onConnection, onShim, s
           onConnection,
         },
         {
-          // Les shims, en local uniquement (spec §3.1). Un shim est un client
+          // Les shims, en local uniquement. Un shim est un client
           // natif : il n'envoie jamais d'`Origin`. Un en-tête présent signe une
           // page web du poste (WebSocket vers 127.0.0.1) : refusée.
           path: '/shim',

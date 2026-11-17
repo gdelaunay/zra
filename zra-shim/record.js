@@ -1,4 +1,4 @@
-// Mode enregistrement — spec §10.3.
+// Mode enregistrement.
 //
 // `ZRA_RECORD=1` fait vider au shim toutes les trames dans un JSONL horodaté.
 // C'est la première chose à activer au test réel : une session enregistrée

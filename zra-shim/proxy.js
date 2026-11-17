@@ -1,4 +1,4 @@
-// Proxy stdio transparent entre Zed et l'agent — spec §3.1.
+// Proxy stdio transparent entre Zed et l'agent.
 //
 // Règles, dans l'ordre de priorité :
 //
@@ -10,7 +10,7 @@
 //  3. **Une seule exception au relai intégral**, assumée et localisée : une
 //     réponse devenue sans objet peut être *avalée* (`drop`). C'est le cas d'une
 //     permission déjà tranchée depuis le mobile — envoyer deux réponses pour le
-//     même `id` JSON-RPC embrouillerait l'agent (spec §6.6). C'est aussi le cas
+//     même `id` JSON-RPC embrouillerait l'agent. C'est aussi le cas
 //     des réponses aux requêtes que ZRA a lui-même injectées : Zed ne les a
 //     jamais émises, elles ne le concernent pas.
 

@@ -22,7 +22,7 @@ function load() {
     expandTools: s.expandTools === true,
     mock: s.mock === true,
     lastThread: s.lastThread || null,
-    /** Jetons d'appairage, par adresse de poste (spec §9). */
+    /** Jetons d'appairage, par adresse de poste. */
     tokens: s.tokens && typeof s.tokens === 'object' ? s.tokens : {},
   }
 }

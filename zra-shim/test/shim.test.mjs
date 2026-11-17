@@ -1,4 +1,4 @@
-// Le shim, entre un faux Zed et un vrai agent bouchon — spec §10.
+// Le shim, entre un faux Zed et un vrai agent bouchon.
 //
 // Lisible comme une check-list du §3.1 et du §6 : transparence du proxy, tour et
 // file d'attente, injection, permissions et leur course, terminaux, options.
@@ -68,7 +68,7 @@ async function until(pred, { timeout = 5000, label = 'condition' } = {}) {
 }
 
 // ---------------------------------------------------------------------------
-// Transparence — la règle qui prime sur tout (spec §3.1)
+// Transparence — la règle qui prime sur tout
 // ---------------------------------------------------------------------------
 
 test('framing : les octets ressortent tels quels, séparateur compris', () => {
@@ -92,7 +92,7 @@ test('framing : une trame coupée en deux morceaux se recolle sans perte', () =>
   assert.equal(frames.map((f) => f.toString()).join(''), '{"a":123}\n{"b":2}\n')
 })
 
-test('proxy : octets entrants ≡ octets sortants, même illisibles (spec §10.5)', async () => {
+test('proxy : octets entrants ≡ octets sortants, même illisibles', async () => {
   const source = new PassThrough()
   const sink = new PassThrough()
   const seen = []
@@ -111,7 +111,7 @@ test('proxy : octets entrants ≡ octets sortants, même illisibles (spec §10.5
   assert.deepEqual(seen.map((m) => (m ? 'lu' : 'illisible')), ['lu', 'illisible', 'lu'])
 })
 
-test('shim : un EPIPE asynchrone vers Zed ne casse pas le relai (SPEC §3.1, fail-open)', async () => {
+test('shim : un EPIPE asynchrone vers Zed ne casse pas le relai, fail-open', async () => {
   const agentOut = new PassThrough()
   const agentIn = new PassThrough()
   agentIn.resume()
@@ -224,7 +224,7 @@ test('projection des options : de vrais modes restent des modes (claude)', () =>
 // Observation
 // ---------------------------------------------------------------------------
 
-test("l'initialize et la session sont captés au passage (spec §3.1)", async (t) => {
+test("l'initialize et la session sont captés au passage", async (t) => {
   const { bridge, zed } = await boot(t)
   assert.equal(bridge.protocolVersion, 1)
   assert.equal(bridge.agentCapabilities.loadSession, true)
@@ -265,7 +265,7 @@ test('les session/update sont republiées verbatim, sans être réécrites', asy
 })
 
 // ---------------------------------------------------------------------------
-// Injection (spec §6.1)
+// Injection
 // ---------------------------------------------------------------------------
 
 test('un prompt injecté part vers l’agent sans que Zed voie la requête', async (t) => {
@@ -313,7 +313,7 @@ test('mode queue : pendant un tour, le message est mis en file puis dépilé', a
   assert.equal(bridge.sessions.get(zed.sessionId).queue.length, 1)
 
   await turn
-  // Fin de tour => la file part toute seule (spec §6.4).
+  // Fin de tour => la file part toute seule.
   await until(
     () => zed.updates.some((u) => u.content?.text === 'reçu : à la suite'),
     { label: 'dépilage' },
@@ -378,7 +378,7 @@ test('set_option : appliqué tout de suite au repos, différé pendant un tour',
   await until(() => bridge.sessions.get(zed.sessionId).turn === 'busy', { label: 'busy' })
   assert.deepEqual(await bridge.setOption(zed.sessionId, 'model', 'lent'), { deferred: true })
   await turn
-  // Retour au repos => l'option différée est appliquée (spec §6.5).
+  // Retour au repos => l'option différée est appliquée.
   await until(() => bridge.sessions.get(zed.sessionId).currentModelId === 'lent', { label: 'option différée' })
 })
 
@@ -403,7 +403,7 @@ test('config_option_update : la liste complète republiée par l’agent remplac
 })
 
 // ---------------------------------------------------------------------------
-// Permissions (spec §6.6)
+// Permissions
 // ---------------------------------------------------------------------------
 
 test('permission : le mobile répond à la place de Zed, qui n’a pas encore cliqué', async (t) => {
@@ -513,7 +513,7 @@ test('un agent sans loadSession est capté comme tel', async (t) => {
 })
 
 // ---------------------------------------------------------------------------
-// Enregistrement des trames (spec §10.3)
+// Enregistrement des trames
 // ---------------------------------------------------------------------------
 
 test('ZRA_RECORD : les trames des deux sens finissent dans un JSONL', async (t) => {

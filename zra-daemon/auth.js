@@ -1,4 +1,4 @@
-// Appairage des clients — spec §9.
+// Appairage des clients.
 //
 // Le daemon écoute le réseau local : tout ce qui est sur le même Wi-Fi voit son
 // port. Un client qui n'est pas la loopback doit donc être **appairé**, une

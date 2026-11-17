@@ -6,7 +6,7 @@
 {
   "port": 7777,
 
-  // Écoute — spec §9. Jamais 0.0.0.0 : la loopback, le réseau local et le
+  // Écoute. Jamais 0.0.0.0 : la loopback, le réseau local et le
   // tunnel éventuel, chacun sur son adresse. Hors loopback, appairage obligatoire.
   //
   // Réseau local (IPv4 privées) : le téléphone sur le même Wi-Fi, et à distance
@@ -47,17 +47,17 @@
   // Relu à chaud au renouvellement ; ses noms DNS deviennent des origines autorisées.
   "tls": null,
 
-  // Sources Zed. null => chemins par défaut de la machine (spec §2.1).
+  // Sources Zed. null => chemins par défaut de la machine.
   "zedDb": null,
   "zedSettings": null,
   "pollMs": 2000,
   "ringSize": 2000,
 
-  // Backend d'injection (spec §6) :
+  // Backend d'injection :
   //   "acp"   le shim émet lui-même le session/prompt — défaut, seul supporté
   //   "uia"   EXPÉRIMENTAL. Zed émet le prompt : ZRA le tape au clavier (exige zedControl)
   //   "auto"  EXPÉRIMENTAL. "acp", repli clavier si l'agent refuse le prompt
-  //   "mock"  backend bouchon, pour valider la chaîne sans agent (spec §10.6)
+  //   "mock"  backend bouchon, pour valider la chaîne sans agent
   "injection": "acp",
 
   // Pilotage de la fenêtre Zed au clavier : ouvrir une session depuis le « + »
@@ -101,7 +101,7 @@
   // sans avoir clos sa requête laisse le mobile en chargement pour toujours.
   "turnTimeoutMs": 600000,
 
-  // Cache du replay session/load (spec §5.2) et garde-fou de durée.
+  // Cache du replay session/load et garde-fou de durée.
   "historyTtlMs": 600000,
   "historyTimeoutMs": 60000
 }

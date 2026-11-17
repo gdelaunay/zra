@@ -1,4 +1,4 @@
-// De bout en bout : PWA ↔ daemon ↔ shim ↔ agent — spec §10.
+// De bout en bout : PWA ↔ daemon ↔ shim ↔ agent.
 //
 // Tout est réel sauf Zed et l'agent : un vrai daemon, un vrai WebSocket, un vrai
 // processus shim lancé comme Zed le lancerait, un agent bouchon en sous-processus.
@@ -30,7 +30,7 @@ const PORT = 7814
 const HOST = '127.0.0.1'
 const ORIGIN = 'https://zra.exemple.fr'
 
-/** Le `cwd` doit exister : relire un thread fermé y relance l'agent (spec §5.2). */
+/** Le `cwd` doit exister : relire un thread fermé y relance l'agent. */
 const CWD = ROOT
 const SESSION_VIVANT = 'lotb-session-0001'
 const VIVANT = '00000000000000000000000000000001'
@@ -418,7 +418,7 @@ test('écrire à un thread fermé échoue proprement (inject_failed)', async (t)
 })
 
 // ===========================================================================
-// Permissions (spec §6.6)
+// Permissions
 // ===========================================================================
 
 test('permission : le mobile tranche, permission_resolved by mobile', async (t) => {
@@ -486,7 +486,7 @@ test('permission : le poste tranche en premier, by desktop puis permission_expir
 })
 
 // ===========================================================================
-// Historique d'un thread fermé (spec §5.2)
+// Historique d'un thread fermé
 // ===========================================================================
 
 test('load_history rejoue la session fermée par session/load', async (t) => {

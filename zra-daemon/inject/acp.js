@@ -1,4 +1,4 @@
-// Backend d'injection `acp` — spec §6.1, backend par défaut.
+// Backend d'injection `acp`, backend par défaut.
 //
 // Le shim émet lui-même un `session/prompt` vers l'agent, comme s'il venait de
 // Zed : rapide, robuste, sans dépendance à l'état de la fenêtre.
@@ -9,7 +9,7 @@
 //
 // Ce backend ne décide de rien : il traduit un `threadId` en `session_id` et
 // transmet. La machine à états, la file d'attente et la course aux permissions
-// vivent dans le shim, seul à voir le trafic réel (spec §6.4).
+// vivent dans le shim, seul à voir le trafic réel.
 
 import { InjectionError } from './backend.js'
 
@@ -26,7 +26,7 @@ export class AcpBackend {
     this.name = 'acp'
     /**
      * Le daemon ne met rien en file : c'est le shim qui tient la file et le tour
-     * (spec §6.4). Le hub s'appuie sur ce drapeau pour ne pas doubler l'état.
+     *. Le hub s'appuie sur ce drapeau pour ne pas doubler l'état.
      */
     this.ownsQueue = true
   }

@@ -1,4 +1,4 @@
-// Ouvrir une session, rouvrir un thread — spec §6.3 et §6.7.
+// Ouvrir une session, rouvrir un thread.
 //
 // Le pilote (`driver.js`) sait taper dans Zed ; il ne sait pas si ça a marché.
 // La preuve vient d'ailleurs, et c'est tout l'intérêt de l'architecture : dès
@@ -10,7 +10,7 @@
 //   thread fermé → recette `openThread` → shim : `session/load` de ce
 //                 `session_id` → injection normale, une seule session
 //
-// Timeout 30 s dans les deux cas (spec §6.3, §6.7).
+// Timeout 30 s dans les deux cas.
 
 import { ZedControlError } from './driver.js'
 
@@ -91,7 +91,7 @@ export class ZedControl {
   }
 
   /**
-   * Ouvre une nouvelle session d'agent (spec §6.7) : dans le projet
+   * Ouvre une nouvelle session d'agent : dans le projet
    * `folderPaths` s'il est donné, sinon dans la fenêtre Zed active.
    * @returns {Promise<{ thread:object, cwd:string|null }>} le thread, tel que
    *          l'index le décrit, et le dossier où l'agent l'a réellement ouvert
@@ -179,7 +179,7 @@ export class ZedControl {
 
   /**
    * Rouvre un thread fermé dans Zed et attend que son agent l'ait rechargé
-   * (spec §6.3). Sans effet si le thread est déjà vivant.
+   *. Sans effet si le thread est déjà vivant.
    */
   reopen(thread) {
     return this.serial(async () => {

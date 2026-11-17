@@ -1,4 +1,4 @@
-// Pilotage de la fenêtre Zed — spec §6.2, §6.3, §6.7.
+// Pilotage de la fenêtre Zed.
 //
 // Zed n'expose rien à UI Automation (arbre vide, relevé sur la machine cible) :
 // on le pilote au clavier, par des **recettes** — suites de touches, de textes

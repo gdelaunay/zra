@@ -3,7 +3,7 @@
 Ce document est **suffisant pour écrire `zra-daemon` sans lire le code de la PWA**.
 Il décrit le seul point de contact entre les deux : un WebSocket JSON sur `:7777`.
 
-- `docs/spec.md` dit *pourquoi* et *comment* côté poste (shim, index SQLite, injection).
+- `docs/architecture.md` dit *pourquoi* et *comment* côté poste (shim, index SQLite, injection).
 - Ce document dit *quoi exactement* passe sur le fil, et ce que le front fait de
   chaque message.
 - Implémentation de référence exécutable : `zra-client/tools/mock-server.mjs` +
@@ -13,8 +13,7 @@ Il décrit le seul point de contact entre les deux : un WebSocket JSON sur `:777
 - Implémentation réelle : `zra-daemon/`, avec `zra-daemon/test/protocol.test.mjs`
   comme suite de conformité (§8).
 
-Statut : **v1**. Tout changement ici doit être répercuté dans `docs/spec.md` §7 et
-dans le bouchon.
+Statut : **v1**. Tout changement ici doit être répercuté dans le bouchon.
 
 ---
 
@@ -24,7 +23,7 @@ dans le bouchon.
 |---|---|
 | API | un seul WebSocket : `ws://<hôte>:7777/ws`, ou `wss://` si le daemon a un certificat |
 | Statiques | le daemon sert `zra-client/` tel quel sur `GET http://<hôte>:7777/` (`serveStatic: false` pour le servir ailleurs) |
-| Écoute | `127.0.0.1` + réseau local + tunnel éventuel, **jamais** `0.0.0.0` (§9 de la spec) |
+| Écoute | `127.0.0.1` + réseau local + tunnel éventuel, **jamais** `0.0.0.0` |
 | Origine | allowlist stricte sur le handshake ; une requête sans `Origin` est acceptée |
 | Auth | appairage hors loopback : `hello.token`, sinon `auth_required` puis `pair` (§3) |
 | Encodage | JSON UTF-8, une trame WebSocket texte = un message |
@@ -115,7 +114,7 @@ ou, pour un client hors loopback sans jeton valide, `auth_required`.
 ```ts
 { type: 'pair', code: string, label?: string }
 ```
-Appairage (spec §9) : `code` est celui que le daemon affiche (6 chiffres,
+Appairage : `code` est celui que le daemon affiche (6 chiffres,
 espaces tolérés), `label` nomme l'appareil (« Android · Chrome »). Réponse :
 `paired` puis le bootstrap, ou `error` `pair_failed` (code faux) /
 `pair_locked` (trop d'essais depuis cette adresse, le message dit quand
@@ -199,7 +198,7 @@ mobile n'est jamais envoyé par Stop. Si le tour est déjà `idle`, ne rien fair
 
 `turn: 'idle'` est dû **même si l'agent n'acquitte pas** le `session/cancel` : le
 tour est alors clos d'office et le notice dit ce qui s'est vraiment passé plutôt
-que « tour interrompu » (§5, spec §6.4). Sans ça, Stop afficherait une
+que « tour interrompu » (§5). Sans ça, Stop afficherait une
 interruption sur un chargement qui ne s'arrête jamais.
 
 ### `cancel_queued`
@@ -411,7 +410,7 @@ La PWA **remet la timeline à zéro** et rejoue tout, puis applique les
 D'où vient l'historique :
 
 - **thread fermé** : le replay de `session/load`, par une instance jetable de
-  l'agent (spec §5.2) ;
+  l'agent ;
 - **thread live** dont toute la session est passée par le daemon : le ring
   buffer lui-même. On ne relance pas l'agent sur une session que Zed tient
   ouverte. `complete: false` si le ring a évincé son début.
@@ -495,7 +494,7 @@ Un tour clos **sans** l'agent le dit aussi, avec la marche à suivre : « l'agen
 n'a pas acquitté l'interruption : tour clos. Rouvre le thread dans Zed pour
 relancer l'agent », « l'agent ne répond plus depuis 12 min : tour clos —
 2 message(s) en attente conservé(s). … ». Sans cet avis, le mobile ne verrait
-qu'un chargement qui s'arrête (spec §6.4).
+qu'un chargement qui s'arrête.
 
 ### `zra/permission_resolved`
 ```ts
@@ -515,8 +514,8 @@ Les deux sont idempotents.
 ## 6. Invariants attendus du daemon
 
 1. **Verbatim.** `acp_event.update` et `history.updates` sont les payloads de
-   l'agent, non réécrits. C'est la règle du §1 de la spec ; elle est ce qui rend
-   ZRA immune aux évolutions du protocole.
+   l'agent, non réécrits. C'est le principe de ZRA (`docs/architecture.md`), qui le rend
+   immune aux évolutions du protocole.
 2. **Ordre.** Les `acp_event` d'un thread arrivent dans l'ordre d'émission. Pas de
    garantie inter-threads.
 3. **Ring buffer.** 2000 événements par thread live, rejoués à `subscribe`
@@ -605,41 +604,6 @@ PWA n'est jamais envoyé par Stop.
 
 ## 8. Vérifier une implémentation
 
-Le bouchon et ses tests forment la suite de conformité :
-
-```bash
-npm run mock    # daemon bouchon : :7777 (DESK-ZED) + :7778 (LAPTOP-ZED)
-npm test        # toute la suite : PWA, daemon, shim — sans Zed ni vrai agent
-```
-
-Le **vrai** daemon a sa propre suite, écrite comme une check-list de ce document :
-
-```bash
-npm run daemon:dev                              # loopback seule, sans tunnel
-node --test zra-daemon/test/protocol.test.mjs   # conformité au docs/protocol.md
-node --test zra-daemon/test/e2e-shim.test.mjs      # la chaîne complète, avec shim
-```
-
-`zra-daemon/test/protocol.test.mjs` verrouille, message par message : bootstrap
-et son ordre, `subscribe`/`unsubscribe`, rejeu du ring buffer, file d'attente et
-dépilage, interruption sèche, `send` en mode `interrupt`, options différées
-pendant un tour, thread sans session, trames illisibles, diffusion aux seuls
-abonnés, allowlist d'`Origin`.
-
-`zra-daemon/test/e2e-shim.test.mjs` fait la même chose contre la chaîne réelle —
-daemon, vrai processus shim, agent ACP bouchon, faux Zed — et couvre ce que le
-bouchon seul ne peut pas prouver : `acp_event` verbatim venus de l'agent, file
-d'attente tenue par le shim, `history` par `session/load`, les trois issues
-d'une permission (`mobile`, `desktop`, `permission_expired`), et la perte du
-shim.
-
-Pour le piloter depuis la PWA : servir `zra-client/` (par le daemon en dev, ou
-par un hébergeur), puis ajouter l'adresse du poste dans Réglages → Postes, et
-vérifier dans l'ordre `machine` → `threads` → `thread_state` → `acp_event`.
-
-Côté bouchon, `zra-client/test/mock-daemon.test.mjs` couvre des cas difficiles à
-provoquer avec un vrai agent : historique, agent sans `loadSession`, perte du shim,
-permission acceptée/refusée, nouvelle session.
-
-Pendant la mise au point, `ZRA_RECORD=1` côté shim (§10.3) produit un JSONL de
-trames : c'est la matière première des fixtures de non-régression.
+- `zra-daemon/test/protocol.test.mjs` : check-list de ce document, message par message, contre le vrai daemon.
+- `zra-daemon/test/e2e-shim.test.mjs` : la chaîne réelle (daemon, shim, agent bouchon) — verbatim, file tenue par le shim, `session/load`, permissions, perte du shim.
+- `zra-client/test/mock-daemon.test.mjs` : le bouchon (`npm run mock`), pour les cas durs à provoquer avec un vrai agent.

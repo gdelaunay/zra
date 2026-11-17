@@ -1,4 +1,4 @@
-// Le pilotage de Zed (`zed/control.js`) — spec §6.3 et §6.7.
+// Le pilotage de Zed (`zed/control.js`).
 //
 // Le pilote tape ; le contrôle, lui, attend la **preuve** : un shim qui annonce
 // la session, une ligne qui apparaît dans l'index de Zed. Ces tests figent cette
@@ -106,7 +106,7 @@ test('enabled et canReopen suivent le pilote', () => {
 })
 
 // ---------------------------------------------------------------------------
-// new_thread — spec §6.7
+// new_thread
 // ---------------------------------------------------------------------------
 
 test('new_thread : la recette part, puis on attend la preuve du shim et de l’index', async () => {
@@ -379,7 +379,7 @@ test('une manœuvre en échec ne casse pas la chaîne', async () => {
 })
 
 // ---------------------------------------------------------------------------
-// reopen — spec §6.3
+// reopen
 // ---------------------------------------------------------------------------
 
 test('reopen sur un thread déjà vivant : rien à faire', async () => {

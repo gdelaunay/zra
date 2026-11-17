@@ -28,7 +28,7 @@ export function agentLabel(id) {
 }
 
 /**
- * Lit `agent_servers` dans le `settings.json` de Zed (spec §6.7).
+ * Lit `agent_servers` dans le `settings.json` de Zed.
  *
  * Le fichier est du JSONC : commentaires et virgules traînantes sont la norme
  * dans Zed, `JSON.parse` s'y casse les dents.

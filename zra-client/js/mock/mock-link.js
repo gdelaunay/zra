@@ -2,7 +2,7 @@
 //
 // Même interface que `DaemonLink` : le reste de l'app ne sait pas qu'elle
 // parle à un bouchon. Sert à développer et tester la PWA sans Zed, sans
-// daemon et sans agent (spec §10).
+// daemon et sans agent.
 
 import { emitter } from '../dom.js'
 import {

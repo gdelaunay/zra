@@ -1,4 +1,4 @@
-// Liaison shim → daemon — spec §3.1.
+// Liaison shim → daemon.
 //
 // **Fail-open, règle absolue.** Daemon injoignable, planté ou lent ⇒ le shim
 // reste un tuyau parfaitement transparent. Tout est donc non bloquant et

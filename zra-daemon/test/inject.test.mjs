@@ -1,4 +1,4 @@
-// Les backends d'injection (`inject/*.js`) — spec §6.1, §6.2 et §10.6.
+// Les backends d'injection (`inject/*.js`).
 //
 // Un seul point de commutation pour toute l'écriture du daemon : `acp` traduit
 // un thread en commande de shim, `uia` tape au clavier et attend la preuve du
@@ -120,7 +120,7 @@ test('InjectionError porte un code du protocole', () => {
 })
 
 // ---------------------------------------------------------------------------
-// acp — spec §6.1
+// acp
 // ---------------------------------------------------------------------------
 
 test('acp : chaque méthode devient une commande de shim, sur la session du thread', async () => {
@@ -205,7 +205,7 @@ test('acp : la réponse du shim remonte à l’appelant', async () => {
 })
 
 // ---------------------------------------------------------------------------
-// uia — spec §6.2
+// uia
 // ---------------------------------------------------------------------------
 
 test('uia : focus, frappe, puis la preuve du shim (tour busy)', async () => {
@@ -357,7 +357,7 @@ test('auto : le reste des commandes suit l’acp', async () => {
 })
 
 // ---------------------------------------------------------------------------
-// mock — spec §10.6
+// mock
 // ---------------------------------------------------------------------------
 
 test('mock : un envoi fait passer le tour busy, puis rend la main après le délai', async () => {

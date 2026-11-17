@@ -1,4 +1,4 @@
-// Résolution des adresses d'écoute — spec §9.
+// Résolution des adresses d'écoute.
 //
 // Le daemon écoute sur trois sortes d'adresses, jamais sur `0.0.0.0` :
 //
@@ -134,7 +134,7 @@ export function bindAddresses(cfg, tunnel, lan = []) {
   for (const i of lan) add(i.address)
   if (tunnel) add(tunnel.address)
   for (const a of addresses) {
-    if (WILDCARD.has(a)) throw new Error(`écoute sur ${a || '(vide)'} interdite (spec §9)`)
+    if (WILDCARD.has(a)) throw new Error(`écoute sur ${a || '(vide)'} interdite`)
   }
   return addresses
 }

@@ -1,4 +1,4 @@
-// Côté daemon de la liaison avec les shims — spec §3.2.
+// Côté daemon de la liaison avec les shims.
 //
 // Un shim est lancé par Zed pour un agent ; il se connecte ici en local et
 // devient la source de vérité de tout ce qui est *vivant* : les `session/update`
@@ -99,7 +99,7 @@ export class ShimHost extends EventEmitter {
     log.info(`shim ${entry.shimId} déconnecté (${sessions.length} session(s))`)
 
     // Le shim meurt (Zed fermé) ⇒ la file est perdue, et le mobile doit
-    // l'apprendre explicitement plutôt que de voir une file figée (spec §6.4).
+    // l'apprendre explicitement plutôt que de voir une file figée.
     for (const sessionId of sessions) {
       this.whole.delete(sessionId)
       this.parked.delete(sessionId)

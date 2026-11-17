@@ -1,4 +1,4 @@
-// Machine à états d'une session ACP — spec §6.4.
+// Machine à états d'une session ACP.
 //
 //   idle ──prompt──► busy ──réponse finale──► idle
 //           ▲                    │
@@ -29,7 +29,7 @@ export class SessionState {
     this.pendingPrompts = new Set()
     /** @type {QueueEntry[]} */
     this.queue = []
-    /** Options demandées pendant un tour, appliquées au retour à `idle` (spec §6.5). */
+    /** Options demandées pendant un tour, appliquées au retour à `idle`. */
     this.pendingOptions = []
     this.modes = null
     this.models = null

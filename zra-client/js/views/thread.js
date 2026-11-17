@@ -84,7 +84,7 @@ export function ThreadView({ key, navigate }) {
     onStop: stopTurn,
   })
 
-  /** Zed est en train de rouvrir ce thread (spec §6.3) : `null`, ou l'instant de la demande. */
+  /** Zed est en train de rouvrir ce thread : `null`, ou l'instant de la demande. */
   let reopening = null
   let reopenTimer = null
   function startReopen() {
@@ -603,7 +603,7 @@ function Composer({ key, onSend, onStop }) {
     enterkeyhint: 'send',
     autocapitalize: 'sentences',
     oninput: () => { autoGrow(); store.setDraft(key, input.value) },
-    // Entrée envoie ; Maj+Entrée et Ctrl+Entrée sautent une ligne (SPEC §8).
+    // Entrée envoie ; Maj+Entrée et Ctrl+Entrée sautent une ligne.
     // Pendant une composition (IME, accents morts), Entrée appartient à la saisie.
     onkeydown: (ev) => {
       if (ev.key !== 'Enter' || ev.isComposing) return

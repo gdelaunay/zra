@@ -1,4 +1,4 @@
-// Découpage des trames JSON-RPC d'ACP — spec §3.1.
+// Découpage des trames JSON-RPC d'ACP.
 //
 // L'ACP sur stdio est du JSON Lines : une trame = une ligne. Ce module ne fait
 // que **découper**, jamais réécrire : chaque trame sortante est la tranche

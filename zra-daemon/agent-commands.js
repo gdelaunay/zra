@@ -1,4 +1,4 @@
-// Comment lancer un agent ACP — spec §2.2 et §5.2.
+// Comment lancer un agent ACP.
 //
 // Deux besoins, une seule résolution :
 //  · le **shim** doit savoir quel binaire il enveloppe ;

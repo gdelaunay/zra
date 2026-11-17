@@ -1,4 +1,4 @@
-// La machine à états du shim (`queue.js`) — spec §6.4, prise directement.
+// La machine à états du shim (`queue.js`), prise directement.
 //
 // Le shim est le seul à voir le trafic réel : le tour est donc déduit des
 // requêtes `session/prompt` en vol, la file vit ici, et un agent muet doit
@@ -309,7 +309,7 @@ test('la file survit à une clôture d’office et reste annulable', () => {
 })
 
 // ---------------------------------------------------------------------------
-// Options différées (spec §6.5)
+// Options différées
 // ---------------------------------------------------------------------------
 
 test('deferOption/takeOptions : l’ordre est conservé, et la prise vide la liste', () => {

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Agent ACP bouchon — spec §10.1.
+// Agent ACP bouchon.
 //
 // Parle l'ACP réel sur stdio (celui du schéma `@agentclientprotocol/sdk` relevé
 // sur la machine cible) et joue des scénarios scriptés : texte streamé, tool
@@ -243,7 +243,7 @@ async function handle(msg) {
       const session = sessions.get(sessionId)
         ?? newSession(sessionId, params.cwd)
       sessions.set(sessionId, session)
-      // Replay : mêmes `session/update` que le live (spec §2.3).
+      // Replay : mêmes `session/update` que le live.
       update(sessionId, { sessionUpdate: 'user_message_chunk', content: { type: 'text', text: 'question archivée' } })
       update(sessionId, { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'réponse archivée' } })
       return reply(id, { modes: modesOf(session), configOptions: configOf(session) })

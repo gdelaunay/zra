@@ -157,7 +157,7 @@ export async function startDaemon(config) {
     emit: (threadId, update) => hub.publish(threadId, update),
   })
 
-  // Appairage : tout client hors loopback présente un jeton (spec §9).
+  // Appairage : tout client hors loopback présente un jeton.
   const pairing = config.auth.required ? new Pairing({ file: config.auth.file, log: logger('auth') }) : null
 
   hub = new Hub({

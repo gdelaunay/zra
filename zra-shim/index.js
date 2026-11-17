@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// zra-shim — lancé par Zed à la place de l'agent, un par agent (spec §3.1).
+// zra-shim — lancé par Zed à la place de l'agent, un par agent.
 //
 //   "agent_servers": {
 //     "claude-zra": { "type": "custom", "command": "node",
@@ -39,7 +39,7 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 
 /**
  * Assemble un shim autour de deux paires de flux. Exporté pour que les tests
- * le montent en process, entre un faux Zed et un faux agent (spec §10.1/§10.2).
+ * le montent en process, entre un faux Zed et un faux agent.
  *
  * @param {{
  *   zedIn: NodeJS.ReadableStream, zedOut: NodeJS.WritableStream,
@@ -58,7 +58,7 @@ export function createShim({
   // Fail-open jusqu'au bout : une erreur *asynchrone* d'écriture (EPIPE vers un
   // Zed qui a fermé, agent mort sous Linux) n'est vue par aucun try/catch —
   // sans écouteur 'error', elle tue le shim en code 1 au lieu du code de
-  // l'agent (SPEC §3.1). Même règle que record.js/log.js/daemon-link.js.
+  // l'agent (fail-open). Même règle que record.js/log.js/daemon-link.js.
   if (typeof zedOut.on === 'function') {
     zedOut.on('error', (err) => log.warn('écriture vers Zed impossible :', err.message))
   }

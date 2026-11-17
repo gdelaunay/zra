@@ -1,6 +1,6 @@
 // Réduction du flux ACP en une timeline affichable.
 //
-// Règle du §1 de la spec : on ne réinterprète rien. Un `sessionUpdate` inconnu
+// Principe de ZRA : on ne réinterprète rien. Un `sessionUpdate` inconnu
 // devient une entrée `raw` repliée — jamais une erreur, jamais une perte.
 
 let uid = 0

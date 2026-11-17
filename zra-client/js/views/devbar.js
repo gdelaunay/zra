@@ -1,5 +1,5 @@
 // Barre de déclencheurs du mode mock. N'existe que quand le daemon est simulé :
-// elle permet de provoquer à la main les cas que la spec demande de tester (§10).
+// elle permet de provoquer à la main les cas à vérifier.
 
 import { h, button } from '../dom.js'
 import { icon } from '../icons.js'

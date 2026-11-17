@@ -134,7 +134,7 @@ function resync(machine) {
 
 function handle(machine, msg) {
   switch (msg.type) {
-    // Appairage (spec §9) : le poste ne répond qu'à un appareil appairé.
+    // Appairage : le poste ne répond qu'à un appareil appairé.
     case 'auth_required':
       // Jeton refusé (révoqué, poste réinstallé) : il ne sert plus à rien.
       if (tokenFor(machine.url)) setToken(machine.url, null)
@@ -469,7 +469,7 @@ export function respondPermission(k, requestId, option) {
   const tl = ensureTimeline(k)
   // Encart déjà tranché, ou réponse déjà en vol : muet. Le second appui ne doit
   // pas renvoyer une écriture que le daemon refuserait en `permission_expired`
-  // (spec §6.6) — l'encart verrouillé de `views/entry.js` y veille aussi, mais
+  // — l'encart verrouillé de `views/entry.js` y veille aussi, mais
   // c'est ici que l'écriture part.
   const asked = tl.entries.find((e) => e.type === 'permission' && e.requestId === requestId)
   if (asked?.resolved || asked?.pendingOptionId) return

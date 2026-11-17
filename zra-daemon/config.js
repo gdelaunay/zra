@@ -30,7 +30,7 @@ export const DEFAULTS = {
   /** Port unique : statiques (si activées) + WebSocket `/ws`. */
   port: 7777,
 
-  // --- écoute (spec §9) -----------------------------------------------------
+  // --- écoute -----------------------------------------------------
   /** Nom de l'adaptateur WireGuard, ex. "ZRA". `null` => détection par motif. */
   bindInterface: null,
   /** Repli de détection par plage, ex. "10.0.0.0/24". */
@@ -78,7 +78,7 @@ export const DEFAULTS = {
   tls: null,
 
   /**
-   * Appairage (spec §9) : hors loopback, un client présente un jeton obtenu une
+   * Appairage : hors loopback, un client présente un jeton obtenu une
    * fois contre le code affiché par le daemon. `file` : les clients appairés
    * (jetons hachés). `required: false` ouvre tout — dev isolé seulement.
    */
@@ -93,23 +93,23 @@ export const DEFAULTS = {
   zedSettings: null,
   /** `null` => à côté de `zedSettings`. Porte les raccourcis « nouveau thread » de ZRA. */
   zedKeymap: null,
-  /** Poll de l'index des threads (spec §3.2). */
+  /** Poll de l'index des threads. */
   pollMs: 2000,
   /** Poll de présence de Zed. */
   zedProbeMs: 5000,
-  /** Ring buffer par thread live (spec §5.1). */
+  /** Ring buffer par thread live. */
   ringSize: 2000,
 
   /**
-   * Backend d'injection (spec §6) : `acp` (défaut), `uia` (clavier), `auto`
+   * Backend d'injection : `acp` (défaut), `uia` (clavier), `auto`
    * (`acp`, repli clavier sur refus de l'agent), `mock` (bouchon).
    */
   injection: 'acp',
-  /** Délai d'attente du verdict de l'agent, ou de Zed, après un envoi (spec §6.2). */
+  /** Délai d'attente du verdict de l'agent, ou de Zed, après un envoi. */
   injectConfirmMs: 5000,
 
   /**
-   * Pilotage de la fenêtre Zed au clavier — ouvrir une session (spec §6.7),
+   * Pilotage de la fenêtre Zed au clavier — ouvrir une session,
    * rouvrir un thread fermé (§6.3), backend `uia`. **Activé par défaut**
    * (décision : le « + » et la réouverture en dépendent) ; le daemon avertit
    * au démarrage que des frappes réelles seront envoyées. `false` pour tout
@@ -150,16 +150,16 @@ export const DEFAULTS = {
 
   /**
    * Comment lancer un agent, quand le registry de Zed ne suffit pas à le dire
-   * (spec §2.2) : `{ "<agent_id>": { "command": …, "args": [], "env": {} } }`.
+   * : `{ "<agent_id>": { "command": …, "args": [], "env": {} } }`.
    * Sert au shim comme au relecteur de threads fermés.
    */
   agentCommands: {},
-  /** Cache du replay `session/load` (spec §5.2). */
+  /** Cache du replay `session/load`. */
   historyTtlMs: 10 * 60_000,
   /** Garde-fou : un agent qui ne rend jamais la main ne bloque pas le daemon. */
   historyTimeoutMs: 60_000,
 
-  /** Journal d'injections (spec §9). Dossier de ZRA : `%LOCALAPPDATA%\zra` en Windows, `$XDG_STATE_HOME/zra` ailleurs. */
+  /** Journal d'injections. Dossier de ZRA : `%LOCALAPPDATA%\zra` en Windows, `$XDG_STATE_HOME/zra` ailleurs. */
   logFile: PATHS.injectionLog,
   /** Journal du daemon sur disque, en plus de la console (`--log`). `null` : console seule. */
   daemonLogFile: null,

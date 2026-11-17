@@ -31,9 +31,7 @@ d'origine, sans shim (`not_zra_thread`). La PWA le signale (cadenas à la place
 de la pastille, bandeau dans le thread). Piste : « Tous les threads par le
 shim » ci-dessous — à faire avant la 0.5.
 
------
-
-# Roadmap / Idées d'architecture
+---
 
 ## Avant la 0.5 — utile rapidement
 
@@ -48,7 +46,7 @@ shim » ci-dessous — à faire avant la 0.5.
   ressource ACP, ou chemin en texte). Faisabilité à vérifier ;
 - **notifications push** quand une réponse arrive sur un thread (Web Push).
   L'architecture est prévue mais inactive : `sw.js` gère déjà `push` et
-  `notificationclick` (`docs/spec.md`, `docs/client.md`). Exige le HTTPS.
+  `notificationclick` (`docs/client.md`). Exige le HTTPS.
 
 
 ## Tray natif — `zra-tray` (décidé, **jalon 0.5**)
@@ -123,7 +121,7 @@ Ce que ça règle d'un coup :
 
 ### Distribution : trajectoire A → C
 
-- **Maintenant (MVP, donc jalon 0.5) — le tray seul** : `npm run setup` télécharge le binaire
+- **MVP (0.5) — le tray seul** : `npm run setup` télécharge le binaire
   prébuild (GitHub Releases) dans `.zra/bin/` ; il pilote le daemon du repo
   cloné. Flux dev inchangé, versions tray/daemon cohérentes (même repo).
 - **Cible — l'archive « app » par plateforme** (option C) :
@@ -145,27 +143,21 @@ Ce que ça règle d'un coup :
   d'un runtime est écarté aussi : pas de magie. À l'onboarding, le tray
   détecte Node ≥ 24 ; s'il manque, écran clair « Node 24 requis » avec lien
   vers nodejs.org, et c'est tout. Le chemin **absolu** de `node` est figé au
-  setup (Zed lance le shim avec son propre environnement ; l'autostart a un
-  PATH appauvri — bug systemd déjà vu). Si ZRA visait un jour un public sans
-  Zed, l'embarquement serait à reconsidérer — le conteneur serait alors sans
-  doute la bonne réponse plutôt que l'embarquement dans le tray.
+  setup (Zed et l'autostart lancent avec un PATH appauvri).
 - Écarté : tirer le repo git à l'installation (git requis, fragile hors-ligne,
   découplage des versions). Artefacts versionnés uniquement.
 
 ### Ordre
 
-1. ~~Merger `linux` dans `main`~~ (fait — le tray s'appuie sur l'autostart XDG
-   et `platform.js`) ;
-2. MVP Windows : event loop tao + tray-icon, spawn/supervision de node, menu
+1. MVP Windows : event loop tao + tray-icon, spawn/supervision de node, menu
    minimal (état, ouvrir ZRA, copier code, logs, quitter). `npm run service`
    installe la tâche planifiée qui lance le tray → la fenêtre PowerShell meurt ;
-3. Linux : même binaire, `.desktop` autostart → tray, vérification sur les
-   postes Linux vérifiés (Ubuntu 24.04 / GNOME / Wayland,
-   MX Linux 23 / Xfce / X11, Debian 13 / KDE / X11) ;
-4. CI releases + téléchargement au `setup` ;
-5. Sucre : icône qui change d'état (thread live / réponse en attente) — les
+2. Linux : même binaire, `.desktop` autostart → tray, vérifié sur les trois
+   postes Linux de référence ;
+3. CI releases + téléchargement au `setup` ;
+4. Sucre : icône qui change d'état (thread live / réponse en attente) — les
    événements existent déjà dans le daemon ;
-6. Option C : l'archive « app » par plateforme (onboarding au premier
+5. Option C : l'archive « app » par plateforme (onboarding au premier
    lancement avec détection Node ≥ 24 — écran « Node requis » + lien s'il
    manque — et updates).
 
@@ -200,9 +192,6 @@ statiques et relaie `wss://zra.exemple.fr/to/<ip>/ws` vers
 - l'appairage reste de bout en bout, entre la PWA et le daemon : le relais ne
   voit passer que des trames.
 
-(Idée écrite comme « premier pas vers le broker » — elle reste pleinement
-valable sans broker : une seule config HTTPS pour tous les postes.)
-
 ## Tailscale : réseau et HTTPS sans configuration
 
 Joindre un poste hors du réseau local demande aujourd'hui WireGuard, un
@@ -215,15 +204,10 @@ défaut** (décision).
 
 ## Homelab — la réponse retenue au problème central
 
-Le broker étant archivé, c'est **la** réponse au problème du
-desktop éveillé, plus une « Version 1 » en attendant une V2. À formaliser en
-doc avant la 0.5 (si possible — pas obligatoire).
-
-L'audience cible = les gens qui ont déjà un homelab. Le "probleme" du desktop awake se contourne ainsi :
+La réponse au problème du poste qui doit rester allumé. À formaliser en doc
+avant la 0.5 (si possible). Public visé : ceux qui ont déjà un homelab.
 
 - PWA hostée sur le homelab (Nginx/Caddy + HTTPS)
 - Homelab peut **wake** le desktop via Wake-on-LAN
 - Desktop au réveil : daemon systemd → lance Zed → shim enregistre les agents
 - Accès via WireGuard (LAN virtualisé, pas d'exposition publique)
-
-Ça marche chez moi. C'est pas universel, mais c'est exactement le profil des gens qui veulent ça.

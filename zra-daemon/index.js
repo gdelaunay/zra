@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// zra-daemon — un par poste, long-running (spec §3.2).
+// zra-daemon — un par poste, long-running.
 //
 //   node zra-daemon/index.js
 //   node zra-daemon/index.js --port 7777 --loopback-only --no-static --injection mock
@@ -58,7 +58,7 @@ function usage() {
   --origin <url>       origine autorisée à ouvrir le WebSocket (répétable)
   --zed-db <chemin>    base sidebar_threads à lire
   --injection <mode>   acp (défaut), uia (clavier), auto (acp, repli clavier)
-                       ou mock (backend bouchon, spec §10.6)
+                       ou mock (backend bouchon)
   --zed-control        active le pilotage clavier de Zed (zedControl.enabled)
   --zed-control-dry-run  l'active en simulation : recettes résolues, aucune touche
   --verbose            journal détaillé

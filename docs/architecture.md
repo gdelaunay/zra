@@ -2,7 +2,13 @@
 
 ZRA (Zed Remote Agent) permet de suivre et de piloter depuis un téléphone les threads d'agents ACP ouverts dans l'éditeur Zed : liste des threads, flux en direct, envoi de messages, réponses aux permissions, ouverture d'une session.
 
-Ce document donne la carte. Le détail est ailleurs : `docs/spec.md` (spécification et décisions), `docs/protocol.md` (protocole PWA ↔ daemon), `docs/deploy.md` (mise en service).
+Le détail est ailleurs : `docs/protocol.md` (protocole PWA ↔ daemon), `docs/deploy.md` (mise en service), `docs/daemon.md`, `docs/shim.md`, `docs/client.md` (un composant chacun).
+
+## Principe
+
+ZRA relaie tel quel ce qui passe entre Zed et l'agent, et y ajoute ce qui vient du mobile. Tout ce que Zed sait afficher, la PWA peut l'afficher : aucun adaptateur par agent, aucun format propriétaire lu, aucun diff calculé côté ZRA (diffs, terminaux et statuts sont déjà dans ACP). Le shim est **fail-open** : daemon absent ou lent, il reste un tuyau transparent ; ZRA ne doit jamais casser Zed.
+
+Hors périmètre : remplacer le panneau de Zed sur desktop, éditer du code sur mobile, faire tourner un agent sans Zed.
 
 ## Vue d'ensemble
 
@@ -69,6 +75,31 @@ flowchart LR
 
 Backends d'injection (`zra-daemon/inject/`) : `acp` (défaut et seul supporté, le shim émet le prompt), `uia` et `auto` (expérimentaux : le texte est tapé au clavier dans Zed), `mock` (bouchon de test).
 
+## Faits établis sur Zed
+
+Relevés sur les postes, pas déduits de la doc de Zed.
+
+- **Index des threads** : table `sidebar_threads` de `db/0-stable/db.sqlite`, ouverte en lecture seule (`?mode=ro`, fichier en WAL, Zed écrit en parallèle). Pour un agent ACP, Zed n'y garde que des métadonnées : le contenu appartient à l'agent, d'où `session/load` comme seule voie vers l'historique. `threads/threads.db` est l'ancien agent natif, ignoré.
+- **Agents** : Zed lance l'agent en sous-processus et lui parle JSON-RPC sur stdio. Les agents du registry (`"type": "registry"`) n'ont pas de commande dans `settings.json` : Zed les installe sous `external_agents/registry`, où `agent-commands.js` les retrouve sans rien télécharger.
+- **Fenêtre** : Zed dessine son interface (GPUI), son arbre UI Automation est vide. D'où le pilotage au clavier.
+
+| | Windows | Linux |
+|---|---|---|
+| Index des threads | `%LOCALAPPDATA%\Zed\db\0-stable\db.sqlite` | `~/.local/share/zed/db/0-stable/db.sqlite` |
+| `settings.json`, `keymap.json` | `%APPDATA%\Zed\` | `~/.config/zed/` |
+| Agents installés | `%LOCALAPPDATA%\Zed\external_agents\registry` | `~/.local/share/zed/external_agents/registry` |
+| Processus | `zed.exe` | `zed-editor` |
+
+États d'un thread : **live** (un shim tient sa session : flux temps réel, écriture directe), **fermé** (dans l'index, sans shim : historique par `session/load`, écriture après réouverture dans Zed), **inconnu** (`session_id` nul : affiché grisé, jamais masqué).
+
+## Comportements
+
+- **File et interruption** : le tour (`idle`/`busy`) et la file vivent dans le shim, seul à voir le trafic réel. Un message pendant un tour part en file ; Stop envoie `session/cancel`, puis la file repart. Un tour est clos d'office si l'agent n'acquitte pas une interruption en 5 s ou reste muet `turnTimeoutMs` (10 min) ; la file n'est alors pas dépilée.
+- **Options** (mode, modèle, autres `configOptions`) : jamais en plein tour, appliquées au retour à `idle`.
+- **Permissions** : le premier qui répond (Zed ou mobile) gagne. Le shim répond à l'agent à la place de Zed et avale la réponse tardive de Zed.
+- **Thread fermé** : relu par une instance de l'agent lancée pour l'occasion (`session/load`, cache 10 min). Pour y écrire, le daemon le rouvre dans Zed au clavier, attend son shim (30 s), puis injecte : une seule session, aucune divergence. Un thread d'agent non enveloppé par ZRA est refusé (`not_zra_thread`).
+- **Nouvelle session** : le **+** d'un projet ouvre ce projet par la CLI de Zed, puis joue dans sa fenêtre la touche « nouveau thread » de l'agent (`keymap.json`). Le premier `session_id` neuf annoncé par un shim devient `thread_created` (30 s).
+
 ## Sécurité : où sont les contrôles
 
 - Écoute : loopback, IPv4 privées du poste (hors réseaux marqués « Public » sous Windows), interface de tunnel reconnue. Jamais `0.0.0.0` (`zra-daemon/net.js`).
@@ -124,10 +155,25 @@ Tranchées, à ne pas rediscuter sans fait nouveau :
 - **Appairage** : code à usage unique, verrouillé après 10 échecs tous appareils confondus ; `npm run pair` le rouvre.
 - **Connexions non appairées** : plafonnées (8 par IP, 64 au total, coupure à 120 s, 64 Ko de tampon).
 - **`zedControl.enabled`** : `true` par défaut (le « + » et la réouverture en dépendent), avertissement au démarrage ; `false` reste possible.
+- **Stack** : JavaScript ESM + JSDoc, Node ≥ 24, zéro build, zéro dépendance runtime.
+- **Historique** : `session/load`, jamais de lecture d'un format propriétaire d'agent.
 - **Injection** : `acp` seul supporté ; `uia`, `auto` et `wireguard` gardés comme expérimentaux.
 - **Enregistrement des trames** : désactivé par défaut, `npm run setup -- install --record` pour le débogage.
 - **Flatpak / Snap** : non supportés (`docs/limitations.md`).
 - **`-ExecutionPolicy Bypass`** : conservé, limité au processus lancé (`docs/deploy.md` §5).
+
+## Vérifier une machine
+
+Sur un nouveau poste, après une mise à jour de Zed ou avec un nouvel agent. Dans l'ordre ; en cas de souci, lire d'abord `.zra/logs/shim.log`.
+
+1. `npm test` vert ; `npm run probe:agent <agent>` fait la poignée de main avec le vrai agent à travers le shim.
+2. `npm run setup install apply`, puis `npm run setup` : entrées ZRA, agents résolus, touches dans la keymap.
+3. Dans Zed, un thread avec l'entrée ZRA se comporte comme avec l'agent d'origine.
+4. `npm run daemon:dev` : le thread est **live** sur `http://localhost:7777`, un prompt envoyé depuis Zed y streame.
+5. Un message envoyé depuis la PWA part, s'affiche des deux côtés ; un thread fermé s'ouvre avec son historique.
+6. Dans un thread live : file pendant un tour, Stop, mode et modèle, permission tranchée depuis la PWA puis depuis Zed.
+7. Pilotage de Zed : `npm run zed -- probe`, le **+** d'un projet, la réouverture d'un thread fermé (`npm run zed -- try <recette>` pour mettre au point).
+8. Téléphone (`docs/deploy.md`) : appairage, révocation, tunnel, changement de réseau, service, HTTPS.
 
 ## Par où commencer
 

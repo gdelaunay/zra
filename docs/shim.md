@@ -1,6 +1,6 @@
 # zra-shim
 
-Proxy stdio transparent entre Zed et un agent ACP (`docs/spec.md` §3.1). Zed le lance
+Proxy stdio transparent entre Zed et un agent ACP. Zed le lance
 à la place de l'agent ; il relaie les octets dans les deux sens, en observe une
 copie, et parle au daemon local.
 
@@ -27,7 +27,7 @@ Elles sont locales, assumées, et toutes deux dans `acp.js` :
 
 | Trame avalée | Pourquoi |
 |---|---|
-| la réponse **tardive** de Zed à une permission déjà tranchée depuis le mobile | deux réponses pour le même `id` JSON-RPC embrouilleraient l'agent (spec §6.6) |
+| la réponse **tardive** de Zed à une permission déjà tranchée depuis le mobile | deux réponses pour le même `id` JSON-RPC embrouilleraient l'agent |
 | les réponses de l'agent aux requêtes **injectées par ZRA** (`id` en `zra-N`) | Zed ne les a jamais émises ; elles ne le concernent pas |
 
 L'espace d'`id` `zra-N` est textuel : collision impossible avec la numérotation
@@ -43,7 +43,7 @@ de Zed, même si elle utilise les mêmes entiers.
 | `acp.js` | tout ce que le shim *comprend* : sessions, tour, permissions, terminaux, injection |
 | `queue.js` | machine à états tour / file d'attente / options par session |
 | `daemon-link.js` | lien local vers le daemon, best-effort, backoff, tampon borné |
-| `record.js` | `ZRA_RECORD=1` — toutes les trames en JSONL (spec §10.3) |
+| `record.js` | `ZRA_RECORD=1` — toutes les trames en JSONL |
 | `log.js` | journal, **stderr uniquement** |
 
 ## Le brancher dans Zed
@@ -112,11 +112,11 @@ npm run probe:agent claude-acp    # contre le vrai agent, sans ouvrir de session
 `probe:agent` lance l'agent réel à travers le shim et ne fait qu'un
 `initialize` : la résolution de la commande, la transparence de la poignée de
 main et les capacités annoncées (dont `loadSession`) en un seul coup d'œil.
-C'est la première étape de la vérification d'une machine (`docs/spec.md` §12).
+C'est la première étape de la vérification d'une machine (`docs/architecture.md`, « Vérifier une machine »).
 
-Le shim est monté entre un faux Zed (`test/fake-zed.mjs`, spec §10.2) et un
-agent ACP bouchon (`test/fake-agent.mjs`, spec §10.1) qui parle le vrai
+Le shim est monté entre un faux Zed (`test/fake-zed.mjs`) et un
+agent ACP bouchon (`test/fake-agent.mjs`) qui parle le vrai
 protocole sur stdio et joue des scénarios scriptés — texte streamé, diff,
 terminal, permission, tour long annulable, agent muet (`muet: …` : il accepte le
 prompt puis se tait, et n'acquitte jamais `session/cancel` — la panne qui a fait
-naître la clôture d'office, spec §6.4).
+naître la clôture d'office).

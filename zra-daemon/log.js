@@ -1,4 +1,4 @@
-// Journalisation : console lisible + journal d'injections (spec §9).
+// Journalisation : console lisible + journal d'injections.
 
 import { appendFile, mkdir, rename, stat } from 'node:fs/promises'
 import { appendFileSync, mkdirSync, renameSync, statSync } from 'node:fs'
@@ -86,7 +86,7 @@ export function logger(scope) {
 }
 
 /**
- * Journal d'injections — spec §9 : toute écriture venue du mobile est tracée.
+ * Journal d'injections : toute écriture venue du mobile est tracée.
  * Best-effort : une erreur d'écriture ne doit jamais interrompre le service.
  * Rotation à `maxBytes` : une génération précédente (`.1`), pas de croissance
  * sans limite (audit B3).

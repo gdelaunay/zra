@@ -1,11 +1,11 @@
-// Client bouchon jouant le rôle de Zed face au shim — spec §10.2.
+// Client bouchon jouant le rôle de Zed face au shim.
 //
 // Il fait ce que Zed fait : `initialize`, `session/new`, `session/prompt`, et il
 // répond aux requêtes de l'agent (permissions, terminaux). Les tests s'en
 // servent pour deux choses :
 //
 //  · vérifier la **transparence** du proxy — ce que Zed reçoit doit être, octet
-//    pour octet, ce que l'agent a émis (spec §10.5) ;
+//    pour octet, ce que l'agent a émis ;
 //  · jouer la **course** aux permissions : `answerPermission: null` fait un Zed
 //    qui n'a pas encore cliqué, et le mobile peut gagner.
 
@@ -62,7 +62,7 @@ export class FakeZed {
       if (msg.method === 'session/request_permission') {
         this.permissions.push(msg)
         // Un Zed qui n'a pas encore cliqué ne répond pas : c'est la situation
-        // dans laquelle le mobile peut gagner la course (spec §6.6).
+        // dans laquelle le mobile peut gagner la course.
         if (this.answerPermission === null) return
         const answer = () => this.send({
           jsonrpc: '2.0', id: msg.id,

@@ -300,7 +300,7 @@ function permissionCard(entry, ctx) {
       class: REJECT.test(o.kind || '') ? 'btn--danger' : 'btn--accent',
       // Verrouillé = plus personne ne répond, l'option choisie comprise : un
       // second appui renverrait une écriture que le daemon refuserait en
-      // `permission_expired` (spec §6.6). La coche/le spinner disent le verdict.
+      // `permission_expired`. La coche/le spinner disent le verdict.
       disabled: locked,
       title: ctx.canRespond ? '' : 'thread injoignable : à traiter sur le poste',
       onclick: () => ctx.onPermission?.(entry, o),

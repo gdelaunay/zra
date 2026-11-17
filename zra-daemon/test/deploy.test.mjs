@@ -74,7 +74,7 @@ function reachable(host, { scheme = 'ws', origin } = {}) {
 // Le tunnel
 // ===========================================================================
 
-test('sans tunnel ni --wait-tunnel : refus de démarrer (spec §9)', async () => {
+test('sans tunnel ni --wait-tunnel : refus de démarrer', async () => {
   const config = await loadConfig({
     overrides: { port: PORT, zedDb: FIXTURE, logFile: null, requireTunnel: true, bindLan: false, interfaces: () => [] },
   })

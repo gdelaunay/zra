@@ -363,7 +363,7 @@ test('thread-state : snapshot conforme au protocole §4', () => {
   assert.equal(rich.currentModeId, 'ask')
 })
 
-test('thread-state : file perdue signalée explicitement (spec §6.4)', () => {
+test('thread-state : file perdue signalée explicitement', () => {
   const states = new ThreadStates()
   states.enqueue('t1', 'en attente')
   assert.equal(states.clearQueue('t1').length, 1)
@@ -400,7 +400,7 @@ test('agentLabel : identifiants Zed rendus lisibles', () => {
 // Lot B — briques ajoutées par la plomberie ACP
 // ===========================================================================
 
-test('isLoopback : le canal des shims ne s’ouvre qu’au poste local (spec §9)', () => {
+test('isLoopback : le canal des shims ne s’ouvre qu’au poste local', () => {
   assert.ok(isLoopback('127.0.0.1'))
   assert.ok(isLoopback('::1'))
   // Node rend souvent les adresses IPv4 mappées en IPv6.

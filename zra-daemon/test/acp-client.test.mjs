@@ -1,4 +1,4 @@
-// Le daemon en client ACP (`acp-client.js`) — spec §5.2.
+// Le daemon en client ACP (`acp-client.js`).
 //
 // Client minimal et jetable : il ne sait qu'`initialize` et `session/load`, ne
 // déclare aucune capacité, et meurt aussitôt après. L'agent en face est un

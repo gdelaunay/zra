@@ -87,7 +87,7 @@ export function ThreadsView({ navigate }) {
       section.append(machineHead(m, machineOpen, () => { toggleMachine(m); paint() }))
       if (!machineOpen) continue
       if (m.status === 'locked') {
-        // Le poste répond, mais ne parle qu'aux appareils appairés (spec §9).
+        // Le poste répond, mais ne parle qu'aux appareils appairés.
         section.append(h('div.empty', { style: { padding: '12px' } },
           h('span', { text: 'Ce poste ne connaît pas encore ce téléphone.' }),
           button('btn.btn--accent.btn--sm', { onclick: () => openPairSheet(m) }, icon('lock', 'icon--sm'), 'Saisir le code')))

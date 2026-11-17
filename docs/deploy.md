@@ -234,75 +234,22 @@ lancé ; la politique de la machine (et de l'utilisateur) n'est pas modifiée.
 
 ## 5.1 Linux : démarrage automatique
 
-Même UX CLI que sous Windows (`npm run service`) : le backend est détecté
-automatiquement, et les six verbes sont identiques.
+Mêmes commandes que sous Windows (`npm run service -- install --apply`, `start`,
+`status`, `logs`, `stop`, `uninstall --apply`) ; le backend est détecté :
 
 | Machine | Backend | Fichier |
 |---|---|---|
 | systemd est l'init (Debian, Ubuntu, Fedora, Arch) | `systemd --user` | `~/.config/systemd/user/zra-daemon.service` |
-| systemd n'est **pas** l'init (MX Linux et dérivés) | autostart XDG | `~/.config/autostart/zra-daemon.desktop` |
+| systemd n'est **pas** l'init (MX Linux et dérivés) | autostart XDG | `~/.config/autostart/zra-daemon.desktop` + lanceur `.zra/service/zra-daemon.sh` |
 
-Le critère est `/run/systemd/system` (le marqueur de `sd_booted()`), **pas** la
-version du paquet : MX Linux 23 a systemd 252 installé, et `systemctl --user`
-n'y répond que `offline` parce que l'init est sysvinit.
+Le PATH et l'environnement graphique de la session (`DISPLAY`…) sont recopiés
+à l'installation : sans eux, ni les CLI hors `/usr/bin` ni `xdotool` ne marchent.
 
-### systemd --user
-
-```bash
-npm run service -- install            # montre l'unité, ne crée rien
-npm run service -- install --apply    # écrit ~/.config/systemd/user/zra-daemon.service
-npm run service -- start              # démarre le daemon
-npm run service -- status             # état : unité, daemon, linger, journal
-npm run service -- logs               # journalctl --user -u zra-daemon
-npm run service -- stop | uninstall --apply
-```
-
-**Linger** : sans `loginctl enable-linger $USER`, le service meurt à la
-déconnexion et ne démarre pas au boot. `install` et `status` le vérifient et
-donnent la commande. `enable-linger` ne demande **pas sudo**.
-
-**PATH** : le service recopie le PATH de la session dans l'unité (sinon les CLI
-installées hors `/usr/bin` — comme `pi` dans `~/.pi/agent/bin` — sont
-invisibles au daemon).
-
-### autostart XDG (sans systemd en init)
-
-Mêmes commandes, mêmes verbes :
-
-```bash
-npm run service -- install --apply    # écrit l'entrée .desktop et le lanceur
-npm run service -- start              # lance tout de suite (sans attendre la session)
-npm run service -- status             # entrée, processus, daemon, journal
-npm run service -- logs               # .zra/logs/daemon.log (pas de journalctl ici)
-npm run service -- stop | uninstall --apply
-```
-
-Deux fichiers sont écrits :
-
-- `~/.config/autostart/zra-daemon.desktop` — ce que la session lit à
-  l'ouverture (Xfce, GNOME, KDE, LXQt), sans sudo ;
-- `<dépôt>/.zra/service/zra-daemon.sh` — le lanceur. Une entrée `.desktop` n'a
-  pas de clé `Environment=` : c'est lui qui porte `DISPLAY`, `XDG_SESSION_TYPE`,
-  `XDG_RUNTIME_DIR` et le PATH de la session, relevés au moment de
-  l'installation. Sans `DISPLAY`, `xdotool` ne vise aucune fenêtre.
-
-**Pourquoi pas `/etc/init.d` ni cron `@reboot`** : ils partent avant la session
-graphique, donc sans `DISPLAY` — et le pilotage de Zed exige la session.
-
-**Les deux limites à connaître** (`status` les rappelle) :
-
-1. Aucune supervision : pas d'équivalent à `Restart=on-failure`. Si le daemon
-   plante, il reste arrêté jusqu'à la prochaine ouverture de session.
-2. Aucun équivalent à `enable-linger` : le daemon s'arrête à la fermeture de
-   session et ne démarre pas au boot d'une machine sans session ouverte.
-
-**Le pidfile** : `.zra/service/zra-daemon.pid`. `stop` vérifie la ligne de
-commande du pid dans `/proc` avant de tuer — un pid recyclé par un autre
-processus est nettoyé, pas suivi (testé en écrivant `1`, le pid de l'init, dans
-le pidfile : `stop` l'a nettoyé sans toucher à l'init).
-
-**Ce qui ne se vérifie qu'en vrai** : que la session lise bien l'entrée à
-l'ouverture. Il faut se déconnecter/reconnecter, puis `npm run service`.
+- **systemd** : sans `loginctl enable-linger $USER` (pas de sudo), le service
+  meurt à la déconnexion ; `install` et `status` le rappellent. Relancé s'il plante.
+- **autostart XDG** : pas de supervision (un daemon planté reste arrêté jusqu'à
+  la prochaine session) et arrêt à la fermeture de session. Journal dans
+  `.zra/logs/daemon.log`.
 
 ---
 
@@ -346,17 +293,8 @@ npm run setup -- xwayland            # montre le diff, ne touche à rien
 npm run setup -- xwayland --apply    # applique (redémarrer Zed ensuite)
 ```
 
-Ou à la main :
-
-```ini
-# Dans le .desktop de Zed, remplacer :
-Exec=/chemin/vers/zed %U
-# par :
-Exec=env WAYLAND_DISPLAY= /chemin/vers/zed %U
-```
-
-**Trade-off** : Zed sous XWayland est un peu moins fluide (pas de vsync natif),
-mais le pilotage clavier marche.
+Zed sous XWayland est un peu moins fluide (pas de vsync natif), mais le
+pilotage clavier marche.
 
 ---
 
@@ -377,21 +315,7 @@ mais le pilotage clavier marche.
 
 ## Annexe — générer un tunnel WireGuard (expérimental, non testé)
 
-Pour qui n'a pas déjà de tunnel : `npm run wireguard` fabrique un tunnel
-**entre le poste et le téléphone directement**, le poste servant de serveur.
-Ce n'est pas le chemin retenu (le tunnel existant fait l'affaire) : c'est un
-outil à part, qui ne touche ni au daemon ni à sa configuration, et **n'a pas
-été essayé de bout en bout**.
-
-```bash
-npm run wireguard -- init --endpoint <adresse du poste vue du téléphone>
-```
-
-Il génère dans `.zra/wireguard/` (ignoré par git) les clés, la configuration du
-poste et celle du téléphone, affiche un QR à scanner dans l'appli WireGuard, et
-les commandes **admin** pour monter le tunnel en service et ouvrir le port UDP.
-Il faut en plus que le téléphone puisse joindre le poste en UDP (même réseau,
-ou redirection de port) — c'est tout l'intérêt d'un homelab déjà ouvert. Le
-tunnel monté, le daemon le détecte et l'écoute comme n'importe quelle interface.
-`npm run wireguard -- add <appareil>` pour un appareil de plus, `-- qr` pour
-réafficher un QR.
+Sans tunnel existant : `npm run wireguard -- init --endpoint <adresse du poste>`
+génère dans `.zra/wireguard/` un tunnel poste ↔ téléphone (clés, configurations,
+QR) et les commandes **admin** pour le monter. Le téléphone doit joindre le
+poste en UDP. Usage complet : en tête de `scripts/wireguard.mjs`.

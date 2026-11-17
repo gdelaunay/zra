@@ -1,4 +1,4 @@
-// L'observation ACP du shim — spec §2.3, §5.1, §6.
+// L'observation ACP du shim.
 //
 // Tout ce que le shim *comprend* du trafic est ici, et rien de ce qu'il
 // comprend ne change ce qu'il relaie : le proxy (`proxy.js`) transporte les
@@ -9,7 +9,7 @@
 //  · les `session_id` créés (`session/new`) ou rechargés (`session/load`), et
 //    leurs options (mode, modèle, et tous les autres sélecteurs) ;
 //  · le tour en cours, déduit des `session/prompt` réellement en vol ;
-//  · les `session/update`, republiés **verbatim** (règle du §1 de la spec) ;
+//  · les `session/update`, republiés **verbatim** (principe de ZRA) ;
 //  · les demandes de permission en attente, avec leur `id` JSON-RPC ;
 //  · la sortie des terminaux, qui ne transite que par des requêtes de l'agent
 //    vers le client (`terminal/output`) : elle n'apparaît dans aucun `update`.
@@ -235,7 +235,7 @@ export class AcpBridge extends EventEmitter {
   /**
    * Le poste a tranché. S'il arrive après le mobile, sa réponse est **avalée** :
    * deux réponses pour le même `id` JSON-RPC embrouilleraient l'agent. C'est la
-   * seule entorse au relai intégral, et elle est locale (spec §6.6).
+   * seule entorse au relai intégral, et elle est locale.
    */
   noteDesktopPermission(k, msg, pending) {
     if (pending.mobileResponse) {
@@ -374,7 +374,7 @@ export class AcpBridge extends EventEmitter {
     this.sessions.changed(sessionId)
   }
 
-  /** Fin de tour : options différées, puis dépilage de la file (spec §6.4/§6.5). */
+  /** Fin de tour : options différées, puis dépilage de la file. */
   settlePrompt(sessionId, k) {
     const next = this.sessions.promptSettled(sessionId, k)
     this.flushOptions(sessionId)
@@ -555,7 +555,7 @@ export class AcpBridge extends EventEmitter {
 
   /**
    * Envoie un prompt. `queue` met en file si un tour est en cours ; `interrupt`
-   * coupe le tour, attend l'acquittement, puis envoie (spec §6.4).
+   * coupe le tour, attend l'acquittement, puis envoie.
    *
    * `confirmMs` (mode `auto`) : l'accusé attend le verdict de l'agent — premier
    * `session/update` = accepté, réponse en erreur = refusé (`prompt_refused`),
@@ -758,7 +758,7 @@ export class AcpBridge extends EventEmitter {
   /**
    * Change une option de session. `mode` passe par `session/set_mode` ; tout le
    * reste — `model` comme les sélecteurs génériques d'`options`, sous leur `id` —
-   * par `session/set_config_option`, où l'ACP moderne les range (spec §6.5).
+   * par `session/set_config_option`, où l'ACP moderne les range.
    */
   async setOption(sessionId, key, value) {
     const st = this.requireSession(sessionId)
@@ -795,7 +795,7 @@ export class AcpBridge extends EventEmitter {
   }
 
   /**
-   * Répond à une demande de permission à la place de Zed (spec §6.6).
+   * Répond à une demande de permission à la place de Zed.
    *
    * Course avec le poste : le premier qui répond gagne. On n'empêche pas Zed
    * d'afficher la demande — sa réponse tardive sera simplement avalée.

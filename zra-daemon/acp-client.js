@@ -1,4 +1,4 @@
-// Le daemon en client ACP — spec §5.2.
+// Le daemon en client ACP.
 //
 // Pour relire un thread fermé, le daemon lance lui-même une instance de l'agent
 // et joue le rôle que Zed tient d'habitude. C'est un client **minimal et

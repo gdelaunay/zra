@@ -618,7 +618,7 @@ test('interrupt sur thread inconnu ou sans session → le code du protocole', as
 })
 
 // ---------------------------------------------------------------------------
-// set_option — spec §6.5
+// set_option
 // ---------------------------------------------------------------------------
 
 test('set_option au repos part tout de suite', async () => {
@@ -693,7 +693,7 @@ test('set_option sur thread inconnu → unknown_thread', async () => {
 })
 
 // ---------------------------------------------------------------------------
-// respond_permission — spec §6.6
+// respond_permission
 // ---------------------------------------------------------------------------
 
 test('permission tranchée du mobile : encart verrouillé et réponse dans le ring', async () => {
@@ -806,7 +806,7 @@ test('le jeu des permissions résolues est borné', () => {
 })
 
 // ---------------------------------------------------------------------------
-// load_history — spec §5.2
+// load_history
 // ---------------------------------------------------------------------------
 
 test('load_history d’un thread vivant couvert par le ring : pas de seconde instance d’agent', async () => {
@@ -890,7 +890,7 @@ test('load_history : thread inconnu ou sans session', async () => {
 })
 
 // ---------------------------------------------------------------------------
-// Réouverture d’un thread fermé — spec §6.3
+// Réouverture d’un thread fermé
 // ---------------------------------------------------------------------------
 
 test('send sur un thread fermé : Zed le rouvre, puis injection normale', async () => {
@@ -972,7 +972,7 @@ test('sans pilotage de Zed, un thread fermé part au backend tel quel', async ()
 })
 
 // ---------------------------------------------------------------------------
-// new_thread — spec §6.7
+// new_thread
 // ---------------------------------------------------------------------------
 
 function fakeZedControl(over = {}) {
@@ -1155,7 +1155,7 @@ test('le clientId du hello est repris dans le journal', () => {
 })
 
 // ---------------------------------------------------------------------------
-// Appairage — spec §9
+// Appairage
 // ---------------------------------------------------------------------------
 
 test('client distant non appairé : hello sans jeton → auth_required, le reste est ignoré', () => {

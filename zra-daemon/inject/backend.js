@@ -1,4 +1,4 @@
-// Interface d'injection — spec §6.
+// Interface d'injection.
 //
 //   interface InjectionBackend {
 //     send(thread, text, mode)      mode: "queue" | "interrupt"
@@ -24,7 +24,7 @@ export class InjectionError extends Error {
 }
 
 /**
- * @param {string} kind `acp` (défaut) · `mock` (spec §10.6) · `uia` · `auto`
+ * @param {string} kind `acp` (défaut) · `mock` · `uia` · `auto`
  * @param {{ states, emit, threads, host?, control?, delayMs?:number, confirmMs?:number }} ctx
  */
 export function createBackend(kind, ctx) {

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Génère la fixture SQLite de l'index des threads (spec §10.4).
+// Génère la fixture SQLite de l'index des threads.
 //
 //   node scripts/make-fixture.mjs
 //
@@ -85,7 +85,7 @@ export const ROWS = [
   },
   {
     thread_id: '0000000000000000000000000000000d',
-    // Thread avorté : state "unknown", affiché grisé, jamais masqué (spec §4).
+    // Thread avorté : state "unknown", affiché grisé, jamais masqué.
     session_id: null,
     agent_id: 'claude-acp',
     title: 'Thread sans session',

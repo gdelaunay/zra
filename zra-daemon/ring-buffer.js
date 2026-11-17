@@ -1,4 +1,4 @@
-// Ring buffer par thread — spec §5.1, protocole §6.3.
+// Ring buffer par thread, protocole §6.3.
 //
 // 2000 événements par thread live, rejoués à `subscribe` pour qu'un mobile qui
 // arrive en cours de route ait du contexte immédiat.

@@ -1,4 +1,4 @@
-// Appairer ce téléphone avec un poste — spec §9.
+// Appairer ce téléphone avec un poste.
 //
 // Le daemon affiche un code à 6 chiffres (son journal, `npm run pair`) ; on le
 // saisit ici, une fois. Le poste rend un jeton que la PWA garde : les

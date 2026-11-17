@@ -1,4 +1,4 @@
-// Appairage (spec §9) : le code, le jeton, la révocation — puis le daemon de
+// Appairage : le code, le jeton, la révocation — puis le daemon de
 // bout en bout sur un vrai WebSocket, loopback traitée comme un client distant.
 
 import { test } from 'node:test'

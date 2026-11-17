@@ -1,4 +1,4 @@
-// Index des threads — lecture de `sidebar_threads` (spec §2.1).
+// Index des threads — lecture de `sidebar_threads`.
 //
 // Ouverture **toujours** en lecture seule (`readOnly`). Le fichier
 // est en WAL et Zed tourne en parallèle : jamais de connexion en écriture,

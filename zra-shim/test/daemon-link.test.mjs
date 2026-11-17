@@ -1,4 +1,4 @@
-// La liaison shim → daemon (`daemon-link.js`) — spec §3.1, fail-open.
+// La liaison shim → daemon (`daemon-link.js`), fail-open.
 //
 // Le contrat tient en trois lignes : rien ne bloque, rien ne remonte, et un
 // daemon absent ne fait pas enfler le shim. On le vérifie ici avec un faux

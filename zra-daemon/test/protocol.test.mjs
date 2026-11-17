@@ -1,5 +1,5 @@
 // Le daemon complet, de bout en bout, sur un vrai WebSocket — sans Zed, sans
-// agent, sans shim (spec §10).
+// agent, sans shim.
 //
 // Lisible comme une check-list du docs/protocol.md : chaque test cite le message
 // qu'il verrouille.
@@ -305,7 +305,7 @@ test('set_option : appliqué au repos, différé pendant un tour (§3 set_option
   assert.equal(mode.update.currentModeId, 'ask')
   await c.until((m) => m.type === 'thread_state' && m.currentModeId === 'ask')
 
-  // Pas de changement d'option en plein tour (spec §6.5) : mis de côté, appliqué à la fin.
+  // Pas de changement d'option en plein tour : mis de côté, appliqué à la fin.
   c.send({ type: 'send', threadId: VIVANT, text: 'long', mode: 'queue' })
   await c.until((m) => m.type === 'thread_state' && m.turn === 'busy')
   c.send({ type: 'set_option', threadId: VIVANT, key: 'model', value: 'opus' })
@@ -364,7 +364,7 @@ test('subscribe idempotent, thread inconnu refusé (§6.4)', async (t) => {
   assert.equal(err.code, 'unknown_thread')
 })
 
-test('thread sans session : ni écriture ni historique (spec §4)', async (t) => {
+test('thread sans session : ni écriture ni historique', async (t) => {
   await boot(t)
   const c = await (await Client.open(t)).hello()
 
@@ -385,16 +385,16 @@ test('ce qui manque à ce montage répond proprement, jamais en silence', async 
   await boot(t, { agentCommands: { 'claude-acp': { command: 'zra-agent-inexistant' } } })
   const c = await (await Client.open(t)).hello()
 
-  // Relire une session fermée exige de relancer l'agent (spec §5.2).
+  // Relire une session fermée exige de relancer l'agent.
   c.send({ type: 'load_history', threadId: VIVANT })
   assert.equal((await c.until((m) => m.type === 'error')).code, 'history_unavailable')
 
-  // Le relais de permission passe par le shim (spec §6.6) ; le bouchon n'en a pas.
+  // Le relais de permission passe par le shim ; le bouchon n'en a pas.
   c.clear()
   c.send({ type: 'respond_permission', threadId: VIVANT, requestId: 'r1', optionId: 'allow-once' })
   assert.equal((await c.until((m) => m.type === 'error')).code, 'permission_expired')
 
-  // Ouvrir une session demande de piloter Zed par UIA (spec §6.7).
+  // Ouvrir une session demande de piloter Zed par UIA.
   c.clear()
   c.send({ type: 'new_thread', agentId: 'claude-acp' })
   assert.equal((await c.until((m) => m.type === 'error')).code, 'new_thread_failed')

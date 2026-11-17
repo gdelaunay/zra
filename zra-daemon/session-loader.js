@@ -1,4 +1,4 @@
-// Relecture d'un thread fermé — spec §5.2.
+// Relecture d'un thread fermé.
 //
 //   1. résoudre `agent_id` + `session_id` + `cwd` depuis `sidebar_threads` ;
 //   2. lancer l'agent en sous-processus, le daemon jouant le client ACP ;

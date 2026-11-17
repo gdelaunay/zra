@@ -1,11 +1,11 @@
-// Backend d'injection `uia` — spec §6.2, repli quand l'agent refuse un
+// Backend d'injection `uia`, repli quand l'agent refuse un
 // prompt injecté par le shim.
 //
 // C'est Zed qui émet le prompt : ZRA amène le thread au premier plan, tape le
 // message dans le composer et valide. **Fidélité parfaite** — le message
 // apparaît des deux côtés — au prix de la fragilité : fenêtre, focus, langue,
 // version de Zed. Zed n'exposant rien à UI Automation, c'est du clavier
-// (`zed/keyboard.ps1`) ; le nom `uia` reste celui de la spec et de la config.
+// (`zed/keyboard.ps1`) ; le nom `uia` reste celui de la config.
 //
 // Seul `send` passe par le clavier. Couper un tour, changer d'option, répondre
 // à une permission restent des commandes ACP du shim : le refus ne porte
@@ -36,7 +36,7 @@ export class UiaBackend {
     this.control = control
     this.confirmMs = confirmMs
     this.name = 'uia'
-    /** Tour et file restent tenus par le shim (spec §6.4). */
+    /** Tour et file restent tenus par le shim. */
     this.ownsQueue = true
   }
 

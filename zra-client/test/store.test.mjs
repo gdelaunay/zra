@@ -190,7 +190,7 @@ test('permission : une réponse déjà en vol, ou déjà tranchée, ne repart pa
     assert.equal(tl.entries.at(-1).pendingOptionId, 'allow', 'l’encart se verrouille tout de suite')
 
     // Un second appui — même option, ou une autre — ne renvoie rien : le daemon
-    // répondrait `permission_expired` (spec §6.6).
+    // répondrait `permission_expired`.
     store.respondPermission(k, 'r1', { optionId: 'allow' })
     store.respondPermission(k, 'r1', { optionId: 'reject' })
     assert.equal(sent.length, 1)

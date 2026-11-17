@@ -1,4 +1,4 @@
-// Backend d'injection bouchon — spec §10.6.
+// Backend d'injection bouchon.
 //
 // Valide toute la chaîne mobile → daemon → backend sans agent, sans UIA et sans
 // Zed. Délibérément pauvre : les scénarios riches (diffs, terminaux,
@@ -19,7 +19,7 @@ export class MockBackend {
     this.timers = new Map()
   }
 
-  /** Un thread sans `session_id` n'est pas adressable (spec §4). */
+  /** Un thread sans `session_id` n'est pas adressable. */
   assertAddressable(threadId) {
     const thread = this.threads?.get(threadId)
     if (thread && !thread.sessionId) {

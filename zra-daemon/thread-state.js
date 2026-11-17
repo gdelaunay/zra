@@ -1,6 +1,6 @@
-// État vivant d'un thread : tour, file d'attente, options — spec §6.4.
+// État vivant d'un thread : tour, file d'attente, options.
 //
-// La machine à états est celle de la spec :
+// La machine à états :
 //
 //   idle ──prompt──► busy ──réponse finale──► idle
 //           ▲                    │
@@ -85,7 +85,7 @@ export class ThreadStates extends EventEmitter {
     return st.queue.length !== before
   }
 
-  /** Vidage explicite : shim perdu, file irrécupérable (spec §6.4). */
+  /** Vidage explicite : shim perdu, file irrécupérable. */
   clearQueue(threadId) {
     const st = this.get(threadId)
     if (!st.queue.length) return []
@@ -127,7 +127,7 @@ export class ThreadStates extends EventEmitter {
    * Recopie l'état que le **shim** tient pour vrai.
    *
    * Le tour et la file vivent dans le shim, seul à voir le trafic ACP réel
-   * (spec §6.4) : le daemon n'en garde qu'un miroir pour la PWA. On n'émet donc
+   * : le daemon n'en garde qu'un miroir pour la PWA. On n'émet donc
    * pas `dequeue` ici — le dépilage a déjà eu lieu de l'autre côté ; on se
    * contente de publier un `thread_state` à jour (invariant §6.6 du protocole).
    */

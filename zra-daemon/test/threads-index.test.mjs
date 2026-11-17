@@ -1,4 +1,4 @@
-// Lecteur d'index, contre la fixture SQLite — sans Zed installé (spec §10.4).
+// Lecteur d'index, contre la fixture SQLite — sans Zed installé.
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
@@ -56,7 +56,7 @@ test('index : états live / closed / unknown', (t) => {
 
   // Aucun shim : tout ce qui a une session est `closed`.
   assert.equal(index.get('0000000000000000000000000000000a').state, 'closed')
-  // session_id NULL => `unknown`, affiché grisé et jamais masqué (spec §4).
+  // session_id NULL => `unknown`, affiché grisé et jamais masqué.
   assert.equal(index.get('0000000000000000000000000000000d').state, 'unknown')
 
   // Un shim qui apparaît bascule le thread en `live` sans attendre le poll.

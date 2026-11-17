@@ -72,7 +72,6 @@ export function zedPaths(opts = {}) {
   const { platform, env, home, join } = ctx(opts)
 
   if (platform === 'win32') {
-    // Inchangé depuis la version Windows vérifiée (docs/spec.md §2.1, §2.2).
     const local = env.LOCALAPPDATA || join(home, 'AppData', 'Local')
     const roaming = env.APPDATA || join(home, 'AppData', 'Roaming')
     const dataDir = join(local, 'Zed')

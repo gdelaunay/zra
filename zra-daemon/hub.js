@@ -152,7 +152,7 @@ export class Hub {
     }
   }
 
-  // ---- appairage (spec §9) ---------------------------------------------------
+  // ---- appairage ---------------------------------------------------
 
   /**
    * Client pas encore reconnu : seuls `hello` (avec un jeton) et `pair` (avec
@@ -238,7 +238,7 @@ export class Hub {
   // ---- lecture -------------------------------------------------------------
 
   /**
-   * Replay complet d'un thread (spec §5.2). Opération coûteuse : le daemon lance
+   * Replay complet d'un thread. Opération coûteuse : le daemon lance
    * l'agent, collecte, tue l'instance, et met en cache 10 minutes.
    */
   async loadHistory(conn, threadId) {
@@ -287,7 +287,7 @@ export class Hub {
     if (!text) return
 
     // Thread fermé : Zed le rouvre, un shim le recharge, puis injection normale
-    // — une seule session, aucune divergence (spec §6.3).
+    // — une seule session, aucune divergence.
     if (!this.shims.hasSession(thread.sessionId) && this.zed?.canReopen && this.backend.name !== 'mock') {
       // Thread d'un agent que ZRA n'enveloppe pas (créé avant ZRA, avec
       // « claude-acp ») : Zed le rouvrirait sans shim, rien ne le verrait
@@ -311,7 +311,7 @@ export class Hub {
 
     // File d'attente : le tour est occupé et on ne veut pas le couper. Avec le
     // backend `acp`, c'est le shim qui tient la file — seul à voir le trafic
-    // réel (spec §6.4) : on transmet sans rien empiler ici.
+    // réel : on transmet sans rien empiler ici.
     if (mode === 'queue' && state.turn === 'busy' && !this.backend.ownsQueue) {
       this.states.enqueue(msg.threadId, text)
       return
@@ -330,7 +330,7 @@ export class Hub {
   }
 
   /**
-   * Course mobile/poste : le premier qui répond gagne (spec §6.6). C'est le shim
+   * Course mobile/poste : le premier qui répond gagne. C'est le shim
    * qui arbitre — lui seul sait si Zed a déjà tranché — et son accusé dit par
    * qui. Le daemon ne juge rien, il relaie un `optionId` produit par l'agent.
    */
@@ -366,7 +366,7 @@ export class Hub {
     // Avec le backend `acp`, c'est le shim qui diffère l'option jusqu'à la fin
     // du tour : il connaît la vraie fin, le daemon n'en a qu'un miroir.
     if (!this.backend.ownsQueue && this.states.get(msg.threadId).turn === 'busy') {
-      // Pas de changement d'option en plein tour (spec §6.5) : on applique à la fin.
+      // Pas de changement d'option en plein tour : on applique à la fin.
       const list = this.pendingOptions.get(msg.threadId) || []
       list.push({ key: msg.key, value: msg.value })
       this.pendingOptions.set(msg.threadId, list)
@@ -386,7 +386,7 @@ export class Hub {
     }
   }
 
-  /** Dépilage automatique en fin de tour (spec §6.4). */
+  /** Dépilage automatique en fin de tour. */
   async deliverQueued(threadId, entry) {
     try {
       await this.backend.send(threadId, entry.text, 'queue')
@@ -413,7 +413,7 @@ export class Hub {
   }
 
   /**
-   * Nouvelle session d'agent depuis le **+** (spec §6.7). `thread_created` part
+   * Nouvelle session d'agent depuis le **+**. `thread_created` part
    * **après** un `threads` qui contient le thread : sans ça la PWA ouvrirait un
    * écran sans titre (protocole §4).
    */
@@ -475,7 +475,7 @@ export class Hub {
   }
 
   /**
-   * Zed recharge la session et l'agent va tout rejouer (spec §2.3). Le ring
+   * Zed recharge la session et l'agent va tout rejouer. Le ring
    * repart de zéro, et les mobiles qui regardent ce thread reçoivent un
    * historique vide que le replay, en direct, va remplir : sans ça, la
    * conversation s'afficherait une seconde fois à la suite de la première.

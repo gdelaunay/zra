@@ -112,7 +112,6 @@ Configuration : copier `zra.config.example.json` (commenté) en `zra.config.json
 | `docs/protocol.md` | protocole PWA ↔ daemon |
 | `docs/daemon.md`, `docs/shim.md`, `docs/client.md` | un composant chacun : rôle, fichiers, tests |
 | `docs/limitations.md` | ce qui n'est pas supporté, et pourquoi |
-| `docs/spec.md` | spécification d'origine, risques, check-list de vérification |
 
 Fichiers de travail, à la racine : `ROADMAP.md` (versions à venir, idées) et
 `ISSUES.md` (issues ouvertes).

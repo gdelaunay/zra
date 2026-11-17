@@ -39,4 +39,4 @@ lit `~/.config/autostart`.
 Node ≥ 24 à installer à la main (les Node de distro sont plus vieux) ; `xdotool`
 est un paquet standard partout. Code Node pur, sans dépendance native, chemins
 XDG : effet attendu nul.
-→ `npm install && npm test`, puis la vérification de `docs/spec.md` §12.
+→ `npm install && npm test`, puis « Vérifier une machine » de `docs/architecture.md`.

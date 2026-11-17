@@ -249,7 +249,7 @@ test('keyboard.ps1 : recette résolue en simulation, touche inconnue refusée av
 })
 
 // ===========================================================================
-// new_thread (spec §6.7)
+// new_thread
 // ===========================================================================
 
 test('new_thread désactivé : new_thread_failed explicite, aucune touche', async (t) => {
@@ -431,7 +431,7 @@ test('new_thread : agent inconnu du poste', async (t) => {
 })
 
 // ===========================================================================
-// Répondre à un thread fermé (spec §6.3)
+// Répondre à un thread fermé
 // ===========================================================================
 
 test('thread fermé : Zed le rouvre, le shim le recharge, le message part par ACP', async (t) => {
@@ -475,7 +475,7 @@ test('thread fermé : Zed ne le rouvre pas => inject_failed au timeout', async (
 })
 
 // ===========================================================================
-// Backend uia (spec §6.2) et auto
+// Backend uia et auto
 // ===========================================================================
 
 test('uia : Zed émet le message tapé, le shim en apporte la preuve', async (t) => {

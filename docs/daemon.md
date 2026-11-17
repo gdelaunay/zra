@@ -3,7 +3,7 @@
 Passerelle ZRA d'un poste : lit l'index des threads de Zed, parle le protocole
 ZRA aux clients mobiles, et porte les backends d'injection.
 
-Un daemon par poste, long-running (`docs/spec.md` §3.2). Aucune dépendance runtime :
+Un daemon par poste, long-running. Aucune dépendance runtime :
 Node ≥ 24 fournit SQLite (`node:sqlite`), le serveur HTTP et le test runner, et
 le WebSocket (RFC 6455) tient dans `ws.js`.
 
@@ -15,8 +15,7 @@ npm run service         # le daemon en tâche planifiée, à l'ouverture de sess
 npm test                # suite complète, sans Zed ni agent
 ```
 
-Mise en service sur le téléphone — réseau local, appairage, HTTPS, démarrage automatique :
-**`docs/deploy.md`** à la racine.
+Mise en service : `docs/deploy.md`.
 
 ## Ce qu'il fait
 
@@ -53,9 +52,9 @@ session neuve (`new_thread`), le rechargement du bon `session_id` (thread
 fermé), le tour qui passe `busy` (backend `uia`). Mise au point des recettes :
 `npm run zed -- probe | recipes | try <recette> [--apply]`.
 
-Pilotage désactivé (défaut de `config.js`, activé dans le `zra.config.json`
-du dépôt) : `new_thread` répond `new_thread_failed` et écrire à un thread
-fermé répond `inject_failed`, chacun avec sa raison.
+Pilotage désactivé (`zedControl.enabled: false`) : `new_thread` répond
+`new_thread_failed` et écrire à un thread fermé répond `inject_failed`, chacun
+avec sa raison.
 
 ## Diagnostic
 
@@ -84,93 +83,17 @@ Deux traductions, et elles n'ont lieu que dans `shim-link.js` :
 - **commande → accusé.** Le hub veut une promesse qui échoue avec un code du
   protocole ; le shim répond un `ack`.
 
-Le **tour et la file d'attente vivent dans le shim** (spec §6.4), seul à voir le
+Le **tour et la file d'attente vivent dans le shim**, seul à voir le
 trafic réel. Le daemon n'en garde qu'un miroir pour la PWA
 (`thread-state.js` → `mirror()`). Si le shim meurt, la file est perdue et le
 mobile en est averti par un `zra/notice` explicite.
 
-## Où est servi le client web
+## Client web, HTTPS, écoute
 
-Le daemon et le client PWA sont **décorrélés**. Le daemon sert le client
-lui-même (`serveStatic`, défaut), sur le même port que le WebSocket : un poste
-se suffit à lui-même. Mais le client peut venir de n'importe quel serveur
-statique, par exemple un homelab qui sert un seul client pour tous les postes.
-Le navigateur télécharge les statiques d'un côté, puis ouvre un WebSocket
-**directement** vers chaque daemon. `--no-static` : le daemon n'est qu'une API.
-
-```
-  téléphone                       hébergeur (n'importe où)
-     │ ── GET html/css/js ──────────►   statiques, une fois
-     │
-     │ ── WebSocket ────────────────►   daemon (192.168.x.x:7777)
-                                          réseau local ou tunnel
-```
-
-### HTTP ou HTTPS
-
-Les deux fonctionnent. La différence n'est pas fonctionnelle mais tient aux API
-que le navigateur réserve aux *contextes sécurisés* :
-
-| | HTTP | HTTPS |
-|---|---|---|
-| Lecture, streaming, envoi | ✓ | ✓ |
-| Service worker (cache de coquille) | ✗ | ✓ |
-| Installation sur l'écran d'accueil | ✗ | ✓ |
-| Web Push (v2) | ✗ | ✓ |
-
-`localhost` compte comme contexte sécurisé : en dev sur le poste, tout marche
-sans certificat.
-
-Une page `https://` ne peut ouvrir que des `wss://` (contenu mixte bloqué) :
-client en HTTPS ⇒ chaque daemon joint en HTTPS. Deux montages (`docs/deploy.md` §4) :
-
-- **reverse proxy** HTTPS devant le daemon, qui reste en HTTP (validé) :
-  ajouter l'origine du client à `allowedOrigins` ;
-- **certificat sur le daemon** (Let's Encrypt DNS-01, `scripts/cert.ps1`, non
-  essayé) : `"tls": { "cert": "…", "key": "…" }`, et le daemon passe en
-  `https` + `wss`.
-
-### Allowlist d'Origin
-
-Le navigateur **n'applique pas** la same-origin policy aux WebSockets : pas de
-préflight CORS, pas de blocage. Sans filtrage, n'importe quelle page ouverte
-depuis le réseau pourrait faire `new WebSocket('ws://192.168.1.20:7777/ws')`.
-L'appairage l'arrête déjà (la page n'a pas le jeton) ; le filtre reste en
-seconde ligne.
-
-L'en-tête `Origin` est posé par le navigateur et le JS d'une page ne peut pas le
-falsifier : c'est sur lui que repose le filtre.
-
-```jsonc
-"allowedOrigins": ["https://zra.exemple.fr"]
-```
-
-L'origine propre du daemon est ajoutée d'office quand il sert les statiques. Une
-requête **sans** `Origin` est acceptée : elle ne vient pas d'une page web, et un
-client natif forgerait l'en-tête sans effort de toute façon. Le filtre ferme le
-trou du *cross-site WebSocket hijacking* ; un client quelconque du réseau, lui,
-bute sur l'appairage.
-
-## Écoute et appairage
-
-Jamais `0.0.0.0` : un serveur par adresse, suivi à chaud (`net.js`).
-
-| | |
-|---|---|
-| loopback | toujours — les shims de Zed, et le poste lui-même (pas d'appairage) |
-| réseau local | IPv4 privées du poste (`bindLan`, `lanCidrs`) : le téléphone sur le même Wi-Fi, ou à distance par un tunnel « tout le trafic » qui débouche sur ce réseau |
-| tunnel | l'interface d'un tunnel monté sur le poste, s'il y en a une (`bindInterface`, `bindCidr`, sinon détection par nom) |
-
-WireGuard est hors du code : le daemon lit les interfaces (`node:os`), et suit
-leurs changements (Wi-Fi changé, tunnel coupé puis rétabli) sans redémarrer.
-`requireTunnel: true` rétablit le refus de démarrer sans tunnel, `--wait-tunnel`
-l'attend.
-
-Hors loopback, un client s'appaire une fois (`auth.js`) : le daemon affiche un
-code à 6 chiffres au démarrage (et `npm run pair`), la PWA l'échange contre un
-jeton gardé ensuite. Jetons hachés dans `.zra/auth.json`, révocables. Avant
-l'appairage, rien ne passe et rien n'est diffusé au client. `/pair` (loopback
-seulement) sert à `npm run pair`.
+- Le daemon sert `zra-client/` sur le même port que le WebSocket (`serveStatic`, `--no-static` pour s'en passer) ; le client peut aussi venir d'ailleurs et ouvrir un WebSocket vers chaque poste.
+- HTTPS (installation de la PWA, service worker) : reverse proxy devant le daemon, ou `"tls": { "cert", "key" }` (`docs/deploy.md` §4).
+- `allowedOrigins` : origines autorisées sur `/ws`, en seconde ligne derrière l'appairage ; les origines propres du daemon sont ajoutées d'office, une requête sans `Origin` est acceptée.
+- Écoute (loopback, réseau local, tunnel, jamais `0.0.0.0`) et appairage : `docs/architecture.md` et `docs/deploy.md`.
 
 ## Fichiers
 
@@ -183,7 +106,7 @@ seulement) sert à `npm run pair`.
 | `net.js` | adresses d'écoute : loopback, réseau local, tunnel ; suivi du réseau |
 | `auth.js` | appairage : code, jetons hachés, révocation |
 | `ws.js` | WebSocket RFC 6455 (fragmentation, ping/pong, fermeture) |
-| `static.js` | statiques, mode dev/repli |
+| `static.js` | statiques du client web |
 | `hub.js` | routage du protocole, diffusion, invariants |
 | `threads-index.js` | lecture `sidebar_threads`, poll, projection |
 | `thread-state.js` | tour, file d'attente, options |
@@ -209,14 +132,6 @@ node --test zra-daemon/test/e2e-shim.test.mjs        # daemon + shim + agent bou
 npm run fixture                                   # régénère la fixture SQLite
 ```
 
-`test/protocol.test.mjs` se lit comme une check-list du `docs/protocol.md` : chaque
-test cite le message qu'il verrouille. `test/e2e-shim.test.mjs` monte la chaîne
-complète — daemon, vrai processus shim, agent ACP bouchon, faux Zed — et vérifie
-ce que la PWA verrait. La fixture
-`test/fixtures/sidebar_threads.sqlite` reproduit le schéma relevé sur la machine
-cible avec des lignes synthétiques couvrant les cas limites (`session_id` NULL,
-`agent_id` NULL, `title_override`, archivé, dossiers multiples, dates à la
-nanoseconde) — voir `scripts/make-fixture.mjs`.
-
-`scripts/probe-zed-db.mjs` inspecte la vraie base de la machine, en lecture
-seule, quand il faut vérifier une hypothèse sur le schéma.
+La fixture `test/fixtures/sidebar_threads.sqlite` reproduit le schéma réel avec
+des lignes synthétiques couvrant les cas limites (`scripts/make-fixture.mjs`).
+`scripts/probe-zed-db.mjs` inspecte la vraie base, en lecture seule.

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Appairer un téléphone avec ce poste — spec §9, docs/deploy.md.
+// Appairer un téléphone avec ce poste, docs/deploy.md.
 //
 //   npm run pair                 le code à saisir dans la PWA, et les appareils appairés ;
 //                                rouvre l'appairage s'il a été verrouillé après 10 échecs
