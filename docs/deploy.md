@@ -302,6 +302,7 @@ pilotage clavier marche.
 
 | Symptôme | Où regarder |
 |---|---|
+| les agents `*-zra` ne se lancent plus dans Zed | dépôt déplacé ou Node changé (chemins absolus) : `npm run setup install apply` et `npm run service -- install --apply` |
 | la page ne charge pas en local | même Wi-Fi ? profil réseau Privé ? règle de pare-feu (§1) ? |
 | la page ne charge pas à distance | tunnel actif ? en « tout le trafic » ? le homelab voit-il le poste (même réseau) ? |
 | « appairage requis » en boucle | jeton révoqué ou `.zra/auth.json` effacé : ressaisir un code |

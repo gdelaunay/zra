@@ -1,17 +1,12 @@
 # ZRA — Zed Remote Agent
 
-Suivre et piloter depuis le mobile les threads d'agents ACP de Zed : liste, streaming live, envoi, permissions, nouvelle session.
-ZRA relaie tel quel ce qui passe entre Zed et l'agent, et y ajoute ce qui vient du mobile
-(prompts, réponses aux permissions) : ce que Zed affiche, la PWA l'affiche.
+Suivre et piloter depuis le téléphone les threads d'agents [ACP](https://agentclientprotocol.com)
+de [Zed](https://zed.dev) : liste, streaming live, envoi, permissions, nouvelle session.
+ZRA relaie tel quel ce qui passe entre Zed et l'agent, et y ajoute ce qui vient du mobile.
+Pour ouvrir ou rouvrir un thread, il tape au clavier dans Zed (voir [Sécurité](#sécurité)).
 
-> **Pilotage par clavier** — ZRA envoie des touches réelles à Zed (`xdotool`
-> sous Linux, PowerShell sous Windows) pour créer ou ouvrir un thread, lui donner le
-> focus etc. **Activé par défaut** (`zedControl.enabled` dans `zra.config.json`) :
-> le daemon l'avertit au démarrage ; mettre `false` pour l'interdire — le « + »
-> et la réouverture des threads fermés deviennent indisponibles.
-
-Développé avec Opus 5.5 dans Claude Code, et Qwen3.8-Max / Qwen3.8-Flash dans Pi,
-avec une relecture minimale.
+**État** : version 0.3. Vérifié sous Windows 11 et sur trois postes Linux
+(Ubuntu/GNOME/Wayland, Debian/KDE/X11, MX Linux/Xfce/X11), avec un téléphone Android.
 
 ## Démarrage rapide
 
@@ -22,6 +17,8 @@ avec une relecture minimale.
 pilotage clavier exige Zed sous XWayland : `npm run setup -- xwayland --apply`
 (étape séparée, modifie le `.desktop` de Zed, sauvegardé).
 
+0. `git clone https://forgejo.gdelaunay.fr/gdelaunay/zra.git && cd zra` — aucun
+   `npm install` nécessaire pour l'utiliser.
 1. `npm run setup install apply`. Chaque agent de Zed reçoit une entrée ZRA
    (`claude-zra`…) : l'agent d'origine n'est pas touché. Les threads ouverts
    avec une entrée ZRA ne se rouvriront plus dans Zed si ZRA est désinstallé.
@@ -34,12 +31,7 @@ pilotage clavier exige Zed sous XWayland : `npm run setup -- xwayland --apply`
    s'écrivent pas une fois fermés.
 
 Ensuite : démarrage automatique (`npm run service -- install --apply`),
-accès à distance et HTTPS (`docs/deploy.md`).
-
-L'entrée ZRA dans Zed et le service pointent vers ce dossier et ce Node en
-chemins absolus : après un déplacement du dépôt ou un changement de version de
-Node, relancer `npm run setup install apply` (`npm run setup` le signale) et
-`npm run service -- install --apply`.
+accès à distance, HTTPS et dépannage (`docs/deploy.md`).
 
 ## Désinstaller
 
@@ -67,10 +59,13 @@ Zed, mais sans agent pour les rouvrir.
   ratés ; `npm run pair` le rouvre avec un nouveau code.
 - **Loopback** exemptée d'appairage, sauf requête relayée par un proxy local
   (détectée) ; `"auth": { "exemptLoopback": false }` pour la supprimer.
-- **Frappes à l'aveugle** : ouvrir ou rouvrir un thread tape dans la palette de
-  Zed (fenêtre vérifiée, pas le champ actif) et prend le clavier quelques
-  secondes. Après une mise à jour de Zed, vérifier les recettes
-  (`npm run zed -- try <recette>`) ; `zedControl.enabled: false` pour l'interdire.
+- **Pilotage au clavier** (activé par défaut, averti au démarrage) : ouvrir ou
+  rouvrir un thread envoie de vraies touches à Zed (PowerShell sous Windows,
+  `xdotool` sous Linux). La fenêtre est vérifiée, pas le champ actif, et le
+  clavier est pris quelques secondes. Après une mise à jour de Zed, vérifier les
+  recettes (`npm run zed -- try <recette>`). `"zedControl": { "enabled": false }`
+  l'interdit : le « + » et la réouverture des threads fermés deviennent
+  indisponibles.
 
 ## Ce que ZRA écrit sur le disque
 
@@ -84,7 +79,7 @@ Zed, mais sans agent pour les rouvrir.
 
 `.zra/` est ignoré par Git ; ne pas le partager avec le dossier du projet.
 
-## Détails
+## Commandes et docs
 
 | Dossier | Rôle |
 |---|---|
@@ -94,12 +89,17 @@ Zed, mais sans agent pour les rouvrir.
 | `scripts/` | installation, service, appairage, certificat, mise au point clavier |
 
 ```sh
-npm run setup install apply          # une entrée ZRA par agent de Zed (claude-zra, qwen-code-zra…) + sa touche « nouveau thread » dans keymap.json
+npm run setup                        # état : entrées Zed, agents, daemon
+npm run setup install apply          # une entrée ZRA par agent de Zed (claude-zra, qwen-code-zra…) + sa touche « nouveau thread »
+npm run setup -- uninstall --apply   # retire les entrées ZRA de Zed
 npm run daemon                       # affiche l'adresse et le code d'appairage
-npm run service -- install --apply   # démarrage à l'ouverture de session
-npm run pair                         # appareils appairés (revoke <id>)
+npm run daemon:dev                   # loopback seule
+npm run service -- install --apply   # démarrage à l'ouverture de session (start, stop, logs, uninstall)
+npm run pair                         # code d'appairage, appareils appairés (revoke <id>)
 npm run zed -- probe | recipes | try <recette> [--apply]   # pilotage clavier
-npm test                             # npm install d'abord : jsdom, pour les tests de la PWA
+npm run probe:agent <agent>          # poignée de main avec un agent, à travers le shim
+npm run mock                         # daemon bouchon, pour la PWA sans Zed
+npm test                             # npm install d'abord (jsdom, pour les tests de la PWA)
 ```
 
 Configuration : copier `zra.config.example.json` (commenté) en `zra.config.json`
@@ -115,3 +115,8 @@ Configuration : copier `zra.config.example.json` (commenté) en `zra.config.json
 
 Fichiers de travail, à la racine : `ROADMAP.md` (versions à venir, idées) et
 `ISSUES.md` (issues ouvertes).
+
+---
+
+Développé avec Opus 5.5 dans Claude Code, et Qwen3.8-Max / Qwen3.8-Flash dans Pi,
+avec une relecture minimale.
