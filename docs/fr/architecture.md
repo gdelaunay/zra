@@ -2,7 +2,7 @@
 
 ZRA (Zed Remote Agent) permet de suivre et de piloter depuis un téléphone les threads d'agents ACP ouverts dans l'éditeur Zed : liste des threads, flux en direct, envoi de messages, réponses aux permissions, ouverture d'une session.
 
-Le détail est ailleurs : `docs/fr/protocol.md` (protocole PWA ↔ daemon), `docs/fr/deploy.md` (mise en service), `docs/fr/daemon.md`, `docs/fr/shim.md`, `docs/fr/client.md` (un composant chacun).
+Le détail est ailleurs : `docs/fr/protocol.md` (protocole PWA ↔ daemon), `docs/fr/deploy.md` (mise en service), `docs/fr/daemon.md`, `docs/fr/shim.md`, `docs/fr/client.md` (un composant chacun), `docs/fr/zed.md` (correspondance avec Zed).
 
 ## Principe
 
@@ -75,20 +75,9 @@ flowchart LR
 
 Backends d'injection (`zra-daemon/inject/`) : `acp` (défaut et seul supporté, le shim émet le prompt), `uia` et `auto` (expérimentaux : le texte est tapé au clavier dans Zed), `mock` (bouchon de test).
 
-## Faits établis sur Zed
+## Zed
 
-Relevés sur les postes, pas déduits de la doc de Zed.
-
-- **Index des threads** : table `sidebar_threads` de `db/0-stable/db.sqlite`, ouverte en lecture seule (`?mode=ro`, fichier en WAL, Zed écrit en parallèle). Pour un agent ACP, Zed n'y garde que des métadonnées : le contenu appartient à l'agent, d'où `session/load` comme seule voie vers l'historique. `threads/threads.db` est l'ancien agent natif, ignoré.
-- **Agents** : Zed lance l'agent en sous-processus et lui parle JSON-RPC sur stdio. Les agents du registry (`"type": "registry"`) n'ont pas de commande dans `settings.json` : Zed les installe sous `external_agents/registry`, où `agent-commands.js` les retrouve sans rien télécharger.
-- **Fenêtre** : Zed dessine son interface (GPUI), son arbre UI Automation est vide. D'où le pilotage au clavier.
-
-| | Windows | Linux |
-|---|---|---|
-| Index des threads | `%LOCALAPPDATA%\Zed\db\0-stable\db.sqlite` | `~/.local/share/zed/db/0-stable/db.sqlite` |
-| `settings.json`, `keymap.json` | `%APPDATA%\Zed\` | `~/.config/zed/` |
-| Agents installés | `%LOCALAPPDATA%\Zed\external_agents\registry` | `~/.local/share/zed/external_agents/registry` |
-| Processus | `zed.exe` | `zed-editor` |
+Ce que ZRA lit, écrit et imite dans Zed, avec l'endroit où le vérifier dans ses sources : `docs/fr/zed.md`.
 
 États d'un thread : **live** (un shim tient sa session : flux temps réel, écriture directe), **fermé** (dans l'index, sans shim : historique par `session/load`, écriture après réouverture dans Zed), **inconnu** (`session_id` nul : affiché grisé, jamais masqué).
 

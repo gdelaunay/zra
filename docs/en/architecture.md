@@ -2,7 +2,7 @@
 
 ZRA (Zed Remote Agent) lets you follow and drive, from a phone, the ACP agent threads open in the Zed editor: thread list, live stream, sending messages, answering permissions, opening a session.
 
-The details are elsewhere: `docs/en/protocol.md` (PWA ↔ daemon protocol), `docs/en/deploy.md` (setup), `docs/en/daemon.md`, `docs/en/shim.md`, `docs/en/client.md` (one component each).
+The details are elsewhere: `docs/en/protocol.md` (PWA ↔ daemon protocol), `docs/en/deploy.md` (setup), `docs/en/daemon.md`, `docs/en/shim.md`, `docs/en/client.md` (one component each), `docs/en/zed.md` (mapping to Zed).
 
 ## Principle
 
@@ -75,20 +75,9 @@ flowchart LR
 
 Injection backends (`zra-daemon/inject/`): `acp` (default and the only supported one, the shim sends the prompt), `uia` and `auto` (experimental: the text is typed into Zed with the keyboard), `mock` (test stub).
 
-## Established facts about Zed
+## Zed
 
-Observed on the machines, not inferred from Zed's docs.
-
-- **Thread index**: `sidebar_threads` table in `db/0-stable/db.sqlite`, opened read-only (`?mode=ro`, WAL file, Zed writes in parallel). For an ACP agent, Zed only keeps metadata there: the content belongs to the agent, hence `session/load` as the only way to the history. `threads/threads.db` is the old native agent, ignored.
-- **Agents**: Zed launches the agent as a subprocess and talks JSON-RPC to it over stdio. Registry agents (`"type": "registry"`) have no command in `settings.json`: Zed installs them under `external_agents/registry`, where `agent-commands.js` finds them without downloading anything.
-- **Window**: Zed draws its own interface (GPUI), its UI Automation tree is empty. Hence keyboard control.
-
-| | Windows | Linux |
-|---|---|---|
-| Thread index | `%LOCALAPPDATA%\Zed\db\0-stable\db.sqlite` | `~/.local/share/zed/db/0-stable/db.sqlite` |
-| `settings.json`, `keymap.json` | `%APPDATA%\Zed\` | `~/.config/zed/` |
-| Installed agents | `%LOCALAPPDATA%\Zed\external_agents\registry` | `~/.local/share/zed/external_agents/registry` |
-| Process | `zed.exe` | `zed-editor` |
+What ZRA reads, writes and imitates in Zed, with where to check it in its sources: `docs/en/zed.md`.
 
 Thread states: **live** (a shim holds its session: real-time stream, direct writing), **closed** (in the index, without a shim: history through `session/load`, writing after reopening in Zed), **unknown** (null `session_id`: shown greyed out, never hidden).
 

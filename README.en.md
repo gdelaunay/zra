@@ -119,6 +119,7 @@ at the root — read by the daemon and the shim, never committed (specific to ea
 | `docs/en/protocol.md` | PWA ↔ daemon protocol |
 | `docs/en/daemon.md`, `docs/en/shim.md`, `docs/en/client.md` | one component each: role, files, tests |
 | `docs/en/limitations.md` | what is not supported, and why |
+| `docs/en/zed.md` | mapping to Zed: dependencies, sources to check, interface audit |
 
 Working files, at the root, in French: `ROADMAP.md` (upcoming versions, ideas) and
 `ISSUES.md` (open issues).

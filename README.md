@@ -120,6 +120,7 @@ et le shim, jamais committé (propre à chaque poste).
 | `docs/fr/protocol.md` | protocole PWA ↔ daemon |
 | `docs/fr/daemon.md`, `docs/fr/shim.md`, `docs/fr/client.md` | un composant chacun : rôle, fichiers, tests |
 | `docs/fr/limitations.md` | ce qui n'est pas supporté, et pourquoi |
+| `docs/fr/zed.md` | correspondance avec Zed : dépendances, sources à vérifier, audit de l'interface |
 
 Fichiers de travail, à la racine : `ROADMAP.md` (versions à venir, idées) et
 `ISSUES.md` (issues ouvertes).
