@@ -1,0 +1,1155 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Référence — panel agent de Zed v1.28.1</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="panel.css">
+</head>
+<body>
+
+<header class="ref-head">
+  <h1>Panel agent de Zed — référence visuelle</h1>
+  <p>Zed v1.28.1, réglages par défaut, thème One Dark. Instantanés statiques ; comportements et conditions dans <code>README.md</code>.</p>
+  <p><code>data-src</code> sur chaque élément : fichier et fonction d'origine (chemins relatifs à <code>crates/agent_ui/src</code> sauf mention).</p>
+  <div class="ref-toolbar">
+    Largeur du panel :
+    <button data-w="640" aria-pressed="true">640 px (défaut Zed)</button>
+    <button data-w="400" aria-pressed="false">400 px</button>
+    <span style="width:16px"></span>
+    <button id="toggle-src" aria-pressed="false">Sources</button>
+  </div>
+  <nav class="ref-nav">
+    <a href="#panel">1. Panel complet</a>
+    <a href="#toolbar">2. Barre du haut et menus</a>
+    <a href="#user">3. Message utilisateur</a>
+    <a href="#assistant">4. Message de l'agent</a>
+    <a href="#tools">5. Appels d'outils</a>
+    <a href="#terminal">6. Terminal et commandes</a>
+    <a href="#permission">7. Permissions</a>
+    <a href="#turn">8. Génération et fin de tour</a>
+    <a href="#activity">9. Barre d'activité</a>
+    <a href="#composer">10. Zone de saisie</a>
+    <a href="#callouts">11. Callouts et états</a>
+    <a href="#subagent">12. Sous-agents et divers</a>
+    <a href="#kit">13. Primitives</a>
+  </nav>
+</header>
+
+<!-- ============================================================ -->
+<section class="ref-section" id="panel">
+  <h2>1. Panel complet</h2>
+  <p>Structure : barre du haut (32 px) · liste des entrées · barre d'activité · callouts · zone de saisie. Sans message, la zone de saisie remplit le panel.</p>
+  <div class="ref-grid">
+
+    <!-- 1a. Fil vide -->
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Nouveau fil</b> — aucun message</div>
+      <div class="ref-frame" style="--frame-h:420px">
+        <div class="panel" data-src="agent_panel.rs render">
+          <div class="toolbar" data-src="agent_panel.rs render_toolbar">
+            <div class="tb-left">
+              <span class="agent-icon"><i class="icon sm muted" data-i="ai_claude"></i></span>
+              <span class="title" data-src="agent_panel.rs render_toolbar (empty_thread_title)">New Claude Code Thread</span>
+            </div>
+            <div class="tb-right">
+              <button class="btn ibtn sm"><i class="icon sm" data-i="plus"></i></button>
+              <button class="btn ibtn sm"><i class="icon sm" data-i="maximize"></i></button>
+              <button class="btn ibtn sm"><i class="icon sm" data-i="ellipsis"></i></button>
+            </div>
+          </div>
+          <div class="thread">
+            <div class="composer fill" data-src="thread_view.rs render_message_editor">
+              <div class="inner">
+                <div class="editor-box">
+                  <div class="editor"><span class="caret"></span><span class="placeholder">Message Claude Code — @ to include context, / for commands</span></div>
+                </div>
+                <div class="bar">
+                  <div class="left">
+                    <button class="btn ibtn sm"><i class="icon sm muted" data-i="plus"></i></button>
+                    <button class="btn ibtn sm"><i class="icon sm muted" data-i="crosshair"></i></button>
+                  </div>
+                  <div class="right">
+                    <button class="btn selector"><span class="lbl sm">Default</span><i class="icon xs muted" data-i="chevron_down"></i></button>
+                    <button class="btn selector"><span class="lbl sm">Opus</span><i class="icon xs muted" data-i="chevron_down"></i></button>
+                    <button class="btn filled ibtn send" disabled><i class="icon muted" data-i="send"></i></button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 1b. Chargement de l'agent -->
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Connexion à l'agent</b> — « Loading… » pulsé, icône pulsée</div>
+      <div class="ref-frame" style="--frame-h:420px">
+        <div class="panel">
+          <div class="toolbar">
+            <div class="tb-left">
+              <span class="agent-icon pulse-icon" data-src="agent_panel.rs render_toolbar (is_thread_loading)"><i class="icon sm muted" data-i="ai_claude"></i></span>
+              <span class="title">New Claude Code Thread</span>
+            </div>
+            <div class="tb-right">
+              <button class="btn ibtn sm"><i class="icon sm" data-i="plus"></i></button>
+              <button class="btn ibtn sm"><i class="icon sm" data-i="maximize"></i></button>
+              <button class="btn ibtn sm"><i class="icon sm" data-i="ellipsis"></i></button>
+            </div>
+          </div>
+          <div class="center-state" data-src="conversation_view.rs render (ServerState::Loading)">
+            <span class="lbl muted pulse-label">Loading…</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 1c. Fil actif, au repos -->
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Fil actif, au repos</b> — fin de tour, zone de saisie compacte</div>
+      <div class="ref-frame" style="--frame-h:860px">
+        <div class="panel">
+          <div class="toolbar">
+            <div class="tb-left">
+              <span class="agent-icon"><i class="icon sm muted" data-i="ai_claude"></i></span>
+              <span class="title editable" data-src="agent_panel.rs render_title_view">Corriger le parsing des dates ISO</span>
+            </div>
+            <div class="tb-right">
+              <button class="btn ibtn sm"><i class="icon sm" data-i="plus"></i></button>
+              <button class="btn ibtn sm"><i class="icon sm" data-i="maximize"></i></button>
+              <button class="btn ibtn sm"><i class="icon sm" data-i="ellipsis"></i></button>
+            </div>
+          </div>
+          <div class="thread">
+            <div class="entries" data-src="thread_view.rs render_entries">
+              <div class="entry-wrap"><div class="user-msg">
+                <div class="bubble-wrap"><div class="bubble">Le test <span class="mention"><i class="icon xs muted" data-i="file_icons/rust"></i>dates.rs</span> échoue sur les fuseaux négatifs, tu peux regarder ?</div></div>
+              </div></div>
+              <div class="entry-wrap"><div class="assistant-msg">
+                <div class="thinking">
+                  <div class="th-head"><div class="start"><i class="icon sm muted" data-i="tool_think"></i><span class="name">Thinking</span></div><button class="btn ibtn sm disclosure"><i class="icon sm" data-i="chevron_down"></i></button></div>
+                </div>
+                <div class="md"><p>Je regarde le test et le parseur.</p></div>
+              </div></div>
+              <div class="entry-wrap"><div class="tool has-loc">
+                <div class="tool-head"><div class="tool-label has-loc"><i class="icon sm muted" data-i="file_icons/rust"></i><span class="md">Read <code>src/dates.rs</code></span><span class="fade"></span></div></div>
+              </div></div>
+              <div class="entry-wrap"><div class="tool">
+                <div class="tool-head"><div class="tool-label"><i class="icon sm muted" data-i="tool_search"></i><span class="md">grep "parse_offset" src/</span><span class="fade"></span></div></div>
+              </div></div>
+              <div class="entry-wrap"><div class="tool card has-loc">
+                <div class="tool-head"><div class="tool-label has-loc"><i class="icon sm muted" data-i="file_icons/rust"></i><span class="md">Edit <code>src/dates.rs</code></span></div></div>
+                <div class="diff">
+                  <div class="ln">    let sign = &amp;s[19..20];</div>
+                  <div class="ln del">    let hours: i32 = s[20..22].parse()?;</div>
+                  <div class="ln add">    let hours: i32 = s[20..22].parse::&lt;i32&gt;()? * if sign == "-" { -1 } else { 1 };</div>
+                  <div class="ln">    Ok(FixedOffset::east_opt(hours * 3600))</div>
+                </div>
+              </div></div>
+              <div class="entry-wrap"><div class="tool card">
+                <div class="tool-head"><div class="cmd" style="width:100%;background:none;padding:0"><pre style="padding:4px">cargo test dates</pre></div></div>
+                <div class="card-output"><div class="md muted"><div class="codeblock"><pre><code>test dates::negative_offset ... ok</code></pre></div></div></div>
+              </div></div>
+              <div class="entry-wrap"><div class="assistant-msg last">
+                <div class="md"><p>Le signe du décalage était ignoré. C'est corrigé dans <code>parse_offset</code>, et le test passe.</p></div>
+              </div></div>
+              <div class="entry-wrap"><div class="turn-controls" data-src="thread_view.rs render_thread_controls">
+                <button class="btn ibtn sm"><i class="icon sm muted" data-i="copy"></i></button>
+                <button class="btn ibtn sm"><i class="icon sm muted" data-i="user_arrow_up"></i></button>
+                <button class="btn ibtn sm"><i class="icon sm muted" data-i="arrow_up"></i></button>
+              </div></div>
+            </div>
+            <div class="activity-wrap">
+              <div class="activity">
+                <div class="act-summary">
+                  <div class="grp"><button class="btn ibtn sm disclosure"><i class="icon sm" data-i="chevron_right"></i></button><span class="lbl sm muted">Edits</span><span class="dot">•</span><span class="lbl sm muted">1 file</span><span class="dot">•</span><span class="diffstat lbl sm"><span class="add">+&thinsp;1</span><span class="del">&#8210;&thinsp;1</span></span></div>
+                  <div class="grp"><button class="btn ibtn sm"><i class="icon sm" data-i="list_todo"></i></button><span class="divider-v"></span><button class="btn"><span class="btn-body"><span class="lbl sm">Reject All</span><span class="kbd">Alt-Shift-Z</span></span></button><button class="btn"><span class="btn-body"><span class="lbl sm">Keep All</span><span class="kbd">Alt-Shift-Y</span></span></button></div>
+                </div>
+              </div>
+            </div>
+            <div class="composer with-messages">
+              <div class="inner">
+                <div class="editor-box">
+                  <div class="editor"><span class="caret"></span><span class="placeholder">Message Claude Code — @ to include context, / for commands</span></div>
+                  <button class="btn ibtn sm expand"><i class="icon sm muted" data-i="maximize"></i></button>
+                </div>
+                <div class="bar">
+                  <div class="left">
+                    <button class="btn ibtn sm"><i class="icon sm muted" data-i="plus"></i></button>
+                    <button class="btn ibtn sm"><i class="icon sm muted" data-i="crosshair"></i></button>
+                  </div>
+                  <div class="right">
+                    <span class="tokens" data-src="thread_view.rs render_token_usage"><svg class="ring" viewBox="0 0 16 16"><circle class="bg" cx="8" cy="8" r="6"/><circle class="fg" cx="8" cy="8" r="6" stroke-dasharray="9.4 37.7"/></svg></span>
+                    <button class="btn selector"><span class="lbl sm">Default</span><i class="icon xs muted" data-i="chevron_down"></i></button>
+                    <button class="btn selector"><span class="lbl sm">Opus</span><i class="icon xs muted" data-i="chevron_down"></i></button>
+                    <button class="btn filled ibtn send" disabled><i class="icon muted" data-i="send"></i></button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 1d. Génération en cours -->
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Génération en cours</b> — plan, outil en cours, bouton stop</div>
+      <div class="ref-frame" style="--frame-h:700px">
+        <div class="panel">
+          <div class="toolbar">
+            <div class="tb-left">
+              <span class="agent-icon"><i class="icon sm muted" data-i="ai_claude"></i></span>
+              <span class="title editable">Migrer la config vers TOML</span>
+            </div>
+            <div class="tb-right">
+              <button class="btn ibtn sm"><i class="icon sm" data-i="plus"></i></button>
+              <button class="btn ibtn sm"><i class="icon sm" data-i="maximize"></i></button>
+              <button class="btn ibtn sm"><i class="icon sm" data-i="ellipsis"></i></button>
+            </div>
+          </div>
+          <div class="thread">
+            <div class="entries">
+              <div class="entry-wrap"><div class="user-msg">
+                <div class="bubble-wrap"><div class="bubble">Passe la config de JSON à TOML, garde la compatibilité en lecture.</div></div>
+              </div></div>
+              <div class="entry-wrap"><div class="assistant-msg">
+                <div class="md"><p>D'accord. Je commence par recenser les lectures de la config.</p></div>
+              </div></div>
+              <div class="entry-wrap"><div class="tool">
+                <div class="tool-head"><div class="tool-label"><i class="icon sm muted" data-i="tool_search"></i><span class="md">Find <code>**/config*.rs</code></span><span class="fade"></span></div></div>
+              </div></div>
+              <div class="entry-wrap"><div class="tool">
+                <div class="tool-head"><div class="tool-label"><i class="icon sm muted" data-i="tool_terminal"></i><span class="md"><code>cargo check</code></span><span class="fade"></span></div><div class="tool-actions"><button class="btn ibtn sm"><i class="icon sm error" data-i="stop"></i></button></div></div>
+              </div></div>
+              <div class="entry-wrap"><div class="generating" data-src="thread_view.rs render_generating">
+                <span class="slot"><span class="spinner" data-spin="dots">⠋</span></span>
+              </div></div>
+            </div>
+            <div class="activity-wrap">
+              <div class="activity" data-src="thread_view.rs render_activity_bar">
+                <div class="act-summary" data-src="thread_view.rs render_plan_summary">
+                  <button class="btn ibtn sm disclosure"><i class="icon sm" data-i="chevron_right"></i></button>
+                  <div class="plan-current"><span class="lbl sm muted">Current:</span><span class="lbl sm muted" style="font-size:12px">Ajouter la lecture TOML dans config.rs</span><span class="left"><span class="lbl sm muted">2 left</span></span></div>
+                  <button class="btn ibtn xs"><i class="icon xs" data-i="close"></i></button>
+                </div>
+              </div>
+            </div>
+            <div class="composer with-messages">
+              <div class="inner">
+                <div class="editor-box">
+                  <div class="editor"><span class="caret"></span><span class="placeholder">Message Claude Code — @ to include context, / for commands</span></div>
+                  <button class="btn ibtn sm expand"><i class="icon sm muted" data-i="maximize"></i></button>
+                </div>
+                <div class="bar">
+                  <div class="left">
+                    <button class="btn ibtn sm"><i class="icon sm muted" data-i="plus"></i></button>
+                    <button class="btn ibtn sm"><i class="icon sm muted" data-i="crosshair"></i></button>
+                  </div>
+                  <div class="right">
+                    <span class="tokens"><svg class="ring" viewBox="0 0 16 16"><circle class="bg" cx="8" cy="8" r="6"/><circle class="fg" cx="8" cy="8" r="6" stroke-dasharray="17 37.7"/></svg></span>
+                    <button class="btn selector"><span class="lbl sm">Default</span><i class="icon xs muted" data-i="chevron_down"></i></button>
+                    <button class="btn selector"><span class="lbl sm">Opus</span><i class="icon xs muted" data-i="chevron_down"></i></button>
+                    <button class="btn ibtn tinted-error send" data-src="thread_view.rs render_send_button (stop)"><i class="icon error" data-i="stop"></i></button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 1e. Permission demandée -->
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Permission demandée</b> — carte en attente, « Awaiting Confirmation »</div>
+      <div class="ref-frame" style="--frame-h:600px">
+        <div class="panel">
+          <div class="toolbar">
+            <div class="tb-left">
+              <span class="agent-icon"><i class="icon sm muted" data-i="ai_claude"></i></span>
+              <span class="title editable">Nettoyer les fichiers temporaires</span>
+            </div>
+            <div class="tb-right">
+              <button class="btn ibtn sm"><i class="icon sm" data-i="plus"></i></button>
+              <button class="btn ibtn sm"><i class="icon sm" data-i="maximize"></i></button>
+              <button class="btn ibtn sm"><i class="icon sm" data-i="ellipsis"></i></button>
+            </div>
+          </div>
+          <div class="thread">
+            <div class="entries">
+              <div class="entry-wrap"><div class="user-msg">
+                <div class="bubble-wrap"><div class="bubble">Supprime le dossier tmp/ du projet.</div></div>
+              </div></div>
+              <div class="entry-wrap"><div class="tool card">
+                <div class="tool-head"><div class="cmd preview" style="width:100%"><div class="cmd-label">Run Command</div><pre>rm -rf tmp/</pre></div></div>
+                <div class="perm" data-src="thread_view.rs render_permission_buttons_flat">
+                  <button class="btn"><i class="icon xs success" data-i="check_double"></i><span class="btn-body"><span class="lbl sm">Always Allow</span><span class="kbd">Alt-Shift-Q</span></span></button>
+                  <button class="btn"><i class="icon xs success" data-i="check"></i><span class="btn-body"><span class="lbl sm">Allow</span><span class="kbd">Alt-Shift-A</span></span></button>
+                  <button class="btn"><i class="icon xs error" data-i="close"></i><span class="btn-body"><span class="lbl sm">Reject</span><span class="kbd">Alt-Shift-X</span></span></button>
+                </div>
+              </div></div>
+              <div class="entry-wrap"><div class="generating">
+                <span class="slot"><span class="spinner" data-spin="sand">⠁</span></span>
+                <span class="lbl sm muted" style="min-width:128px">Awaiting Confirmation...</span>
+              </div></div>
+            </div>
+            <div class="composer with-messages">
+              <div class="inner">
+                <div class="editor-box">
+                  <div class="editor"><span class="caret"></span><span class="placeholder">Message Claude Code — @ to include context, / for commands</span></div>
+                  <button class="btn ibtn sm expand"><i class="icon sm muted" data-i="maximize"></i></button>
+                </div>
+                <div class="bar">
+                  <div class="left">
+                    <button class="btn ibtn sm"><i class="icon sm muted" data-i="plus"></i></button>
+                    <button class="btn ibtn sm"><i class="icon sm muted" data-i="crosshair"></i></button>
+                  </div>
+                  <div class="right">
+                    <button class="btn selector"><span class="lbl sm">Default</span><i class="icon xs muted" data-i="chevron_down"></i></button>
+                    <button class="btn selector"><span class="lbl sm">Opus</span><i class="icon xs muted" data-i="chevron_down"></i></button>
+                    <button class="btn ibtn tinted-error send"><i class="icon error" data-i="stop"></i></button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 1f. Erreur -->
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Erreur de génération</b> — callout au-dessus de la saisie</div>
+      <div class="ref-frame" style="--frame-h:460px">
+        <div class="panel">
+          <div class="toolbar">
+            <div class="tb-left">
+              <span class="agent-icon"><i class="icon sm muted" data-i="ai_claude"></i></span>
+              <span class="title editable">Générer le changelog</span>
+            </div>
+            <div class="tb-right">
+              <button class="btn ibtn sm"><i class="icon sm" data-i="plus"></i></button>
+              <button class="btn ibtn sm"><i class="icon sm" data-i="maximize"></i></button>
+              <button class="btn ibtn sm"><i class="icon sm" data-i="ellipsis"></i></button>
+            </div>
+          </div>
+          <div class="thread">
+            <div class="entries">
+              <div class="entry-wrap"><div class="user-msg">
+                <div class="bubble-wrap"><div class="bubble">Génère le changelog depuis le dernier tag.</div></div>
+              </div></div>
+            </div>
+            <div class="callout error" data-src="thread_view.rs render_any_thread_error">
+              <span class="c-icon"><i class="icon sm error" data-i="x_circle"></i></span>
+              <div class="c-body">
+                <div class="c-title-row"><span class="c-title">An Error Happened</span><span class="c-actions"><button class="btn ibtn sm"><i class="icon sm" data-i="rotate_cw"></i></button><button class="btn ibtn sm"><i class="icon sm muted" data-i="copy"></i></button><button class="btn ibtn sm"><i class="icon sm" data-i="close"></i></button></span></div>
+                <div class="c-desc"><div class="md muted" style="font-size:16px">Internal error: connection reset by peer</div></div>
+              </div>
+            </div>
+            <div class="composer with-messages">
+              <div class="inner">
+                <div class="editor-box">
+                  <div class="editor"><span class="caret"></span><span class="placeholder">Message Claude Code — @ to include context, / for commands</span></div>
+                  <button class="btn ibtn sm expand"><i class="icon sm muted" data-i="maximize"></i></button>
+                </div>
+                <div class="bar">
+                  <div class="left">
+                    <button class="btn ibtn sm"><i class="icon sm muted" data-i="plus"></i></button>
+                    <button class="btn ibtn sm"><i class="icon sm muted" data-i="crosshair"></i></button>
+                  </div>
+                  <div class="right">
+                    <button class="btn selector"><span class="lbl sm">Default</span><i class="icon xs muted" data-i="chevron_down"></i></button>
+                    <button class="btn selector"><span class="lbl sm">Opus</span><i class="icon xs muted" data-i="chevron_down"></i></button>
+                    <button class="btn filled ibtn send" disabled><i class="icon muted" data-i="send"></i></button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="ref-section" id="toolbar">
+  <h2>2. Barre du haut et menus</h2>
+  <p>Hauteur 32 px, fond <code>tab_bar.background</code>. Boutons : nouveau fil (menu), plein écran, options (⋯). Le crayon d'édition du titre n'apparaît qu'au survol.</p>
+  <div class="ref-grid">
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Titre</b> — nouveau fil · fil nommé · survol · génération du titre · échec</div>
+      <div class="ref-frame">
+        <div class="toolbar"><div class="tb-left"><span class="agent-icon"><i class="icon sm muted" data-i="ai_claude"></i></span><span class="title">New Claude Code Thread</span></div><div class="tb-right"><button class="btn ibtn sm"><i class="icon sm" data-i="plus"></i></button><button class="btn ibtn sm"><i class="icon sm" data-i="maximize"></i></button><button class="btn ibtn sm"><i class="icon sm" data-i="ellipsis"></i></button></div></div>
+      </div>
+      <div class="ref-frame">
+        <div class="toolbar"><div class="tb-left"><span class="agent-icon"><i class="icon sm muted" data-i="ai_claude"></i></span><span class="title editable">Corriger le parsing des dates ISO</span></div><div class="tb-right"><button class="btn ibtn sm"><i class="icon sm" data-i="plus"></i></button><button class="btn ibtn sm"><i class="icon sm" data-i="maximize"></i></button><button class="btn ibtn sm"><i class="icon sm" data-i="ellipsis"></i></button></div></div>
+      </div>
+      <div class="ref-frame">
+        <div class="toolbar"><div class="tb-left hover"><span class="agent-icon"><i class="icon sm muted" data-i="ai_claude"></i></span><span class="title editable">Corriger le parsing des dates ISO dans le module de synchronisation</span><span class="title-fade"></span><span class="title-edit"><button class="btn ibtn sm"><i class="icon sm" data-i="pencil"></i></button></span></div><div class="tb-right"><button class="btn ibtn sm"><i class="icon sm" data-i="plus"></i></button><button class="btn ibtn sm"><i class="icon sm" data-i="maximize"></i></button><button class="btn ibtn sm"><i class="icon sm" data-i="ellipsis"></i></button></div></div>
+      </div>
+      <div class="ref-frame">
+        <div class="toolbar"><div class="tb-left"><span class="agent-icon"><i class="icon sm muted" data-i="ai_claude"></i></span><span class="title pulse-title">New Thread</span></div><div class="tb-right"><button class="btn ibtn sm"><i class="icon sm" data-i="plus"></i></button><button class="btn ibtn sm"><i class="icon sm" data-i="maximize"></i></button><button class="btn ibtn sm"><i class="icon sm" data-i="ellipsis"></i></button></div></div>
+      </div>
+      <div class="ref-frame">
+        <div class="toolbar"><div class="tb-left"><span class="agent-icon"><i class="icon sm muted" data-i="ai_claude"></i></span><span class="title editable">New Thread</span><button class="btn ibtn sm"><i class="icon sm error" data-i="x_circle"></i></button></div><div class="tb-right"><button class="btn ibtn sm"><i class="icon sm" data-i="plus"></i></button><button class="btn ibtn sm toggled"><i class="icon sm" data-i="minimize"></i></button><button class="btn ibtn sm"><i class="icon sm" data-i="ellipsis"></i></button></div></div>
+      </div>
+    </div>
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Menu « + »</b> — render_toolbar new_thread_menu (ancré en haut à droite)</div>
+      <div class="menu elevated" data-src="agent_panel.rs render_toolbar (new_thread_menu_builder)">
+        <div class="menu-item"><span class="start"><i class="icon sm muted" data-i="zed_agent"></i>Zed Agent</span></div>
+        <div class="menu-item"><span class="start"><i class="icon sm muted" data-i="terminal"></i>Terminal</span></div>
+        <div class="menu-sep"></div>
+        <div class="menu-header">External Agents</div>
+        <div class="menu-item selected"><span class="start"><i class="icon sm muted" data-i="ai_claude"></i>Claude Code</span><span class="kbd">Ctrl-N</span></div>
+        <div class="menu-item"><span class="start"><i class="icon sm muted" data-i="sparkle"></i>Codex</span></div>
+        <div class="menu-sep"></div>
+        <div class="menu-item"><span class="start"><i class="icon sm muted" data-i="plus"></i>Add More Agents</span></div>
+      </div>
+    </div>
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Menu « ⋯ »</b> — render_panel_options_menu (fil avec messages)</div>
+      <div class="menu elevated" data-src="agent_panel.rs render_panel_options_menu">
+        <div class="menu-header">Current Thread</div>
+        <div class="menu-item">Open Thread as Markdown</div>
+        <div class="menu-sep"></div>
+        <div class="menu-header">MCP Servers</div>
+        <div class="menu-item">Add Server…</div>
+        <div class="menu-item">Install New Servers…</div>
+        <div class="menu-sep"></div>
+        <div class="menu-header">Context</div>
+        <div class="menu-item"><span>Skills</span><span class="kbd">Alt-Shift-L</span></div>
+        <div class="menu-item"><span class="start" style="gap:4px">Open Project Rules <span class="lbl sm muted">(AGENTS.md)</span></span></div>
+        <div class="menu-sep"></div>
+        <div class="menu-item"><span>Profiles</span><span class="kbd">Alt-Shift-P</span></div>
+        <div class="menu-item">Settings</div>
+        <div class="menu-sep"></div>
+        <div class="menu-item">Toggle Threads Sidebar</div>
+        <div class="menu-sep"></div>
+        <div class="menu-item">Reauthenticate</div>
+        <div class="menu-item">Reload Agent</div>
+      </div>
+    </div>
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Tooltips</b> — titre seul · avec raccourci · avec méta</div>
+      <div class="ref-frame ref-frame--auto" style="display:flex;flex-direction:column;gap:12px;align-items:flex-start">
+        <div class="tooltip elevated"><div class="tooltip-row"><span>Toggle Agent Menu</span><span class="kbd">Alt-Shift-I</span></div></div>
+        <div class="tooltip elevated"><div class="tooltip-row"><span>Enable Full Screen</span><span class="kbd">Shift-Escape</span></div></div>
+        <div class="tooltip elevated"><span>Claude Code</span><span class="meta">Selected Agent</span></div>
+        <div class="tooltip elevated"><span>Title generation failed. Click to retry.</span><span class="meta">rate limited</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="ref-section" id="user">
+  <h2>3. Message utilisateur</h2>
+  <p>Bulle : fond <code>editor.background</code>, bordure <code>border</code>, rayon 6, ombre md ; contenu en police buffer 12 px. Survol : bordure <code>border.focused</code> à 80 %. Clic : édition (le reste du fil passe sous un voile <code>panel.background</code> à 80 %).</p>
+  <div class="ref-grid">
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Normal</b> · avec mentions</div>
+      <div class="ref-frame">
+        <div class="user-msg" data-src="thread_view.rs render_entry (UserMessage)">
+          <div class="bubble-wrap"><div class="bubble">Ajoute un test pour <span class="mention"><i class="icon xs muted" data-i="file_icons/rust"></i>dates.rs</span> et vérifie <span class="mention"><i class="icon xs muted" data-i="file_icons/toml"></i>Cargo.toml</span>.
+Deuxième ligne du message.</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="ref-specimen">
+      <div class="ref-label"><b>En édition</b> — bordure focus, annuler / renvoyer</div>
+      <div class="ref-frame" style="padding-top:8px">
+        <div class="user-msg">
+          <div class="bubble-wrap">
+            <div class="bubble editing">Ajoute un test pour dates.rs<span class="caret"></span></div>
+            <div class="edit-controls" data-src="thread_view.rs render_entry (editor_focus)">
+              <button class="btn ibtn xs"><i class="icon xs error" data-i="close"></i></button>
+              <button class="btn ibtn xs"><i class="icon xs muted" data-i="return"></i></button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Non éditable</b> — focus : crayon barré, cadre pointillé</div>
+      <div class="ref-frame" style="padding-top:8px">
+        <div class="user-msg">
+          <div class="bubble-wrap">
+            <div class="bubble readonly">Message d'un agent qui ne sait pas revenir en arrière.</div>
+            <div class="edit-controls dashed"><button class="btn ibtn sm"><i class="icon sm muted" data-i="pencil_unavailable"></i></button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Tooltip</b> du crayon barré</div>
+      <div class="tooltip elevated"><span>Unavailable Editing</span><span class="meta" style="max-width:256px">Editing previous messages is not available for Claude Code yet.</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="ref-section" id="assistant">
+  <h2>4. Message de l'agent</h2>
+  <p>Marges 20 px horizontales, blocs espacés de 12 px. Markdown : police UI 16 px, interligne 21 px (paragraphes 20,8 px), code en police buffer 12 px.</p>
+  <div class="ref-grid">
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Markdown complet</b> — markdown.rs MarkdownStyle::themed(Agent)</div>
+      <div class="ref-frame">
+        <div class="assistant-msg last" data-src="thread_view.rs render_entry (AssistantMessage)">
+          <div class="md" data-src="crates/markdown/src/markdown.rs themed_with_overrides">
+            <h2>Résumé des changements</h2>
+            <p>Le parseur ignorait le <strong>signe</strong> du décalage horaire. J'ai corrigé <code>parse_offset</code> et ajouté un test, voir <a href="#">la doc chrono</a>.</p>
+            <ul>
+              <li><span class="bullet">•</span><div>Correction du signe dans <code>src/dates.rs</code></div></li>
+              <li><span class="bullet">•</span><div>Nouveau test <em>negative_offset</em></div></li>
+            </ul>
+            <ol>
+              <li><span class="bullet">1.</span><div>Lancer les tests</div></li>
+              <li><span class="bullet">2.</span><div>Vérifier la CI</div></li>
+            </ol>
+            <div class="codeblock hover">
+              <div class="cb-actions"><button class="btn ibtn sm"><i class="icon sm muted" data-i="copy"></i></button></div>
+              <pre><code><span class="tk-k">fn</span> <span class="tk-f">parse_offset</span>(s: &amp;<span class="tk-t">str</span>) -&gt; <span class="tk-t">Result</span>&lt;<span class="tk-t">i32</span>&gt; {
+    <span class="tk-k">let</span> sign = <span class="tk-k">if</span> s.<span class="tk-f">starts_with</span>(<span class="tk-s">'-'</span>) { -<span class="tk-n">1</span> } <span class="tk-k">else</span> { <span class="tk-n">1</span> };
+    <span class="tk-c">// heures sur deux chiffres</span>
+    <span class="tk-t">Ok</span>(sign * s[<span class="tk-n">1</span>..<span class="tk-n">3</span>].<span class="tk-f">parse</span>()?)
+}</code></pre>
+            </div>
+            <blockquote><p>Les fuseaux à demi-heure ne sont pas couverts.</p></blockquote>
+            <table>
+              <thead><tr><th>Cas</th><th>Avant</th><th>Après</th></tr></thead>
+              <tbody>
+                <tr><td>+02:00</td><td>ok</td><td>ok</td></tr>
+                <tr><td>-05:00</td><td>+5 h</td><td>-5 h</td></tr>
+                <tr><td>Z</td><td>ok</td><td>ok</td></tr>
+              </tbody>
+            </table>
+            <hr>
+            <h3>Titre de niveau 3</h3>
+            <p>Dernier paragraphe.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Thinking</b> — fermé · fermé survolé · ouvert · ouvert contraint (max 256 px)</div>
+      <div class="ref-frame">
+        <div class="assistant-msg" data-src="thread_view.rs render_thinking_block">
+          <div class="thinking"><div class="th-head"><div class="start"><i class="icon sm muted" data-i="tool_think"></i><span class="name">Thinking</span></div><button class="btn ibtn sm disclosure"><i class="icon sm" data-i="chevron_down"></i></button></div></div>
+          <div class="thinking hover"><div class="th-head"><div class="start"><i class="icon sm muted" data-i="tool_think"></i><span class="name">Thinking</span></div><button class="btn ibtn sm disclosure"><i class="icon sm" data-i="chevron_down"></i></button></div></div>
+          <div class="thinking"><div class="th-head"><div class="start"><i class="icon sm muted" data-i="tool_think"></i><span class="name">Thinking</span></div><button class="btn ibtn sm disclosure"><i class="icon sm" data-i="chevron_up"></i></button></div>
+            <div class="th-body"><div class="md"><p>L'utilisateur signale un échec sur les fuseaux négatifs. Je dois lire le parseur avant de proposer un correctif.</p></div></div>
+          </div>
+          <div class="thinking"><div class="th-head"><div class="start"><i class="icon sm muted" data-i="tool_think"></i><span class="name">Thinking</span></div><button class="btn ibtn sm disclosure"><i class="icon sm" data-i="chevron_up"></i></button></div>
+            <div class="th-body constrained"><div class="md"><p>Le défilement suit la fin pendant le streaming, le haut est estompé.</p><p>Première hypothèse : le signe est lu mais jamais appliqué.</p><p>Deuxième hypothèse : le découpage des caractères décale l'index.</p><p>Je vérifie les deux en lisant le code.</p><p>Le test lit « -05:00 » et attend -18000 secondes.</p><p>Le résultat obtenu est +18000.</p><p>C'est bien le signe.</p></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="ref-section" id="tools">
+  <h2>5. Appels d'outils</h2>
+  <p>Deux dispositions. <b>Simple</b> (lecture, recherche, web…) : une ligne de 13 px muted, dépliable au survol. <b>Carte</b> (édition, exécution, ou confirmation demandée) : bordure, fond <code>editor.background</code>, en-tête teinté.</p>
+  <div class="ref-grid">
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Libellés par type</b> — icône selon ToolKind (render_tool_call_label)</div>
+      <div class="ref-frame" style="padding:4px 0">
+        <div class="tool has-loc" data-src="thread_view.rs render_tool_call_label"><div class="tool-head"><div class="tool-label has-loc"><i class="icon sm muted" data-i="file_icons/rust"></i><span class="md">Read <code>src/dates.rs</code></span><span class="fade"></span></div></div></div>
+        <div class="tool"><div class="tool-head"><div class="tool-label"><i class="icon sm muted" data-i="tool_search"></i><span class="md">grep -n "parse_offset" src/</span><span class="fade"></span></div></div></div>
+        <div class="tool"><div class="tool-head"><div class="tool-label"><i class="icon sm muted" data-i="tool_web"></i><span class="md">Fetch https://docs.rs/chrono/latest/chrono/</span><span class="fade"></span></div></div></div>
+        <div class="tool"><div class="tool-head"><div class="tool-label"><i class="icon sm muted" data-i="tool_think"></i><span class="md">Think</span><span class="fade"></span></div></div></div>
+        <div class="tool"><div class="tool-head"><div class="tool-label"><i class="icon sm muted" data-i="tool_delete_file"></i><span class="md">Delete <code>tmp/cache.json</code></span><span class="fade"></span></div></div></div>
+        <div class="tool"><div class="tool-head"><div class="tool-label"><i class="icon sm muted" data-i="arrow_right_left"></i><span class="md">Move <code>a.rs</code> → <code>b.rs</code></span><span class="fade"></span></div></div></div>
+        <div class="tool"><div class="tool-head"><div class="tool-label"><i class="icon sm muted" data-i="arrow_right_left"></i><span class="md">Switch to Plan Mode</span><span class="fade"></span></div></div></div>
+        <div class="tool"><div class="tool-head"><div class="tool-label"><i class="icon sm muted" data-i="tool_hammer"></i><span class="md">mcp__github__list_issues</span><span class="fade"></span></div></div></div>
+      </div>
+    </div>
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>États (simple)</b> — survol · en cours (stop) · échec · annulé · en pause</div>
+      <div class="ref-frame" style="padding:4px 0">
+        <div class="tool hover"><div class="tool-head"><div class="tool-label"><i class="icon sm muted" data-i="tool_search"></i><span class="md">grep -n "parse_offset" src/</span><span class="fade"></span></div><div class="tool-actions"><button class="btn ibtn sm disclosure"><i class="icon sm" data-i="chevron_down"></i></button></div></div></div>
+        <div class="tool"><div class="tool-head"><div class="tool-label"><i class="icon sm muted" data-i="tool_web"></i><span class="md">Fetch https://example.com</span><span class="fade"></span></div><div class="tool-actions"><button class="btn ibtn sm"><i class="icon sm error" data-i="stop"></i></button></div></div></div>
+        <div class="tool"><div class="tool-head"><div class="tool-label"><i class="icon sm muted" data-i="tool_search"></i><span class="md">grep "introuvable"</span><span class="fade"></span></div><div class="tool-actions"><i class="icon sm error" data-i="close"></i></div></div></div>
+        <div class="tool"><div class="tool-head"><div class="tool-label"><i class="icon sm muted" data-i="tool_web"></i><span class="md">Fetch https://example.com</span><span class="fade"></span></div><div class="tool-actions"><i class="icon sm error" data-i="close"></i></div></div></div>
+        <div class="tool"><div class="tool-head"><div class="tool-label"><i class="icon sm muted" data-i="tool_hammer"></i><span class="md">long_task</span><span class="fade"></span></div><div class="tool-actions"><i class="icon sm muted" data-i="debug_pause"></i></div></div></div>
+      </div>
+    </div>
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Déplié (simple)</b> — sortie avec filet gauche + bouton replier</div>
+      <div class="ref-frame" style="padding:4px 0">
+        <div class="tool">
+          <div class="tool-head"><div class="tool-label"><i class="icon sm muted" data-i="tool_search"></i><span class="md">grep -n "parse_offset" src/</span><span class="fade"></span></div><div class="tool-actions"><button class="btn ibtn sm disclosure"><i class="icon sm" data-i="chevron_up"></i></button></div></div>
+          <div class="tool-output first" data-src="thread_view.rs render_markdown_output">
+            <div class="md muted"><div class="codeblock"><pre><code>src/dates.rs:42:fn parse_offset(s: &amp;str)
+src/dates.rs:87:    let off = parse_offset(&amp;s[19..])?;</code></pre></div></div>
+          </div>
+          <div class="tool-collapse"><button class="btn outlined full" style="height:20px"><i class="icon muted" data-i="chevron_up"></i></button></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Déplié avec entrée brute</b> — « Raw Input: » / « Output: » (outil MCP)</div>
+      <div class="ref-frame" style="padding:4px 0">
+        <div class="tool">
+          <div class="tool-head"><div class="tool-label"><i class="icon sm muted" data-i="tool_hammer"></i><span class="md">mcp__github__list_issues</span><span class="fade"></span></div><div class="tool-actions"><button class="btn ibtn sm disclosure"><i class="icon sm" data-i="chevron_up"></i></button></div></div>
+          <div class="tool-output first" style="gap:4px;padding-bottom:4px">
+            <span class="io-header">Raw Input:</span>
+            <div class="md muted"><div class="codeblock"><pre><code>{ "repo": "zra", "state": "open" }</code></pre></div></div>
+            <span class="io-header">Output:</span>
+          </div>
+          <div class="tool-output"><div class="md muted"><p>3 issues ouvertes.</p></div></div>
+          <div class="tool-collapse"><button class="btn outlined full" style="height:20px"><i class="icon muted" data-i="chevron_up"></i></button></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Édition (carte)</b> — diff · chargement du diff · échec (pointillés) · interrompue</div>
+      <div class="ref-frame" style="padding:4px 0">
+        <div class="tool card has-loc" data-src="thread_view.rs render_tool_call (use_card_layout)">
+          <div class="tool-head"><div class="tool-label has-loc"><i class="icon sm muted" data-i="file_icons/rust"></i><span class="md">Edit <code>src/dates.rs</code></span></div><div class="tool-actions"><button class="btn ibtn sm disclosure"><i class="icon sm" data-i="chevron_up"></i></button></div></div>
+          <div class="diff" data-src="thread_view.rs render_diff_editor ; entry_view_state.rs create_multibuffer_diff_editor">
+            <div class="ln">    let sign = &amp;s[19..20];</div>
+            <div class="ln del">    let hours: i32 = s[20..22].parse()?;</div>
+            <div class="ln add">    let hours: i32 = s[20..22].parse::&lt;i32&gt;()?;</div>
+            <div class="ln add">    let hours = if sign == "-" { -hours } else { hours };</div>
+            <div class="ln">    Ok(FixedOffset::east_opt(hours * 3600))</div>
+          </div>
+        </div>
+        <div class="tool card has-loc">
+          <div class="tool-head"><div class="tool-label has-loc"><i class="icon sm muted" data-i="file_icons/typescript"></i><span class="md">Edit <code>web/app.ts</code></span></div></div>
+          <div class="diff-loading" data-src="thread_view.rs render_diff_loading"><div style="width:75%"></div><div style="width:25%"></div><div style="width:50%"></div><div style="width:60%"></div><div style="width:40%"></div></div>
+        </div>
+        <div class="tool card failed has-loc">
+          <div class="tool-head"><div class="tool-label has-loc"><i class="icon sm muted" data-i="file_icons/rust"></i><span class="md">Edit <code>src/lib.rs</code></span></div><div class="tool-actions"><i class="icon sm error" data-i="close"></i></div></div>
+        </div>
+        <div class="tool card failed has-loc">
+          <div class="tool-head"><div class="tool-label has-loc"><i class="icon sm muted" data-i="file_icons/rust"></i><span class="md">Edit <code>src/lib.rs</code></span></div><div class="tool-actions"><i class="icon sm muted" data-i="x_circle"></i></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Sorties diverses</b> — image · lien de ressource · lecture numérotée (read_file)</div>
+      <div class="ref-frame" style="padding:4px 0">
+        <div class="tool">
+          <div class="tool-head"><div class="tool-label"><i class="icon sm muted" data-i="tool_hammer"></i><span class="md">screenshot</span><span class="fade"></span></div><div class="tool-actions"><button class="btn ibtn sm disclosure"><i class="icon sm" data-i="chevron_up"></i></button></div></div>
+          <div class="tool-output first" data-src="thread_view.rs render_image_output"><div style="width:220px;height:120px;border-radius:4px;background:linear-gradient(135deg,#3b414d,#2f343e);display:flex;align-items:center;justify-content:center"><i class="icon muted" data-i="image"></i></div></div>
+        </div>
+        <div class="tool">
+          <div class="tool-head"><div class="tool-label"><i class="icon sm muted" data-i="tool_search"></i><span class="md">Search files</span><span class="fade"></span></div><div class="tool-actions"><button class="btn ibtn sm disclosure"><i class="icon sm" data-i="chevron_up"></i></button></div></div>
+          <div class="res-link" style="margin-top:6px" data-src="thread_view.rs render_resource_link"><button class="btn"><span class="lbl sm muted">zra/src/dates.rs#L42</span></button></div>
+          <div class="res-link"><button class="btn"><span class="lbl sm muted">https://docs.rs/chrono</span><i class="icon xs muted" data-i="arrow_up_right"></i></button></div>
+        </div>
+        <div class="tool has-loc">
+          <div class="tool-head"><div class="tool-label has-loc"><i class="icon sm muted" data-i="file_icons/rust"></i><span class="md">Read <code>src/dates.rs</code></span><span class="fade"></span></div><div class="tool-actions"><button class="btn ibtn sm disclosure"><i class="icon sm" data-i="chevron_up"></i></button></div></div>
+          <div class="tool-output first"><div class="codeblock" style="position:relative;padding:8px;border:1px solid var(--border-variant);border-radius:8px;background:var(--editor-background)"><div class="numbered" data-src="thread_view.rs CatNumberedCodeBlock (outil read_file uniquement)"><div><span class="n">41</span>/// Décalage « ±HH:MM »</div><div><span class="n">42</span>fn parse_offset(s: &amp;str) -&gt; Result&lt;i32&gt; {</div><div><span class="n">43</span>    let sign = &amp;s[0..1];</div></div></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="ref-section" id="terminal">
+  <h2>6. Terminal et commandes</h2>
+  <p>Outil d'exécution sans terminal attaché : carte dont l'en-tête est la commande. Avec terminal (agent natif ou capacité terminal ACP) : en-tête dossier de travail + commande, corps = terminal intégré.</p>
+  <div class="ref-grid">
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Exécution sans terminal</b> — terminée · repliée survolée (copier)</div>
+      <div class="ref-frame" style="padding:4px 0">
+        <div class="tool card">
+          <div class="tool-head"><div class="cmd" style="width:100%" data-src="thread_view.rs render_collapsible_command"><pre>cargo test --workspace -- --nocapture</pre></div></div>
+          <div class="card-output"><div class="md muted"><div class="codeblock"><pre><code>running 42 tests
+test result: ok. 42 passed; 0 failed</code></pre></div></div></div>
+        </div>
+        <div class="tool card">
+          <div class="tool-head"><div class="cmd hover" style="width:100%"><pre>git status --short</pre><span class="cmd-copy"><button class="btn ibtn sm"><i class="icon sm muted" data-i="copy"></i></button></span></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Carte terminal</b> — en cours · terminée dépliée · échec (code de sortie)</div>
+      <div class="ref-frame" style="padding:4px 0">
+        <div class="term" data-src="thread_view.rs render_terminal_tool_call ; ui/terminal_tool_header.rs">
+          <div class="term-head">
+            <div class="term-row running"><span class="cwd">C:\Users\dev\projets\zra</span><button class="btn ibtn sm disclosure"><i class="icon sm" data-i="chevron_down"></i></button><span class="elapsed">(42s)</span><i class="icon sm muted spin" data-i="load_circle"></i><span class="divider-v" style="margin-left:4px"></span><button class="btn ibtn sm"><i class="icon sm error" data-i="stop"></i></button></div>
+            <div class="cmd" style="background:none"><pre>npm run build</pre></div>
+          </div>
+        </div>
+        <div class="term hover">
+          <div class="term-head">
+            <div class="term-row"><span class="cwd">C:\Users\dev\projets\zra</span><button class="btn ibtn sm disclosure"><i class="icon sm" data-i="chevron_up"></i></button></div>
+            <div class="cmd" style="background:none"><pre>node --version</pre></div>
+          </div>
+          <div class="term-body">v24.11.0</div>
+        </div>
+        <div class="term failed">
+          <div class="term-head">
+            <div class="term-row"><span class="cwd">C:\Users\dev\projets\zra</span><button class="btn ibtn sm disclosure"><i class="icon sm" data-i="chevron_down"></i></button><button class="btn ibtn sm" style="background:none"><i class="icon sm error" data-i="close"></i></button></div>
+            <div class="cmd" style="background:none"><pre>npm test</pre></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="ref-section" id="permission">
+  <h2>7. Permissions</h2>
+  <p>Boutons sous la carte, séparés par un filet. Agents ACP externes : liste verticale des options envoyées par l'agent (« flat »), icône selon le type. Raccourcis affichés seulement sur la première demande en attente et la première option de chaque type.</p>
+  <div class="ref-grid">
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Édition à confirmer</b> — options « flat » (agent ACP)</div>
+      <div class="ref-frame" style="padding:4px 0">
+        <div class="tool card has-loc">
+          <div class="tool-head"><div class="tool-label has-loc"><i class="icon sm muted" data-i="file_icons/rust"></i><span class="md">Edit <code>src/dates.rs</code></span></div></div>
+          <div class="diff">
+            <div class="ln del">    let hours: i32 = s[20..22].parse()?;</div>
+            <div class="ln add">    let hours = sign * s[20..22].parse::&lt;i32&gt;()?;</div>
+          </div>
+          <div class="perm">
+            <button class="btn"><i class="icon xs success" data-i="check_double"></i><span class="btn-body"><span class="lbl sm">Always Allow</span><span class="kbd">Alt-Shift-Q</span></span></button>
+            <button class="btn"><i class="icon xs success" data-i="check"></i><span class="btn-body"><span class="lbl sm">Allow</span><span class="kbd">Alt-Shift-A</span></span></button>
+            <button class="btn"><i class="icon xs error" data-i="close"></i><span class="btn-body"><span class="lbl sm">Reject</span><span class="kbd">Alt-Shift-X</span></span></button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Outil simple à confirmer</b> — passe en carte, entrée brute repliable</div>
+      <div class="ref-frame" style="padding:4px 0">
+        <div class="tool card">
+          <div class="tool-head"><div class="tool-label"><i class="icon sm muted" data-i="tool_web"></i><span class="md">Fetch https://api.github.com/repos/zra</span><span class="fade"></span></div></div>
+          <div class="raw-input" data-src="thread_view.rs render_tool_call (WaitingForConfirmation)">
+            <div class="ri-toggle"><span class="io-header">View Raw Input</span><button class="btn ibtn sm disclosure"><i class="icon sm" data-i="chevron_down"></i></button></div>
+          </div>
+          <div class="perm">
+            <button class="btn"><i class="icon xs success" data-i="check"></i><span class="btn-body"><span class="lbl sm">Allow</span></span></button>
+            <button class="btn"><i class="icon xs error" data-i="close"></i><span class="btn-body"><span class="lbl sm">Reject</span></span></button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Variante « dropdown »</b> (agent natif Zed) et son menu</div>
+      <div class="ref-frame" style="padding:4px 0">
+        <div class="tool card">
+          <div class="tool-head"><div class="cmd preview" style="width:100%"><div class="cmd-label">Run Command</div><pre>cargo build</pre></div></div>
+          <div class="perm row" data-src="thread_view.rs render_permission_buttons_with_dropdown">
+            <div class="grp">
+              <button class="btn"><i class="icon xs success" data-i="check"></i><span class="btn-body"><span class="lbl sm">Allow</span><span class="kbd">Alt-Shift-A</span></span></button>
+              <button class="btn"><i class="icon xs error" data-i="close"></i><span class="btn-body"><span class="lbl sm">Deny</span><span class="kbd">Alt-Shift-X</span></span></button>
+            </div>
+            <button class="btn"><span class="btn-body"><span class="lbl sm">Only this time</span><span class="kbd">Ctrl-Alt-A</span></span><i class="icon xs muted" data-i="chevron_down"></i></button>
+          </div>
+        </div>
+      </div>
+      <div class="menu elevated" style="align-self:flex-end">
+        <div class="menu-item"><span>Always for <code style="font-family:var(--font-mono);font-size:12px">cargo</code> commands</span><i class="icon sm" style="visibility:hidden" data-i="check"></i></div>
+        <div class="menu-item"><span>Always for this tool</span><i class="icon sm" style="visibility:hidden" data-i="check"></i></div>
+        <div class="menu-item"><span>Only this time</span><i class="icon sm" data-i="check"></i></div>
+      </div>
+    </div>
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Permission générique</b> (sans appel d'outil) — titre, description, options en ligne</div>
+      <div class="ref-frame">
+        <div style="padding:8px;display:flex;flex-direction:column;gap:8px;font-size:12px;line-height:var(--lh)" data-src="thread_view.rs render_generic_permission_card">
+          <div style="color:var(--text-muted)">Claude Code</div>
+          <div>Run a command outside the sandbox</div>
+          <div style="display:flex;flex-direction:column;gap:4px"><div>npm install</div><div>Working directory: C:\Users\dev\projets\zra</div></div>
+          <div style="display:flex;gap:4px;flex-wrap:wrap"><button class="btn"><span class="lbl sm">Allow once</span></button><button class="btn"><span class="lbl sm">Always allow</span></button><button class="btn"><span class="lbl sm">Cancel</span></button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="ref-section" id="turn">
+  <h2>8. Génération et fin de tour</h2>
+  <div class="ref-grid">
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Indicateur de génération</b> — Dots · Awaiting Confirmation (Sand) · avec stats (show_turn_stats)</div>
+      <div class="ref-frame">
+        <div class="generating"><span class="slot"><span class="spinner" data-spin="dots">⠋</span></span></div>
+        <div class="generating"><span class="slot"><span class="spinner" data-spin="sand">⠁</span></span><span class="lbl sm muted" style="min-width:128px">Awaiting Confirmation...</span></div>
+        <div class="generating"><span class="slot"><span class="spinner" data-spin="dots">⠋</span></span><span class="lbl sm muted">1m 12s</span><span style="display:flex;gap:2px;align-items:center"><i class="icon xs muted" data-i="arrow_down"></i><span class="lbl sm muted">3.4k tokens</span></span></div>
+      </div>
+    </div>
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Contrôles de fin de tour</b> — repos (opacité 0.4) · survol · avec stats</div>
+      <div class="ref-frame">
+        <div class="turn-controls"><button class="btn ibtn sm"><i class="icon sm muted" data-i="copy"></i></button><button class="btn ibtn sm"><i class="icon sm muted" data-i="user_arrow_up"></i></button><button class="btn ibtn sm"><i class="icon sm muted" data-i="arrow_up"></i></button></div>
+        <div class="turn-controls hover"><button class="btn ibtn sm"><i class="icon sm muted" data-i="copy"></i></button><button class="btn ibtn sm"><i class="icon sm muted" data-i="user_arrow_up"></i></button><button class="btn ibtn sm"><i class="icon sm muted" data-i="arrow_up"></i></button></div>
+        <div class="turn-controls hover"><span class="stats"><span class="lbl sm muted">12.1k tokens</span><span class="lbl sm muted dot">•</span><span class="lbl sm muted">2m 05s</span><span class="lbl sm muted dot">•</span></span><button class="btn ibtn sm"><i class="icon sm muted" data-i="copy"></i></button><button class="btn ibtn sm"><i class="icon sm muted" data-i="user_arrow_up"></i></button><button class="btn ibtn sm"><i class="icon sm muted" data-i="arrow_up"></i></button></div>
+      </div>
+    </div>
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Menu clic droit</b> sur une réponse — render_message_context_menu</div>
+      <div class="menu elevated">
+        <div class="menu-item">Copy This Agent Response</div>
+        <div class="menu-item">Scroll to Bottom</div>
+        <div class="menu-item">Scroll to Top</div>
+        <div class="menu-item">Open Thread as Markdown</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="ref-section" id="activity">
+  <h2>9. Barre d'activité</h2>
+  <p>Boîte collée au-dessus de la zone de saisie : demandes de permission hors écran, plan, fichiers modifiés, file d'attente. Sections séparées par un filet <code>border</code>, listes limitées à 160 px.</p>
+  <div class="ref-grid">
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Plan</b> — résumé « Current » · résumé « 2/5 » · déplié</div>
+      <div class="ref-frame">
+        <div class="activity-wrap" style="padding-top:8px"><div class="activity">
+          <div class="act-summary"><button class="btn ibtn sm disclosure"><i class="icon sm" data-i="chevron_right"></i></button><div class="plan-current"><span class="lbl sm muted">Current:</span><span class="lbl sm muted">Ajouter la lecture TOML dans config.rs</span><span class="left"><span class="lbl sm muted">2 left</span></span></div><button class="btn ibtn xs"><i class="icon xs" data-i="close"></i></button></div>
+        </div></div>
+      </div>
+      <div class="ref-frame">
+        <div class="activity-wrap" style="padding-top:8px"><div class="activity">
+          <div class="act-summary open"><button class="btn ibtn sm disclosure"><i class="icon sm" data-i="chevron_down"></i></button><div style="display:flex;justify-content:space-between;flex:1"><span class="lbl sm muted">Plan</span><span class="lbl sm muted" style="margin-right:4px">2/5</span></div><button class="btn ibtn xs"><i class="icon xs" data-i="close"></i></button></div>
+          <div class="act-list" data-src="thread_view.rs render_plan_entries">
+            <div class="plan-row"><span class="grp"><i class="icon sm success" data-i="todo_complete"></i><span class="done">Recenser les lectures de la config</span></span></div>
+            <div class="plan-row"><span class="grp"><i class="icon sm success" data-i="todo_complete"></i><span class="done">Ajouter la dépendance toml</span></span></div>
+            <div class="plan-row"><span class="grp"><i class="icon sm accent spin" data-i="todo_progress"></i><span>Ajouter la lecture TOML dans config.rs</span></span></div>
+            <div class="plan-row"><span class="grp"><i class="icon sm muted" data-i="todo_pending"></i><span>Garder la lecture JSON en repli</span></span></div>
+            <div class="plan-row"><span class="grp"><i class="icon sm muted" data-i="close"></i><span>Supprimer l'ancien format</span></span></div>
+          </div>
+        </div></div>
+      </div>
+    </div>
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Fichiers modifiés</b> — résumé · déplié (boutons au survol)</div>
+      <div class="ref-frame">
+        <div class="activity-wrap" style="padding-top:8px"><div class="activity">
+          <div class="act-summary open" data-src="thread_view.rs render_edits_summary">
+            <div class="grp"><button class="btn ibtn sm disclosure"><i class="icon sm" data-i="chevron_down"></i></button><span class="lbl sm muted">Edits</span><span class="dot">•</span><span class="lbl sm muted">2 files</span><span class="dot">•</span><span class="diffstat lbl sm"><span class="add">+&thinsp;24</span><span class="del">&#8210;&thinsp;7</span></span></div>
+            <div class="grp"><button class="btn ibtn sm"><i class="icon sm" data-i="list_todo"></i></button><span class="divider-v"></span><button class="btn"><span class="btn-body"><span class="lbl sm">Reject All</span><span class="kbd">Alt-Shift-Z</span></span></button><button class="btn"><span class="btn-body"><span class="lbl sm">Keep All</span><span class="kbd">Alt-Shift-Y</span></span></button></div>
+          </div>
+          <div class="act-list" data-src="thread_view.rs render_edited_files">
+            <div class="file-row"><span class="fname"><i class="icon sm muted" data-i="file_icons/rust"></i><span class="lbl xs mono" style="margin-left:4px">config.rs</span><span class="lbl xs mono muted">src/</span><span class="diffstat lbl xs" style="margin-left:2px"><span class="add">+&thinsp;20</span><span class="del">&#8210;&thinsp;5</span></span></span></div>
+            <div class="file-row hover"><span class="fname"><i class="icon sm muted" data-i="file_icons/toml"></i><span class="lbl xs mono" style="margin-left:4px">Cargo.toml</span><span class="diffstat lbl xs" style="margin-left:2px"><span class="add">+&thinsp;4</span><span class="del">&#8210;&thinsp;2</span></span></span><span class="fbtns"><button class="btn"><span class="lbl sm">Review</span></button><button class="btn"><span class="lbl sm">Reject</span></button><button class="btn"><span class="lbl sm">Keep</span></button></span></div>
+          </div>
+        </div></div>
+      </div>
+    </div>
+    <div class="ref-specimen">
+      <div class="ref-label"><b>File d'attente</b> — messages envoyés pendant la génération</div>
+      <div class="ref-frame">
+        <div class="activity-wrap" style="padding-top:8px"><div class="activity">
+          <div class="act-summary open" data-src="thread_view.rs render_message_queue_summary">
+            <div class="grp"><button class="btn ibtn sm disclosure"><i class="icon sm" data-i="chevron_down"></i></button><span class="lbl sm muted">2 Queued Messages</span></div>
+            <button class="btn"><span class="btn-body"><span class="lbl sm">Clear All</span></span></button>
+          </div>
+          <div class="act-list" data-src="thread_view.rs render_message_queue_entries">
+            <div class="queue-row"><i class="icon sm accent" data-i="circle"></i><span class="q-text">Ajoute aussi un test pour Z</span><span class="q-btns"><button class="btn ibtn sm"><i class="icon sm" data-i="trash"></i></button><button class="btn ibtn sm"><i class="icon sm" data-i="pencil"></i></button><button class="btn outlined"><span class="btn-body"><span class="lbl sm">Send Now</span><span class="kbd">Enter</span></span></button></span></div>
+            <div class="queue-row hover"><i class="icon sm muted" data-i="circle"></i><span class="q-text">Puis mets à jour le README</span><span class="q-btns hidden"><button class="btn ibtn sm"><i class="icon sm" data-i="trash"></i></button><button class="btn ibtn sm"><i class="icon sm" data-i="pencil"></i></button><button class="btn"><span class="btn-body"><span class="lbl sm">Send Now</span></span></button></span></div>
+          </div>
+        </div></div>
+      </div>
+    </div>
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Confirmation hors écran</b> — carte flottante (max 160 px) + plan</div>
+      <div class="ref-frame">
+        <div class="activity-wrap" style="padding-top:8px"><div class="activity">
+          <div class="awaiting-head" data-src="thread_view.rs render_main_agent_awaiting_permission">
+            <span class="grp"><span class="slot" style="width:8px;display:flex;justify-content:center"><span class="spinner" data-spin="sand">⠁</span></span><span class="lbl sm muted">Awaiting Confirmation</span></span>
+            <button class="btn"><span class="lbl sm">Scroll</span><i class="icon xs" data-i="arrow_up"></i></button>
+          </div>
+          <div class="awaiting-body">
+            <div class="tool-head" style="padding:2px;background:var(--tool-card-header-bg)"><div class="cmd" style="width:100%;background:none;padding:4px"><pre>rm -rf tmp/</pre></div></div>
+            <div class="perm">
+              <button class="btn"><i class="icon xs success" data-i="check"></i><span class="btn-body"><span class="lbl sm">Allow</span><span class="kbd">Alt-Shift-A</span></span></button>
+              <button class="btn"><i class="icon xs error" data-i="close"></i><span class="btn-body"><span class="lbl sm">Reject</span><span class="kbd">Alt-Shift-X</span></span></button>
+            </div>
+          </div>
+          <div class="divider-h border"></div>
+          <div class="act-summary"><button class="btn ibtn sm disclosure"><i class="icon sm" data-i="chevron_right"></i></button><div style="display:flex;justify-content:space-between;flex:1"><span class="lbl sm muted">Plan</span><span class="lbl sm muted" style="margin-right:4px">3 Tasks</span></div><button class="btn ibtn xs"><i class="icon xs" data-i="close"></i></button></div>
+        </div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="ref-section" id="composer">
+  <h2>10. Zone de saisie</h2>
+  <p>Fond <code>editor.background</code>, police buffer 12 px, 4 lignes minimum. Barre du bas : à gauche ajout de contexte et suivi de l'agent ; à droite activité, jauge de tokens, sélecteurs (options de config ACP, ou mode + modèle), bouton d'envoi.</p>
+  <div class="ref-grid">
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Envoi</b> — vide (désactivé) · texte saisi · génération + texte (mise en file) · génération sans texte (stop)</div>
+      <div class="ref-frame">
+        <div class="composer with-messages"><div class="inner"><div class="editor-box"><div class="editor"><span class="caret"></span><span class="placeholder">Message Claude Code — @ to include context, / for commands</span></div><button class="btn ibtn sm expand"><i class="icon sm muted" data-i="maximize"></i></button></div>
+          <div class="bar"><div class="left"><button class="btn ibtn sm"><i class="icon sm muted" data-i="plus"></i></button><button class="btn ibtn sm"><i class="icon sm muted" data-i="crosshair"></i></button></div><div class="right"><button class="btn selector"><span class="lbl sm">Default</span><i class="icon xs muted" data-i="chevron_down"></i></button><button class="btn selector"><span class="lbl sm">Opus</span><i class="icon xs muted" data-i="chevron_down"></i></button><button class="btn filled ibtn send" disabled><i class="icon muted" data-i="send"></i></button></div></div></div></div>
+      </div>
+      <div class="ref-frame">
+        <div class="composer with-messages"><div class="inner"><div class="editor-box"><div class="editor">Ajoute un test pour <span class="mention"><i class="icon xs muted" data-i="file_icons/rust"></i>dates.rs</span><span class="caret"></span></div><button class="btn ibtn sm expand"><i class="icon sm muted" data-i="maximize"></i></button></div>
+          <div class="bar"><div class="left"><button class="btn ibtn sm"><i class="icon sm muted" data-i="plus"></i></button><button class="btn ibtn sm"><i class="icon sm muted" data-i="crosshair"></i></button></div><div class="right"><button class="btn selector"><span class="lbl sm">Default</span><i class="icon xs muted" data-i="chevron_down"></i></button><button class="btn selector"><span class="lbl sm">Opus</span><i class="icon xs muted" data-i="chevron_down"></i></button><button class="btn filled ibtn send"><i class="icon accent" data-i="send"></i></button></div></div></div></div>
+      </div>
+      <div class="ref-frame">
+        <div class="composer with-messages"><div class="inner"><div class="editor-box"><div class="editor">Puis mets à jour le README<span class="caret"></span></div><button class="btn ibtn sm expand"><i class="icon sm muted" data-i="maximize"></i></button></div>
+          <div class="bar"><div class="left"><button class="btn ibtn sm"><i class="icon sm muted" data-i="plus"></i></button><button class="btn ibtn sm"><i class="icon sm muted" data-i="crosshair"></i></button></div><div class="right"><button class="btn selector"><span class="lbl sm">Default</span><i class="icon xs muted" data-i="chevron_down"></i></button><button class="btn selector"><span class="lbl sm">Opus</span><i class="icon xs muted" data-i="chevron_down"></i></button><button class="btn filled ibtn send"><i class="icon accent" data-i="queue_message"></i></button></div></div></div></div>
+      </div>
+      <div class="ref-frame">
+        <div class="composer with-messages"><div class="inner"><div class="editor-box"><div class="editor"><span class="caret"></span><span class="placeholder">Message Claude Code — @ to include context, / for commands</span></div><button class="btn ibtn sm expand"><i class="icon sm muted" data-i="maximize"></i></button></div>
+          <div class="bar"><div class="left"><button class="btn ibtn sm"><i class="icon sm muted" data-i="plus"></i></button><button class="btn ibtn sm toggled"><i class="icon sm" style="color:var(--player-agent-cursor)" data-i="crosshair"></i></button></div><div class="right"><span class="lbl sm muted">1 task in background</span><button class="btn selector"><span class="lbl sm">Default</span><i class="icon xs muted" data-i="chevron_down"></i></button><button class="btn selector"><span class="lbl sm">Opus</span><i class="icon xs muted" data-i="chevron_down"></i></button><button class="btn ibtn tinted-error send"><i class="icon error" data-i="stop"></i></button></div></div></div></div>
+      </div>
+    </div>
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Tooltips</b> — envoi · mise en file · stop · sélecteur · suivi</div>
+      <div class="ref-frame ref-frame--auto" style="display:flex;flex-direction:column;gap:12px;align-items:flex-start">
+        <div class="tooltip elevated"><div class="tooltip-row"><span>Send Message</span><span class="kbd">Enter</span></div></div>
+        <div class="tooltip elevated"><div class="tooltip-row"><span>Queue and Send</span><span class="kbd">Enter</span></div><div class="sep"><span>Send Immediately</span><span class="kbd">Ctrl-Shift-Enter</span></div></div>
+        <div class="tooltip elevated"><div class="tooltip-row"><span>Stop Generation</span><span class="kbd">Escape</span></div></div>
+        <div class="tooltip elevated"><span>Mode</span><span class="meta">Controls how the agent requests permission</span><div class="sep"><span>Change Mode</span><span class="kbd">Ctrl-I</span></div><div class="sep"><span>Cycle Through Modes</span><span class="kbd">Shift-Tab</span></div></div>
+        <div class="tooltip elevated"><span>Follow Claude Code</span><span class="meta">Track the agent's location as it reads and edits files.</span></div>
+      </div>
+    </div>
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Menu « + »</b> (ajout de contexte) — ancré en bas à gauche</div>
+      <div class="menu elevated" data-src="thread_view.rs build_add_context_menu">
+        <div class="menu-item"><span class="start"><i class="icon xs muted" data-i="file"></i>Files &amp; Directories</span></div>
+        <div class="menu-item"><span class="start"><i class="icon xs muted" data-i="code"></i>Symbols</span></div>
+        <div class="menu-item"><span class="start"><i class="icon xs muted" data-i="thread"></i>Threads</span></div>
+        <div class="menu-item"><span class="start"><i class="icon sm muted" data-i="sparkle"></i>Skills</span><i class="icon sm muted" data-i="chevron_right"></i></div>
+        <div class="menu-item"><span class="start"><i class="icon xs muted" data-i="image"></i>Image</span></div>
+        <div class="menu-item disabled"><span class="start"><i class="icon xs disabled" data-i="cursor_i_beam"></i>Selection</span></div>
+        <div class="menu-item"><span class="start"><i class="icon xs muted" data-i="git_branch"></i>Branch Diff</span></div>
+      </div>
+    </div>
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Menu de mode</b> — coche à droite, description en aparté</div>
+      <div style="display:flex;gap:4px;align-items:flex-start">
+        <div class="menu elevated" data-src="mode_selector.rs build_context_menu">
+          <div class="menu-item"><span>Default</span><i class="icon sm" data-i="check"></i></div>
+          <div class="menu-item selected"><span>Accept Edits</span><i class="icon sm" style="visibility:hidden" data-i="check"></i></div>
+          <div class="menu-item"><span>Plan Mode</span><i class="icon sm" style="visibility:hidden" data-i="check"></i></div>
+          <div class="menu-item"><span>Bypass Permissions</span><i class="icon sm" style="visibility:hidden" data-i="check"></i></div>
+        </div>
+        <div class="menu-aside elevated">Auto-accept file edit operations</div>
+      </div>
+    </div>
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Picker d'option</b> (modèle) — config_options.rs, 20 rem ; recherche au-delà d'un seuil</div>
+      <div class="picker elevated" data-src="config_options.rs ConfigOptionPickerDelegate render_match">
+        <div class="pk-search">Search…</div>
+        <div class="pk-sep">Favorites</div>
+        <div class="pk-item"><span>Sonnet</span><span class="end"></span></div>
+        <div class="pk-sep">All</div>
+        <div class="pk-item selected"><span>Opus</span><span class="end"><i class="icon accent" data-i="check"></i></span></div>
+        <div class="pk-item"><span>Sonnet</span><span class="end"><i class="icon sm" data-i="star_filled" style="color:var(--text-accent)"></i></span></div>
+        <div class="pk-item"><span>Haiku</span><span class="end"><i class="icon sm" data-i="star"></i></span></div>
+      </div>
+    </div>
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Jauge de tokens</b> — normale · ≥ 85 % (warning) · variante entrée/sortie</div>
+      <div class="ref-frame ref-frame--auto" style="display:flex;gap:16px;align-items:center">
+        <svg class="ring" viewBox="0 0 16 16"><circle class="bg" cx="8" cy="8" r="6"/><circle class="fg" cx="8" cy="8" r="6" stroke-dasharray="15.8 37.7"/></svg>
+        <svg class="ring" viewBox="0 0 16 16"><circle class="bg" cx="8" cy="8" r="6"/><circle class="fg warn" cx="8" cy="8" r="6" stroke-dasharray="34 37.7"/></svg>
+        <span style="display:flex;gap:6px;align-items:center"><span style="display:flex;gap:2px;align-items:center"><i class="icon xs muted" data-i="arrow_up"></i><svg class="ring" viewBox="0 0 16 16"><circle class="bg" cx="8" cy="8" r="6"/><circle class="fg" cx="8" cy="8" r="6" stroke-dasharray="12 37.7"/></svg></span><span style="display:flex;gap:2px;align-items:center"><i class="icon xs muted" data-i="arrow_down"></i><svg class="ring" viewBox="0 0 16 16"><circle class="bg" cx="8" cy="8" r="6"/><circle class="fg" cx="8" cy="8" r="6" stroke-dasharray="5 37.7"/></svg></span></span>
+      </div>
+    </div>
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Saisie étendue</b> — 80 % de la hauteur, bouton réduire</div>
+      <div class="ref-frame" style="--frame-h:360px">
+        <div class="panel" style="justify-content:flex-end">
+          <div class="composer with-messages expanded"><div class="inner"><div class="editor-box"><div class="editor">Long message en cours de rédaction…<span class="caret"></span></div><button class="btn ibtn sm expand"><i class="icon sm muted" data-i="minimize"></i></button></div>
+            <div class="bar"><div class="left"><button class="btn ibtn sm"><i class="icon sm muted" data-i="plus"></i></button><button class="btn ibtn sm"><i class="icon sm muted" data-i="crosshair"></i></button></div><div class="right"><button class="btn selector"><span class="lbl sm">Default</span><i class="icon xs muted" data-i="chevron_down"></i></button><button class="btn filled ibtn send"><i class="icon accent" data-i="send"></i></button></div></div></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="ref-section" id="callouts">
+  <h2>11. Callouts et états</h2>
+  <p>Callout : pleine largeur, filet haut (ou bas pour un fil vide), fond teinté par sévérité, icône 14 px, titre 12 px, description 12 px muted.</p>
+  <div class="ref-grid">
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Sévérités</b> — erreur · avertissement · info · nouvelle tentative</div>
+      <div class="ref-frame">
+        <div class="callout error" data-src="crates/ui/src/components/callout.rs"><span class="c-icon"><i class="icon sm error" data-i="x_circle"></i></span><div class="c-body"><div class="c-title-row"><span class="c-title">Rate Limit Reached</span><span class="c-actions"><button class="btn filled"><span class="lbl sm">Retry</span></button><button class="btn ibtn sm"><i class="icon sm muted" data-i="copy"></i></button><button class="btn ibtn sm"><i class="icon sm" data-i="close"></i></button></span></div><div class="c-desc">Anthropic's rate limit was reached. Zed will retry automatically. You can also wait a moment and try again.</div></div></div>
+        <div style="height:12px"></div>
+        <div class="callout warning"><span class="c-icon"><i class="icon sm warning" data-i="warning"></i></span><div class="c-body"><div class="c-title-row"><span class="c-title">Thread reaching the token limit soon</span><span class="c-actions"><button class="btn"><span class="lbl sm">Start New Thread</span></button><button class="btn ibtn sm"><i class="icon sm" data-i="close"></i></button></span></div><div class="c-desc">To continue, run /compact or start a new thread and @-mention this one</div></div></div>
+        <div style="height:12px"></div>
+        <div class="callout info bottom"><span class="c-icon"><i class="icon sm muted" data-i="info"></i></span><div class="c-body"><div class="c-title-row"><span class="c-title">Resumed Session</span></div><div class="c-desc">This agent does not support viewing previous messages. However, your session will still continue from where you last left off.</div></div></div>
+        <div style="height:12px"></div>
+        <div class="callout warning"><span class="c-icon"><i class="icon sm warning" data-i="warning"></i></span><div class="c-body"><div class="c-title-row"><span class="c-title">Server overloaded</span></div><div class="c-desc">Retrying. Next attempt in 8 seconds (Attempt 2 of 4).</div></div></div>
+      </div>
+    </div>
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Authentification requise</b> — une méthode · plusieurs · en cours</div>
+      <div class="ref-frame">
+        <div class="callout info" data-src="conversation_view.rs render_auth_required_state"><span class="c-icon"><i class="icon sm muted" data-i="info"></i></span><div class="c-body"><div class="c-title-row"><span class="c-title">Authenticate to Claude Code</span><span class="c-actions"><button class="btn tinted-accent"><span class="lbl sm">Log in with Claude</span></button></span></div></div></div>
+        <div style="height:12px"></div>
+        <div class="callout info"><span class="c-icon"><i class="icon sm muted" data-i="info"></i></span><div class="c-body"><div class="c-title-row"><span class="c-title">Authenticate to Claude Code</span></div><div class="c-desc" style="display:flex;flex-direction:column;gap:4px"><span class="lbl sm muted">Choose one of the following authentication options:</span><span style="display:flex;justify-content:flex-end;gap:4px;flex-wrap:wrap"><button class="btn outlined"><span class="lbl sm">Use API Key</span></button><button class="btn tinted-accent"><span class="lbl sm">Log in with Claude</span></button></span></div></div></div>
+        <div style="height:12px"></div>
+        <div class="callout info"><span class="c-icon"><i class="icon sm muted" data-i="info"></i></span><div class="c-body"><div class="c-title-row"><span class="c-title">Authenticating to Claude Code…</span><span class="c-actions"><i class="icon sm muted spin" data-i="arrow_circle"></i></span></div></div></div>
+      </div>
+    </div>
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Échec de lancement</b> · agent trop ancien (en bas du panel)</div>
+      <div class="ref-frame">
+        <div class="callout error" data-src="conversation_view.rs render_load_error"><span class="c-icon"><i class="icon sm error" data-i="x_circle"></i></span><div class="c-body"><div class="c-title-row"><span class="c-title">Failed to Launch</span><span class="c-actions"><button class="btn"><span class="lbl">Retry</span></button><button class="btn ibtn sm"><i class="icon sm muted" data-i="copy"></i></button></span></div><div class="c-desc">Server exited with status 1
+npm ERR! could not determine executable to run</div></div></div>
+        <div style="height:12px"></div>
+        <div class="unsupported" data-src="conversation_view.rs render_unsupported"><div style="display:flex;flex-direction:column;gap:2px"><span class="lbl">Upgrade Claude Code to work with Zed</span><span class="lbl sm muted" style="white-space:normal">Currently using claude-code-acp, which is only version 0.4.0 (need at least 0.5.0)</span></div></div>
+      </div>
+    </div>
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Saisies conservées</b> — après un échec d'envoi</div>
+      <div class="ref-frame">
+        <div class="saved-input" data-src="conversation_view.rs render (has_saved_input)"><button class="btn"><span class="lbl">Copy Saved Input</span></button><button class="btn"><span class="lbl">Discard Saved Submissions</span></button></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="ref-section" id="subagent">
+  <h2>12. Sous-agents et divers</h2>
+  <div class="ref-grid">
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Carte de sous-agent</b> — en cours · terminé · échec</div>
+      <div class="ref-frame" style="padding:4px 0">
+        <div class="subagent" data-src="thread_view.rs render_subagent_card">
+          <div class="sa-head"><div class="sa-title"><span class="grp"><span class="spinner" data-spin="dots">⠋</span><span>Explorer le module de synchro</span><span class="lbl muted" style="font-size:13px">· Haiku</span></span></div><span style="display:flex;gap:2px"><button class="btn ibtn sm"><i class="icon sm muted" data-i="chevron_down"></i></button><button class="btn ibtn sm"><i class="icon sm error" data-i="stop"></i></button></span></div>
+        </div>
+        <div class="subagent">
+          <div class="sa-head"><div class="sa-title"><span class="grp"><i class="icon sm success" data-i="check"></i><span>Écrire les tests</span><span class="lbl muted" style="font-size:13px">— 2 files changed</span></span></div><button class="btn ibtn sm"><i class="icon sm muted" data-i="chevron_up"></i></button></div>
+          <div class="sa-full"><i class="icon sm muted" data-i="maximize"></i></div>
+        </div>
+        <div class="subagent" style="border-style:dashed">
+          <div class="sa-head"><div class="sa-title"><span class="grp"><i class="icon sm error" data-i="close"></i><span>Mettre à jour la doc</span></span></div><button class="btn ibtn sm"><i class="icon sm muted" data-i="chevron_down"></i></button></div>
+        </div>
+      </div>
+    </div>
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Barre de sous-agent ouvert</b> — en cours · terminé</div>
+      <div class="ref-frame">
+        <div class="subagent-bar" data-src="thread_view.rs render_subagent_titlebar"><span class="grp"><i class="icon sm muted" data-i="forward_arrow_up"></i><span>Explorer le module de synchro</span></span><span style="display:flex;gap:2px"><button class="btn ibtn sm"><i class="icon sm error" data-i="stop"></i></button><button class="btn ibtn sm"><i class="icon sm" data-i="dash"></i></button></span></div>
+      </div>
+      <div class="ref-frame">
+        <div class="subagent-bar"><span class="grp"><i class="icon sm muted" data-i="forward_arrow_up"></i><span>Écrire les tests</span><i class="icon success" data-i="check"></i></span><span style="display:flex;gap:2px"><button class="btn ibtn sm"><i class="icon sm" data-i="dash"></i></button></span></div>
+      </div>
+    </div>
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Compaction du contexte</b> — en cours · terminée</div>
+      <div class="ref-frame" style="padding:8px 0">
+        <div class="session-sep" data-src="thread_view.rs render_context_compaction"><span class="divider-h"></span><button class="btn" style="flex:none"><i class="icon xs muted" data-i="compact"></i><span class="lbl sm">Compacting Context…</span><i class="icon xs muted" data-i="chevron_down"></i></button><span class="divider-h"></span></div>
+        <div style="height:8px"></div>
+        <div class="session-sep"><span class="divider-h"></span><button class="btn" style="flex:none"><i class="icon xs muted" data-i="compact"></i><span class="lbl sm">Context Compacted</span><i class="icon xs muted" data-i="chevron_down"></i></button><span class="divider-h"></span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="ref-section" id="kit">
+  <h2>13. Primitives (crates/ui)</h2>
+  <div class="ref-grid">
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Boutons</b> — Subtle · survol · Outlined · Filled · désactivé · Tinted · avec raccourci</div>
+      <div class="ref-frame ref-frame--auto" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;max-width:640px">
+        <button class="btn"><span class="lbl sm">Subtle</span></button>
+        <button class="btn" style="background:var(--ghost-element-hover)"><span class="lbl sm">Survol</span></button>
+        <button class="btn outlined"><span class="lbl sm">Outlined</span></button>
+        <button class="btn filled"><span class="lbl sm">Filled</span></button>
+        <button class="btn" disabled><span class="lbl sm">Désactivé</span></button>
+        <button class="btn tinted-accent"><span class="lbl sm">Tinted Accent</span></button>
+        <button class="btn tinted-error"><span class="lbl sm">Tinted Error</span></button>
+        <button class="btn"><span class="btn-body"><span class="lbl sm">Keep All</span><span class="kbd">Alt-Shift-Y</span></span></button>
+        <button class="btn"><span class="lbl">Label 14 px</span></button>
+      </div>
+    </div>
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Boutons icône</b> — 20 (Medium) · 18 (Small) · 16 (XSmall) · basculé · Filled envoi</div>
+      <div class="ref-frame ref-frame--auto" style="display:flex;gap:8px;align-items:center">
+        <button class="btn ibtn"><i class="icon" data-i="copy"></i></button>
+        <button class="btn ibtn sm"><i class="icon sm" data-i="copy"></i></button>
+        <button class="btn ibtn xs"><i class="icon xs" data-i="copy"></i></button>
+        <button class="btn ibtn sm toggled"><i class="icon sm" data-i="minimize"></i></button>
+        <button class="btn filled ibtn"><i class="icon accent" data-i="send"></i></button>
+        <button class="btn ibtn tinted-error"><i class="icon error" data-i="stop"></i></button>
+      </div>
+    </div>
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Typographie</b> — labels 14/12/10, markdown 16, buffer 12, titre outil 13</div>
+      <div class="ref-frame ref-frame--auto" style="display:flex;flex-direction:column;gap:2px">
+        <span class="lbl">Label Default 14 px — IBM Plex Sans</span>
+        <span class="lbl sm">Label Small 12 px</span>
+        <span class="lbl xs">Label XSmall 10 px</span>
+        <span class="lbl muted">Label muted</span>
+        <span class="md">Markdown agent 16 px / 21 px</span>
+        <span style="font:13px var(--font-ui);color:var(--text-muted)">Libellé d'outil 13 px</span>
+        <span style="font:12px/var(--lh) var(--font-mono)">Buffer 12 px — Lilex</span>
+      </div>
+    </div>
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Couleurs utiles</b> (One Dark + dérivées)</div>
+      <div class="ref-frame ref-frame--auto" id="swatches" style="display:grid;grid-template-columns:repeat(2,auto);gap:4px 16px;font:11px var(--font-mono)"></div>
+    </div>
+  </div>
+</section>
+
+<script src="icons.js"></script>
+<script>
+// Largeur du panel
+for (const b of document.querySelectorAll('[data-w]')) {
+  b.addEventListener('click', () => {
+    document.documentElement.style.setProperty('--frame-w', b.dataset.w + 'px')
+    for (const o of document.querySelectorAll('[data-w]')) o.setAttribute('aria-pressed', o === b)
+  })
+}
+// Mise en évidence des sources
+document.getElementById('toggle-src').addEventListener('click', (e) => {
+  const on = document.body.classList.toggle('show-src')
+  e.currentTarget.setAttribute('aria-pressed', on)
+})
+// Survol : affiche data-src en infobulle native
+for (const el of document.querySelectorAll('[data-src]')) el.title = el.dataset.src
+// Spinners (ui/components/label/spinner_label.rs)
+const FRAMES = {
+  dots: { f: ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'], ms: 1000 },
+  sand: { f: ['⠁', '⠂', '⠄', '⡀', '⡈', '⡐', '⡠', '⣀', '⣁', '⣂', '⣄', '⣌', '⣔', '⣤', '⣥', '⣦', '⣮', '⣶', '⣷', '⣿', '⡿', '⠿', '⢟', '⠟', '⡛', '⠛', '⠫', '⢋', '⠋', '⠍', '⡉', '⠉', '⠑', '⠡', '⢁'], ms: 2000 },
+}
+const t0 = performance.now()
+setInterval(() => {
+  for (const el of document.querySelectorAll('[data-spin]')) {
+    const { f, ms } = FRAMES[el.dataset.spin]
+    el.textContent = f[Math.floor(((performance.now() - t0) % ms) / ms * f.length)]
+  }
+}, 50)
+// Nuancier
+const sw = ['panel-background', 'tab-bar-background', 'editor-background', 'elevated-surface-background', 'element-background', 'element-hover', 'element-active', 'element-selected', 'ghost-element-hover', 'border', 'border-variant', 'border-focused', 'text', 'text-muted', 'text-placeholder', 'text-accent', 'success', 'error', 'warning', 'version-control-added', 'version-control-deleted', 'tool-card-header-bg', 'tool-card-border', 'activity-bar-bg']
+document.getElementById('swatches').innerHTML = sw.map((n) => `<span style="display:flex;gap:6px;align-items:center"><span style="width:14px;height:14px;border:1px solid #0006;background:var(--${n})"></span>${n}</span>`).join('')
+</script>
+</body>
+</html>

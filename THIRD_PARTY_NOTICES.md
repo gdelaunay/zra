@@ -7,8 +7,9 @@ Third-party content shipped with ZRA, with its original license (text reproduced
 |---|---|---|---|
 | Thèmes Ayu Dark, Ayu Mirage | `zra-client/css/themes.css` | Zed, `assets/themes/ayu/` | MIT |
 | Thèmes Gruvbox Dark, Dark Hard, Dark Soft, Light | idem | Zed, `assets/themes/gruvbox/` | MIT |
-| Thèmes One Dark, One Light | idem | Zed, `assets/themes/one/` | MIT |
+| Thèmes One Dark, One Light | idem, et `reference/zed-agent-panel/tokens.css` (One Dark) | Zed, `assets/themes/one/` | MIT |
 | Tracés d'icônes / Icon paths | `zra-client/js/icons.js` | Lucide | ISC |
+| Icônes de Zed / Zed icons | `reference/zed-agent-panel/icons.js` | Zed, `assets/icons/` (tracés Lucide) | ISC |
 
 ## Ayu — `assets/themes/ayu/LICENSE` (Zed)
 
