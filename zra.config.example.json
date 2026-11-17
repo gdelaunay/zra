@@ -48,6 +48,8 @@
   "tls": null,
 
   // Sources Zed. null => chemins par défaut de la machine.
+  // zedChannel : "stable", "preview", "nightly" ou "dev" ; null => celui dont la base a été écrite en dernier.
+  "zedChannel": null,
   "zedDb": null,
   "zedSettings": null,
   "pollMs": 2000,

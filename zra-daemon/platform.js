@@ -31,7 +31,7 @@
 // branche non-Windows est la branche XDG, elle n'affirme rien sur Darwin.
 
 import { execFile } from 'node:child_process'
-import { existsSync } from 'node:fs'
+import { existsSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { posix, win32 } from 'node:path'
 
@@ -61,22 +61,26 @@ function ctx(opts) {
  * pure, donc testable avec les valeurs réelles de Windows **et** celles de
  * Linux, côte à côte.
  *
- * @param {{ platform?:string, env?:object, home?:string }} [opts]
+ * `channel` : canal de Zed (`stable` par défaut, voir `ZED_CHANNELS`). Seuls
+ * la base et la CLI en dépendent : réglages, registry et processus sont communs.
+ *
+ * @param {{ platform?:string, env?:object, home?:string, channel?:string }} [opts]
  * @returns {{
- *   platform:string, dataDir:string, configDir:string, db:string, settings:string,
+ *   platform:string, channel:string, dataDir:string, configDir:string, db:string, settings:string,
  *   keymap:string, registryDir:string, appDir:string, injectionLog:string,
  *   recordsDir:string,
  * }}
  */
 export function zedPaths(opts = {}) {
   const { platform, env, home, join } = ctx(opts)
+  const channel = opts.channel ?? 'stable'
 
   if (platform === 'win32') {
     const local = env.LOCALAPPDATA || join(home, 'AppData', 'Local')
     const roaming = env.APPDATA || join(home, 'AppData', 'Roaming')
     const dataDir = join(local, 'Zed')
     const configDir = join(roaming, 'Zed')
-    return finish(platform, join, {
+    return finish(platform, join, channel, {
       dataDir,
       configDir,
       appDir: join(local, 'zra'),
@@ -92,7 +96,7 @@ export function zedPaths(opts = {}) {
   const state = env.XDG_STATE_HOME || join(home, '.local', 'state')
   const dataDir = join(data, 'zed')
   const configDir = join(config, 'zed')
-  return finish(platform, join, {
+  return finish(platform, join, channel, {
     dataDir,
     configDir,
     // Journaux et enregistrements de ZRA : `XDG_STATE_HOME` est le rôle prévu
@@ -103,15 +107,13 @@ export function zedPaths(opts = {}) {
 }
 
 /** Les chemins qui se déduisent des deux dossiers racine, et ceux de ZRA. */
-function finish(platform, join, { dataDir, configDir, appDir, registryDir }) {
+function finish(platform, join, channel, { dataDir, configDir, appDir, registryDir }) {
   return {
     platform,
+    channel,
     dataDir,
     configDir,
-    // Fait établi ici : `~/.local/share/zed/db/0-stable/db.sqlite`, même
-    // disposition qu'en Windows, même schéma `sidebar_threads` (relu en
-    // lecture seule : 1 ligne, `agent_id: "pi-acp"`).
-    db: join(dataDir, 'db', '0-stable', 'db.sqlite'),
+    db: zedDbFile(dataDir, channel, join),
     settings: join(configDir, 'settings.json'),
     // Absent de cette machine tant que rien ne l'écrit (`npm run setup`) :
     // Zed fonctionne sans, le chemin reste le bon.
@@ -123,8 +125,43 @@ function finish(platform, join, { dataDir, configDir, appDir, registryDir }) {
   }
 }
 
-/** Les chemins de ce poste, calculés une fois à l'import. */
-export const PATHS = zedPaths()
+/**
+ * Canaux de Zed. Chacun a sa base, `db/0-<canal>/db.sqlite` (Zed :
+ * `crates/db/src/db.rs`, `db_path`), et son dossier d'installation (CLI).
+ */
+export const ZED_CHANNELS = ['stable', 'preview', 'nightly', 'dev']
+
+function zedDbFile(dataDir, channel, join) {
+  return join(dataDir, 'db', `0-${channel}`, 'db.sqlite')
+}
+
+/** Date de dernière écriture, `null` si le fichier n'existe pas. */
+function mtimeOf(file) {
+  try { return statSync(file).mtimeMs } catch { return null }
+}
+
+/**
+ * Canal de Zed utilisé sur ce poste : celui dont la base a été écrite en
+ * dernier (son `-wal` bouge à chaque écriture de Zed). Aucune base : `stable`.
+ *
+ * @param {{ platform?:string, env?:object, home?:string, mtime?:(file:string)=>number|null }} [opts]
+ * @returns {string}
+ */
+export function detectZedChannel(opts = {}) {
+  const { join } = ctx(opts)
+  const { dataDir } = zedPaths(opts)
+  const mtime = opts.mtime ?? mtimeOf
+  let best = { channel: 'stable', at: -Infinity }
+  for (const channel of ZED_CHANNELS) {
+    const db = zedDbFile(dataDir, channel, join)
+    const at = Math.max(mtime(db) ?? -Infinity, mtime(`${db}-wal`) ?? -Infinity)
+    if (at > best.at) best = { channel, at }
+  }
+  return best.channel
+}
+
+/** Les chemins de ce poste, calculés une fois à l'import, pour le canal détecté. */
+export const PATHS = zedPaths({ channel: detectZedChannel() })
 
 // ---------------------------------------------------------------------------
 // La CLI de Zed
@@ -145,16 +182,21 @@ export const PATHS = zedPaths()
  */
 export function zedCliCandidates(opts = {}) {
   const { platform, env, home, join } = ctx(opts)
+  const channel = opts.channel ?? 'stable'
+  const stable = channel === 'stable'
+  // Dossiers d'installation par canal, d'après les installeurs de Zed :
+  // `script/bundle-windows.ps1` (« Zed Preview »…), `script/install.sh` (`zed-preview.app`…).
   if (platform === 'win32') {
     const local = env.LOCALAPPDATA || join(home, 'AppData', 'Local')
-    return [join(local, 'Programs', 'Zed', 'bin', 'zed.exe')]
+    const app = stable ? 'Zed' : `Zed ${channel[0].toUpperCase()}${channel.slice(1)}`
+    return [join(local, 'Programs', app, 'bin', 'zed.exe')]
   }
-  return [
-    join(home, '.local', 'bin', 'zed'),
-    join(home, '.local', 'zed.app', 'bin', 'zed'),
-    '/usr/local/bin/zed',
-    '/usr/bin/zed',
-  ]
+  const app = join(home, '.local', stable ? 'zed.app' : `zed-${channel}.app`, 'bin', 'zed')
+  // `~/.local/bin/zed` pointe vers le dernier canal installé : le dossier du
+  // canal passe d'abord quand ce n'est pas stable.
+  return stable
+    ? [join(home, '.local', 'bin', 'zed'), app, '/usr/local/bin/zed', '/usr/bin/zed']
+    : [app, join(home, '.local', 'bin', 'zed'), '/usr/local/bin/zed', '/usr/bin/zed']
 }
 
 /** Premier candidat présent sur le disque, sinon `zed` (résolu par le PATH). */

@@ -19,7 +19,7 @@ import { resolve } from 'node:path'
 import { loadConfig } from '../config.js'
 
 import {
-  KEYBOARD_BACKENDS, PATHS, defaultZedCli, keyboardPreference, processProbe,
+  KEYBOARD_BACKENDS, PATHS, defaultZedCli, detectZedChannel, keyboardPreference, processProbe,
   serviceBackend, systemdIsInit, zedCliCandidates, zedPaths, zedProcessNames,
 } from '../platform.js'
 
@@ -77,6 +77,46 @@ test('zedDb explicite prend le pas sur le chemin par défaut (Preview, Nightly)'
   const file = resolve('zra-daemon', 'test', 'fixtures', 'zed-preview.sqlite')
   const cfg = await loadConfig({ overrides: { zedDb: file } })
   assert.equal(cfg.zedDb, file)
+})
+
+// ---- canaux de Zed : une base et une installation par canal -----------------
+
+test('canaux : la base suit le canal, réglages et registry sont communs', () => {
+  const p = zedPaths({ platform: 'win32', env: WIN_ENV, home: WIN_HOME, channel: 'preview' })
+  assert.equal(p.channel, 'preview')
+  assert.equal(p.db, 'C:\\Users\\test\\AppData\\Local\\Zed\\db\\0-preview\\db.sqlite')
+  assert.equal(p.settings, win.settings)
+  assert.equal(p.registryDir, win.registryDir)
+  assert.equal(zedPaths({ platform: 'linux', env: {}, home: LX_HOME, channel: 'nightly' }).db,
+    '/home/test/.local/share/zed/db/0-nightly/db.sqlite')
+})
+
+test('canaux : la CLI vient du dossier d’installation du canal', () => {
+  assert.deepEqual(zedCliCandidates({ platform: 'win32', env: WIN_ENV, home: WIN_HOME, channel: 'preview' }),
+    ['C:\\Users\\test\\AppData\\Local\\Programs\\Zed Preview\\bin\\zed.exe'])
+  const lxPreview = zedCliCandidates({ platform: 'linux', env: {}, home: LX_HOME, channel: 'preview' })
+  assert.equal(lxPreview[0], '/home/test/.local/zed-preview.app/bin/zed')
+  assert.ok(lxPreview.includes('/home/test/.local/bin/zed'))
+})
+
+test('canaux : détection par la base écrite en dernier, stable à défaut', () => {
+  const opts = (times) => ({
+    platform: 'linux', env: {}, home: LX_HOME,
+    mtime: (file) => times[file] ?? null,
+  })
+  const db = (ch) => `/home/test/.local/share/zed/db/0-${ch}/db.sqlite`
+  assert.equal(detectZedChannel(opts({})), 'stable')
+  assert.equal(detectZedChannel(opts({ [db('stable')]: 100 })), 'stable')
+  assert.equal(detectZedChannel(opts({ [db('stable')]: 100, [db('preview')]: 50, [`${db('preview')}-wal`]: 200 })), 'preview')
+  assert.equal(detectZedChannel(opts({ [db('stable')]: 300, [db('nightly')]: 200 })), 'stable')
+})
+
+test('canaux : zedChannel de la config fixe la base et la CLI, valeur inconnue refusée', async () => {
+  const cfg = await loadConfig({ overrides: { zedChannel: 'preview' } })
+  assert.equal(cfg.zedChannel, 'preview')
+  assert.equal(cfg.zedDb, zedPaths({ channel: 'preview' }).db)
+  assert.equal(cfg.zedControl.cli, defaultZedCli({ channel: 'preview' }))
+  await assert.rejects(loadConfig({ overrides: { zedChannel: 'beta' } }), /zedChannel/)
 })
 
 test('linux : les chemins de Zed suivent XDG, comme sur la machine de portage', () => {

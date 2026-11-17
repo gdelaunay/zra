@@ -100,7 +100,7 @@ Thread states: **live** (a shim holds its session: real-time stream, direct writ
 
 | Dependency | Use | If it changes |
 |---|---|---|
-| Zed SQLite database (`db/0-stable/db.sqlite`, tables `sidebar_threads`, `workspaces`, `kv_store`) | Thread index, open projects | Required column missing: degraded "live only" mode, reported to the PWA |
+| Zed SQLite database (`db/0-<channel>/db.sqlite`, tables `sidebar_threads`, `workspaces`, `kv_store`) | Thread index, open projects | Required column missing: degraded "live only" mode, reported to the PWA |
 | Zed `settings.json` (`agent_servers`) and its agent registry | Knowing how to launch an agent, adding the ZRA entries | `setup` refuses to write if the file is not valid JSONC |
 | Zed `keymap.json` (action `agent::NewExternalAgentThread`) | "New thread" key per agent | The key no longer has an effect: explicit error after 30 s |
 | Zed command palette and sidebar | Keyboard recipes (`zed/driver.js`) | Recipes can be overridden in `zedControl.recipes` |
@@ -130,7 +130,7 @@ Local state: `.zra/` in the repository (hashed tokens, logs, backups, frames rec
 What breaks if Zed changes, from most to least likely:
 
 1. palette labels or the `agent::NewExternalAgentThread` action: no more "+" nor reopening, explicit error after 30 s;
-2. `sidebar_threads` schema or `db/0-stable` path: degraded "live only" mode, reported;
+2. `sidebar_threads` schema or `db/0-<channel>` path: degraded "live only" mode, reported;
 3. format of `agent_servers` or of the agent registry: `setup` and history replay fail;
 4. ACP: the relay keeps working, observation and injection to be reviewed in `zra-shim/acp.js`.
 

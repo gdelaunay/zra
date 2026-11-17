@@ -253,6 +253,7 @@
   "{0} essais d'appairage ratés : appairage verrouillé, `npm run pair` pour le rouvrir": "{0} failed pairing attempts: pairing locked, `npm run pair` to reopen it",
   "code incorrect": "wrong code",
   "zra.config.json illisible ({0}) : {1}": "zra.config.json unreadable ({0}): {1}",
+  "zedChannel inconnu : {0} ({1})": "unknown zedChannel: {0} ({1})",
   "port invalide : {0}": "invalid port: {0}",
   "tls : \"cert\" et \"key\" sont requis ensemble": "tls: \"cert\" and \"key\" are required together",
   "injection inconnue : {0}": "unknown injection: {0}",

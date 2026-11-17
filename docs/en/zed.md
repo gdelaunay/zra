@@ -15,13 +15,13 @@ What ZRA depends on in Zed, and where to check it in its sources. Used for the c
 
 ## Basic facts
 
-- **Thread index**: `sidebar_threads` table in `db/0-stable/db.sqlite`, opened read-only (WAL file, Zed writes in parallel). For an ACP agent, Zed only keeps metadata there: the content belongs to the agent, hence `session/load` as the only way to the history. `threads/threads.db` is the old native agent, ignored.
+- **Thread index**: `sidebar_threads` table in `db/0-<channel>/db.sqlite` (`0-stable` for stable Zed), opened read-only (WAL file, Zed writes in parallel). For an ACP agent, Zed only keeps metadata there: the content belongs to the agent, hence `session/load` as the only way to the history. `threads/threads.db` is the old native agent, ignored.
 - **Agents**: Zed launches the agent as a subprocess and talks JSON-RPC to it over stdio. Registry agents (`"type": "registry"`) have no command in `settings.json`: Zed installs them under `external_agents/registry`, where `agent-commands.js` finds them without downloading anything.
 - **Window**: Zed draws its own interface (GPUI), its UI Automation tree is empty. Hence keyboard control.
 
 | | Windows | Linux |
 |---|---|---|
-| Thread index | `%LOCALAPPDATA%\Zed\db\0-stable\db.sqlite` | `~/.local/share/zed/db/0-stable/db.sqlite` |
+| Thread index | `%LOCALAPPDATA%\Zed\db\0-<channel>\db.sqlite` | `~/.local/share/zed/db/0-<channel>/db.sqlite` |
 | `settings.json`, `keymap.json` | `%APPDATA%\Zed\` | `~/.config/zed/` |
 | Installed agents | `%LOCALAPPDATA%\Zed\external_agents\registry` | `~/.local/share/zed/external_agents/registry` |
 | Process | `zed.exe` | `zed-editor` |
@@ -36,7 +36,8 @@ What ZRA depends on in Zed, and where to check it in its sources. Used for the c
 |---|---|---|---|
 | Thread index: required columns `thread_id`, `session_id`, `agent_id`, `title`, `updated_at`; optional `created_at`, `folder_paths`, `folder_paths_order`, `archived`, `interacted_at`, `title_override` | `zra-daemon/threads-index.js` | `crates/agent_ui/src/thread_metadata_store.rs`: `ThreadMetadataDb::MIGRATIONS` (schema), `LIST_QUERY` | verified |
 | Open projects: `kv_store` key `session_id`, then `workspaces` (`paths`, `paths_order`, `session_id`, `remote_connection_id`) | `zra-daemon/threads-index.js` | `crates/session/src/session.rs` (`SESSION_ID_KEY`), `crates/workspace/src/persistence.rs` (`workspaces` migrations) | verified |
-| Database path `db/0-stable/db.sqlite` | `zra-daemon/platform.js` | `crates/db/src/db.rs`: `db_path` → `0-<channel>` (`stable`, `preview`, `dev`…), `crates/paths/src/paths.rs`: `database_dir` | verified, stable only |
+| Zed channel: database `db/0-<channel>/db.sqlite`, channel detected from the database written last, or set by `zedChannel` | `zra-daemon/platform.js` (`detectZedChannel`), `zra-daemon/config.js` | `crates/db/src/db.rs`: `db_path`; `crates/release_channel/src/lib.rs`: `dev_name`; `crates/paths/src/paths.rs`: `database_dir` | verified |
+| Zed CLI per channel: `Programs\Zed Preview\bin\zed.exe`, `~/.local/zed-preview.app/bin/zed`… | `zra-daemon/platform.js` (`zedCliCandidates`) | `script/bundle-windows.ps1`, `script/install.sh` | verified |
 | Installed registry agents: `external_agents/registry` | `zra-daemon/agent-commands.js` | `crates/paths/src/paths.rs`: `external_agents_dir`; `crates/project/src/agent_server_store.rs` (`.join("registry")`) | verified |
 | `agent_servers` entries in `settings.json`: ZRA writes `type: "custom"` (`command`, `args`, `env`, `default_config_options`), also reads `type: "registry"` | `scripts/setup.mjs` (`buildEntry`), `zra-daemon/zed-settings.js` | `crates/settings_content/src/agent.rs`: `CustomAgentServerSettings` | verified |
 | `settings.json`, `keymap.json` paths | `zra-daemon/platform.js` | `crates/paths/src/paths.rs` | observed |
@@ -87,7 +88,7 @@ GPUI styles are written like utility classes (`.px_2()`, `.gap_1()`, `.rounded_m
 
 ## Points to watch
 
-- **Zed channel**: the database is looked up under `0-stable`. Zed Preview writes under `0-preview`, Nightly under `0-nightly`: ZRA falls back to "live only" there.
+- **Several channels installed**: ZRA follows the one whose database was written last, determined when the daemon starts. To follow another one: `zedChannel` in `zra.config.json`.
 - **ACP v2**: behind a beta flag in Zed 1.28.1. If it becomes the default, the shim sees v2 frames it does not observe.
 - **Palette**: its labels derive from action names (`humanize_action_name`). A renamed action breaks the matching recipe.
 

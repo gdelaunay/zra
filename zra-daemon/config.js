@@ -7,7 +7,7 @@ import { dirname, isAbsolute, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { parseJsonc } from './jsonc.js'
-import { KEYBOARD_BACKENDS, PATHS } from './platform.js'
+import { KEYBOARD_BACKENDS, PATHS, ZED_CHANNELS, defaultZedCli, zedPaths } from './platform.js'
 import { tr } from './i18n.js'
 
 export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -90,6 +90,8 @@ export const DEFAULTS = {
   },
 
   // --- sources --------------------------------------------------------------
+  /** Canal de Zed (`stable`, `preview`, `nightly`, `dev`). `null` => celui dont la base a été écrite en dernier. */
+  zedChannel: null,
   zedDb: null,
   zedSettings: null,
   /** `null` => à côté de `zedSettings`. Porte les raccourcis « nouveau thread » de ZRA. */
@@ -129,7 +131,7 @@ export const DEFAULTS = {
     timeoutMs: 30_000,
     /**
      * CLI de Zed, pour ouvrir le projet d'une nouvelle session. `null` => celle
-     * de l'installation par défaut, sinon `zed` dans le PATH.
+     * de l'installation du canal (`zedChannel`), sinon `zed` dans le PATH.
      */
     cli: null,
     /** Délai laissé à la fenêtre d'un projet pour apparaître après la CLI. */
@@ -180,6 +182,7 @@ function envOverrides() {
   if (e.ZRA_SERVE_STATIC) out.serveStatic = e.ZRA_SERVE_STATIC !== '0'
   if (e.ZRA_STATIC_DIR) out.staticDir = e.ZRA_STATIC_DIR
   if (e.ZRA_ALLOWED_ORIGINS) out.allowedOrigins = e.ZRA_ALLOWED_ORIGINS.split(',').map((s) => s.trim()).filter(Boolean)
+  if (e.ZRA_ZED_CHANNEL) out.zedChannel = e.ZRA_ZED_CHANNEL
   if (e.ZRA_ZED_DB) out.zedDb = e.ZRA_ZED_DB
   if (e.ZRA_ZED_SETTINGS) out.zedSettings = e.ZRA_ZED_SETTINGS
   if (e.ZRA_ZED_KEYMAP) out.zedKeymap = e.ZRA_ZED_KEYMAP
@@ -222,7 +225,12 @@ export async function loadConfig({ file = process.env.ZRA_CONFIG || (UNDER_TEST 
   cfg.auth = { ...DEFAULTS.auth, ...fromFile.auth, ...overrides.auth }
   cfg.auth.file = cfg.auth.file ? abs(cfg.auth.file) : null
 
-  cfg.zedDb = abs(cfg.zedDb) || ZED.db
+  if (cfg.zedChannel != null && !ZED_CHANNELS.includes(cfg.zedChannel)) {
+    throw new Error(tr`zedChannel inconnu : ${cfg.zedChannel} (${ZED_CHANNELS.join(', ')})`)
+  }
+  cfg.zedChannel ??= PATHS.channel
+  cfg.zedDb = abs(cfg.zedDb) || zedPaths({ channel: cfg.zedChannel }).db
+  cfg.zedControl.cli ||= defaultZedCli({ channel: cfg.zedChannel })
   cfg.zedSettings = abs(cfg.zedSettings) || ZED.settings
   cfg.zedKeymap = abs(cfg.zedKeymap) || keymapBeside(cfg.zedSettings)
   cfg.staticDir = abs(cfg.staticDir)

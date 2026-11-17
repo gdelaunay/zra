@@ -100,7 +100,7 @@ Ce que ZRA lit, écrit et imite dans Zed, avec l'endroit où le vérifier dans s
 
 | Dépendance | Usage | Si elle change |
 |---|---|---|
-| Base SQLite de Zed (`db/0-stable/db.sqlite`, tables `sidebar_threads`, `workspaces`, `kv_store`) | Index des threads, projets ouverts | Colonne requise absente : mode dégradé « live seul », signalé à la PWA |
+| Base SQLite de Zed (`db/0-<canal>/db.sqlite`, tables `sidebar_threads`, `workspaces`, `kv_store`) | Index des threads, projets ouverts | Colonne requise absente : mode dégradé « live seul », signalé à la PWA |
 | `settings.json` de Zed (`agent_servers`) et son registry d'agents | Savoir lancer un agent, y inscrire les entrées ZRA | `setup` refuse d'écrire si le fichier n'est pas un JSONC valide |
 | `keymap.json` de Zed (action `agent::NewExternalAgentThread`) | Touche « nouveau thread » par agent | La touche n'a plus d'effet : erreur explicite après 30 s |
 | Palette de commandes et sidebar de Zed | Recettes clavier (`zed/driver.js`) | Recettes surchargeables dans `zedControl.recipes` |
@@ -130,7 +130,7 @@ Les entrées écrites dans Zed et dans le service contiennent le chemin absolu d
 Ce qui casse si Zed évolue, du plus probable au moins probable :
 
 1. libellés de la palette ou action `agent::NewExternalAgentThread` : plus de « + » ni de réouverture, erreur explicite après 30 s ;
-2. schéma de `sidebar_threads` ou chemin `db/0-stable` : mode dégradé « live seul », signalé ;
+2. schéma de `sidebar_threads` ou chemin `db/0-<canal>` : mode dégradé « live seul », signalé ;
 3. format de `agent_servers` ou du registry d'agents : `setup` et la relecture d'historique échouent ;
 4. ACP : le relais continue, l'observation et l'injection sont à revoir dans `zra-shim/acp.js`.
 
