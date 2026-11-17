@@ -1,4 +1,4 @@
-{
+export default {
   "outil": "tool",
   "à l'instant": "just now",
   "hier": "yesterday",

@@ -1,8 +1,8 @@
-// Textes de la PWA en français (langue de référence, écrits dans le code) ou en anglais (en.json), selon la
+// Textes de la PWA en français (langue de référence, écrits dans le code) ou en anglais (en.js), selon la
 // langue du navigateur : anglais si ce n'est pas le français. Sous Node (tests), ZRA_LANG l'emporte.
-// tr`texte ${a}` : la clé est le texte français, valeurs remplacées par {0}, {1}… ; texte absent de en.json : français.
+// tr`texte ${a}` : la clé est le texte français, valeurs remplacées par {0}, {1}… ; texte absent de en.js : français.
 
-import en from './en.json' with { type: 'json' }
+import en from './en.js'
 
 export const lang = /^fr\b/i.test(globalThis.process?.env?.ZRA_LANG || globalThis.navigator?.language || 'fr') ? 'fr' : 'en'
 

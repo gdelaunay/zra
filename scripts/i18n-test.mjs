@@ -1,14 +1,15 @@
-// Chaque texte tr`…` a sa traduction anglaise dans le en.json de sa brique, avec les mêmes {0}, {1}… ; pas de
-// traduction orpheline. Briques : Node (daemon, shim, scripts) → i18n/en.json ; PWA → zra-client/js/en.json.
-// --write : réécrit les en.json dans l'ordre du code, textes manquants à "" (à traduire), orphelins retirés.
+// Chaque texte tr`…` a sa traduction anglaise dans le catalogue de sa brique, avec les mêmes {0}, {1}… ; pas de
+// traduction orpheline. Briques : Node (daemon, shim, scripts) → i18n/en.json ; PWA → zra-client/js/en.js, un
+// module ES (importable sans build par tout navigateur). --write : réécrit les catalogues dans l'ordre du code,
+// textes manquants à "" (à traduire), orphelins retirés.
 import { execSync } from 'node:child_process'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 const root = join(import.meta.dirname, '..')
 const bricks = [
-  { dirs: 'zra-daemon zra-shim scripts zra-client/tools', catalog: 'i18n/en.json' },
-  { dirs: 'zra-client/js', catalog: 'zra-client/js/en.json' },
+  { dirs: 'zra-daemon zra-shim scripts zra-client/tools', catalog: 'i18n/en.json', prefix: '' },
+  { dirs: 'zra-client/js', catalog: 'zra-client/js/en.js', prefix: 'export default ' },
 ]
 const skip = /\/test\/|i18n(-test)?\.m?js$/
 
@@ -61,10 +62,10 @@ const problems = []
 for (const brick of bricks) {
   const file = join(root, brick.catalog)
   const found = keys(brick)
-  const catalog = JSON.parse(readFileSync(file, 'utf8'))
+  const catalog = JSON.parse(readFileSync(file, 'utf8').slice(brick.prefix.length))
   if (write) {
     const next = Object.fromEntries([...found.keys()].map((k) => [k, catalog[k] ?? '']))
-    writeFileSync(file, JSON.stringify(next, null, 2) + '\n')
+    writeFileSync(file, brick.prefix + JSON.stringify(next, null, 2) + '\n')
     console.log(`${brick.catalog} : ${found.size} textes, ${Object.values(next).filter((v) => !v).length} à traduire.`)
     continue
   }
@@ -77,6 +78,6 @@ for (const brick of bricks) {
 }
 if (problems.length) {
   console.error(problems.slice(0, 30).join('\n') + (problems.length > 30 ? `\n… et ${problems.length - 30} autre(s)` : ''))
-  console.error('`node scripts/i18n-test.mjs --write` met les en.json à jour (textes à traduire vides).')
+  console.error('`node scripts/i18n-test.mjs --write` met les catalogues à jour (textes à traduire vides).')
   process.exit(1)
 }

@@ -93,7 +93,7 @@ but with no agent to reopen them.
 | `zra-daemon/` | the machine's WebSocket server: thread index, routing, pairing, Zed keyboard control |
 | `zra-client/` | build-free PWA, served by the daemon or by any static server |
 | `scripts/` | installation, service, pairing, certificate, keyboard tuning |
-| `i18n/` | English translation of the daemon, shim and script messages (`en.json`, keys: the French text in the code); the PWA's: `zra-client/js/en.json` |
+| `i18n/` | English translation of the daemon, shim and script messages (`en.json`, keys: the French text in the code); the PWA's: `zra-client/js/en.js` |
 
 ```sh
 npm run setup                        # status: Zed entries, agents, daemon

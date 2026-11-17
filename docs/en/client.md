@@ -9,7 +9,7 @@ zra-client/
   index.html  manifest.webmanifest  sw.js  icon.svg
   css/   themes.css (generated)  app.css
   js/    main.js store.js link.js settings.js acp.js markdown.js diff.js
-         dom.js icons.js format.js ui.js i18n.js en.json
+         dom.js icons.js format.js ui.js i18n.js en.js
          themes.js + agent-icons.js (generated from Zed)
          views/  threads.js thread.js entry.js settings.js new-session.js pair.js devbar.js
          mock/   mock-link.js scenarios.js
@@ -102,9 +102,9 @@ The `agent_id` → icon mapping is done by pattern (`claude-acp`, `claude-zra`,
 ## Language
 
 Texts in French in the code (reference text, key) and in English in
-`js/en.json`, chosen from the browser language: English if it is not
+`js/en.js`, chosen from the browser language: English if it is not
 French. An added or changed text goes through ``tr`…` `` (`js/i18n.js`), then
-`node scripts/i18n-test.mjs --write` and its translation in `en.json`. Daemon
+`node scripts/i18n-test.mjs --write` and its translation in `en.js`. Daemon
 messages (errors, `zra/notice`) arrive in the machine's language.
 
 ## Themes

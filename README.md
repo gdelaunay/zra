@@ -93,7 +93,7 @@ Zed, mais sans agent pour les rouvrir.
 | `zra-daemon/` | serveur WebSocket du poste : index des threads, routage, appairage, pilotage clavier de Zed |
 | `zra-client/` | PWA sans build, servie par le daemon ou par n'importe quel serveur statique |
 | `scripts/` | installation, service, appairage, certificat, mise au point clavier |
-| `i18n/` | traduction anglaise des messages du daemon, du shim et des scripts (`en.json`, clés : texte français du code) ; celle de la PWA : `zra-client/js/en.json` |
+| `i18n/` | traduction anglaise des messages du daemon, du shim et des scripts (`en.json`, clés : texte français du code) ; celle de la PWA : `zra-client/js/en.js` |
 
 ```sh
 npm run setup                        # état : entrées Zed, agents, daemon
