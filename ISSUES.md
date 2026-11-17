@@ -23,13 +23,13 @@ Fait → effet → à faire. Une issue acceptée (on ne fera rien) part dans
 Pas de `LICENSE`, `package.json` en `"private": true` sans champ `license` : un
 dépôt public resterait « tous droits réservés ». Thèmes et icônes Lucide sont
 attribués (`THIRD_PARTY_NOTICES.md`). Restent les icônes de marques d'agents
-(`zra-client/js/agent-icons.js`, `scripts/gen-agent-icons.mjs`) : les
-`assets/icons/ai_*.svg` de Zed ne sont couverts par aucune licence propre aux
-icônes, donc par celle du dépôt de Zed (GPL-3.0), et les logos restent des
-marques de leurs propriétaires.
+(`zra-client/js/agent-icons.js`, `scripts/gen-agent-icons.mjs`), copiées des
+`assets/icons/ai_*.svg` de Zed. Zed ne peut pas accorder de droits sur ces
+logos : ils appartiennent à leurs marques. Les afficher pour désigner l'agent,
+comme le fait Zed, est un usage courant ; c'est leur source qui pose question.
 → Choisir une licence (MIT la plus simple), l'ajouter avec le champ `license`
-de `package.json`. Icônes de marques : les retirer, ou les prendre à une source
-sous licence permissive.
+de `package.json`. Icônes de marques : les reprendre des kits presse officiels
+de chaque marque et suivre leurs règles d'usage, plutôt que de Zed.
 
 ## Permission tranchée sur mobile : Zed garde l'invite — `à faire`
 
