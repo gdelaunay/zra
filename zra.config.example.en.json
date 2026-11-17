@@ -1,0 +1,107 @@
+// zra-daemon configuration — template to copy as `zra.config.json` at the
+// root (machine-specific file, not tracked by git; `ZRA_CONFIG` can point
+// elsewhere). Comments are allowed (JSONC), as in the Zed settings.json.
+// Can be overridden by environment variables (ZRA_PORT,
+// ZRA_REQUIRE_TUNNEL…) and by command-line options.
+{
+  "port": 7777,
+
+  // Listening. Never 0.0.0.0: loopback, the local network and the optional
+  // tunnel, each on its own address. Outside loopback, pairing is mandatory.
+  //
+  // Local network (private IPv4): the phone on the same Wi-Fi, and remotely
+  // through an "all traffic" tunnel (wg-easy, AllowedIPs 0.0.0.0/0) that
+  // ends up on this network. Never a network marked "Public" (Windows).
+  // "lanCidrs": restrict it, e.g. ["192.168.1.0/24"] — recommended on Linux.
+  "bindLan": true,
+  "lanCidrs": null,
+  // Tunnel set up on the machine itself (optional): "bindInterface" is the name
+  // of its adapter, "bindCidr" a range fallback; otherwise detection by name.
+  "bindTunnel": true,
+  "bindInterface": null,
+  "bindCidr": null,
+  // true: refuse to start without a tunnel (--wait-tunnel: wait for it).
+  "requireTunnel": false,
+
+  // Authentication. The machine itself (loopback) is exempt from pairing;
+  // a local proxy/tunnel relaying to 127.0.0.1 is detected (forwarded
+  // headers) and must pair. false: loopback pairs too.
+  "auth": { "exemptLoopback": true },
+
+  // Web client. The chosen deployment (docs/en/deploy.md): the daemon serves it itself,
+  // over HTTPS on the tunnel IP — same origin as the WebSocket. If it is served
+  // elsewhere: false, and its origin in "allowedOrigins".
+  "serveStatic": true,
+  "staticDir": "zra-client",
+
+  // Origins allowed to open the WebSocket. Browsers do not apply the
+  // same-origin policy to WebSockets: this list closes the channel to
+  // third-party pages. Empty = the daemon's own origin only (added
+  // automatically when it serves the static files). Client served elsewhere: its origin here.
+  "allowedOrigins": [],
+
+  // TLS. Absent => HTTP + ws://: the app works, but the browser refuses
+  // the service worker, home screen installation and Web Push.
+  // Set => HTTPS + wss://, secure context, full PWA.
+  //   "tls": { "cert": ".zra/tls/zra.crt", "key": ".zra/tls/zra.key" }   (scripts/cert.ps1, docs/en/deploy.md §2)
+  // Reloaded live on renewal; its DNS names become allowed origins.
+  "tls": null,
+
+  // Zed sources. null => the machine's default paths.
+  "zedDb": null,
+  "zedSettings": null,
+  "pollMs": 2000,
+  "ringSize": 2000,
+
+  // Injection backend:
+  //   "acp"   the shim sends the session/prompt itself — default, the only supported one
+  //   "uia"   EXPERIMENTAL. Zed sends the prompt: ZRA types it with the keyboard (requires zedControl)
+  //   "auto"  EXPERIMENTAL. "acp", keyboard fallback if the agent refuses the prompt
+  //   "mock"  stub backend, to validate the chain without an agent
+  "injection": "acp",
+
+  // Keyboard control of the Zed window: open a session from the phone's "+",
+  // reopen a closed thread, "uia" backend. Zed exposes nothing to UI
+  // Automation: these are real keystrokes, sent to the Zed window and
+  // stopped if it loses the foreground.
+  // ⚠ ENABLED BY DEFAULT: any paired device can make Zed type on the keyboard
+  // (the daemon warns at startup). Set false to forbid it — the "+"
+  // and reopening closed threads will then be unavailable.
+  // Tuning: `npm run zed -- probe | recipes | try <recipe>`.
+  "zedControl": {
+    "enabled": true,
+    // "window": "zra",        // Zed window whose title contains this text
+    // "dryRun": true,         // resolve everything, send nothing
+    // "cli": "C:/…/Zed/bin/zed.exe",  // opens the project of a "+" (default: standard install)
+    // Keyboard backend: "auto" (default) = keyboard.ps1 on Windows, xdotool
+    // on Linux. Under Wayland,
+    // Zed is forced under XWayland (WAYLAND_DISPLAY= in its .desktop, see
+    // scripts/lib/wayland.mjs) and xdotool sees its windows.
+    // Accepted names: "auto", "powershell", "xdotool", "none" — any other is
+    // refused at load time. A forced name is honored even if the tool is
+    // missing: it fails and says why.
+    // One-off override: ZRA_ZED_KEYBOARD=none npm run daemon:dev
+    // "keyboard": "auto",
+    // "recipes": {            // overrides the recipes of zra-daemon/zed/driver.js
+    //   "openThread": [ { "keys": "ctrl+shift+p" }, { "wait": 400 }, … ]
+    // }
+  },
+
+  // How to launch an agent, when the Zed registry is not enough to tell.
+  // Used by the shim (which binary to wrap) and by the closed-thread replayer.
+  // Agents installed by Zed from its registry are resolved on their own.
+  //   "agentCommands": {
+  //     "claude-acp": { "command": "node", "args": ["C:/.../claude-agent-acp/dist/index.js"] }
+  //   }
+  "agentCommands": {},
+
+  // Turn watchdog, read by the **shim** (ZRA_TURN_TIMEOUT_MS overrides it).
+  // Agent silence — no session/update — beyond which an in-flight turn
+  // is closed by force, and the thread says so. Without it, an agent that hangs or dies
+  // without closing its request leaves the phone loading forever.
+  "turnTimeoutMs": 600000,
+
+  // session/load replay cache and duration watchdog.
+  "historyTtlMs": 600000,
+  "historyTimeoutMs": 60000
+}

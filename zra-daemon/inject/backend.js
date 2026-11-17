@@ -13,6 +13,7 @@ import { AcpBackend } from './acp.js'
 import { AutoBackend } from './auto.js'
 import { MockBackend } from './mock.js'
 import { UiaBackend } from './uia.js'
+import { tr } from '../i18n.js'
 
 /** Erreur d'injection portant un code du protocole (§4 `error`). */
 export class InjectionError extends Error {
@@ -38,6 +39,6 @@ export function createBackend(kind, ctx) {
     case 'auto':
       return new AutoBackend(ctx)
     default:
-      throw new Error(`backend d'injection inconnu : ${kind}`)
+      throw new Error(tr`backend d'injection inconnu : ${kind}`)
   }
 }

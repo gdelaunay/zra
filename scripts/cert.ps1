@@ -1,4 +1,4 @@
-﻿# Certificat Let's Encrypt pour le daemon, par validation DNS-01 — docs/deploy.md §2.
+﻿# Certificat Let's Encrypt pour le daemon, par validation DNS-01 — docs/fr/deploy.md §2.
 #
 # Le domaine pointe l'IP privée du tunnel (10.77.0.1) : Let's Encrypt ne peut
 # pas la joindre, d'où la validation par un enregistrement TXT du DNS. Le

@@ -6,12 +6,14 @@
 // jusqu'au proxy, et la reconnexion se fait en arrière-plan avec backoff.
 //
 // Le lien est local (`127.0.0.1`) : c'est une conversation entre deux processus
-// du même poste, distincte du protocole PWA ↔ daemon du `docs/protocol.md`.
+// du même poste, distincte du protocole PWA ↔ daemon du `docs/fr/protocol.md`.
 //
 //   shim → daemon   shim_hello · session · acp_update · state ·
 //                   permission_resolved · permission_expired · notice · ack
 //   daemon → shim   cmd { id, cmd: prompt|cancel|set_option|
 //                                 respond_permission|cancel_queued }
+
+import { tr } from '../zra-daemon/i18n.js'
 
 const BACKOFF_MIN = 500
 const BACKOFF_MAX = 15_000
@@ -52,7 +54,7 @@ export class DaemonLink {
     try {
       ws = new WebSocket(this.url)
     } catch (err) {
-      this.log?.debug('daemon injoignable :', err.message)
+      this.log?.debug(tr`daemon injoignable :`, err.message)
       return this.retry()
     }
     this.ws = ws
@@ -62,7 +64,7 @@ export class DaemonLink {
       opened = true
       this.backoff = BACKOFF_MIN
       // Une fois par connexion effective : c'est l'étape 2 du test réel.
-      this.log?.info(`daemon connecté (${this.url})`)
+      this.log?.info(tr`daemon connecté (${this.url})`)
       this.push({ type: 'shim_hello', shimId: this.shimId, ...this.describe() })
       this.flush()
     })
@@ -71,19 +73,19 @@ export class DaemonLink {
       let msg
       try { msg = JSON.parse(typeof ev.data === 'string' ? ev.data : String(ev.data)) } catch { return }
       if (!msg || typeof msg.type !== 'string') return
-      this.handle(msg).catch((err) => this.log?.debug('commande :', err.message))
+      this.handle(msg).catch((err) => this.log?.debug(tr`commande :`, err.message))
     })
 
     const gone = () => {
       if (this.ws !== ws) return
-      if (opened) this.log?.info('lien daemon perdu, reconnexion en arrière-plan')
+      if (opened) this.log?.info(tr`lien daemon perdu, reconnexion en arrière-plan`)
       this.ws = null
       this.retry()
     }
     ws.addEventListener('close', gone)
     ws.addEventListener('error', () => {
       // `error` précède toujours `close` : on laisse `close` reprogrammer.
-      this.log?.debug('lien daemon en erreur')
+      this.log?.debug(tr`lien daemon en erreur`)
     })
   }
 
@@ -105,7 +107,7 @@ export class DaemonLink {
         this.ws.send(JSON.stringify(msg))
         return true
       } catch (err) {
-        this.log?.debug('envoi impossible :', err.message)
+        this.log?.debug(tr`envoi impossible :`, err.message)
       }
     }
     // `shim_hello` est reconstruit à chaque ouverture : inutile de l'empiler.
@@ -132,7 +134,7 @@ export class DaemonLink {
         id: msg.id,
         ok: false,
         code: err?.code || 'inject_failed',
-        message: err?.message || 'échec',
+        message: err?.message || tr`échec`,
       })
     }
   }

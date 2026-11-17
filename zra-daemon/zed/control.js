@@ -13,6 +13,7 @@
 // Timeout 30 s dans les deux cas.
 
 import { ZedControlError } from './driver.js'
+import { tr } from '../i18n.js'
 
 export class ZedControl {
   /**
@@ -99,7 +100,7 @@ export class ZedControl {
   newThread(agentId, { folderPaths = null, newWindow = false } = {}) {
     return this.serial(async () => {
       const agent = this.agents().find((a) => a.id === agentId)
-      if (!agent) throw new ZedControlError('new_thread_failed', `agent « ${agentId} » absent du registry agent_servers de ce poste`)
+      if (!agent) throw new ZedControlError('new_thread_failed', tr`agent « ${agentId} » absent du registry agent_servers de ce poste`)
 
       // Le shim s'annonce sous l'id de l'agent **enveloppé** (`ZRA_AGENT_ID`) ;
       // l'index, lui, range le thread sous le nom de l'entrée Zed.
@@ -126,7 +127,7 @@ export class ZedControl {
           const draft = this.threads.threads.find((t) => !known.has(t.threadId) && !t.sessionId && t.agentId === agent.id)
           if (draft) {
             const [sessionId, cwd] = [...fresh].at(-1)
-            this.log?.info(`thread ${draft.threadId} sans session dans l'index de Zed : rattaché à ${sessionId}`)
+            this.log?.info(tr`thread ${draft.threadId} sans session dans l'index de Zed : rattaché à ${sessionId}`)
             this.threads.bindSession(draft.threadId, sessionId)
             const thread = this.threads.getBySession(sessionId)
             if (thread) return { thread, cwd }
@@ -139,7 +140,7 @@ export class ZedControl {
           const other = this.threads.threads.find((t) => !known.has(t.threadId) && t.agentId && t.agentId !== agent.id)
           if (other) {
             throw new ZedControlError('new_thread_failed',
-              `Zed a ouvert le thread avec « ${other.agentId} » (le dernier agent utilisé dans Zed), pas « ${agent.id} »`)
+              tr`Zed a ouvert le thread avec « ${other.agentId} » (le dernier agent utilisé dans Zed), pas « ${agent.id} »`)
           }
         }
         // Agent sans shim (entrée qui ne passe pas par ZRA) : seule l'apparition
@@ -151,17 +152,17 @@ export class ZedControl {
         return null
       }, {
         onTimeout: () => new ZedControlError('new_thread_failed', fresh.size
-          ? "Zed a ouvert la session, mais le thread n'est pas encore dans son index (il n'y entre peut-être qu'au premier message)"
+          ? tr`Zed a ouvert la session, mais le thread n'est pas encore dans son index (il n'y entre peut-être qu'au premier message)`
           // L'explication dépend de la recette jouée : la touche liée vise CET
           // agent, la palette ouvre le dernier utilisé. Accuser la palette quand
           // c'est la touche qui a été envoyée envoie chercher du mauvais côté —
           // vu en vrai sur MX Linux, où la touche partait sans sa touche de
           // fonction (`f1` au lieu du keysym `F1`).
           : played?.recipe === 'newThreadKey'
-            ? `Zed n'a ouvert aucune session ${agent.id} en ${Math.round(this.timeoutMs / 1000)} s — la touche liée par \`npm run setup\` a été envoyée à sa fenêtre sans effet : vérifie le bloc ZRA de son keymap.json, et que cette version de Zed connaît l'action liée`
+            ? tr`Zed n'a ouvert aucune session ${agent.id} en ${Math.round(this.timeoutMs / 1000)} s — la touche liée par \`npm run setup\` a été envoyée à sa fenêtre sans effet : vérifie le bloc ZRA de son keymap.json, et que cette version de Zed connaît l'action liée`
             : played?.recipe === 'newThread'
-              ? `Zed n'a ouvert aucune session ${agent.id} en ${Math.round(this.timeoutMs / 1000)} s — il ouvre le dernier agent utilisé dans Zed : était-ce bien celui-là ?`
-              : `Zed n'a ouvert aucune session ${agent.id} en ${Math.round(this.timeoutMs / 1000)} s`),
+              ? tr`Zed n'a ouvert aucune session ${agent.id} en ${Math.round(this.timeoutMs / 1000)} s — il ouvre le dernier agent utilisé dans Zed : était-ce bien celui-là ?`
+              : tr`Zed n'a ouvert aucune session ${agent.id} en ${Math.round(this.timeoutMs / 1000)} s`),
       })
 
       try {
@@ -172,7 +173,7 @@ export class ZedControl {
       }
       const found = await wait.promise
       this.focused = found.thread.threadId
-      this.log?.info(`nouvelle session ${agent.id} : thread ${found.thread.threadId} (${found.cwd ?? 'dossier ?'})`)
+      this.log?.info(tr`nouvelle session ${agent.id} : thread ${found.thread.threadId} (${found.cwd ?? tr`dossier ?`})`)
       return found
     })
   }
@@ -186,17 +187,17 @@ export class ZedControl {
       if (this.shims.hasSession(thread.sessionId)) return thread
       const wait = this.waitFor(() => this.shims.hasSession(thread.sessionId) && thread, {
         onTimeout: () => new ZedControlError('inject_failed',
-          `Zed n'a pas rouvert « ${thread.title} » en ${Math.round(this.timeoutMs / 1000)} s`),
+          tr`Zed n'a pas rouvert « ${thread.title} » en ${Math.round(this.timeoutMs / 1000)} s`),
       })
       try {
         await this.driver.openThread(thread)
       } catch (err) {
         wait.cancel()
-        throw new ZedControlError('inject_failed', `impossible de rouvrir le thread dans Zed : ${err.message}`)
+        throw new ZedControlError('inject_failed', tr`impossible de rouvrir le thread dans Zed : ${err.message}`)
       }
       await wait.promise
       this.focused = thread.threadId
-      this.log?.info(`thread ${thread.threadId} rouvert dans Zed`)
+      this.log?.info(tr`thread ${thread.threadId} rouvert dans Zed`)
       return thread
     })
   }
@@ -215,6 +216,6 @@ export class ZedControl {
       return
     }
     throw new ZedControlError('inject_failed',
-      "injection clavier impossible : ZRA ne sait pas amener ce thread au premier plan de Zed (recette openThread non établie)")
+      tr`injection clavier impossible : ZRA ne sait pas amener ce thread au premier plan de Zed (recette openThread non établie)`)
   }
 }

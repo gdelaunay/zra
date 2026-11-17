@@ -34,6 +34,7 @@ import { pipeFrames } from './proxy.js'
 import { createRecorder } from './record.js'
 import { parseJsonc } from '../zra-daemon/jsonc.js'
 import { resolveAgentCommand } from '../zra-daemon/agent-commands.js'
+import { tr } from '../zra-daemon/i18n.js'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -60,10 +61,10 @@ export function createShim({
   // sans écouteur 'error', elle tue le shim en code 1 au lieu du code de
   // l'agent (fail-open). Même règle que record.js/log.js/daemon-link.js.
   if (typeof zedOut.on === 'function') {
-    zedOut.on('error', (err) => log.warn('écriture vers Zed impossible :', err.message))
+    zedOut.on('error', (err) => log.warn(tr`écriture vers Zed impossible :`, err.message))
   }
   if (typeof agentIn.on === 'function') {
-    agentIn.on('error', (err) => log.warn("écriture vers l'agent impossible :", err.message))
+    agentIn.on('error', (err) => log.warn(tr`écriture vers l'agent impossible :`, err.message))
   }
 
   const bridge = new AcpBridge({
@@ -74,11 +75,11 @@ export function createShim({
     // agent → Zed ; les deux ne s'entrelacent pas.
     toZed: (raw) => {
       record.write('zra→zed', raw)
-      try { zedOut.write(raw) } catch (err) { log.warn('écriture vers Zed impossible :', err.message) }
+      try { zedOut.write(raw) } catch (err) { log.warn(tr`écriture vers Zed impossible :`, err.message) }
     },
     toAgent: (raw) => {
       record.write('zra→agent', raw)
-      try { agentIn.write(raw) } catch (err) { log.warn("écriture vers l'agent impossible :", err.message) }
+      try { agentIn.write(raw) } catch (err) { log.warn(tr`écriture vers l'agent impossible :`, err.message) }
     },
   })
 
@@ -88,7 +89,7 @@ export function createShim({
     source: zedIn,
     sink: agentIn,
     observe: (msg, raw) => { record.write('zed→agent', raw); return bridge.observeFromZed(msg) },
-    onError: (err) => log.debug('flux Zed :', err.message),
+    onError: (err) => log.debug(tr`flux Zed :`, err.message),
     onEnd: () => { try { agentIn.end() } catch { /* déjà fermé */ } },
   })
 
@@ -96,7 +97,7 @@ export function createShim({
     source: agentOut,
     sink: zedOut,
     observe: (msg, raw) => { record.write('agent→zed', raw); return bridge.observeFromAgent(msg) },
-    onError: (err) => log.debug('flux agent :', err.message),
+    onError: (err) => log.debug(tr`flux agent :`, err.message),
   })
 
   const describe = () => ({
@@ -133,18 +134,17 @@ export function createShim({
   // ré-annonce pour que le daemon les connaisse sans attendre une reconnexion.
   bridge.on('initialized', () => {
     const info = bridge.agentInfo
-    log.info(`initialize : ${info ? `${info.name} ${info.version ?? ''}`.trim() : 'agent'}, ` +
-      `protocole ${bridge.protocolVersion ?? '?'}, loadSession=${bridge.agentCapabilities?.loadSession ? 'oui' : 'non'}`)
+    log.info(tr`initialize : ${info ? `${info.name} ${info.version ?? ''}`.trim() : 'agent'}, protocole ${bridge.protocolVersion ?? '?'}, loadSession=${bridge.agentCapabilities?.loadSession ? tr`oui` : tr`non`}`)
     push({ type: 'shim_hello', shimId, ...describe() })
   })
   // Journal de diagnostic : ce qu'on lit en premier au test réel.
-  bridge.on('session', (s) => log.info(`session ${s.source === 'load' ? 'rechargée' : 'ouverte'} : ${s.sessionId} (${s.cwd ?? 'cwd ?'})`))
-  bridge.on('prompt_failed', ({ sessionId, message }) => log.warn(`prompt injecté refusé sur ${sessionId} : ${message}`))
+  bridge.on('session', (s) => log.info(s.source === 'load' ? tr`session rechargée : ${s.sessionId} (${s.cwd ?? 'cwd ?'})` : tr`session ouverte : ${s.sessionId} (${s.cwd ?? 'cwd ?'})`))
+  bridge.on('prompt_failed', ({ sessionId, message }) => log.warn(tr`prompt injecté refusé sur ${sessionId} : ${message}`))
   bridge.on('prompt_failed', ({ sessionId, message }) => push({
-    type: 'notice', sessionId, code: 'inject_failed', text: `l'agent a refusé le message : ${message}`, level: 'warn',
+    type: 'notice', sessionId, code: 'inject_failed', text: tr`l'agent a refusé le message : ${message}`, level: 'warn',
   }))
   bridge.on('queue_failed', ({ sessionId, message }) => push({
-    type: 'notice', sessionId, code: 'inject_failed', text: `message en attente non envoyé : ${message}`, level: 'warn',
+    type: 'notice', sessionId, code: 'inject_failed', text: tr`message en attente non envoyé : ${message}`, level: 'warn',
   }))
 
   return {
@@ -174,7 +174,7 @@ export async function runCommand(bridge, msg) {
     case 'cancel_queued':
       return bridge.cancelQueued(msg.sessionId, msg.queueId)
     default:
-      throw new ShimError('unknown_message', `commande inconnue : ${msg.cmd}`)
+      throw new ShimError('unknown_message', tr`commande inconnue : ${msg.cmd}`)
   }
 }
 
@@ -201,7 +201,7 @@ async function readConfig() {
   try {
     return parseJsonc(await readFile(file, 'utf8')) ?? {}
   } catch (err) {
-    log.warn('zra.config.json illisible :', err.message)
+    log.warn(tr`zra.config.json illisible :`, err.message)
     return {}
   }
 }
@@ -226,8 +226,7 @@ export async function resolveAgent(argv, config) {
   const agentId = process.env.ZRA_AGENT_ID || config.shimAgentId
   if (!agentId) {
     throw new Error(
-      'aucun agent à envelopper : passer la commande après `--`, ou renseigner ' +
-      'ZRA_AGENT_COMMAND, ou ZRA_AGENT_ID (résolu depuis le registry de Zed)',
+      tr`aucun agent à envelopper : passer la commande après \`--\`, ou renseigner ZRA_AGENT_COMMAND, ou ZRA_AGENT_ID (résolu depuis le registry de Zed)`,
     )
   }
   const resolved = await resolveAgentCommand(agentId, {
@@ -243,8 +242,8 @@ export async function resolveAgent(argv, config) {
  * survivre à un bug de ZRA. Fail-open jusqu'au bout.
  */
 export function safetyNet(logger = log) {
-  process.on('uncaughtException', (err) => logger.error(`exception non rattrapée : ${err?.stack || err}`))
-  process.on('unhandledRejection', (err) => logger.error(`promesse rejetée non rattrapée : ${err?.stack || err}`))
+  process.on('uncaughtException', (err) => logger.error(tr`exception non rattrapée : ${err?.stack || err}`))
+  process.on('unhandledRejection', (err) => logger.error(tr`promesse rejetée non rattrapée : ${err?.stack || err}`))
 }
 
 /**
@@ -284,12 +283,12 @@ export async function main(argv = process.argv.slice(2)) {
   child.on('error', (err) => {
     // L'agent n'a pas pu démarrer : rien à envelopper, on sort net plutôt que
     // de laisser Zed dialoguer avec un tuyau vide.
-    log.error(`agent non lançable (${agent.command}) : ${err.message}`)
+    log.error(tr`agent non lançable (${agent.command}) : ${err.message}`)
     process.exit(127)
   })
 
   const record = createRecorder({ enabled: process.env.ZRA_RECORD === '1', agentId: agent.agentId })
-  if (record.file) log.info(`enregistrement des trames : ${record.file}`)
+  if (record.file) log.info(tr`enregistrement des trames : ${record.file}`)
 
   const shim = createShim({
     zedIn: process.stdin,
@@ -309,7 +308,7 @@ export async function main(argv = process.argv.slice(2)) {
 
   child.on('exit', (code, signal) => {
     shim.stop()
-    log.info(`agent terminé (code=${code ?? '—'}, signal=${signal ?? '—'})`)
+    log.info(tr`agent terminé (code=${code ?? '—'}, signal=${signal ?? '—'})`)
     flushThenExit(process.stdout, code ?? 0)
   })
 }

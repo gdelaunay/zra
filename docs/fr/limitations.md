@@ -6,7 +6,7 @@ et ce qu'il faudrait pour lever la limite si la demande apparaît.
 ## Zed via Flatpak / Snap
 
 **Décision : non supporté explicitement à la publication.** Installation native
-uniquement (README, docs/deploy.md §6) ; message clair au setup si Zed est
+uniquement (README, docs/fr/deploy.md §6) ; message clair au setup si Zed est
 introuvable. Échappatoire pour utilisateurs avancés : `zedDb`/`zedSettings`
 dans `zra.config.json`.
 
@@ -39,4 +39,4 @@ lit `~/.config/autostart`.
 Node ≥ 24 à installer à la main (les Node de distro sont plus vieux) ; `xdotool`
 est un paquet standard partout. Code Node pur, sans dépendance native, chemins
 XDG : effet attendu nul.
-→ `npm install && npm test`, puis « Vérifier une machine » de `docs/architecture.md`.
+→ `npm install && npm test`, puis « Vérifier une machine » de `docs/fr/architecture.md`.

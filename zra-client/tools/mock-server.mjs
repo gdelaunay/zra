@@ -15,6 +15,7 @@ import { fileURLToPath } from 'node:url'
 import { dirname, join, normalize, extname } from 'node:path'
 
 import { MockLink } from '../js/mock/mock-link.js'
+import { tr } from '../../zra-daemon/i18n.js'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11'
@@ -162,7 +163,7 @@ function start({ port, machine, host }) {
     socket.on('error', bye)
 
     link.connect()
-    log(port, '·', `client ${id} connecté`)
+    log(port, '·', tr`client ${id} connecté`)
   })
 
   server.listen(port, host, () => {
@@ -177,10 +178,10 @@ function log(port, arrow, ...rest) {
 }
 
 const args = parseArgs(process.argv.slice(2))
-console.log('ZRA — daemon bouchon (aucun Zed, aucun agent)')
+console.log(tr`ZRA — daemon bouchon (aucun Zed, aucun agent)`)
 const servers = args.instances.map((inst) => start({ ...inst, host: args.host }))
-console.log(`\n  PWA branchée sur le daemon simulé : http://${args.host}:${args.instances[0].port}/`)
-console.log(`  PWA en mock intégral (sans WS)    : http://${args.host}:${args.instances[0].port}/?mock=1\n`)
+console.log(tr`\n  PWA branchée sur le daemon simulé : ${`http://${args.host}:${args.instances[0].port}/`}`)
+console.log(tr`  PWA en mock intégral (sans WS)    : ${`http://${args.host}:${args.instances[0].port}/?mock=1`}\n`)
 
 for (const sig of ['SIGINT', 'SIGTERM']) {
   process.on(sig, () => { servers.forEach((s) => s.close()); process.exit(0) })

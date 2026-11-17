@@ -7,19 +7,20 @@
 import { h, button } from '../dom.js'
 import * as store from '../store.js'
 import { openSheet } from '../ui.js'
+import { tr } from '../i18n.js'
 
 export function openPairSheet(machine) {
-  openSheet(`Appairer ${machine.label || machine.url}`, (body, { close }) => {
+  openSheet(tr`Appairer ${machine.label || machine.url}`, (body, { close }) => {
     const input = h('input.input.pair__code', {
       type: 'text', inputmode: 'numeric', autocomplete: 'one-time-code', maxlength: '7',
-      placeholder: '000 000', 'aria-label': "code d'appairage",
+      placeholder: '000 000', 'aria-label': tr`code d'appairage`,
       oninput: () => {
         // Six chiffres saisis : on envoie, pas besoin de chercher le bouton.
         if (input.value.replace(/\D/g, '').length === 6) submit()
       },
       onkeydown: (ev) => { if (ev.key === 'Enter') submit() },
     })
-    const ok = button('btn.btn--accent', { onclick: () => submit() }, 'Appairer')
+    const ok = button('btn.btn--accent', { onclick: () => submit() }, tr`Appairer`)
 
     function submit() {
       const code = input.value.replace(/\D/g, '')
@@ -38,7 +39,7 @@ export function openPairSheet(machine) {
     })
 
     body.append(
-      h('p.muted', { text: 'Sur le poste : le code est dans le journal du daemon, ou via « npm run pair ». Il ne sert qu’une fois.' }),
+      h('p.muted', { text: tr`Sur le poste : le code est dans le journal du daemon, ou via « npm run pair ». Il ne sert qu’une fois.` }),
       h('div.row', {}, input, ok),
     )
     setTimeout(() => input.focus(), 50)

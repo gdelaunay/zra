@@ -1,5 +1,7 @@
 # ZRA — Zed Remote Agent
 
+[English](https://forgejo.gdelaunay.fr/gdelaunay/zra/src/branch/main/README.en.md)
+
 Suivre et piloter depuis le téléphone les threads d'agents [ACP](https://agentclientprotocol.com)
 de [Zed](https://zed.dev) : liste, streaming live, envoi, permissions, nouvelle session.
 ZRA relaie tel quel ce qui passe entre Zed et l'agent, et y ajoute ce qui vient du mobile.
@@ -8,10 +10,14 @@ Pour ouvrir ou rouvrir un thread, il tape au clavier dans Zed (voir [Sécurité]
 **État** : version 0.3. Vérifié sous Windows 11 et sur trois postes Linux
 (Ubuntu/GNOME/Wayland, Debian/KDE/X11, MX Linux/Xfce/X11), avec un téléphone Android.
 
+**Langue** : français ou anglais. La PWA suit la langue du navigateur ; le daemon,
+le shim et les scripts suivent `ZRA_LANG=fr` ou `ZRA_LANG=en`, sinon la langue du
+système. Anglais si ce n'est pas le français.
+
 ## Démarrage rapide
 
 **Prérequis** : Zed (installation native — Flatpak/Snap non supportés, voir
-`docs/limitations.md`), Node ≥ 24.
+`docs/fr/limitations.md`), Node ≥ 24.
 
 **Prérequis Linux** : `xdotool` — `sudo apt install xdotool`. Sous Wayland, le
 pilotage clavier exige Zed sous XWayland : `npm run setup -- xwayland --apply`
@@ -25,13 +31,13 @@ pilotage clavier exige Zed sous XWayland : `npm run setup -- xwayland --apply`
 2. `npm run daemon`. Le daemon affiche son adresse (`http://192.168.x.x:7777`)
    et un code d'appairage.
 3. Sur le téléphone, même Wi-Fi : ouvrir cette adresse, puis saisir le code.
-   Si la page ne charge pas : pare-feu et profil réseau (`docs/deploy.md` §1).
+   Si la page ne charge pas : pare-feu et profil réseau (`docs/fr/deploy.md` §1).
 4. Dans Zed, ouvrir un thread avec l'agent **ZRA** (`claude-zra`) : il est
    `live` sur le téléphone. Les threads des autres agents s'y lisent, mais ne
    s'écrivent pas une fois fermés.
 
 Ensuite : démarrage automatique (`npm run service -- install --apply`),
-accès à distance, HTTPS et dépannage (`docs/deploy.md`).
+accès à distance, HTTPS et dépannage (`docs/fr/deploy.md`).
 
 ## Désinstaller
 
@@ -54,7 +60,7 @@ Zed, mais sans agent pour les rouvrir.
   n'écoute jamais sur un réseau marqué « Public » par Windows ; sous Linux, le
   restreindre avec `lanCidrs` dans `zra.config.json`.
 - **Trafic en clair** en HTTP : jeton et conversations sont lisibles par qui
-  écoute le réseau. Hors de chez soi : tunnel ou HTTPS (`docs/deploy.md` §3-4).
+  écoute le réseau. Hors de chez soi : tunnel ou HTTPS (`docs/fr/deploy.md` §3-4).
 - **Appairage** : code à 6 chiffres, à usage unique, verrouillé après 10 essais
   ratés ; `npm run pair` le rouvre avec un nouveau code.
 - **Loopback** exemptée d'appairage, sauf requête relayée par un proxy local
@@ -87,6 +93,7 @@ Zed, mais sans agent pour les rouvrir.
 | `zra-daemon/` | serveur WebSocket du poste : index des threads, routage, appairage, pilotage clavier de Zed |
 | `zra-client/` | PWA sans build, servie par le daemon ou par n'importe quel serveur statique |
 | `scripts/` | installation, service, appairage, certificat, mise au point clavier |
+| `i18n/` | traduction anglaise des messages du daemon, du shim et des scripts (`en.json`, clés : texte français du code) ; celle de la PWA : `zra-client/js/en.json` |
 
 ```sh
 npm run setup                        # état : entrées Zed, agents, daemon
@@ -99,19 +106,20 @@ npm run pair                         # code d'appairage, appareils appairés (re
 npm run zed -- probe | recipes | try <recette> [--apply]   # pilotage clavier
 npm run probe:agent <agent>          # poignée de main avec un agent, à travers le shim
 npm run mock                         # daemon bouchon, pour la PWA sans Zed
-npm test                             # npm install d'abord (jsdom, pour les tests de la PWA)
+npm test                             # npm install d'abord (jsdom, pour les tests de la PWA) ; vérifie aussi les traductions
 ```
 
-Configuration : copier `zra.config.example.json` (commenté) en `zra.config.json`
-à la racine — lu par le daemon et le shim, jamais committé (propre à chaque poste).
+Configuration : copier `zra.config.example.json` (commenté ; en anglais :
+`zra.config.example.en.json`) en `zra.config.json` à la racine — lu par le daemon
+et le shim, jamais committé (propre à chaque poste).
 
 | Doc | Contenu |
 |---|---|
-| `docs/architecture.md` | la carte : composants, échanges, flux, fragilités, décisions |
-| `docs/deploy.md` | mise en service sur le téléphone : réseau local, tunnel, HTTPS, service |
-| `docs/protocol.md` | protocole PWA ↔ daemon |
-| `docs/daemon.md`, `docs/shim.md`, `docs/client.md` | un composant chacun : rôle, fichiers, tests |
-| `docs/limitations.md` | ce qui n'est pas supporté, et pourquoi |
+| `docs/fr/architecture.md` | la carte : composants, échanges, flux, fragilités, décisions |
+| `docs/fr/deploy.md` | mise en service sur le téléphone : réseau local, tunnel, HTTPS, service |
+| `docs/fr/protocol.md` | protocole PWA ↔ daemon |
+| `docs/fr/daemon.md`, `docs/fr/shim.md`, `docs/fr/client.md` | un composant chacun : rôle, fichiers, tests |
+| `docs/fr/limitations.md` | ce qui n'est pas supporté, et pourquoi |
 
 Fichiers de travail, à la racine : `ROADMAP.md` (versions à venir, idées) et
 `ISSUES.md` (issues ouvertes).

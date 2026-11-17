@@ -18,6 +18,7 @@
 // tunnel coupé puis rétabli).
 
 import { networkInterfaces } from 'node:os'
+import { tr } from './i18n.js'
 
 const LOOPBACK = '127.0.0.1'
 const WILDCARD = new Set(['0.0.0.0', '::', '*', ''])
@@ -77,14 +78,14 @@ export function findTunnel(cfg, interfaces = listInterfaces()) {
   if (cfg.bindInterface) {
     const wanted = cfg.bindInterface.toLowerCase()
     const hit = interfaces.find((i) => i.name.toLowerCase() === wanted)
-    return hit ? { ...hit, how: 'nom configuré' } : null
+    return hit ? { ...hit, how: tr`nom configuré` } : null
   }
   if (cfg.bindCidr) {
     const hit = interfaces.find((i) => inCidr(i.address, cfg.bindCidr))
-    return hit ? { ...hit, how: `plage ${cfg.bindCidr}` } : null
+    return hit ? { ...hit, how: tr`plage ${cfg.bindCidr}` } : null
   }
   const hit = interfaces.find((i) => TUNNEL_NAME.test(i.name))
-  return hit ? { ...hit, how: 'nom reconnu' } : null
+  return hit ? { ...hit, how: tr`nom reconnu` } : null
 }
 
 /**
@@ -110,13 +111,11 @@ export class TunnelMissingError extends Error {
   constructor(interfaces) {
     const seen = interfaces.length
       ? interfaces.map((i) => `${i.name} (${i.address})`).join(', ')
-      : 'aucune interface externe'
-    super(
-      "aucune interface de tunnel trouvée, et requireTunnel l'exige : le daemon refuse de démarrer.\n" +
-      `  interfaces vues : ${seen}\n` +
-      '  → renseigner "bindInterface" ou "bindCidr" dans zra.config.json,\n' +
-      '    ou "requireTunnel": false (réseau local et loopback suffisent).',
-    )
+      : tr`aucune interface externe`
+    super(tr`aucune interface de tunnel trouvée, et requireTunnel l'exige : le daemon refuse de démarrer.
+  interfaces vues : ${seen}
+  → renseigner "bindInterface" ou "bindCidr" dans zra.config.json,
+    ou "requireTunnel": false (réseau local et loopback suffisent).`)
     this.name = 'TunnelMissingError'
     this.code = 'no_tunnel'
     this.interfaces = interfaces
@@ -134,7 +133,7 @@ export function bindAddresses(cfg, tunnel, lan = []) {
   for (const i of lan) add(i.address)
   if (tunnel) add(tunnel.address)
   for (const a of addresses) {
-    if (WILDCARD.has(a)) throw new Error(`écoute sur ${a || '(vide)'} interdite`)
+    if (WILDCARD.has(a)) throw new Error(tr`écoute sur ${a || tr`(vide)`} interdite`)
   }
   return addresses
 }
@@ -154,7 +153,7 @@ export function resolveNetwork(cfg, interfaces = listInterfaces()) {
 export function resolveBinds(cfg, interfaces = listInterfaces()) {
   const net = resolveNetwork(cfg, interfaces)
   if (!net.tunnel && cfg.requireTunnel && !cfg.waitTunnel) throw new TunnelMissingError(interfaces)
-  if (!net.addresses.length) throw new Error('aucune adresse d’écoute : activer bindLoopback, bindLan ou un tunnel')
+  if (!net.addresses.length) throw new Error(tr`aucune adresse d’écoute : activer bindLoopback, bindLan ou un tunnel`)
   return net
 }
 

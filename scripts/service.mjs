@@ -41,6 +41,7 @@ import { npmSafeArgs } from './lib/args.mjs'
 import { daemonStatus } from './lib/daemon-status.mjs'
 import { commands as systemdCommands, UNIT } from './lib/systemd.mjs'
 import { commands as autostartCommands, DESKTOP } from './lib/autostart.mjs'
+import { tr } from '../zra-daemon/i18n.js'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 export const TASK = 'ZRA daemon'
@@ -57,15 +58,15 @@ function parseArgs(argv) {
     if (a === '--apply') out.apply = true
     else if (a === '--lines') out.lines = Number(rest[++i])
     else if (a === '--help' || a === '-h') out.command = 'help'
-    else throw new Error(`option inconnue : ${a}`)
+    else throw new Error(tr`option inconnue : ${a}`)
   }
   if (!['status', 'install', 'uninstall', 'start', 'stop', 'logs', 'help'].includes(out.command)) {
-    throw new Error(`commande inconnue : ${out.command}`)
+    throw new Error(tr`commande inconnue : ${out.command}`)
   }
   return out
 }
 
-const USAGE = `zra service — le daemon lancé à l'ouverture de session
+const USAGE = tr`zra service — le daemon lancé à l'ouverture de session
 
   npm run service [-- <commande>] [options]
 
@@ -177,7 +178,7 @@ function currentUser() {
   const exe = join(process.env.SystemRoot || 'C:/Windows', 'System32', 'whoami.exe')
   const res = spawnSync(exe, [], { encoding: 'utf8', windowsHide: true })
   const user = res.stdout?.trim()
-  if (res.status !== 0 || !user) throw new Error('whoami : utilisateur courant introuvable')
+  if (res.status !== 0 || !user) throw new Error(tr`whoami : utilisateur courant introuvable`)
   return user
 }
 
@@ -202,70 +203,68 @@ function tail(file, lines) {
 async function status(opts, config) {
   const q = queryTask()
   if (!q) {
-    console.log(`tâche « ${TASK} » : ✗ absente — \`npm run service -- install\` pour voir ce qui serait créé`)
+    console.log(tr`tâche « ${TASK} » : ✗ absente — \`npm run service -- install\` pour voir ce qui serait créé`)
   } else {
-    console.log(`tâche « ${TASK} » : ✓ installée`)
-    console.log(`  état : ${field(q, 'statut', 'status', 'état')}`)
-    console.log(`  dernière exécution : ${field(q, 'heure de la dernière exécution', 'last run time')}` +
-      ` (résultat ${field(q, 'dernier résultat', 'last result')})`)
+    console.log(tr`tâche « ${TASK} » : ✓ installée`)
+    console.log(tr`  état : ${field(q, 'statut', 'status', 'état')}`)
+    console.log(tr`  dernière exécution : ${field(q, 'heure de la dernière exécution', 'last run time')} (résultat ${field(q, 'dernier résultat', 'last result')})`)
   }
 
   const d = await daemonStatus(config.port)
   if (d.ok) {
     const t = d.threads ?? {}
-    console.log(`daemon 127.0.0.1:${config.port} : ✓ ${d.scheme}, depuis ${d.startedAt}, ` +
-      `${t.live ?? 0} live / ${t.closed ?? 0} fermé(s), ${d.shims?.length ?? 0} shim(s), ${d.clients ?? 0} client(s)`)
+    console.log(tr`daemon 127.0.0.1:${config.port} : ✓ ${d.scheme}, depuis ${d.startedAt}, ${t.live ?? 0} live / ${t.closed ?? 0} fermé(s), ${d.shims?.length ?? 0} shim(s), ${d.clients ?? 0} client(s)`)
   } else {
-    console.log(`daemon 127.0.0.1:${config.port} : ✗ injoignable (${d.reason})`)
+    console.log(tr`daemon 127.0.0.1:${config.port} : ✗ injoignable (${d.reason})`)
   }
 
   const last = tail(LOG, 5)
-  if (last) console.log(`journal ${LOG} :\n  ${last.join('\n  ')}`)
-  else console.log(`journal ${LOG} : pas encore écrit`)
+  if (last) console.log(tr`journal ${LOG} :\n  ${last.join('\n  ')}`)
+  else console.log(tr`journal ${LOG} : pas encore écrit`)
 }
 
 async function install(opts) {
-  if (!existsSync(LAUNCHER)) throw new Error(`lanceur introuvable : ${LAUNCHER}`)
+  if (!existsSync(LAUNCHER)) throw new Error(tr`lanceur introuvable : ${LAUNCHER}`)
   const user = currentUser()
   const xml = buildTaskXml({ user })
-  console.log(`tâche « ${TASK} » pour ${user} : à l'ouverture de session (+15 s), sans fenêtre, sans élévation`)
+  console.log(tr`tâche « ${TASK} » pour ${user} : à l'ouverture de session (+15 s), sans fenêtre, sans élévation`)
   console.log(`  powershell.exe → ${LAUNCHER}`)
   console.log(`  node ${process.execPath}`)
-  console.log(`  journal ${LOG}`)
+  console.log(tr`  journal ${LOG}`)
   if (!opts.apply) {
-    console.log('\nsimulation : rien créé. Relancer avec --apply pour créer la tâche.')
+    console.log(tr`\nsimulation : rien créé. Relancer avec --apply pour créer la tâche.`)
     return
   }
   // Task Scheduler attend un XML en UTF-16 : on l'écrit comme tel, BOM compris.
   await mkdir(dirname(XML_FILE), { recursive: true })
   await writeFile(XML_FILE, Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from(xml, 'utf16le')]))
   const res = schtasks(['/Create', '/TN', TASK, '/XML', XML_FILE, '/F'])
-  if (!res.ok) throw new Error(`schtasks /Create a échoué : ${res.out}`)
-  console.log(`✓ tâche créée. Elle démarrera à la prochaine ouverture de session ; tout de suite : npm run service -- start`)
+  if (!res.ok) throw new Error(tr`schtasks /Create a échoué : ${res.out}`)
+  console.log(tr`✓ tâche créée. Elle démarrera à la prochaine ouverture de session ; tout de suite : npm run service -- start`)
 }
 
 function uninstall(opts) {
-  if (!queryTask()) return console.log(`tâche « ${TASK} » : déjà absente`)
-  if (!opts.apply) return console.log(`simulation : la tâche « ${TASK} » serait arrêtée puis supprimée. Relancer avec --apply.`)
+  if (!queryTask()) return console.log(tr`tâche « ${TASK} » : déjà absente`)
+  if (!opts.apply) return console.log(tr`simulation : la tâche « ${TASK} » serait arrêtée puis supprimée. Relancer avec --apply.`)
   schtasks(['/End', '/TN', TASK])
   killTaskDaemon()
   const res = schtasks(['/Delete', '/TN', TASK, '/F'])
-  if (!res.ok) throw new Error(`schtasks /Delete a échoué : ${res.out}`)
-  console.log('✓ tâche supprimée (le journal reste dans .zra/logs/)')
+  if (!res.ok) throw new Error(tr`schtasks /Delete a échoué : ${res.out}`)
+  console.log(tr`✓ tâche supprimée (le journal reste dans .zra/logs/)`)
 }
 
 async function start(config) {
-  if (!queryTask()) throw new Error(`tâche « ${TASK} » absente : npm run service -- install --apply`)
+  if (!queryTask()) throw new Error(tr`tâche « ${TASK} » absente : npm run service -- install --apply`)
   const already = await daemonStatus(config.port)
-  if (already.ok) return console.log(`un daemon répond déjà sur 127.0.0.1:${config.port} (dev ?) : rien lancé`)
+  if (already.ok) return console.log(tr`un daemon répond déjà sur 127.0.0.1:${config.port} (dev ?) : rien lancé`)
   const res = schtasks(['/Run', '/TN', TASK])
-  if (!res.ok) throw new Error(`schtasks /Run a échoué : ${res.out}`)
+  if (!res.ok) throw new Error(tr`schtasks /Run a échoué : ${res.out}`)
   for (let i = 0; i < 40; i++) {
     await new Promise((r) => setTimeout(r, 250))
     const d = await daemonStatus(config.port, { timeoutMs: 500 })
-    if (d.ok) return console.log(`✓ daemon lancé (${d.scheme}://127.0.0.1:${config.port})`)
+    if (d.ok) return console.log(tr`✓ daemon lancé (${`${d.scheme}://127.0.0.1:${config.port}`})`)
   }
-  console.log(`tâche lancée, mais le daemon ne répond pas encore : npm run service -- logs`)
+  console.log(tr`tâche lancée, mais le daemon ne répond pas encore : npm run service -- logs`)
 }
 
 /**
@@ -285,16 +284,16 @@ function killTaskDaemon() {
 }
 
 function stop() {
-  if (!queryTask()) return console.log(`tâche « ${TASK} » absente`)
+  if (!queryTask()) return console.log(tr`tâche « ${TASK} » absente`)
   const res = schtasks(['/End', '/TN', TASK])
   const killed = killTaskDaemon()
-  console.log(res.ok ? '✓ tâche arrêtée' : `schtasks /End : ${res.out}`)
-  if (killed.length) console.log(`  daemon de la tâche terminé (pid ${killed.join(', ')})`)
+  console.log(res.ok ? tr`✓ tâche arrêtée` : `schtasks /End : ${res.out}`)
+  if (killed.length) console.log(tr`  daemon de la tâche terminé (pid ${killed.join(', ')})`)
 }
 
 function logs(opts) {
   const last = tail(LOG, opts.lines)
-  if (!last) return console.log(`pas de journal : ${LOG}`)
+  if (!last) return console.log(tr`pas de journal : ${LOG}`)
   console.log(last.join('\n'))
 }
 
@@ -309,7 +308,7 @@ async function main() {
   const linux = { systemd: systemdCommands, autostart: autostartCommands }[serviceBackend()]
   if (linux) {
     const run = linux[opts.command]
-    if (!run) throw new Error(`commande inconnue : ${opts.command}`)
+    if (!run) throw new Error(tr`commande inconnue : ${opts.command}`)
     return run(opts, config)
   }
 

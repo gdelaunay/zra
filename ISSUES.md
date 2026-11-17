@@ -1,7 +1,7 @@
 # ZRA — issues
 
 Fait → effet → à faire. Une issue acceptée (on ne fera rien) part dans
-`docs/limitations.md` ; une issue corrigée est retirée.
+`docs/fr/limitations.md` ; une issue corrigée est retirée.
 
 | Code | Sens |
 | --- | --- |

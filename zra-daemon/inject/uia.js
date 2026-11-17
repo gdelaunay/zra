@@ -18,6 +18,7 @@
 
 import { InjectionError } from './backend.js'
 import { AcpBackend } from './acp.js'
+import { tr } from '../i18n.js'
 
 export class UiaBackend {
   /**
@@ -42,11 +43,11 @@ export class UiaBackend {
 
   async send(threadId, text, mode = 'queue') {
     const thread = this.threads.get(threadId)
-    if (!thread) throw new InjectionError('unknown_thread', 'thread inconnu de cet index')
-    if (!thread.sessionId) throw new InjectionError('no_session', "thread sans session : impossible d'y écrire")
+    if (!thread) throw new InjectionError('unknown_thread', tr`thread inconnu de cet index`)
+    if (!thread.sessionId) throw new InjectionError('no_session', tr`thread sans session : impossible d'y écrire`)
     if (!this.control?.enabled) {
       throw new InjectionError('inject_failed',
-        'injection clavier indisponible : pilotage de Zed désactivé (zedControl.enabled dans zra.config.json)')
+        tr`injection clavier indisponible : pilotage de Zed désactivé (zedControl.enabled dans zra.config.json)`)
     }
 
     if (this.states.get(threadId).turn === 'busy') {
@@ -54,7 +55,7 @@ export class UiaBackend {
         // La file du shim dépile par ACP : la mélanger au clavier enverrait les
         // messages par deux voies différentes. On refuse franchement.
         throw new InjectionError('inject_failed',
-          "tour en cours : pas de file d'attente avec l'injection clavier — réessayer à la fin du tour, ou interrompre")
+          tr`tour en cours : pas de file d'attente avec l'injection clavier — réessayer à la fin du tour, ou interrompre`)
       }
       await this.acp.interrupt(threadId)
     }
@@ -70,7 +71,7 @@ export class UiaBackend {
       }
       if (!(await busy.promise)) {
         throw new InjectionError('inject_failed',
-          `Zed n'a pas émis le message en ${Math.round(this.confirmMs / 1000)} s : focus, fenêtre ou recette clavier à vérifier`)
+          tr`Zed n'a pas émis le message en ${Math.round(this.confirmMs / 1000)} s : focus, fenêtre ou recette clavier à vérifier`)
       }
     } catch (err) {
       if (err instanceof InjectionError) throw err

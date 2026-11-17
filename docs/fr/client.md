@@ -1,7 +1,7 @@
 # zra-client — la PWA
 
 Front de ZRA. **Zéro build** : HTML + CSS + ESM natifs, servis tels quels par
-`zra-daemon` ou par n'importe quel serveur statique (`docs/deploy.md` §4.1). Aucune
+`zra-daemon` ou par n'importe quel serveur statique (`docs/fr/deploy.md` §4.1). Aucune
 dépendance runtime, aucun bundler, aucun framework.
 
 ```
@@ -9,7 +9,7 @@ zra-client/
   index.html  manifest.webmanifest  sw.js  icon.svg
   css/   themes.css (généré)  app.css
   js/    main.js store.js link.js settings.js acp.js markdown.js diff.js
-         dom.js icons.js format.js ui.js
+         dom.js icons.js format.js ui.js i18n.js en.json
          themes.js + agent-icons.js (générés depuis Zed)
          views/  threads.js thread.js entry.js settings.js new-session.js pair.js devbar.js
          mock/   mock-link.js scenarios.js
@@ -64,7 +64,7 @@ bar, il n'y a pas de bouton précédent.
 
 ## Contrat avec le daemon
 
-→ **`docs/protocol.md`** à la racine : contrat complet, message par message, avec les
+→ **`docs/fr/protocol.md`** à la racine : contrat complet, message par message, avec les
 séquences et les invariants. Résumé :
 
 - elle envoie `hello` `list_threads` `subscribe` `unsubscribe` `load_history`
@@ -98,6 +98,14 @@ node scripts/gen-agent-icons.mjs
 
 L'association `agent_id` → icône se fait par motif (`claude-acp`, `claude-zra`,
 `my-claude` → Claude), agent inconnu → icône générique.
+
+## Langue
+
+Textes en français dans le code (texte de référence, clé) et en anglais dans
+`js/en.json`, choisis selon la langue du navigateur : anglais si ce n'est pas le
+français. Un texte ajouté ou changé passe par ``tr`…` `` (`js/i18n.js`), puis
+`node scripts/i18n-test.mjs --write` et sa traduction dans `en.json`. Les
+messages du daemon (erreurs, `zra/notice`) arrivent dans la langue du poste.
 
 ## Thèmes
 

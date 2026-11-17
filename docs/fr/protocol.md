@@ -3,7 +3,7 @@
 Ce document est **suffisant pour écrire `zra-daemon` sans lire le code de la PWA**.
 Il décrit le seul point de contact entre les deux : un WebSocket JSON sur `:7777`.
 
-- `docs/architecture.md` dit *pourquoi* et *comment* côté poste (shim, index SQLite, injection).
+- `docs/fr/architecture.md` dit *pourquoi* et *comment* côté poste (shim, index SQLite, injection).
 - Ce document dit *quoi exactement* passe sur le fil, et ce que le front fait de
   chaque message.
 - Implémentation de référence exécutable : `zra-client/tools/mock-server.mjs` +
@@ -440,8 +440,8 @@ de l'agent) ; absent, la PWA retombe sur `optionId`.
 ```ts
 { type: 'error', code: string, message: string, threadId?: string }
 ```
-`message` est affiché tel quel dans un toast — le rédiger pour un humain, en
-français. Codes attendus par la PWA (les autres passent aussi) :
+`message` est affiché tel quel dans un toast — le rédiger pour un humain, dans
+la langue du poste (français ou anglais). Codes attendus par la PWA (les autres passent aussi) :
 
 | `code` | sens | effet côté PWA |
 |---|---|---|
@@ -514,7 +514,7 @@ Les deux sont idempotents.
 ## 6. Invariants attendus du daemon
 
 1. **Verbatim.** `acp_event.update` et `history.updates` sont les payloads de
-   l'agent, non réécrits. C'est le principe de ZRA (`docs/architecture.md`), qui le rend
+   l'agent, non réécrits. C'est le principe de ZRA (`docs/fr/architecture.md`), qui le rend
    immune aux évolutions du protocole.
 2. **Ordre.** Les `acp_event` d'un thread arrivent dans l'ordre d'émission. Pas de
    garantie inter-threads.

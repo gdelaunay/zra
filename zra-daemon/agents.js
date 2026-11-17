@@ -9,6 +9,7 @@ import { parseJsonc } from './jsonc.js'
 import { zedProcessNames } from './platform.js'
 import { wrappedAgentId } from './agent-commands.js'
 import { logger } from './log.js'
+import { tr } from './i18n.js'
 
 const log = logger('agents')
 const run = promisify(execFile)
@@ -39,14 +40,14 @@ export async function readAgents(file) {
   try {
     raw = await readFile(file, 'utf8')
   } catch (err) {
-    log.debug(`settings.json illisible (${file}) : ${err.message}`)
+    log.debug(tr`settings.json illisible (${file}) : ${err.message}`)
     return []
   }
   let settings
   try {
     settings = parseJsonc(raw)
   } catch (err) {
-    log.warn(`settings.json de Zed non analysable : ${err.message}`)
+    log.warn(tr`settings.json de Zed non analysable : ${err.message}`)
     return []
   }
   const servers = settings?.agent_servers

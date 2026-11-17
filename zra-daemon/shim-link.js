@@ -19,6 +19,7 @@
 import { EventEmitter } from 'node:events'
 
 import { logger } from './log.js'
+import { tr } from './i18n.js'
 
 const log = logger('shims')
 
@@ -76,13 +77,13 @@ export class ShimHost extends EventEmitter {
   attach(conn) {
     const entry = { conn, shimId: null }
     this.conns.set(conn, entry)
-    log.info(`shim ${conn.id} connecté`)
+    log.info(tr`shim ${conn.id} connecté`)
 
     conn.on('message', (msg) => {
       try {
         this.handle(entry, msg)
       } catch (err) {
-        log.warn(`shim ${conn.id} : ${msg?.type} a échoué —`, err.message)
+        log.warn(tr`shim ${conn.id} : ${msg?.type} a échoué —`, err.message)
       }
     })
 
@@ -96,7 +97,7 @@ export class ShimHost extends EventEmitter {
     const sessions = shim ? [...shim.sessions] : []
     this.byShim.delete(entry.shimId)
     this.shims.unregister(entry.shimId)
-    log.info(`shim ${entry.shimId} déconnecté (${sessions.length} session(s))`)
+    log.info(tr`shim ${entry.shimId} déconnecté (${sessions.length} session(s))`)
 
     // Le shim meurt (Zed fermé) ⇒ la file est perdue, et le mobile doit
     // l'apprendre explicitement plutôt que de voir une file figée.
@@ -114,7 +115,7 @@ export class ShimHost extends EventEmitter {
           update: {
             sessionUpdate: 'zra/notice',
             level: 'warn',
-            text: `Zed a fermé l'agent : ${lost} message(s) en attente perdu(s)`,
+            text: tr`Zed a fermé l'agent : ${lost} message(s) en attente perdu(s)`,
           },
           at: new Date().toISOString(),
         })
@@ -126,7 +127,7 @@ export class ShimHost extends EventEmitter {
       if (waiter.shimId !== entry.shimId) continue
       this.pending.delete(id)
       clearTimeout(waiter.timer)
-      waiter.reject(Object.assign(new Error("le shim s'est arrêté avant de répondre"), { code: 'inject_failed' }))
+      waiter.reject(Object.assign(new Error(tr`le shim s'est arrêté avant de répondre`), { code: 'inject_failed' }))
     }
   }
 
@@ -142,7 +143,7 @@ export class ShimHost extends EventEmitter {
       const owner = this.shims.bySession.get(msg.sessionId)
       const mine = owner === entry.shimId
       if (!entry.shimId || (msg.type === 'session' ? owner && !mine : !mine)) {
-        log.warn(`shim ${entry.shimId ?? entry.conn.id} : ${msg.type} ignoré, session ${msg.sessionId} ${owner ? `tenue par ${owner}` : 'non revendiquée'}`)
+        log.warn(owner ? tr`shim ${entry.shimId ?? entry.conn.id} : ${msg.type} ignoré, session ${msg.sessionId} tenue par ${owner}` : tr`shim ${entry.shimId ?? entry.conn.id} : ${msg.type} ignoré, session ${msg.sessionId} non revendiquée`)
         return
       }
     }
@@ -158,7 +159,7 @@ export class ShimHost extends EventEmitter {
       case 'ack': return this.ack(msg)
       default:
         // Ajouter un message ne doit jamais casser l'autre bout (protocole §2).
-        log.debug(`shim ${entry.shimId ?? entry.conn.id} : message ignoré (${msg.type})`)
+        log.debug(tr`shim ${entry.shimId ?? entry.conn.id} : message ignoré (${msg.type})`)
     }
   }
 
@@ -182,7 +183,7 @@ export class ShimHost extends EventEmitter {
     // Session déjà tenue par un autre shim : ni reprise, ni état, ni émission.
     const holder = this.shims.bySession.get(msg.sessionId)
     if (holder && holder !== entry.shimId) {
-      log.warn(`shim ${entry.shimId ?? entry.conn.id} : session ${msg.sessionId} tenue par ${holder}, annonce ignorée`)
+      log.warn(tr`shim ${entry.shimId ?? entry.conn.id} : session ${msg.sessionId} tenue par ${holder}, annonce ignorée`)
       return
     }
     if (msg.source === 'new') this.whole.add(msg.sessionId)
@@ -295,7 +296,7 @@ export class ShimHost extends EventEmitter {
     const conn = shim ? this.byShim.get(shim.shimId) : null
     if (!shim || !conn) {
       throw Object.assign(
-        new Error("ce thread n'est pas ouvert dans Zed : aucun agent ne l'écoute"),
+        new Error(tr`ce thread n'est pas ouvert dans Zed : aucun agent ne l'écoute`),
         { code: 'inject_failed' },
       )
     }
@@ -315,14 +316,14 @@ export class ShimHost extends EventEmitter {
       const id = `c${this.nextCommandId++}`
       const timer = setTimeout(() => {
         this.pending.delete(id)
-        reject(Object.assign(new Error("le shim n'a pas répondu à temps"), { code: 'inject_failed' }))
+        reject(Object.assign(new Error(tr`le shim n'a pas répondu à temps`), { code: 'inject_failed' }))
       }, this.commandTimeoutMs)
       timer.unref?.()
       this.pending.set(id, { resolve, reject, timer, shimId })
       if (!conn.send({ type: 'cmd', id, cmd, sessionId, ...payload })) {
         this.pending.delete(id)
         clearTimeout(timer)
-        reject(Object.assign(new Error('shim injoignable'), { code: 'inject_failed' }))
+        reject(Object.assign(new Error(tr`shim injoignable`), { code: 'inject_failed' }))
       }
     })
   }
@@ -333,7 +334,7 @@ export class ShimHost extends EventEmitter {
     this.pending.delete(msg.id)
     clearTimeout(waiter.timer)
     if (msg.ok) waiter.resolve(msg.result ?? null)
-    else waiter.reject(Object.assign(new Error(msg.message || 'échec'), { code: msg.code || 'inject_failed' }))
+    else waiter.reject(Object.assign(new Error(msg.message || tr`échec`), { code: msg.code || 'inject_failed' }))
   }
 
   close() {

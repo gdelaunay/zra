@@ -4,6 +4,7 @@ import { appendFile, mkdir, rename, stat } from 'node:fs/promises'
 import { appendFileSync, mkdirSync, renameSync, statSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { format } from 'node:util'
+import { tr } from './i18n.js'
 
 const LEVELS = { debug: 10, info: 20, warn: 30, error: 40 }
 let threshold = LEVELS[process.env.ZRA_LOG_LEVEL] ?? LEVELS.info
@@ -108,7 +109,7 @@ export function injectionLog(file, { maxBytes = 5 * 1024 * 1024 } = {}) {
       await appendFile(file, line, 'utf8')
       size += Buffer.byteLength(line)
     } catch (err) {
-      emit('warn', 'log', "journal d'injections indisponible :", err.message)
+      emit('warn', 'log', tr`journal d'injections indisponible :`, err.message)
     }
   }
 }

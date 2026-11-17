@@ -15,7 +15,7 @@ npm run service         # le daemon en tâche planifiée, à l'ouverture de sess
 npm test                # suite complète, sans Zed ni agent
 ```
 
-Mise en service : `docs/deploy.md`.
+Mise en service : `docs/fr/deploy.md`.
 
 ## Ce qu'il fait
 
@@ -65,7 +65,7 @@ leurs sessions. C'est ce qu'affiche `npm run setup`.
 
 Un deuxième chemin WebSocket sur le même port, **réservé à la loopback** :
 `ws://127.0.0.1:7777/shim`. C'est une conversation entre deux processus du même
-poste, distincte du `docs/protocol.md` (qui ne décrit que la PWA ↔ daemon).
+poste, distincte du `docs/fr/protocol.md` (qui ne décrit que la PWA ↔ daemon).
 
 ```
 shim → daemon   shim_hello · session · session_replay · acp_update · state ·
@@ -91,9 +91,9 @@ mobile en est averti par un `zra/notice` explicite.
 ## Client web, HTTPS, écoute
 
 - Le daemon sert `zra-client/` sur le même port que le WebSocket (`serveStatic`, `--no-static` pour s'en passer) ; le client peut aussi venir d'ailleurs et ouvrir un WebSocket vers chaque poste.
-- HTTPS (installation de la PWA, service worker) : reverse proxy devant le daemon, ou `"tls": { "cert", "key" }` (`docs/deploy.md` §4).
+- HTTPS (installation de la PWA, service worker) : reverse proxy devant le daemon, ou `"tls": { "cert", "key" }` (`docs/fr/deploy.md` §4).
 - `allowedOrigins` : origines autorisées sur `/ws`, en seconde ligne derrière l'appairage ; les origines propres du daemon sont ajoutées d'office, une requête sans `Origin` est acceptée.
-- Écoute (loopback, réseau local, tunnel, jamais `0.0.0.0`) et appairage : `docs/architecture.md` et `docs/deploy.md`.
+- Écoute (loopback, réseau local, tunnel, jamais `0.0.0.0`) et appairage : `docs/fr/architecture.md` et `docs/fr/deploy.md`.
 
 ## Fichiers
 
@@ -102,6 +102,7 @@ mobile en est averti par un `zra/notice` explicite.
 | `index.js` | entrée CLI, signaux, options |
 | `daemon.js` | assemblage, exporté pour les tests en process |
 | `config.js` | `zra.config.json` + variables d'environnement |
+| `i18n.js` | messages en français ou en anglais (``tr`…` ``, catalogue `i18n/en.json`), pour le daemon, le shim et les scripts |
 | `server.js` | HTTP/HTTPS, upgrade WS, allowlist d'`Origin`, écoutes ouvertes et fermées à chaud |
 | `net.js` | adresses d'écoute : loopback, réseau local, tunnel ; suivi du réseau |
 | `auth.js` | appairage : code, jetons hachés, révocation |
@@ -127,7 +128,7 @@ mobile en est averti par un `zra/notice` explicite.
 
 ```bash
 npm test                                          # tout, sans Zed ni agent
-node --test zra-daemon/test/protocol.test.mjs     # conformité au docs/protocol.md
+node --test zra-daemon/test/protocol.test.mjs     # conformité au docs/fr/protocol.md
 node --test zra-daemon/test/e2e-shim.test.mjs        # daemon + shim + agent bouchon
 npm run fixture                                   # régénère la fixture SQLite
 ```

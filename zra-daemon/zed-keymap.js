@@ -18,6 +18,7 @@ import { readFile } from 'node:fs/promises'
 
 import { parseJsonc } from './jsonc.js'
 import { SettingsEditError, eol, indentUnit, tokenize } from './zed-settings.js'
+import { tr } from './i18n.js'
 
 export const BEGIN = '// >>> zra : nouveaux threads depuis le mobile (npm run setup) — retiré par uninstall'
 export const END = '// <<< zra'
@@ -38,7 +39,7 @@ function span(text) {
   const b = text.indexOf(BEGIN)
   if (b === -1) return null
   const e = text.indexOf(END, b)
-  if (e === -1) throw new SettingsEditError('keymap.json : repère de fin du bloc ZRA introuvable, on n’y touche pas')
+  if (e === -1) throw new SettingsEditError(tr`keymap.json : repère de fin du bloc ZRA introuvable, on n’y touche pas`)
   const from = text.lastIndexOf('\n', b - 1) + 1
   const nl = text.indexOf('\n', e)
   const to = nl === -1 ? text.length : nl + 1
@@ -97,7 +98,7 @@ export function assignKeys(agentIds, existing = new Map()) {
   for (const id of agentIds) {
     if (out.has(id)) continue
     const k = KEY_POOL.find((x) => !taken.has(x))
-    if (!k) throw new SettingsEditError(`plus de ${KEY_POOL.length} agents ZRA : pas assez de touches`)
+    if (!k) throw new SettingsEditError(tr`plus de ${KEY_POOL.length} agents ZRA : pas assez de touches`)
     out.set(id, k)
     taken.add(k)
   }
@@ -136,7 +137,7 @@ export function upsertZraKeymap(text, keys) {
     const head = base && !/\n$/.test(base) ? base + nl : base
     next = `${head}[${nl}${unit}${BEGIN}${nl}${unit}${json}${nl}${unit}${END}${nl}]${nl}`
   } else {
-    if (tokens[0].t !== '[') throw new SettingsEditError("la racine du keymap.json n'est pas un tableau")
+    if (tokens[0].t !== '[') throw new SettingsEditError(tr`la racine du keymap.json n'est pas un tableau`)
     // Une virgule seulement s'il reste des éléments après le bloc.
     const comma = tokens[1] && tokens[1].t !== ']' ? ',' : ''
     const at = tokens[0].end

@@ -37,7 +37,7 @@ shim » ci-dessous — à faire avant la 0.5.
 
 - **commandes `/`** : taper `/` dans le composer propose les commandes de
   l'agent. ACP les annonce (`available_commands_update`), la PWA les mémorise
-  déjà sans les afficher (`docs/protocol.md` §4, `zra-client/js/acp.js`). Lancer une
+  déjà sans les afficher (`docs/fr/protocol.md` §4, `zra-client/js/acp.js`). Lancer une
   commande, c'est envoyer son texte ;
 - **mentions `@`** : suggérer des fichiers et dossiers du projet. Ce n'est pas
   dans ACP, c'est Zed qui fournit la liste. Le daemon tourne sur le poste et
@@ -46,7 +46,7 @@ shim » ci-dessous — à faire avant la 0.5.
   ressource ACP, ou chemin en texte). Faisabilité à vérifier ;
 - **notifications push** quand une réponse arrive sur un thread (Web Push).
   L'architecture est prévue mais inactive : `sw.js` gère déjà `push` et
-  `notificationclick` (`docs/client.md`). Exige le HTTPS.
+  `notificationclick` (`docs/fr/client.md`). Exige le HTTPS.
 
 
 ## Tray natif — `zra-tray` (décidé, **jalon 0.5**)
@@ -107,7 +107,7 @@ Ce que ça règle d'un coup :
 2. **Adopter un daemon déjà vivant** : si le port 7777 répond au démarrage
    (daemon lancé à la main, ancienne tâche planifiée), ne pas spawner un
    second — passer en mode observateur ou proposer de reprendre la main.
-3. **Petit bout de protocole** : soit le WS existant (`docs/protocol.md`) avec un
+3. **Petit bout de protocole** : soit le WS existant (`docs/fr/protocol.md`) avec un
    appairage local implicite, soit un `GET /status` loopback-only. Le daemon
    a déjà tout (état, code d'appairage), le tray ne fait qu'afficher.
 4. **Distribution binaire** : le seul vrai morceau neuf. GitHub Actions avec
@@ -177,7 +177,7 @@ une commande).
 
 Un client servi en `https://` ne peut ouvrir que des `wss://`
 (contenu mixte bloqué) : aujourd'hui, chaque poste a besoin de son propre
-proxy host HTTPS (`docs/deploy.md` §4.1). Le but de départ était de taper
+proxy host HTTPS (`docs/fr/deploy.md` §4.1). Le but de départ était de taper
 seulement une IP.
 
 Idée : livrer le client **avec un relais**. Un petit serveur Node qui sert les
@@ -195,11 +195,11 @@ statiques et relaie `wss://zra.exemple.fr/to/<ip>/ws` vers
 ## Tailscale : réseau et HTTPS sans configuration
 
 Joindre un poste hors du réseau local demande aujourd'hui WireGuard, un
-proxy HTTPS par poste et du routage Docker (`docs/deploy.md` §3.1, §4.1). Tailscale
+proxy HTTPS par poste et du routage Docker (`docs/fr/deploy.md` §3.1, §4.1). Tailscale
 donnerait tout ça d'office : IP fixe par appareil, aucun port ouvert, et des
 certificats HTTPS (`*.ts.net`, `tailscale serve` devant `:7777`), ce qui règle
 le contenu mixte sans reverse proxy. À essayer, puis à proposer dans
-`docs/deploy.md` **comme une option parmi d'autres — pas comme le chemin par
+`docs/fr/deploy.md` **comme une option parmi d'autres — pas comme le chemin par
 défaut** (décision).
 
 ## Homelab — la réponse retenue au problème central

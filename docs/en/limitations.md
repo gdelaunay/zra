@@ -1,0 +1,42 @@
+# ZRA — known limitations
+
+What is not supported, knowingly. Each section says why
+and what it would take to lift the limit if the need arises.
+
+## Zed via Flatpak / Snap
+
+**Decision: explicitly not supported at release.** Native install
+only (README, docs/en/deploy.md §6); clear message at setup if Zed
+cannot be found. Escape hatch for advanced users: `zedDb`/`zedSettings`
+in `zra.config.json`.
+
+`zedPaths()` returns the usual XDG paths (`~/.local/share/zed`,
+`~/.config/zed`). Under Flatpak (`~/.var/app/dev.zed.Zed/…`) or Snap
+(`~/snap/zed-editor/current/…`), index, settings and registry cannot be found,
+and `findZedDesktop()` does not find the `.desktop` to patch.
+→ Lead if Flatpak/Snap users show up: measure the real
+paths, add them as candidates in `zedPaths()`, launch through `flatpak run` /
+`snap run`, validate on real installs (Flatpak first, the
+most common case).
+
+## Native Wayland, without forced XWayland
+
+`createKeyboard()` only returns `xdotool` or `none` (no `ydotool`/`wtype`). Without the `WAYLAND_DISPLAY=` patch of the `.desktop`, no
+keyboard backend → no opening threads nor `submit` from the PWA.
+Reading, `acp` injection and permissions still work (through the shim).
+→ XWayland forced through the patched `.desktop` **is** the supported way; no
+going back to `ydotool`/`wtype` (`uinput` permissions, fragility per compositor).
+
+## WSL2
+
+Never run. systemd is not always init, WSLg provides X11/Wayland but `xdotool`
+there targets an X server where the Zed window may be missing, and without a desktop nothing
+reads `~/.config/autostart`.
+→ Measure everything, if the need arises.
+
+## Untried distros (Fedora, Arch, openSUSE)
+
+Node ≥ 24 to install by hand (distro Node versions are older); `xdotool`
+is a standard package everywhere. Pure Node code, no native dependency, XDG
+paths: no effect expected.
+→ `npm install && npm test`, then "Checking a machine" in `docs/en/architecture.md`.

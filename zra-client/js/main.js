@@ -7,6 +7,7 @@ import { ThreadsView } from './views/threads.js'
 import { ThreadView } from './views/thread.js'
 import { DevBar } from './views/devbar.js'
 import { toast, closeAllOverlays } from './ui.js'
+import { tr, lang } from './i18n.js'
 
 const app = document.getElementById('app')
 let currentView = null
@@ -64,12 +65,13 @@ function parseRoute(hash) {
 
 async function boot() {
   applyTheme(settings.theme)
+  document.documentElement.lang = lang
 
   const mock = isMock()
   store.init({ mock: mock ? (await import('./mock/mock-link.js')).MockLink : null })
 
   store.on('error', (err) => {
-    toast(err.message || err.code || 'erreur daemon', { level: 'error' })
+    toast(err.message || err.code || tr`erreur daemon`, { level: 'error' })
   })
 
   // Nouvelle session créée dans Zed : on l'ouvre tout de suite.
@@ -92,7 +94,7 @@ async function boot() {
 
   // Sonde de test : permet de piloter la PWA depuis un script (voir test/e2e).
   window.ZRA = { store, navigate, render, settings, mock }
-  if (mock) console.info('[ZRA] mode mock — daemon simulé, aucun Zed requis')
+  if (mock) console.info(tr`[ZRA] mode mock — daemon simulé, aucun Zed requis`)
 }
 
 await boot()

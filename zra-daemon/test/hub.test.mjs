@@ -1,4 +1,4 @@
-// Le routage du protocole (`hub.js`) — docs/protocol.md §3 et §4, pris directement.
+// Le routage du protocole (`hub.js`) — docs/fr/protocol.md §3 et §4, pris directement.
 //
 // Le bout en bout réel est dans `protocol.test.mjs` ; ici on isole le hub avec
 // des dépendances factices pour verrouiller ce que les messages du protocole

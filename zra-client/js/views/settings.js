@@ -7,9 +7,10 @@ import * as settingsModule from '../settings.js'
 import { settings, applyTheme, update as updateSettings } from '../settings.js'
 import * as store from '../store.js'
 import { openSheet, openMenu, toast, confirmSheet } from '../ui.js'
+import { tr } from '../i18n.js'
 
 export function openSettings() {
-  openSheet('Réglages', (body, api) => {
+  openSheet(tr`Réglages`, (body, api) => {
     const rebuild = () => { clear(body); build(body, api) }
     build(body, { ...api, rebuild })
   }, { titleIcon: 'settings' })
@@ -29,32 +30,32 @@ function machinesSection(api) {
       m.implicit || store.state.mock
         ? h('span.thread-row__badge', { text: store.state.mock ? 'mock' : 'local' })
         : button('icon-btn', {
-            title: 'Retirer',
-            onclick: () => confirmSheet('Retirer ce poste', `${m.label} sera supprimé de la liste.`, () => {
+            title: tr`Retirer`,
+            onclick: () => confirmSheet(tr`Retirer ce poste`, tr`${m.label} sera supprimé de la liste.`, () => {
               settingsModule.removeMachine(m.id)
               store.dropMachine(m.id)
               openSettings()
-            }, { danger: true, yes: 'Retirer' }),
+            }, { danger: true, yes: tr`Retirer` }),
           }, icon('trash', 'icon--sm')),
     ))
   }
 
-  const input = h('input.input', { placeholder: '10.0.0.2 ou http://10.0.0.2:7777', inputmode: 'url', autocapitalize: 'off', spellcheck: 'false' })
+  const input = h('input.input', { placeholder: tr`10.0.0.2 ou http://10.0.0.2:7777`, inputmode: 'url', autocapitalize: 'off', spellcheck: 'false' })
   const add = () => {
     const res = settingsModule.addMachine(input.value)
     if (res.error) return toast(res.error, { level: 'error' })
     store.addMachine(res.machine)
     input.value = ''
-    toast(`poste ${res.machine.label} ajouté`)
+    toast(tr`poste ${res.machine.label} ajouté`)
     api.rebuild?.()
   }
   input.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') add() })
 
   return h('section.field', {},
-    h('span.label', { text: 'Postes' }),
+    h('span.label', { text: tr`Postes` }),
     list,
-    h('div.row', {}, h('span', { style: { flex: 1 } }, input), button('btn', { onclick: add }, icon('plus', 'icon--sm'), 'Ajouter')),
-    h('span.composer__hint', { text: 'Adresse du daemon. Port 7777 par défaut en http, 443 en https (derrière un reverse proxy).' }),
+    h('div.row', {}, h('span', { style: { flex: 1 } }, input), button('btn', { onclick: add }, icon('plus', 'icon--sm'), tr`Ajouter`)),
+    h('span.composer__hint', { text: tr`Adresse du daemon. Port 7777 par défaut en http, 443 en https (derrière un reverse proxy).` }),
   )
 }
 
@@ -62,7 +63,7 @@ function themeSection() {
   const current = () => THEMES.find((t) => t.id === settings.theme) || THEMES[0]
   const btn = button('btn', {
     onclick: (ev) => openMenu(ev.currentTarget, {
-      label: 'Thème',
+      label: tr`Thème`,
       items: THEMES.map((t) => ({
         label: t.name,
         on: t.id === settings.theme,
@@ -74,20 +75,20 @@ function themeSection() {
   const sync = () => { btn.querySelector('span').textContent = current().name }
 
   return h('section.field', {},
-    h('span.label', { text: 'Thème' }),
+    h('span.label', { text: tr`Thème` }),
     h('div.row', {}, btn),
-    h('span.composer__hint', { text: 'Thèmes officiels de Zed, tokens de couleur repris tels quels.' }),
+    h('span.composer__hint', { text: tr`Thèmes officiels de Zed, tokens de couleur repris tels quels.` }),
   )
 }
 
 function displaySection(api) {
   return h('section.field', {},
-    h('span.label', { text: 'Affichage' }),
-    toggle('Déplier les réflexions par défaut', 'showThoughts'),
-    toggle('Déplier les outils par défaut', 'expandTools'),
-    toggle('Mode mock (daemon simulé)', 'mock', () => {
-      confirmSheet('Recharger ?', 'Le mode mock change la source de données : la PWA doit être rechargée.',
-        () => location.reload(), { yes: 'Recharger' })
+    h('span.label', { text: tr`Affichage` }),
+    toggle(tr`Déplier les réflexions par défaut`, 'showThoughts'),
+    toggle(tr`Déplier les outils par défaut`, 'expandTools'),
+    toggle(tr`Mode mock (daemon simulé)`, 'mock', () => {
+      confirmSheet(tr`Recharger ?`, tr`Le mode mock change la source de données : la PWA doit être rechargée.`,
+        () => location.reload(), { yes: tr`Recharger` })
     }),
   )
 }
@@ -105,8 +106,8 @@ function aboutSection() {
   const machines = [...store.state.machines.values()]
   const info = machines.map((m) => `${m.info?.name || m.label} · ${m.info?.version || '—'}`).join('\n')
   return h('section.field', {},
-    h('span.label', { text: 'À propos' }),
-    h('span.composer__hint', { text: 'ZRA — Zed Remote Agent. PWA sans build, ESM natif.' }),
+    h('span.label', { text: tr`À propos` }),
+    h('span.composer__hint', { text: tr`ZRA — Zed Remote Agent. PWA sans build, ESM natif.` }),
     info ? h('span.composer__hint', { style: { whiteSpace: 'pre-line' }, text: info }) : null,
     h('span.composer__hint', { text: `client ${settings.clientId}` }),
   )

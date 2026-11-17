@@ -96,6 +96,7 @@ L'agent enveloppé se désigne, par ordre de priorité :
 | `ZRA_RECORD_DIR` | où écrire ces enregistrements |
 | `ZRA_LOG_LEVEL` | `debug` `info` `warn` `error` |
 | `ZRA_LOG_FILE` | double le journal dans ce fichier (`setup` : `.zra/logs/shim.log`) |
+| `ZRA_LANG` | langue des messages, `fr` ou `en` (défaut : celle du système) |
 
 `npm run setup -- install --record` active `ZRA_RECORD` vers `.zra/records/`.
 Outil de débogage, désactivé par défaut : c'est le seul moyen de voir ce que Zed
@@ -112,7 +113,7 @@ npm run probe:agent claude-acp    # contre le vrai agent, sans ouvrir de session
 `probe:agent` lance l'agent réel à travers le shim et ne fait qu'un
 `initialize` : la résolution de la commande, la transparence de la poignée de
 main et les capacités annoncées (dont `loadSession`) en un seul coup d'œil.
-C'est la première étape de la vérification d'une machine (`docs/architecture.md`, « Vérifier une machine »).
+C'est la première étape de la vérification d'une machine (`docs/fr/architecture.md`, « Vérifier une machine »).
 
 Le shim est monté entre un faux Zed (`test/fake-zed.mjs`) et un
 agent ACP bouchon (`test/fake-agent.mjs`) qui parle le vrai

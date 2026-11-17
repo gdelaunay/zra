@@ -8,6 +8,7 @@ import { InjectionError } from './backend.js'
 import { AcpBackend } from './acp.js'
 import { UiaBackend } from './uia.js'
 import { logger } from '../log.js'
+import { tr } from '../i18n.js'
 
 const log = logger('inject')
 
@@ -25,12 +26,12 @@ export class AutoBackend {
       return await this.acp.send(threadId, text, mode, { confirmMs: this.confirmMs })
     } catch (err) {
       if (!(err instanceof InjectionError) || err.code !== 'prompt_refused') throw err
-      log.warn(`injection ACP refusée sur ${threadId} (${err.message}) : repli clavier`)
+      log.warn(tr`injection ACP refusée sur ${threadId} (${err.message}) : repli clavier`)
     }
     try {
       return await this.uia.send(threadId, text, mode)
     } catch (err) {
-      throw new InjectionError('inject_failed', `l'agent a refusé le message, et le repli clavier a échoué : ${err.message}`)
+      throw new InjectionError('inject_failed', tr`l'agent a refusé le message, et le repli clavier a échoué : ${err.message}`)
     }
   }
 

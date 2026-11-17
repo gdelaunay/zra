@@ -14,6 +14,7 @@ import { X509Certificate } from 'node:crypto'
 import { createStaticHandler } from './static.js'
 import { attachWebSocket, SOCKET_HWM } from './ws.js'
 import { logger } from './log.js'
+import { tr } from './i18n.js'
 
 const log = logger('server')
 
@@ -77,7 +78,7 @@ export async function readTls(tls) {
       .filter((n) => n && !n.includes('*'))
     validTo = new Date(x509.validTo)
   } catch (err) {
-    log.warn(`certificat illisible pour l'inspection (${err.message}) : noms et échéance inconnus`)
+    log.warn(tr`certificat illisible pour l'inspection (${err.message}) : noms et échéance inconnus`)
   }
   return { cert, key, names, validTo }
 }
@@ -116,7 +117,7 @@ export async function createServers({ config, addresses, onConnection, onShim, s
     const hosts = new Set([...instances.keys()].map(hostHeader))
     if (instances.has('127.0.0.1')) hosts.add(hostHeader('localhost'))
     if (tls) for (const n of tls.names) hosts.add(hostHeader(n))
-    // Derrière un reverse proxy (docs/deploy.md §4.1), le `Host` transmis peut être
+    // Derrière un reverse proxy (docs/fr/deploy.md §4.1), le `Host` transmis peut être
     // le nom public : il vient des origines autorisées, pas des écoutes.
     for (const o of config.allowedOrigins) {
       try { hosts.add(new URL(o).host.toLowerCase()) } catch { /* origine invalide : ignorée */ }
@@ -133,17 +134,17 @@ export async function createServers({ config, addresses, onConnection, onShim, s
     // 127.0.0.1 et lire les routes locales. Le `Host` qu'elle envoie reste le
     // domaine tiers : on ne répond qu'aux nôtres.
     if (!allowedHosts.has(String(req.headers.host || '').toLowerCase())) {
-      log.warn(`HTTP refusé : hôte ${req.headers.host || 'absent'} non autorisé`)
+      log.warn(tr`HTTP refusé : hôte ${req.headers.host || tr`absent`} non autorisé`)
       res.writeHead(403, { 'content-type': 'text/plain; charset=utf-8' })
-      res.end('hôte non autorisé')
+      res.end(tr`hôte non autorisé`)
       return
     }
     // CSRF : une page du poste peut poster vers 127.0.0.1 avec un `Host`
     // légitime ; son `Origin`, lui, est celui de la page tierce.
     if (!checkOrigin(req.headers.origin || null, httpOrigins)) {
-      log.warn(`HTTP refusé : origine ${req.headers.origin} non autorisée`)
+      log.warn(tr`HTTP refusé : origine ${req.headers.origin} non autorisée`)
       res.writeHead(403, { 'content-type': 'text/plain; charset=utf-8' })
-      res.end('origine non autorisée')
+      res.end(tr`origine non autorisée`)
       return
     }
     // Routes locales : loopback **et** sans en-tête de proxy — un tunnel local
@@ -162,11 +163,11 @@ export async function createServers({ config, addresses, onConnection, onShim, s
       // API pure : on répond quelque chose d'explicite plutôt qu'un 404 sec, le
       // premier réflexe de diagnostic étant d'ouvrir l'URL dans un navigateur.
       res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' })
-      res.end("zra-daemon : API WebSocket sur /ws — les statiques sont servies ailleurs\n")
+      res.end(tr`zra-daemon : API WebSocket sur /ws — les statiques sont servies ailleurs\n`)
       return
     }
     serveStatic(req, res).catch((err) => {
-      log.warn('statique :', err.message)
+      log.warn(tr`statique :`, err.message)
       if (!res.headersSent) res.writeHead(500)
       res.end()
     })
@@ -188,8 +189,8 @@ export async function createServers({ config, addresses, onConnection, onShim, s
           unpaired: true,
           verify: ({ req, origin }) => {
             if (!checkOrigin(origin, allowed)) {
-              log.warn(`WebSocket refusé : origine ${origin} non autorisée (allowedOrigins)`)
-              return { ok: false, status: 403, reason: 'origine non autorisée' }
+              log.warn(tr`WebSocket refusé : origine ${origin} non autorisée (allowedOrigins)`)
+              return { ok: false, status: 403, reason: tr`origine non autorisée` }
             }
             return true
           },
@@ -202,10 +203,10 @@ export async function createServers({ config, addresses, onConnection, onShim, s
           path: '/shim',
           verify: ({ req }) => {
             if (!isLoopback(req.socket.remoteAddress)) {
-              return { ok: false, status: 403, reason: 'canal des shims réservé au poste local' }
+              return { ok: false, status: 403, reason: tr`canal des shims réservé au poste local` }
             }
             if (req.headers.origin) {
-              return { ok: false, status: 403, reason: 'origine interdite sur le canal des shims' }
+              return { ok: false, status: 403, reason: tr`origine interdite sur le canal des shims` }
             }
             return true
           },
@@ -223,12 +224,11 @@ export async function createServers({ config, addresses, onConnection, onShim, s
     await new Promise((resolve, reject) => {
       server.once('error', (err) => {
         if (err.code === 'EADDRINUSE') {
-          const e = new Error(`port ${config.port} déjà pris sur ${address} : un autre zra-daemon tourne-t-il déjà ? ` +
-            '(npm run service -- status)')
+          const e = new Error(tr`port ${config.port} déjà pris sur ${address} : un autre zra-daemon tourne-t-il déjà ? (npm run service -- status)`)
           e.code = 'port_in_use'
           reject(e)
         } else if (err.code === 'EADDRNOTAVAIL') {
-          const e = new Error(`adresse ${address} indisponible : l'interface a disparu avant l'écoute`)
+          const e = new Error(tr`adresse ${address} indisponible : l'interface a disparu avant l'écoute`)
           e.code = 'address_gone'
           reject(e)
         } else reject(err)
@@ -236,7 +236,7 @@ export async function createServers({ config, addresses, onConnection, onShim, s
       server.listen(config.port, address, () => {
         server.removeAllListeners('error')
         // Une écoute qui casse plus tard (interface retirée) ne doit pas tuer le daemon.
-        server.on('error', (err) => log.warn(`écoute ${address} :`, err.message))
+        server.on('error', (err) => log.warn(tr`écoute ${address} :`, err.message))
         resolve()
       })
     })

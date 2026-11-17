@@ -31,6 +31,7 @@ import { fileURLToPath } from 'node:url'
 import { mkdir, writeFile } from 'node:fs/promises'
 
 import { daemonStatus } from './daemon-status.mjs'
+import { tr } from '../../zra-daemon/i18n.js'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
 
@@ -191,102 +192,101 @@ export function lingerState({ user = process.env.USER || process.env.LOGNAME } =
 async function status(opts, config) {
   const s = unitState()
   if (!s.installed) {
-    console.log(`unité « ${UNIT} » : ✗ absente — \`npm run service -- install\` pour voir ce qui serait créé`)
+    console.log(tr`unité « ${UNIT} » : ✗ absente — \`npm run service -- install\` pour voir ce qui serait créé`)
   } else {
-    console.log(`unité « ${UNIT} » : ✓ installée (${s.file})`)
-    console.log(`  état : ${s.active}${s.sub && s.sub !== 'running' ? ` (${s.sub})` : ''}` +
-      `${s.pid ? `, pid ${s.pid}` : ''}${s.since ? `, depuis ${s.since}` : ''}`)
-    console.log(`  au démarrage : ${s.enabled}` + (s.enabled === 'enabled' ? '' : ' — `systemctl --user enable` ne l’a pas fait'))
+    console.log(tr`unité « ${UNIT} » : ✓ installée (${s.file})`)
+    console.log(tr`  état : ${s.active}` + (s.sub && s.sub !== 'running' ? ` (${s.sub})` : '') +
+      (s.pid ? `, pid ${s.pid}` : '') + (s.since ? tr`, depuis ${s.since}` : ''))
+    console.log(tr`  au démarrage : ${s.enabled}` + (s.enabled === 'enabled' ? '' : tr` — \`systemctl --user enable\` ne l’a pas fait`))
     if (Number(s.restarts) > 0 || (s.result && s.result !== 'success')) {
-      console.log(`  relances : ${s.restarts}, dernier résultat : ${s.result}`)
+      console.log(tr`  relances : ${s.restarts}, dernier résultat : ${s.result}`)
     }
   }
 
   const linger = lingerState()
   if (linger === false) {
-    console.log('  ⚠ linger désactivé : le daemon s’arrêtera à la déconnexion et ne démarrera pas au boot.')
-    console.log(`    → loginctl enable-linger ${process.env.USER || '<utilisateur>'}`)
+    console.log(tr`  ⚠ linger désactivé : le daemon s’arrêtera à la déconnexion et ne démarrera pas au boot.`)
+    console.log(`    → loginctl enable-linger ${process.env.USER || tr`<utilisateur>`}`)
   } else if (linger === true) {
-    console.log('  linger : ✓ activé (survit à la déconnexion, démarre au boot)')
+    console.log(tr`  linger : ✓ activé (survit à la déconnexion, démarre au boot)`)
   }
 
   const d = await daemonStatus(config.port)
   if (d.ok) {
     const t = d.threads ?? {}
-    console.log(`daemon 127.0.0.1:${config.port} : ✓ ${d.scheme}, depuis ${d.startedAt}, ` +
-      `${t.live ?? 0} live / ${t.closed ?? 0} fermé(s), ${d.shims?.length ?? 0} shim(s), ${d.clients ?? 0} client(s)`)
+    console.log(tr`daemon 127.0.0.1:${config.port} : ✓ ${d.scheme}, depuis ${d.startedAt}, ${t.live ?? 0} live / ${t.closed ?? 0} fermé(s), ${d.shims?.length ?? 0} shim(s), ${d.clients ?? 0} client(s)`)
   } else {
-    console.log(`daemon 127.0.0.1:${config.port} : ✗ injoignable (${d.reason})`)
+    console.log(tr`daemon 127.0.0.1:${config.port} : ✗ injoignable (${d.reason})`)
   }
 
   const last = journal(5) ?? tailLog(LOG, 5)
-  if (last) console.log(`journal :\n  ${last.join('\n  ')}`)
-  else console.log(`journal : pas encore écrit (${LOG})`)
+  if (last) console.log(tr`journal :\n  ${last.join('\n  ')}`)
+  else console.log(tr`journal : pas encore écrit (${LOG})`)
 }
 
 async function install(opts) {
   const unit = buildUnit({ env: process.env })
   const file = unitFile()
-  console.log(`unité « ${UNIT} » pour ${process.env.USER || 'l’utilisateur courant'} : à l'ouverture de session, sans élévation, dans la session graphique`)
+  console.log(tr`unité « ${UNIT} » pour ${process.env.USER || tr`l’utilisateur courant`} : à l'ouverture de session, sans élévation, dans la session graphique`)
   console.log(`  node ${process.execPath}`)
-  console.log(`  journal ${LOG} + journalctl --user -u ${UNIT}`)
-  console.log(`  fichier ${file}`)
+  console.log(tr`  journal ${LOG} + journalctl --user -u ${UNIT}`)
+  console.log(tr`  fichier ${file}`)
   console.log('\n' + unit.split(/\r?\n/).map((l) => `  │ ${l}`).join('\n'))
   if (!opts.apply) {
-    console.log('\nsimulation : rien créé. Relancer avec --apply pour écrire l’unité.')
+    console.log(tr`\nsimulation : rien créé. Relancer avec --apply pour écrire l’unité.`)
     return
   }
   await mkdir(dirname(file), { recursive: true })
   await writeFile(file, unit, 'utf8')
   const reload = systemctl(['daemon-reload'])
-  if (!reload.ok) throw new Error(`systemctl --user daemon-reload a échoué : ${reload.out}`)
+  if (!reload.ok) throw new Error(tr`systemctl --user daemon-reload a échoué : ${reload.out}`)
   const enable = systemctl(['enable', UNIT])
-  if (!enable.ok) throw new Error(`systemctl --user enable a échoué : ${enable.out}`)
-  console.log(`\n✓ unité écrite et activée. Elle démarrera à la prochaine ouverture de session ; tout de suite : npm run service -- start`)
+  if (!enable.ok) throw new Error(tr`systemctl --user enable a échoué : ${enable.out}`)
+  console.log(tr`\n✓ unité écrite et activée. Elle démarrera à la prochaine ouverture de session ; tout de suite : npm run service -- start`)
   if (lingerState() === false) {
-    console.log(`⚠ linger désactivé : sans lui, le daemon meurt à la déconnexion et ne part pas au boot.`)
-    console.log(`   loginctl enable-linger ${process.env.USER || '<utilisateur>'}   (vérifié : passe sans sudo ici)`)
+    console.log(tr`⚠ linger désactivé : sans lui, le daemon meurt à la déconnexion et ne part pas au boot.`)
+    console.log(`   loginctl enable-linger ${process.env.USER || tr`<utilisateur>`}   ` + tr`(vérifié : passe sans sudo ici)`)
   }
 }
 
 function uninstall(opts) {
   const s = unitState()
-  if (!s.installed) return console.log(`unité « ${UNIT} » : déjà absente`)
-  if (!opts.apply) return console.log(`simulation : l’unité « ${UNIT} » serait arrêtée, désactivée puis supprimée (${s.file}). Relancer avec --apply.`)
+  if (!s.installed) return console.log(tr`unité « ${UNIT} » : déjà absente`)
+  if (!opts.apply) return console.log(tr`simulation : l’unité « ${UNIT} » serait arrêtée, désactivée puis supprimée (${s.file}). Relancer avec --apply.`)
   systemctl(['disable', '--now', UNIT])
   rmSync(s.file, { force: true })
   const reload = systemctl(['daemon-reload'])
-  console.log(reload.ok ? '✓ unité supprimée (le journal reste dans .zra/logs/ et dans journalctl)' : `systemctl --user daemon-reload : ${reload.out}`)
+  console.log(reload.ok ? tr`✓ unité supprimée (le journal reste dans .zra/logs/ et dans journalctl)` : `systemctl --user daemon-reload : ${reload.out}`)
 }
 
 async function start(opts, config) {
-  if (!unitState().installed) throw new Error(`unité « ${UNIT} » absente : npm run service -- install --apply`)
+  if (!unitState().installed) throw new Error(tr`unité « ${UNIT} » absente : npm run service -- install --apply`)
   const already = await daemonStatus(config.port)
-  if (already.ok) return console.log(`un daemon répond déjà sur 127.0.0.1:${config.port} (dev ?) : rien lancé`)
+  if (already.ok) return console.log(tr`un daemon répond déjà sur 127.0.0.1:${config.port} (dev ?) : rien lancé`)
   const res = systemctl(['start', UNIT])
-  if (!res.ok) throw new Error(`systemctl --user start a échoué : ${res.out}`)
+  if (!res.ok) throw new Error(tr`systemctl --user start a échoué : ${res.out}`)
   for (let i = 0; i < 40; i++) {
     await new Promise((r) => setTimeout(r, 250))
     const d = await daemonStatus(config.port, { timeoutMs: 500 })
-    if (d.ok) return console.log(`✓ daemon lancé (${d.scheme}://127.0.0.1:${config.port})`)
+    if (d.ok) return console.log(tr`✓ daemon lancé (${`${d.scheme}://127.0.0.1:${config.port}`})`)
   }
-  console.log(`unité démarrée, mais le daemon ne répond pas encore : npm run service -- logs`)
+  console.log(tr`unité démarrée, mais le daemon ne répond pas encore : npm run service -- logs`)
 }
 
 function stop(opts, config) {
-  if (!unitState().installed) return console.log(`unité « ${UNIT} » absente`)
+  if (!unitState().installed) return console.log(tr`unité « ${UNIT} » absente`)
   // `systemctl --user stop` arrête le processus de l'unité, et lui seul : pas
   // besoin du pendant de `killTaskDaemon()` de Windows.
   const res = systemctl(['stop', UNIT])
-  console.log(res.ok ? '✓ daemon arrêté' : `systemctl --user stop : ${res.out}`)
+  console.log(res.ok ? tr`✓ daemon arrêté` : `systemctl --user stop : ${res.out}`)
 }
 
 function logs(opts) {
   const fromJournal = journal(opts.lines)
   if (fromJournal) return console.log(fromJournal.join('\n'))
   const fromFile = tailLog(LOG, opts.lines)
-  if (fromFile) return console.log(`(journalctl muet, lu depuis ${LOG})\n${fromFile.join('\n')}`)
-  console.log(`pas de journal : journalctl --user -u ${UNIT} vide, et ${LOG} absent`)
+  if (fromFile) return console.log(tr`(journalctl muet, lu depuis ${LOG})` + `\n${fromFile.join('\n')}`)
+  console.log(tr`pas de journal : journalctl --user -u ${UNIT} vide, et ${LOG} absent`)
 }
 
 /** Les six verbes de la CLI, mêmes noms que la branche Windows. Appelés en `(opts, config)`. */

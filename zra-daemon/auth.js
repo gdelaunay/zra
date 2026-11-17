@@ -13,6 +13,7 @@
 import { createHash, randomBytes, randomInt, timingSafeEqual } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
+import { tr } from './i18n.js'
 
 const sha256 = (s) => createHash('sha256').update(s).digest()
 
@@ -68,7 +69,7 @@ export class Pairing {
       this.clients = Array.isArray(data.clients) ? data.clients.filter((c) => c?.id && c?.hash) : []
     } catch (err) {
       // Fichier corrompu : on ne le réécrit pas à l'aveugle, on refuse tout le monde.
-      this.log?.warn(`${this.file} illisible (${err.message}) : aucun client appairé reconnu`)
+      this.log?.warn(tr`${this.file} illisible (${err.message}) : aucun client appairé reconnu`)
       this.clients = []
     }
   }
@@ -104,7 +105,7 @@ export class Pairing {
    */
   pair(code, { label = 'appareil', address = '?' } = {}) {
     if (this.locked) {
-      throw new AuthError('pair_locked', 'appairage verrouillé après trop d’essais : lancer `npm run pair` sur le poste')
+      throw new AuthError('pair_locked', tr`appairage verrouillé après trop d’essais : lancer \`npm run pair\` sur le poste`)
     }
     const t = this.now()
     for (const [ip, attempts] of this.failures) {
@@ -116,7 +117,7 @@ export class Pairing {
     this.failures.set(address, recent)
     if (recent.length >= this.maxAttempts) {
       const retryIn = Math.ceil((this.windowMs - (t - recent[0])) / 1000)
-      throw new AuthError('pair_locked', `trop d'essais : réessaie dans ${retryIn} s`, { retryIn })
+      throw new AuthError('pair_locked', tr`trop d'essais : réessaie dans ${retryIn} s`, { retryIn })
     }
 
     const given = Buffer.from(String(code ?? '').replace(/\D/g, ''))
@@ -125,9 +126,9 @@ export class Pairing {
       recent.push(t)
       if (++this.failedSinceRotate >= this.lockAfter) {
         this.locked = true
-        this.log?.warn(`${this.lockAfter} essais d'appairage ratés : appairage verrouillé, \`npm run pair\` pour le rouvrir`)
+        this.log?.warn(tr`${this.lockAfter} essais d'appairage ratés : appairage verrouillé, \`npm run pair\` pour le rouvrir`)
       }
-      throw new AuthError('pair_failed', 'code incorrect')
+      throw new AuthError('pair_failed', tr`code incorrect`)
     }
 
     this.failures.delete(address)

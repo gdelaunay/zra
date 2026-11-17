@@ -21,6 +21,7 @@ import {
   CANDIDATE_RECIPES, DEFAULT_RECIPES, ZedCli, checkRecipe, createKeyboard, expandRecipe, projectWindow,
 } from '../zra-daemon/zed/driver.js'
 import { npmSafeArgs } from './lib/args.mjs'
+import { tr } from '../zra-daemon/i18n.js'
 
 function parseArgs(argv) {
   const out = { command: argv[0] ?? 'help', recipe: null, apply: false, candidate: false, vars: {}, steps: null, window: undefined, project: null }
@@ -36,12 +37,12 @@ function parseArgs(argv) {
     else if (a === '--window') out.window = rest[++i]
     else if (a === '--project') out.project = rest[++i]
     else if (a === '--steps') out.steps = JSON.parse(rest[++i])
-    else throw new Error(`option inconnue : ${a}`)
+    else throw new Error(tr`option inconnue : ${a}`)
   }
   return out
 }
 
-const USAGE = `npm run zed -- <commande>
+const USAGE = tr`npm run zed -- <commande>
 
   probe                      fenêtres Zed ouvertes, taille de leur arbre UIA
   recipes                    recettes en vigueur et pistes candidates
@@ -72,21 +73,21 @@ async function main() {
 
   if (opts.command === 'probe') {
     const res = await runner.run({ op: 'probe' })
-    if (!res.windows?.length) return console.log('aucune fenêtre Zed ouverte')
+    if (!res.windows?.length) return console.log(tr`aucune fenêtre Zed ouverte`)
     for (const w of res.windows) {
-      console.log(`« ${w.title} » (pid ${w.pid}) — arbre UIA : ${w.uiaDescendants} élément(s)` +
-        (w.uiaDescendants === 0 ? ' → pilotage au clavier uniquement' : ''))
+      console.log(tr`« ${w.title} » (pid ${w.pid}) — arbre UIA : ${w.uiaDescendants} élément(s)` +
+        (w.uiaDescendants === 0 ? tr` → pilotage au clavier uniquement` : ''))
     }
     return
   }
 
   if (opts.command === 'recipes') {
-    console.log(`pilotage ${zc.enabled ? 'ACTIVÉ' : 'désactivé'} dans le daemon (zedControl.enabled)\n`)
+    console.log(zc.enabled ? tr`pilotage ACTIVÉ dans le daemon (zedControl.enabled)\n` : tr`pilotage désactivé dans le daemon (zedControl.enabled)\n`)
     for (const [name, steps] of Object.entries(recipes)) {
       console.log(`${name}${zc.recipes?.[name] !== undefined ? '  (zra.config.json)' : ''}`)
-      console.log(steps ? steps.map((s) => `  ${JSON.stringify(s)}`).join('\n') : '  — non établie')
+      console.log(steps ? steps.map((s) => `  ${JSON.stringify(s)}`).join('\n') : tr`  — non établie`)
     }
-    console.log('\npistes candidates (--candidate) :')
+    console.log(tr`\npistes candidates (--candidate) :`)
     for (const [name, steps] of Object.entries(CANDIDATE_RECIPES)) {
       console.log(name)
       console.log(steps.map((s) => `  ${JSON.stringify(s)}`).join('\n'))
@@ -98,23 +99,23 @@ async function main() {
     let steps = opts.steps
     let name = 'ad hoc'
     if (!steps) {
-      if (!opts.recipe) throw new Error('recette à essayer : try <recette>, ou --steps')
+      if (!opts.recipe) throw new Error(tr`recette à essayer : try <recette>, ou --steps`)
       name = opts.recipe
       steps = opts.candidate ? CANDIDATE_RECIPES[name] : recipes[name]
-      if (!steps) throw new Error(`recette « ${name} » ${opts.candidate ? 'sans piste candidate' : 'non établie (essayer --candidate)'}`)
+      if (!steps) throw new Error(opts.candidate ? tr`recette « ${name} » sans piste candidate` : tr`recette « ${name} » non établie (essayer --candidate)`)
     }
     // `--project` doit être un dossier existant : passé brut à la CLI de Zed,
     // un chemin relatif (ou une faute de frappe) ouvre un BUFFER NON SAUVEGARDÉ
     // et la recette tape dedans. Résolu en absolu et vérifié avant toute frappe.
     const projectDir = opts.project ? resolve(process.cwd(), opts.project) : null
     if (projectDir && !statSync(projectDir, { throwIfNoEntry: false })?.isDirectory()) {
-      throw new Error(`--project : dossier introuvable : ${projectDir}`)
+      throw new Error(tr`--project : dossier introuvable : ${projectDir}`)
     }
     const project = projectDir ? projectWindow([projectDir]) : null
     const expanded = expandRecipe(checkRecipe(name, steps), {
-      text: 'message de test ZRA', title: '', agent: '', agentName: '', project: project ?? '', ...opts.vars,
+      text: tr`message de test ZRA`, title: '', agent: '', agentName: '', project: project ?? '', ...opts.vars,
     })
-    console.log(`recette ${name}${project ? ` dans le projet « ${project} »` : ''} :`)
+    console.log(project ? tr`recette ${name} dans le projet « ${project} » :` : tr`recette ${name} :`)
     for (const s of expanded) console.log(`  ${JSON.stringify(s)}`)
 
     const where = project
@@ -122,20 +123,20 @@ async function main() {
       : { window: opts.window ?? zc.window }
     const request = { op: 'run', steps: expanded, ...where, stepDelayMs: zc.stepDelayMs }
     const dry = await runner.run({ ...request, dryRun: true })
-    console.log(`\n✓ ${dry.log[0]} — touches résolues`)
-    if (!opts.apply) return console.log('simulation : rien envoyé. Relancer avec --apply pour envoyer les touches.')
+    console.log(tr`\n✓ ${dry.log[0]} — touches résolues`)
+    if (!opts.apply) return console.log(tr`simulation : rien envoyé. Relancer avec --apply pour envoyer les touches.`)
 
     for (let n = 3; n > 0; n--) {
-      process.stdout.write(`\renvoi dans ${n} s — lâcher clavier et souris…`)
+      process.stdout.write(tr`\renvoi dans ${n} s — lâcher clavier et souris…`)
       await sleep(1000)
     }
     process.stdout.write('\n')
     if (project) {
       await new ZedCli(zc.cli ? { command: zc.cli } : {}).open([projectDir])
-      console.log(`✓ CLI de Zed : ${projectDir}`)
+      console.log(tr`✓ CLI de Zed : ${projectDir}`)
     }
     const res = await runner.run(request)
-    console.log(`✓ envoyé :\n  ${res.log.slice(1).join('\n  ')}`)
+    console.log(tr`✓ envoyé :\n  ${res.log.slice(1).join('\n  ')}`)
     return
   }
 

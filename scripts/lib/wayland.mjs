@@ -5,6 +5,7 @@ import { existsSync } from 'node:fs'
 import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { tr } from '../../zra-daemon/i18n.js'
 
 // La racine du dépôt, comme ailleurs — pas le répertoire courant.
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
@@ -13,9 +14,7 @@ const STATE = join(ROOT, '.zra')
 /** Message clair quand le .desktop est système et non inscriptible. */
 function unwritable(file, err) {
   return new Error(
-    `.desktop de Zed non inscriptible (${file}) : ${err.code}. ` +
-    'Copier ce fichier dans ~/.local/share/applications/ (il prime sur celui du système) ' +
-    'puis relancer, ou modifier le fichier système avec les droits adaptés.',
+    tr`.desktop de Zed non inscriptible (${file}) : ${err.code}. Copier ce fichier dans ~/.local/share/applications/ (il prime sur celui du système) puis relancer, ou modifier le fichier système avec les droits adaptés.`,
   )
 }
 
@@ -44,9 +43,9 @@ export function findZedDesktop() {
  * Modifie le .desktop pour forcer XWayland.
  */
 export async function patchDesktopForXWayland(apply) {
-  if (!isWayland()) return { action: 'skip', reason: 'X11 détecté, pas besoin de forcer XWayland' }
+  if (!isWayland()) return { action: 'skip', reason: tr`X11 détecté, pas besoin de forcer XWayland` }
   const file = findZedDesktop()
-  if (!file) return { action: 'skip', reason: '.desktop de Zed introuvable' }
+  if (!file) return { action: 'skip', reason: tr`.desktop de Zed introuvable` }
 
   const original = await readFile(file, 'utf8')
   // Déjà patché ?
@@ -61,7 +60,7 @@ export async function patchDesktopForXWayland(apply) {
   )
 
   if (patched === original) {
-    return { action: 'skip', reason: 'aucune ligne Exec= trouvée dans le .desktop' }
+    return { action: 'skip', reason: tr`aucune ligne Exec= trouvée dans le .desktop` }
   }
 
   if (!apply) {
@@ -88,7 +87,7 @@ export async function patchDesktopForXWayland(apply) {
  */
 export async function unpatchDesktop(apply) {
   const file = findZedDesktop()
-  if (!file) return { action: 'skip', reason: '.desktop de Zed introuvable' }
+  if (!file) return { action: 'skip', reason: tr`.desktop de Zed introuvable` }
 
   const original = await readFile(file, 'utf8')
   // Pas patché ?

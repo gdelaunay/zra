@@ -8,6 +8,7 @@ import { markdownBlocks } from '../markdown.js'
 import { lineDiff, collapse } from '../diff.js'
 import { shortPath, relTime } from '../format.js'
 import { settings } from '../settings.js'
+import { tr } from '../i18n.js'
 
 /**
  * @param {object} entry
@@ -40,7 +41,7 @@ function userMsg(entry) {
   // encore confirmé est seulement estompé.
   return h('div.msg.msg--user', { class: entry.pending ? 'is-pending' : entry.failed ? 'is-failed' : '' },
     h('div.msg__body.md', { html: blocksHtml(entry.blocks) }),
-    entry.failed ? h('div.msg__status', { text: 'non envoyé' }) : null,
+    entry.failed ? h('div.msg__status', { text: tr`non envoyé` }) : null,
   )
 }
 
@@ -69,7 +70,7 @@ function thoughtMsg(entry) {
   },
     icon('chevron-right', 'thought__chevron icon--sm'),
     icon('lightbulb', 'icon--sm'),
-    h('span', { text: 'réflexion' }),
+    h('span', { text: tr`réflexion` }),
   )
   // `.md` reste enfant direct : c'est là que le streaming écrit (`messageBody`).
   root.append(head, h('div.md', { html: blocksHtml(entry.blocks) }))
@@ -178,10 +179,10 @@ function toolCall(entry, ctx) {
   }
   for (const c of entry.content || []) body.append(toolContent(c, ctx))
   if (!(entry.content || []).length && !entry.locations?.length) {
-    body.append(h('div.muted', { text: entry.status === 'pending' ? 'en attente…' : 'aucune sortie' }))
+    body.append(h('div.muted', { text: entry.status === 'pending' ? tr`en attente…` : tr`aucune sortie` }))
   }
-  if (entry.rawInput !== undefined) body.append(collapsible('entrée brute', json(entry.rawInput)))
-  if (entry.rawOutput !== undefined) body.append(collapsible('sortie brute', json(entry.rawOutput)))
+  if (entry.rawInput !== undefined) body.append(collapsible(tr`entrée brute`, json(entry.rawInput)))
+  if (entry.rawOutput !== undefined) body.append(collapsible(tr`sortie brute`, json(entry.rawOutput)))
   root.append(body)
   return root
 }
@@ -227,7 +228,7 @@ function diffBlock(c) {
   const body = h('div.diff__body')
   for (const l of collapse(lines, 3)) {
     if (l.type === 'skip') {
-      body.append(h('div.diff__line.diff__line--skip', {}, `⋯ ${l.count} lignes inchangées`))
+      body.append(h('div.diff__line.diff__line--skip', {}, tr`⋯ ${l.count} lignes inchangées`))
       continue
     }
     body.append(h(`div.diff__line.diff__line--${l.type === 'ctx' ? 'ctx' : l.type}`,
@@ -237,7 +238,7 @@ function diffBlock(c) {
       h('span.diff__text', { text: l.text || ' ' }),
     ))
   }
-  if (truncated) body.append(h('div.diff__line.diff__line--skip', {}, 'fichier trop gros : diff non aligné'))
+  if (truncated) body.append(h('div.diff__line.diff__line--skip', {}, tr`fichier trop gros : diff non aligné`))
   root.append(head, body)
   return root
 }
@@ -273,7 +274,7 @@ function planCard(entry) {
   root.append(
     h('div.plan__head', {},
       icon('list-todo', 'icon--sm'),
-      h('span', { text: 'Plan' }),
+      h('span', { text: tr`Plan` }),
       h('span.spacer'),
       h('span.muted', { text: `${done}/${entry.items.length}` })),
     h('ul.plan__list', {}, ...entry.items.map((it) =>
@@ -302,7 +303,7 @@ function permissionCard(entry, ctx) {
       // second appui renverrait une écriture que le daemon refuserait en
       // `permission_expired`. La coche/le spinner disent le verdict.
       disabled: locked,
-      title: ctx.canRespond ? '' : 'thread injoignable : à traiter sur le poste',
+      title: ctx.canRespond ? '' : tr`thread injoignable : à traiter sur le poste`,
       onclick: () => ctx.onPermission?.(entry, o),
     },
       chosen && sent ? icon('loader', 'icon--sm spin') : null,
@@ -315,11 +316,11 @@ function permissionCard(entry, ctx) {
   // réponse, ou si le thread est injoignable.
   let note = null
   if (entry.resolved) {
-    if (!(entry.options || []).some((o) => o.optionId === entry.pendingOptionId)) note = `réponse : ${entry.outcome}`
-  } else if (!sent && !ctx.canRespond) note = 'thread injoignable — à traiter sur le poste'
+    if (!(entry.options || []).some((o) => o.optionId === entry.pendingOptionId)) note = tr`réponse : ${entry.outcome}`
+  } else if (!sent && !ctx.canRespond) note = tr`thread injoignable — à traiter sur le poste`
 
   const root = h(`div.perm${entry.resolved ? '.perm--done' : ''}`,
-    h('div.perm__head', icon('shield', 'icon--sm'), h('span', { text: 'Autorisation demandée' }),
+    h('div.perm__head', icon('shield', 'icon--sm'), h('span', { text: tr`Autorisation demandée` }),
       h('span.spacer'),
       h('span.muted', { text: relTime(entry.at) })),
     h('div.perm__body',
@@ -342,7 +343,7 @@ function rawCard(entry) {
   root.append(
     button('raw__head', { onclick: () => root.classList.toggle('is-open') },
       icon('chevron-right', 'icon--sm'),
-      h('span.truncate', { text: `événement non reconnu : ${entry.kind}` })),
+      h('span.truncate', { text: tr`événement non reconnu : ${entry.kind}` })),
     h('div.raw__body', {}, json(entry.payload)),
   )
   return root

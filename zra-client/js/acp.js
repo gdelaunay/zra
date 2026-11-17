@@ -3,6 +3,8 @@
 // Principe de ZRA : on ne réinterprète rien. Un `sessionUpdate` inconnu
 // devient une entrée `raw` repliée — jamais une erreur, jamais une perte.
 
+import { tr } from './i18n.js'
+
 let uid = 0
 const nextId = () => `e${++uid}`
 
@@ -161,7 +163,7 @@ export class Timeline {
     const added = this.push({
       type: 'tool',
       toolCallId: u.toolCallId ?? u.id ?? nextId(),
-      title: u.title || u.name || 'outil',
+      title: u.title || u.name || tr`outil`,
       kind: TOOL_KINDS.includes(u.kind) ? u.kind : 'other',
       status: TOOL_STATUSES.includes(u.status) ? u.status : 'pending',
       content: u.content || [],

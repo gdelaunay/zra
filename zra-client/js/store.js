@@ -7,6 +7,7 @@ import { emitter } from './dom.js'
 import { DaemonLink } from './link.js'
 import { Timeline, blocksText } from './acp.js'
 import { settings, originMachine, tokenFor, setToken } from './settings.js'
+import { tr } from './i18n.js'
 
 const e = emitter()
 export const on = e.on
@@ -139,7 +140,7 @@ function handle(machine, msg) {
       // Jeton refusé (révoqué, poste réinstallé) : il ne sert plus à rien.
       if (tokenFor(machine.url)) setToken(machine.url, null)
       machine.status = 'locked'
-      machine.error = 'appairage requis'
+      machine.error = tr`appairage requis`
       if (msg.name && (machine.implicit || !machine.label)) machine.label = msg.name
       emit('machines')
       break
@@ -517,7 +518,7 @@ export function refreshAll() {
 /** Nom de l'appareil, tel que `npm run pair` le listera : « Android · Chrome ». */
 function deviceLabel() {
   const ua = globalThis.navigator?.userAgent || ''
-  const os = /Android/.test(ua) ? 'Android' : /iPhone|iPad/.test(ua) ? 'iOS' : /Windows/.test(ua) ? 'Windows' : /Mac/.test(ua) ? 'macOS' : /Linux/.test(ua) ? 'Linux' : 'appareil'
+  const os = /Android/.test(ua) ? 'Android' : /iPhone|iPad/.test(ua) ? 'iOS' : /Windows/.test(ua) ? 'Windows' : /Mac/.test(ua) ? 'macOS' : /Linux/.test(ua) ? 'Linux' : tr`appareil`
   const browser = /Edg\//.test(ua) ? 'Edge' : /Firefox\//.test(ua) ? 'Firefox' : /Chrome\//.test(ua) ? 'Chrome' : /Safari\//.test(ua) ? 'Safari' : null
   return browser ? `${os} · ${browser}` : os
 }

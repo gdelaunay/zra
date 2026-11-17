@@ -4,6 +4,8 @@
 // avec l'appli mobile, sans dépendance. Vérifié en test par un décodeur
 // indépendant (jsQR) sur toutes les versions couvertes.
 
+import { tr } from '../../zra-daemon/i18n.js'
+
 // ---- corps de Galois GF(256), polynôme 0x11d ------------------------------
 
 const EXP = new Uint8Array(512)
@@ -278,7 +280,7 @@ export function encodeQr(input, { level = 'M', minVersion = 1, mask: forceMask }
   let version = Math.max(1, minVersion)
   // Indicateur de mode (4 bits) + longueur (8 ou 16 bits) + données.
   while (version <= MAX_VERSION && 4 + (version < 10 ? 8 : 16) + bytes.length * 8 > dataCapacity(level, version) * 8) version++
-  if (version > MAX_VERSION) throw new Error(`QR : ${bytes.length} octets, trop pour la version ${MAX_VERSION}-${level}`)
+  if (version > MAX_VERSION) throw new Error(tr`QR : ${bytes.length} octets, trop pour la version ${MAX_VERSION}-${level}`)
 
   const base = baseMatrix(version)
   placeData(base, encodeData(bytes, level, version))

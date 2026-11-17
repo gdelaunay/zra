@@ -1,5 +1,7 @@
 # Changelog
 
+[English](https://forgejo.gdelaunay.fr/gdelaunay/zra/src/branch/main/CHANGELOG.en.md)
+
 ## v0.3 — 2026-10-19 — Portage Linux & tests de régression (`e752972`)
 
 - Portage Linux complet : Ubuntu 24.04/GNOME/Wayland (poste de portage), Debian 13/KDE/X11, MX Linux 23/Xfce/X11 vérifiés en réel

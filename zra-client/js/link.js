@@ -2,6 +2,7 @@
 // Le mode mock (js/mock/mock-link.js) expose exactement la même interface.
 
 import { emitter } from './dom.js'
+import { tr } from './i18n.js'
 
 const BACKOFF = [1000, 2000, 4000, 8000, 16000, 30000]
 /** Au-delà du backoff court : un poste mort est retenté à ce rythme, pas plus. */
@@ -87,7 +88,7 @@ export class DaemonLink {
     // Borner le handshake. S'il aboutit, `onopen` l'annule ;
     // sinon `lost()` relance le `scheduleRetry` normal (et donc le plateau §1).
     clearTimeout(this.connectTimer)
-    this.connectTimer = setTimeout(() => this.lost(ws, 'délai de connexion dépassé'), CONNECT_TIMEOUT_MS)
+    this.connectTimer = setTimeout(() => this.lost(ws, tr`délai de connexion dépassé`), CONNECT_TIMEOUT_MS)
 
     ws.onopen = () => {
       clearTimeout(this.connectTimer)
@@ -118,7 +119,7 @@ export class DaemonLink {
       this.emit('message', msg)
     }
 
-    ws.onerror = () => { this.lastError = 'connexion impossible' }
+    ws.onerror = () => { this.lastError = tr`connexion impossible` }
 
     ws.onclose = (ev) => {
       console.debug(`[link] ${this.id} : socket fermée (code=${ev?.code ?? '?'} raison=${ev?.reason || '—'})`)
@@ -162,8 +163,8 @@ export class DaemonLink {
     if (ws?.readyState !== WebSocket.OPEN) return
     this.probing = true
     clearTimeout(this.pongTimer)
-    this.pongTimer = setTimeout(() => this.lost(ws, 'le poste ne répond plus'), timeout)
-    try { ws.send(JSON.stringify({ type: 'ping' })) } catch { this.lost(ws, 'connexion coupée') }
+    this.pongTimer = setTimeout(() => this.lost(ws, tr`le poste ne répond plus`), timeout)
+    try { ws.send(JSON.stringify({ type: 'ping' })) } catch { this.lost(ws, tr`connexion coupée`) }
   }
 
   flush() {

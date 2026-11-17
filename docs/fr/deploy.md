@@ -308,7 +308,7 @@ pilotage clavier marche.
 | « appairage requis » en boucle | jeton révoqué ou `.zra/auth.json` effacé : ressaisir un code |
 | « code incorrect » | le code a changé (usage unique) : `npm run pair` |
 | « poste injoignable » | `npm run service` : le daemon répond-il ? `npm run service -- logs` |
-| Zed introuvable au setup | installation native requise ; Flatpak/Snap non supportés → `zedDb`/`zedSettings` dans `zra.config.json` (`docs/limitations.md`) |
+| Zed introuvable au setup | installation native requise ; Flatpak/Snap non supportés → `zedDb`/`zedSettings` dans `zra.config.json` (`docs/fr/limitations.md`) |
 | WebSocket refusé (403) | journal : « origine … non autorisée » → `allowedOrigins` |
 | pas d'installation proposée | page en `http://` : certificat absent (§4) |
 

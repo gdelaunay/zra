@@ -15,6 +15,7 @@ import { openMenu } from '../ui.js'
 import { openSettings } from './settings.js'
 import { newSessionButton } from './new-session.js'
 import { openPairSheet } from './pair.js'
+import { tr } from '../i18n.js'
 
 // Tout est replié par défaut. L'état déplé est une liste blanche gardée en
 // mémoire au niveau du module : il survit à la navigation (re-rendu de la
@@ -23,9 +24,9 @@ const expandedMachines = new Set()
 const expandedProjects = new Set()
 
 const FILTERS = [
-  { id: 'all', label: 'Tous' },
+  { id: 'all', label: tr`Tous` },
   { id: 'live', label: 'Live' },
-  { id: 'archived', label: 'Archivés' },
+  { id: 'archived', label: tr`Archivés` },
 ]
 
 export function ThreadsView({ navigate }) {
@@ -34,20 +35,20 @@ export function ThreadsView({ navigate }) {
 
   const list = h('div.scroll')
   const search = h('input.input', {
-    type: 'search', placeholder: 'Filtrer les threads…', value: query,
-    'aria-label': 'filtrer les threads',
+    type: 'search', placeholder: tr`Filtrer les threads…`, value: query,
+    'aria-label': tr`filtrer les threads`,
     oninput: debounce((ev) => { query = ev.target.value.toLowerCase(); paint() }, 120),
   })
 
   const filterBtn = button('btn.btn--ghost.btn--sm', {
     onclick: (ev) => openMenu(ev.currentTarget, {
-      label: 'Afficher',
+      label: tr`Afficher`,
       items: FILTERS.map((f) => ({
         label: f.label, on: filter === f.id,
         onSelect: () => { filter = f.id; syncFilterLabel(); paint() },
       })),
     }),
-  }, icon('list-todo', 'icon--sm'), h('span', { text: 'Tous' }), icon('chevron-down', 'icon--sm'))
+  }, icon('list-todo', 'icon--sm'), h('span', { text: tr`Tous` }), icon('chevron-down', 'icon--sm'))
 
   const syncFilterLabel = () => {
     filterBtn.querySelector('span').textContent = FILTERS.find((f) => f.id === filter).label
@@ -65,8 +66,8 @@ export function ThreadsView({ navigate }) {
     if (!machines.length) {
       list.append(h('div.empty', {},
         icon('server', 'icon--lg'),
-        h('div', { text: 'Aucun poste enregistré.' }),
-        button('btn.btn--accent', { onclick: () => openSettings() }, icon('plus', 'icon--sm'), 'Ajouter un poste')))
+        h('div', { text: tr`Aucun poste enregistré.` }),
+        button('btn.btn--accent', { onclick: () => openSettings() }, icon('plus', 'icon--sm'), tr`Ajouter un poste`)))
       return
     }
 
@@ -89,20 +90,20 @@ export function ThreadsView({ navigate }) {
       if (m.status === 'locked') {
         // Le poste répond, mais ne parle qu'aux appareils appairés.
         section.append(h('div.empty', { style: { padding: '12px' } },
-          h('span', { text: 'Ce poste ne connaît pas encore ce téléphone.' }),
-          button('btn.btn--accent.btn--sm', { onclick: () => openPairSheet(m) }, icon('lock', 'icon--sm'), 'Saisir le code')))
+          h('span', { text: tr`Ce poste ne connaît pas encore ce téléphone.` }),
+          button('btn.btn--accent.btn--sm', { onclick: () => openPairSheet(m) }, icon('lock', 'icon--sm'), tr`Saisir le code`)))
         continue
       }
       if (m.status !== 'online') {
         section.append(h('div.empty', { style: { padding: '12px' } },
-          h('span', { text: m.status === 'connecting' ? 'connexion…' : (m.error || 'poste injoignable') }),
+          h('span', { text: m.status === 'connecting' ? tr`connexion…` : (m.error || tr`poste injoignable`) }),
           m.status === 'offline'
-            ? button('btn.btn--sm', { onclick: () => m.link.wake?.() }, icon('refresh', 'icon--sm'), 'Réessayer')
+            ? button('btn.btn--sm', { onclick: () => m.link.wake?.() }, icon('refresh', 'icon--sm'), tr`Réessayer`)
             : null))
         continue
       }
       if (!rows.length) {
-        section.append(h('div.empty', { style: { padding: '12px' }, text: 'aucun thread' }))
+        section.append(h('div.empty', { style: { padding: '12px' }, text: tr`aucun thread` }))
         continue
       }
       for (const group of byProject(rows)) {
@@ -116,7 +117,7 @@ export function ThreadsView({ navigate }) {
     }
 
     if (!total && query) {
-      list.append(h('div.empty', {}, icon('search', 'icon--lg'), h('div', { text: `aucun thread pour « ${query} »` })))
+      list.append(h('div.empty', {}, icon('search', 'icon--lg'), h('div', { text: tr`aucun thread pour « ${query} »` })))
     }
   }
 
@@ -141,8 +142,8 @@ function header({ navigate }) {
   el.append(
     h('div.header__title', {}, icon('zap', 'icon--sm'), h('span', { text: 'ZRA' })),
     h('div.header__meta', {}, sub),
-    button('icon-btn', { title: 'Rafraîchir', onclick: () => store.refreshAll() }, icon('refresh', 'icon--sm')),
-    button('icon-btn', { title: 'Réglages', onclick: () => openSettings() }, icon('settings', 'icon--sm')),
+    button('icon-btn', { title: tr`Rafraîchir`, onclick: () => store.refreshAll() }, icon('refresh', 'icon--sm')),
+    button('icon-btn', { title: tr`Réglages`, onclick: () => openSettings() }, icon('settings', 'icon--sm')),
   )
   const sync = () => {
     const machines = [...store.state.machines.values()]
@@ -158,16 +159,16 @@ function header({ navigate }) {
 
 /** Ligne de titre d'un poste : toute la ligne replie/déplie, comme un projet. */
 function machineHead(m, open, onToggle) {
-  const status = m.status === 'online' ? 'en ligne'
-    : m.status === 'connecting' ? 'connexion…'
-      : m.status === 'locked' ? 'appairage requis' : 'hors ligne'
+  const status = m.status === 'online' ? tr`en ligne`
+    : m.status === 'connecting' ? tr`connexion…`
+      : m.status === 'locked' ? tr`appairage requis` : tr`hors ligne`
   const server = icon('server', `icon--sm group__icon${m.status === 'online' ? ' group__icon--online' : ''}`)
   server.setAttribute('title', status)
   return button('group__head', { 'aria-expanded': String(open), onclick: onToggle },
     server,
     h('span.group__name', { text: m.info?.name || m.label || m.url }),
     h('span.group__meta', { text: `· ${status}` }),
-    m.info?.zedRunning === false ? h('span.group__meta', { text: '· Zed fermé' }) : null,
+    m.info?.zedRunning === false ? h('span.group__meta', { text: tr`· Zed fermé` }) : null,
     icon(open ? 'chevron-down' : 'chevron-right', 'icon--sm group__chevron'),
     h('span.spacer'),
     h('span.group__meta', { text: m.threads.length ? `${m.threads.length}` : '' }),
@@ -220,8 +221,8 @@ function projectIcon(state) {
   const el = icon('folder', `icon--sm project__icon${state ? ` project__icon--${state}` : ''}`)
   if (state) {
     el.setAttribute('title', state === 'live'
-      ? 'ouvert dans Zed'
-      : 'fermé dans Zed : il s’ouvrira à la demande')
+      ? tr`ouvert dans Zed`
+      : tr`fermé dans Zed : il s’ouvrira à la demande`)
   }
   return el
 }
@@ -239,7 +240,7 @@ function projectHead(m, project, open, onToggle, state = null) {
       icon(open ? 'chevron-down' : 'chevron-right', 'icon--sm project__chevron'),
     ),
     project.folderPaths.length
-      ? newSessionButton({ machineId: m.id, project: () => project, title: `Nouveau thread dans ${project.name}` })
+      ? newSessionButton({ machineId: m.id, project: () => project, title: tr`Nouveau thread dans ${project.name}` })
       : null,
   )
 }
@@ -251,14 +252,14 @@ function threadRow(m, t, navigate) {
   return button('thread-row', {
     class: unknown ? 'thread-row--unknown' : '',
     disabled: unknown,
-    title: unknown ? 'thread sans session : non consultable' : t.title,
+    title: unknown ? tr`thread sans session : non consultable` : t.title,
     onclick: () => navigate(`#/t/${m.id}/${t.threadId}`),
   },
     readOnly
-      ? h('span.lock-dot.thread-row__lock', { title: 'lecture seule : créé hors ZRA, répondre dans Zed' }, icon('lock', 'icon--sm'))
+      ? h('span.lock-dot.thread-row__lock', { title: tr`lecture seule : créé hors ZRA, répondre dans Zed` }, icon('lock', 'icon--sm'))
       : h(`span.dot.dot--${t.state}.thread-row__dot`),
     h('span.thread-row__body', {},
-      h('span.thread-row__title.truncate', { text: t.title || 'sans titre' }),
+      h('span.thread-row__title.truncate', { text: t.title || tr`sans titre` }),
       h('span.thread-row__meta', {},
         h('span.thread-row__path.truncate', { text: shortPath(t.folderPaths?.[0], 2) }),
         t.folderPaths?.length > 1 ? h('span', { text: `+${t.folderPaths.length - 1}` }) : null,
@@ -266,7 +267,7 @@ function threadRow(m, t, navigate) {
         h('span', { text: relTime(t.updatedAt), title: absTime(t.updatedAt) }),
       ),
     ),
-    t.archived ? h('span.thread-row__badge', { text: 'archivé' }) : null,
+    t.archived ? h('span.thread-row__badge', { text: tr`archivé` }) : null,
     t.agentId
       ? agentIcon(t.agentId, 'thread-row__agent icon--sm')
       : null,

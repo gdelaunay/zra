@@ -12,6 +12,7 @@ import { spawn } from 'node:child_process'
 
 import { createFramer, encodeFrame, parseFrame } from '../zra-shim/framing.js'
 import { logger } from './log.js'
+import { tr } from './i18n.js'
 
 const log = logger('acp')
 
@@ -47,9 +48,9 @@ export class AcpClient {
       this.stderr = (this.stderr + chunk.toString('utf8')).slice(-4000)
     })
 
-    this.child.on('error', (err) => this.fail(`agent non lançable : ${err.message}`))
+    this.child.on('error', (err) => this.fail(tr`agent non lançable : ${err.message}`))
     this.child.on('exit', (code, signal) => {
-      this.fail(`agent terminé (code=${code ?? '—'}, signal=${signal ?? '—'})`)
+      this.fail(tr`agent terminé (code=${code ?? '—'}, signal=${signal ?? '—'})`)
     })
   }
 
@@ -81,7 +82,7 @@ export class AcpClient {
         this.send({
           jsonrpc: '2.0',
           id: msg.id,
-          error: { code: -32601, message: `méthode non supportée par ce client de relecture : ${msg.method}` },
+          error: { code: -32601, message: tr`méthode non supportée par ce client de relecture : ${msg.method}` },
         })
       }
       return
@@ -95,7 +96,7 @@ export class AcpClient {
   }
 
   send(msg) {
-    if (this.closed) throw new Error(this.exitReason || 'agent arrêté')
+    if (this.closed) throw new Error(this.exitReason || tr`agent arrêté`)
     this.child.stdin.write(encodeFrame(msg))
   }
 
@@ -132,6 +133,6 @@ export class AcpClient {
     const timer = setTimeout(() => { try { this.child.kill('SIGKILL') } catch { /* parti */ } }, 2000)
     timer.unref?.()
     this.child.once('exit', () => clearTimeout(timer))
-    log.debug('instance de relecture arrêtée')
+    log.debug(tr`instance de relecture arrêtée`)
   }
 }

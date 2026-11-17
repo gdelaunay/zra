@@ -15,6 +15,7 @@ import { execFile } from 'node:child_process'
 import { defaultZedCli as hostZedCli } from '../platform.js'
 import { readAgentKey, toChord } from '../zed-keymap.js'
 import { defaultKeyboardRunner } from './keyboard.js'
+import { tr } from '../i18n.js'
 
 export class ZedControlError extends Error {
   constructor(code, message) {
@@ -109,15 +110,15 @@ export function expandRecipe(steps, vars = {}) {
 
 /** Valide une recette avant de s'en servir : une étape malformée ne part jamais à mi-chemin. */
 export function checkRecipe(name, steps) {
-  if (!Array.isArray(steps) || !steps.length) throw new ZedControlError('recipe_invalid', `recette « ${name} » vide`)
+  if (!Array.isArray(steps) || !steps.length) throw new ZedControlError('recipe_invalid', tr`recette « ${name} » vide`)
   for (const s of steps) {
     const kinds = ['keys', 'text', 'wait'].filter((k) => s && k in s)
-    if (kinds.length !== 1) throw new ZedControlError('recipe_invalid', `recette « ${name} » : étape invalide ${JSON.stringify(s)}`)
+    if (kinds.length !== 1) throw new ZedControlError('recipe_invalid', tr`recette « ${name} » : étape invalide ${JSON.stringify(s)}`)
     if (s.keys !== undefined && (typeof s.keys !== 'string' || !s.keys.trim())) {
-      throw new ZedControlError('recipe_invalid', `recette « ${name} » : touches invalides ${JSON.stringify(s)}`)
+      throw new ZedControlError('recipe_invalid', tr`recette « ${name} » : touches invalides ${JSON.stringify(s)}`)
     }
     if (s.wait !== undefined && !(Number.isFinite(s.wait) && s.wait >= 0 && s.wait <= 10_000)) {
-      throw new ZedControlError('recipe_invalid', `recette « ${name} » : pause invalide ${JSON.stringify(s)}`)
+      throw new ZedControlError('recipe_invalid', tr`recette « ${name} » : pause invalide ${JSON.stringify(s)}`)
     }
   }
   return steps
@@ -139,7 +140,7 @@ export function checkRecipe(name, steps) {
 const UNDER_TEST = Boolean(process.env.NODE_TEST_CONTEXT)
 
 export function refuseUnderTest(what) {
-  return Promise.reject(new ZedControlError('zed_control_failed', `${what} refusé sous node --test : fournir un bouchon`))
+  return Promise.reject(new ZedControlError('zed_control_failed', tr`${what} refusé sous node --test : fournir un bouchon`))
 }
 
 // ---------------------------------------------------------------------------
@@ -211,7 +212,7 @@ export class ZedCli {
   }
 
   async open(folderPaths, { newWindow = false } = {}) {
-    if (UNDER_TEST) return refuseUnderTest('CLI de Zed réelle')
+    if (UNDER_TEST) return refuseUnderTest(tr`CLI de Zed réelle`)
     if (newWindow) {
       try {
         return await this.exec(['--classic', ...folderPaths])
@@ -223,7 +224,7 @@ export class ZedCli {
   exec(args) {
     return new Promise((resolve, reject) => {
       execFile(this.command, args, { timeout: this.timeoutMs, windowsHide: true }, (err) => {
-        if (err) reject(new ZedControlError('zed_control_failed', `CLI de Zed (${this.command}) : ${err.message}`))
+        if (err) reject(new ZedControlError('zed_control_failed', tr`CLI de Zed (${this.command}) : ${err.message}`))
         else resolve()
       })
     })
@@ -279,10 +280,10 @@ export class ZedDriver {
     this.assertEnabled()
     if (!this.has(name)) {
       throw new ZedControlError('recipe_missing',
-        `aucune recette clavier « ${name} » : voie non établie pour cette version de Zed (zedControl.recipes)`)
+        tr`aucune recette clavier « ${name} » : voie non établie pour cette version de Zed (zedControl.recipes)`)
     }
     const steps = expandRecipe(checkRecipe(name, this.recipes[name]), vars)
-    this.log?.info(`recette ${name}${this.dryRun ? ' (simulation)' : ''} : ${steps.length} étape(s)`)
+    this.log?.info(this.dryRun ? tr`recette ${name} (simulation) : ${steps.length} étape(s)` : tr`recette ${name} : ${steps.length} étape(s)`)
     const where = project
       ? { project, windowWaitMs: this.windowWaitMs }
       : { window: this.window }
@@ -296,14 +297,14 @@ export class ZedDriver {
   assertEnabled() {
     if (!this.enabled) {
       throw new ZedControlError('zed_control_disabled',
-        'pilotage de Zed désactivé sur ce poste (zedControl.enabled dans zra.config.json)')
+        tr`pilotage de Zed désactivé sur ce poste (zedControl.enabled dans zra.config.json)`)
     }
   }
 
   /** Amène au premier plan la fenêtre des dossiers donnés, ou en ouvre une. */
   async openWorkspace(folderPaths, { newWindow = false } = {}) {
     this.assertEnabled()
-    this.log?.info(`projet ${folderPaths.join(', ')}${this.dryRun ? ' (simulation, CLI non lancée)' : ''}`)
+    this.log?.info(this.dryRun ? tr`projet ${folderPaths.join(', ')} (simulation, CLI non lancée)` : tr`projet ${folderPaths.join(', ')}`)
     if (!this.dryRun) await this.cli.open(folderPaths, { newWindow })
   }
 
@@ -318,7 +319,7 @@ export class ZedDriver {
     // Relu à chaque fois : `npm run setup` peut l'avoir posée daemon lancé.
     const key = this.has('newThreadKey') ? await readAgentKey(this.keymapFile, agent.id) : null
     if (key) return this.play('newThreadKey', { ...vars, agentKey: toChord(key) }, { project })
-    this.log?.info(`aucune touche pour ${agent.id} dans le keymap.json de Zed (npm run setup -- install) : repli sur le dernier agent utilisé`)
+    this.log?.info(tr`aucune touche pour ${agent.id} dans le keymap.json de Zed (npm run setup -- install) : repli sur le dernier agent utilisé`)
     return this.play('newThread', vars, { project })
   }
 

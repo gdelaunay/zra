@@ -3,6 +3,7 @@
 
 import { h, button, clear } from './dom.js'
 import { icon, agentIcon } from './icons.js'
+import { tr } from './i18n.js'
 
 const layer = () => document.getElementById('overlays')
 
@@ -103,7 +104,7 @@ export function openSheet(title, build, { titleIcon } = {}) {
     titleIcon ? icon(titleIcon, 'icon--sm') : null,
     h('span', { text: title }),
     h('span.spacer'),
-    button('icon-btn', { onclick: close, 'aria-label': 'fermer' }, icon('x', 'icon--sm')),
+    button('icon-btn', { onclick: close, 'aria-label': tr`fermer` }, icon('x', 'icon--sm')),
   ))
   const body = h('div')
   sheet.append(body)
@@ -143,12 +144,12 @@ export function activity(message, { maxMs = 45_000 } = {}) {
 }
 
 /** Confirmation simple, sans dépendre de `confirm()` (bloqué en PWA standalone). */
-export function confirmSheet(title, message, onYes, { danger = false, yes = 'Confirmer' } = {}) {
+export function confirmSheet(title, message, onYes, { danger = false, yes = tr`Confirmer` } = {}) {
   openSheet(title, (body, { close }) => {
     body.append(
       h('p.muted', { text: message }),
       h('div.row', { style: { justifyContent: 'flex-end' } },
-        button('btn.btn--ghost', { onclick: close }, 'Annuler'),
+        button('btn.btn--ghost', { onclick: close }, tr`Annuler`),
         button('btn', { class: danger ? 'btn--danger' : 'btn--accent', onclick: () => { close(); onYes() } }, yes)),
     )
   })

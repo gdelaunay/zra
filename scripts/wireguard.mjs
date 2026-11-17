@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Générer un tunnel WireGuard poste ↔ téléphone — docs/deploy.md, annexe.
+// Générer un tunnel WireGuard poste ↔ téléphone — docs/fr/deploy.md, annexe.
 //
 // **Expérimental, non testé de bout en bout.** Le chemin retenu est le
 // tunnel que l'utilisateur a déjà (wg-easy sur un homelab) : ce script n'est
@@ -28,6 +28,7 @@ import { fileURLToPath } from 'node:url'
 import { loadConfig } from '../zra-daemon/config.js'
 import { findTunnel, listInterfaces } from '../zra-daemon/net.js'
 import { encodeQr, qrToSvg, qrToTerminal } from './lib/qr.mjs'
+import { tr } from '../zra-daemon/i18n.js'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const DIR = join(ROOT, '.zra', 'wireguard')
@@ -52,11 +53,11 @@ export function hostAt(subnet, n) {
   const bits = Number(bitsRaw)
   const parts = base.split('.').map(Number)
   if (parts.length !== 4 || parts.some((p) => !Number.isInteger(p) || p < 0 || p > 255) || !(bits >= 16 && bits <= 30)) {
-    throw new Error(`plage invalide : ${subnet} (attendu : a.b.c.d/16 à /30)`)
+    throw new Error(tr`plage invalide : ${subnet} (attendu : a.b.c.d/16 à /30)`)
   }
   const int = ((parts[0] << 24) | (parts[1] << 16) | (parts[2] << 8) | parts[3]) >>> 0
   const net = (int & ((0xffffffff << (32 - bits)) >>> 0)) >>> 0
-  if (n < 1 || n >= 2 ** (32 - bits) - 1) throw new Error(`plus d'adresse libre dans ${subnet}`)
+  if (n < 1 || n >= 2 ** (32 - bits) - 1) throw new Error(tr`plus d'adresse libre dans ${subnet}`)
   const ip = (net + n) >>> 0
   return [ip >>> 24, (ip >>> 16) & 255, (ip >>> 8) & 255, ip & 255].join('.')
 }
@@ -64,7 +65,7 @@ export function hostAt(subnet, n) {
 /** `hôte`, `hôte:port`, `[v6]:port` → `hôte:port`. */
 export function normalizeEndpoint(input, port = 51820) {
   const s = String(input || '').trim()
-  if (!s) throw new Error('--endpoint requis : l’adresse par laquelle le téléphone joint ce poste (IP publique, nom DNS, IP du réseau local)')
+  if (!s) throw new Error(tr`--endpoint requis : l’adresse par laquelle le téléphone joint ce poste (IP publique, nom DNS, IP du réseau local)`)
   if (/^\[.*\](:\d+)?$/.test(s)) return /\]:\d+$/.test(s) ? s : `${s}:${port}`
   if (/^[^:]+:\d+$/.test(s)) return s
   if (s.includes(':')) return `[${s}]:${port}`
@@ -73,7 +74,7 @@ export function normalizeEndpoint(input, port = 51820) {
 
 const safeName = (name) => {
   if (!/^[A-Za-z0-9_=+.-]{1,15}$/.test(name)) {
-    throw new Error(`nom « ${name} » : 1 à 15 caractères parmi lettres, chiffres, _=+.- (contrainte de WireGuard pour Windows)`)
+    throw new Error(tr`nom « ${name} » : 1 à 15 caractères parmi lettres, chiffres, _=+.- (contrainte de WireGuard pour Windows)`)
   }
   return name
 }
@@ -81,7 +82,7 @@ const safeName = (name) => {
 /** Configuration du poste : il écoute, chaque appareil est un pair. */
 export function hostConfig(state) {
   const lines = [
-    '# ZRA — tunnel du poste. Généré par npm run wireguard ; contient une clé privée.',
+    tr`# ZRA — tunnel du poste. Généré par npm run wireguard ; contient une clé privée.`,
     '[Interface]',
     `PrivateKey = ${state.host.privateKey}`,
     `Address = ${state.host.address}/${state.subnet.split('/')[1]}`,
@@ -99,7 +100,7 @@ export function hostConfig(state) {
  */
 export function deviceConfig(state, device) {
   return [
-    `# ZRA — ${device.name}. Généré par npm run wireguard ; contient une clé privée.`,
+    tr`# ZRA — ${device.name}. Généré par npm run wireguard ; contient une clé privée.`,
     '[Interface]',
     `PrivateKey = ${device.privateKey}`,
     `Address = ${device.address}/32`,
@@ -129,8 +130,8 @@ export function newState({ endpoint, subnet = '10.77.0.0/24', port = 51820, name
 
 export function addDevice(state, name) {
   safeName(name)
-  if (name === state.name) throw new Error(`« ${name} » est déjà le nom du tunnel du poste`)
-  if (state.devices.some((d) => d.name === name)) throw new Error(`appareil « ${name} » déjà présent`)
+  if (name === state.name) throw new Error(tr`« ${name} » est déjà le nom du tunnel du poste`)
+  if (state.devices.some((d) => d.name === name)) throw new Error(tr`appareil « ${name} » déjà présent`)
   const used = new Set([state.host.address, ...state.devices.map((d) => d.address)])
   let n = 2
   while (used.has(hostAt(state.subnet, n))) n++
@@ -161,15 +162,15 @@ async function save(state) {
 
 function showQr(state, device) {
   const conf = deviceConfig(state, device)
-  console.log(`\n${device.name} — à scanner dans l'appli WireGuard (+ › Scanner un QR code) :\n`)
+  console.log(tr`\n${device.name} — à scanner dans l'appli WireGuard (+ › Scanner un QR code) :\n`)
   console.log(qrToTerminal(encodeQr(conf)))
-  console.log(`\nmême QR en image : ${join(DIR, `${device.name}.svg`)}`)
+  console.log(tr`\nmême QR en image : ${join(DIR, `${device.name}.svg`)}`)
 }
 
 function nextSteps(state, config) {
   const conf = join(DIR, `${state.name}.conf`)
   const [, port] = state.endpoint.match(/:(\d+)$/) ?? []
-  console.log(`
+  console.log(tr`
 À faire, dans l'ordre (PowerShell **administrateur** pour 1 et 2) :
 
 1. Monter le tunnel du poste, en service (il démarre avec Windows) :
@@ -182,7 +183,7 @@ function nextSteps(state, config) {
 3. Joignabilité : le téléphone doit atteindre ${state.endpoint} en UDP.
    Même Wi-Fi : l'IP locale du poste suffit. Depuis la 4G : redirection du port
    UDP ${port ?? state.port} de la box vers ce poste (ou un réseau d'entreprise qui
-   l'autorise — sinon, voir docs/deploy.md « Si le poste n'est pas joignable »).
+   l'autorise — sinon, voir docs/fr/deploy.md §6 « Si ça ne marche pas »).
 
 4. Le daemon détecte le tunnel tout seul (au besoin : "bindInterface": "${state.name}").
    Dans la PWA, ajouter le poste : http://${state.host.address}:${config.port}, puis l'appairer (npm run pair).
@@ -209,13 +210,13 @@ function parseArgs(argv) {
     else if (a === '--device') out.device = rest[++i]
     else if (a === '--force') out.force = true
     else if (a === '--help' || a === '-h') out.command = 'help'
-    else throw new Error(`option inconnue : ${a}`)
+    else throw new Error(tr`option inconnue : ${a}`)
   }
-  if (!['status', 'init', 'add', 'qr', 'help'].includes(out.command)) throw new Error(`commande inconnue : ${out.command}`)
+  if (!['status', 'init', 'add', 'qr', 'help'].includes(out.command)) throw new Error(tr`commande inconnue : ${out.command}`)
   return out
 }
 
-const USAGE = `zra wireguard — le tunnel entre le poste et le téléphone
+const USAGE = tr`zra wireguard — le tunnel entre le poste et le téléphone
 
   npm run wireguard [-- <commande>] [options]
 
@@ -241,44 +242,44 @@ async function main() {
 
   if (opts.command === 'init') {
     if (state && !opts.force) {
-      throw new Error(`configuration déjà générée dans ${DIR} : \`npm run wireguard -- add <appareil>\` pour un appareil de plus, --force pour tout régénérer (les appareils existants devront rescanner)`)
+      throw new Error(tr`configuration déjà générée dans ${DIR} : \`npm run wireguard -- add <appareil>\` pour un appareil de plus, --force pour tout régénérer (les appareils existants devront rescanner)`)
     }
     state = newState({ endpoint: opts.endpoint, subnet: opts.subnet, port: opts.port, name: opts.name })
     const device = addDevice(state, opts.device || 'telephone')
     await save(state)
-    console.log(`✓ tunnel « ${state.name} » : poste ${state.host.address}, ${device.name} ${device.address}, joignable par ${state.endpoint}`)
-    console.log(`  fichiers dans ${DIR}`)
+    console.log(tr`✓ tunnel « ${state.name} » : poste ${state.host.address}, ${device.name} ${device.address}, joignable par ${state.endpoint}`)
+    console.log(tr`  fichiers dans ${DIR}`)
     showQr(state, device)
     nextSteps(state, config)
     return
   }
 
   if (!state) {
-    console.log(`aucune configuration WireGuard générée — npm run wireguard -- init --endpoint <hôte>`)
+    console.log(tr`aucune configuration WireGuard générée — npm run wireguard -- init --endpoint <hôte>`)
   } else if (opts.command === 'add') {
-    if (!opts.device) throw new Error('nom de l’appareil : npm run wireguard -- add <appareil>')
+    if (!opts.device) throw new Error(tr`nom de l’appareil : npm run wireguard -- add <appareil>`)
     const device = addDevice(state, opts.device)
     await save(state)
-    console.log(`✓ ${device.name} : ${device.address}. Le poste a un pair de plus : réimporter son tunnel —`)
+    console.log(tr`✓ ${device.name} : ${device.address}. Le poste a un pair de plus : réimporter son tunnel —`)
     console.log(`    & "C:\\Program Files\\WireGuard\\wireguard.exe" /uninstalltunnelservice ${state.name}`)
     console.log(`    & "C:\\Program Files\\WireGuard\\wireguard.exe" /installtunnelservice "${join(DIR, `${state.name}.conf`)}"`)
     showQr(state, device)
     return
   } else if (opts.command === 'qr') {
     const device = opts.device ? state.devices.find((d) => d.name === opts.device) : state.devices[0]
-    if (!device) throw new Error(`appareil inconnu : ${opts.device} (connus : ${state.devices.map((d) => d.name).join(', ')})`)
+    if (!device) throw new Error(tr`appareil inconnu : ${opts.device} (connus : ${state.devices.map((d) => d.name).join(', ')})`)
     showQr(state, device)
     return
   } else {
-    console.log(`tunnel « ${state.name} » : poste ${state.host.address}, port UDP ${state.port}, joignable par ${state.endpoint}`)
+    console.log(tr`tunnel « ${state.name} » : poste ${state.host.address}, port UDP ${state.port}, joignable par ${state.endpoint}`)
     for (const d of state.devices) console.log(`  ${d.name} : ${d.address}`)
     const leftovers = readdirSync(DIR).filter((f) => /\.(conf|svg)$/.test(f) && f !== `${state.name}.conf`)
-    if (leftovers.length) console.log(`  ⚠ clés d'appareils encore sur le disque : ${leftovers.join(', ')} — à supprimer une fois scannées`)
+    if (leftovers.length) console.log(tr`  ⚠ clés d'appareils encore sur le disque : ${leftovers.join(', ')} — à supprimer une fois scannées`)
   }
 
   const tunnel = findTunnel(config, listInterfaces())
-  if (tunnel) console.log(`interface du tunnel : ✓ ${tunnel.name} (${tunnel.address}, ${tunnel.how})`)
-  else console.log(`interface du tunnel : ✗ aucune${config.bindInterface ? ` nommée « ${config.bindInterface} »` : ''} — tunnel pas encore monté ?`)
+  if (tunnel) console.log(tr`interface du tunnel : ✓ ${tunnel.name} (${tunnel.address}, ${tunnel.how})`)
+  else console.log(config.bindInterface ? tr`interface du tunnel : ✗ aucune nommée « ${config.bindInterface} » — tunnel pas encore monté ?` : tr`interface du tunnel : ✗ aucune — tunnel pas encore monté ?`)
 
 }
 

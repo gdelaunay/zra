@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url'
 
 import { parseJsonc } from './jsonc.js'
 import { KEYBOARD_BACKENDS, PATHS } from './platform.js'
+import { tr } from './i18n.js'
 
 export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -206,7 +207,7 @@ export async function loadConfig({ file = process.env.ZRA_CONFIG || (UNDER_TEST 
     try {
       fromFile = parseJsonc(await readFile(file, 'utf8'))
     } catch (err) {
-      throw new Error(`zra.config.json illisible (${file}) : ${err.message}`)
+      throw new Error(tr`zra.config.json illisible (${file}) : ${err.message}`)
     }
   }
 
@@ -238,18 +239,18 @@ export async function loadConfig({ file = process.env.ZRA_CONFIG || (UNDER_TEST 
 
 function validate(cfg) {
   if (!Number.isInteger(cfg.port) || cfg.port < 1 || cfg.port > 65535) {
-    throw new Error(`port invalide : ${cfg.port}`)
+    throw new Error(tr`port invalide : ${cfg.port}`)
   }
   if (cfg.tls && (!cfg.tls.cert || !cfg.tls.key)) {
-    throw new Error('tls : "cert" et "key" sont requis ensemble')
+    throw new Error(tr`tls : "cert" et "key" sont requis ensemble`)
   }
   if (!['mock', 'acp', 'uia', 'auto'].includes(cfg.injection)) {
-    throw new Error(`injection inconnue : ${cfg.injection}`)
+    throw new Error(tr`injection inconnue : ${cfg.injection}`)
   }
   if (cfg.zedControl?.recipes && typeof cfg.zedControl.recipes !== 'object') {
-    throw new Error('zedControl.recipes : objet attendu')
+    throw new Error(tr`zedControl.recipes : objet attendu`)
   }
   if (cfg.zedControl && !['auto', ...KEYBOARD_BACKENDS].includes(cfg.zedControl.keyboard)) {
-    throw new Error(`zedControl.keyboard inconnu : ${cfg.zedControl.keyboard} (auto, ${KEYBOARD_BACKENDS.join(', ')})`)
+    throw new Error(tr`zedControl.keyboard inconnu : ${cfg.zedControl.keyboard} (auto, ${KEYBOARD_BACKENDS.join(', ')})`)
   }
 }

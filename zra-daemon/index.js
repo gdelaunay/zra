@@ -12,6 +12,7 @@ import { loadConfig } from './config.js'
 import { startDaemon } from './daemon.js'
 import { setLevel, setLogFile, logger } from './log.js'
 import { TunnelMissingError } from './net.js'
+import { tr } from './i18n.js'
 
 const log = logger('daemon')
 
@@ -36,13 +37,13 @@ function parseArgs(argv) {
     else if (a === '--zed-control-dry-run') out.zedControl = { enabled: true, dryRun: true }
     else if (a === '--verbose') setLevel('debug')
     else if (a === '--help' || a === '-h') { usage(); process.exit(0) }
-    else { console.error(`option inconnue : ${a}`); usage(); process.exit(2) }
+    else { console.error(tr`option inconnue : ${a}`); usage(); process.exit(2) }
   }
   return out
 }
 
 function usage() {
-  console.log(`zra-daemon — passerelle ZRA d'un poste
+  console.log(tr`zra-daemon — passerelle ZRA d'un poste
 
   --port <n>           port d'écoute (défaut 7777)
   --interface <nom>    adaptateur WireGuard à utiliser
@@ -84,12 +85,12 @@ for (const signal of ['SIGINT', 'SIGTERM']) {
   process.on(signal, async () => {
     if (stopping) return
     stopping = true
-    log.info('arrêt…')
+    log.info(tr`arrêt…`)
     await daemon.close()
     process.exit(0)
   })
 }
 
 // Fail-open jusqu'au bout : une erreur isolée ne doit pas tuer le service.
-process.on('unhandledRejection', (err) => log.error('promesse rejetée :', err?.stack || err))
-process.on('uncaughtException', (err) => log.error('exception non rattrapée :', err?.stack || err))
+process.on('unhandledRejection', (err) => log.error(tr`promesse rejetée :`, err?.stack || err))
+process.on('uncaughtException', (err) => log.error(tr`exception non rattrapée :`, err?.stack || err))

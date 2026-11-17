@@ -1,5 +1,7 @@
 // Formatage : dates relatives, chemins abrégés, tailles.
 
+import { tr, locale } from './i18n.js'
+
 const MIN = 60_000, HOUR = 3_600_000, DAY = 86_400_000
 
 /** Date relative compacte, façon sidebar de Zed : "à l'instant", "12 min", "3 h", "hier", "12 sept." */
@@ -9,14 +11,14 @@ export function relTime(value, now = Date.now()) {
   const d = now - t
   // Une date « dans le futur » n'est qu'une horloge de téléphone en retard de
   // quelques secondes sur celle du poste : un thread tout neuf est à l'instant.
-  if (d < 45_000) return "à l'instant"
+  if (d < 45_000) return tr`à l'instant`
   if (d < HOUR) return `${Math.round(d / MIN)} min`
   if (d < DAY) return `${Math.floor(d / HOUR)} h`
-  if (d < 2 * DAY) return 'hier'
-  if (d < 7 * DAY) return `${Math.floor(d / DAY)} j`
+  if (d < 2 * DAY) return tr`hier`
+  if (d < 7 * DAY) return tr`${Math.floor(d / DAY)} j`
   const date = new Date(t)
   const sameYear = new Date(now).getFullYear() === date.getFullYear()
-  return date.toLocaleDateString('fr-FR', {
+  return date.toLocaleDateString(locale, {
     day: 'numeric', month: 'short', ...(sameYear ? {} : { year: 'numeric' }),
   })
 }
@@ -24,7 +26,7 @@ export function relTime(value, now = Date.now()) {
 export function absTime(value) {
   const t = toMs(value)
   if (t === null) return ''
-  return new Date(t).toLocaleString('fr-FR', {
+  return new Date(t).toLocaleString(locale, {
     day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
   })
 }
@@ -62,7 +64,7 @@ export function shortPath(p, segments = 2) {
 
 /** Libellé lisible d'un agent : "claude-acp" -> "Claude". */
 export function agentLabel(agentId) {
-  if (!agentId) return 'agent'
+  if (!agentId) return tr`agent`
   const known = {
     'claude-acp': 'Claude',
     'claude-zra': 'Claude (ZRA)',
@@ -89,7 +91,7 @@ export function baseName(p) {
  */
 export function projectOf(folderPaths) {
   const paths = (Array.isArray(folderPaths) ? folderPaths : []).filter(Boolean)
-  if (!paths.length) return { key: '', name: 'sans projet', folderPaths: [] }
+  if (!paths.length) return { key: '', name: tr`sans projet`, folderPaths: [] }
   const key = paths.map((p) => String(p).replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase()).join('|')
   return { key, name: paths.map(baseName).join(' + '), folderPaths: paths }
 }
@@ -109,7 +111,7 @@ export function formatCost(cost) {
   if (!cost || !Number.isFinite(cost.amount)) return ''
   const fmt = (v) => {
     try {
-      return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: cost.currency || 'USD', currencyDisplay: 'narrowSymbol', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v)
+      return new Intl.NumberFormat(locale, { style: 'currency', currency: cost.currency || 'USD', currencyDisplay: 'narrowSymbol', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v)
     } catch {
       return `${v.toFixed(2)} ${cost.currency || ''}`.trim()
     }

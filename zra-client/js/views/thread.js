@@ -8,6 +8,7 @@ import { renderEntry, blocksPieces, revealBlocks, textLength, messageBody } from
 import { openMenu, toast, switchEl } from '../ui.js'
 import { newSessionButton } from './new-session.js'
 import { settings, update as updateSettings } from '../settings.js'
+import { tr, locale } from '../i18n.js'
 
 /**
  * Au-delà de ce nombre de réglages hors mode/modèle, ils passent tous dans le
@@ -34,8 +35,8 @@ export function ThreadView({ key, navigate }) {
   const machine = store.machineOf(key)
   if (!machine) {
     return {
-      el: h('div.empty', {}, h('div', { text: 'poste inconnu' }),
-        button('btn', { onclick: () => navigate('#/') }, 'Retour')),
+      el: h('div.empty', {}, h('div', { text: tr`poste inconnu` }),
+        button('btn', { onclick: () => navigate('#/') }, tr`Retour`)),
       destroy() {},
     }
   }
@@ -48,7 +49,7 @@ export function ThreadView({ key, navigate }) {
 
   const jump = button('jump.hidden', {
     onclick: () => { stick = true; scrollToEnd(); jump.classList.add('hidden') },
-  }, icon('arrow-down', 'icon--sm'), 'Dernier message')
+  }, icon('arrow-down', 'icon--sm'), tr`Dernier message`)
 
   // Tour en cours : sous le dernier message, une icône de chargement (à choisir
   // plus tard) et la durée du tour. Absent du fil hors tour.
@@ -60,7 +61,7 @@ export function ThreadView({ key, navigate }) {
   const title = h('span.truncate')
   const subtitle = h('span', { title: '' })
   const dot = h('span.dot')
-  const lock = h('span.lock-dot.hidden', { title: 'lecture seule : créé hors ZRA, répondre dans Zed' }, icon('lock', 'icon--sm'))
+  const lock = h('span.lock-dot.hidden', { title: tr`lecture seule : créé hors ZRA, répondre dans Zed` }, icon('lock', 'icon--sm'))
   const agentSlot = h('span.header__agent')
   const pathLabel = h('span.path.truncate')
 
@@ -111,7 +112,7 @@ export function ThreadView({ key, navigate }) {
         machineId: store.splitKey(key).machineId,
         project: () => (st.summary ? projectOf(st.summary.folderPaths) : null),
       }),
-      button('icon-btn', { onclick: overflowMenu, 'aria-label': 'actions' }, icon('settings', 'icon--sm')),
+      button('icon-btn', { onclick: overflowMenu, 'aria-label': tr`actions` }, icon('settings', 'icon--sm')),
     ),
     banner,
     h('div.thread__wrap', {}, feed, jump),
@@ -119,7 +120,7 @@ export function ThreadView({ key, navigate }) {
     h('div.bottombar', {}, modeBtn, modelBtn, optionsSlot, h('span.spacer'),
       // Même boîte que le bouton Envoyer : c'est une action, pas un réglage.
       button('send-btn.send-btn--icon', {
-        title: 'Liste des threads', 'aria-label': 'liste des threads',
+        title: tr`Liste des threads`, 'aria-label': tr`liste des threads`,
         onclick: () => navigate('#/'),
       }, icon('list', 'icon--sm'))),
   )
@@ -190,11 +191,11 @@ export function ThreadView({ key, navigate }) {
     const tl = store.ensureTimeline(key)
     feed.querySelector('.thread__status')?.remove()
     let text = null
-    if (st.historyPending) text = 'chargement de l’historique (session/load)…'
+    if (st.historyPending) text = tr`chargement de l’historique (session/load)…`
     else if (st.historyError) text = st.historyError
     else if (!tl.entries.length) text = st.state === 'live'
-      ? 'thread live, aucun événement pour l’instant'
-      : 'aucun historique'
+      ? tr`thread live, aucun événement pour l’instant`
+      : tr`aucun historique`
     if (text) feed.append(h('div.empty.thread__status', {}, h('span', { text })))
   }
 
@@ -372,12 +373,12 @@ export function ThreadView({ key, navigate }) {
     const m = store.machineOf(key)
     if (st.state === 'live') endReopen()
     let msg = null, level = ''
-    if (m.status === 'locked') { msg = `${m.label} : appairage requis — depuis la liste des threads`; level = 'banner--error' }
-    else if (m.status !== 'online') { msg = `${m.label} hors ligne — reconnexion automatique`; level = 'banner--error' }
-    else if (reopening !== null) msg = 'Zed rouvre le thread…'
-    else if (store.foreignAgent(key)) msg = 'lecture seule : thread créé hors ZRA — répondre dans Zed'
-    else if (st.state === 'closed') msg = 'thread fermé — ta réponse le rouvrira dans Zed'
-    else if (st.state === 'unknown') msg = 'thread sans session : lecture et écriture indisponibles'
+    if (m.status === 'locked') { msg = tr`${m.label} : appairage requis — depuis la liste des threads`; level = 'banner--error' }
+    else if (m.status !== 'online') { msg = tr`${m.label} hors ligne — reconnexion automatique`; level = 'banner--error' }
+    else if (reopening !== null) msg = tr`Zed rouvre le thread…`
+    else if (store.foreignAgent(key)) msg = tr`lecture seule : thread créé hors ZRA — répondre dans Zed`
+    else if (st.state === 'closed') msg = tr`thread fermé — ta réponse le rouvrira dans Zed`
+    else if (st.state === 'unknown') msg = tr`thread sans session : lecture et écriture indisponibles`
     banner.className = `banner ${level} ${msg ? '' : 'hidden'}`.trim()
     clear(banner)
     const waiting = reopening !== null && m.status === 'online'
@@ -402,7 +403,7 @@ export function ThreadView({ key, navigate }) {
     const currentId = kind === 'mode' ? st.currentModeId : st.currentModelId
     if (!list?.length) return
     openMenu(ev.currentTarget, {
-      label: kind === 'mode' ? 'Mode' : 'Modèle',
+      label: kind === 'mode' ? tr`Mode` : tr`Modèle`,
       items: list.map((o) => ({
         label: o.name || o.id,
         on: o.id === currentId,
@@ -412,7 +413,7 @@ export function ThreadView({ key, navigate }) {
   }
 
   function choose(optKey, value) {
-    if (st.turn === 'busy') toast('changement appliqué après le tour en cours', { level: 'warn' })
+    if (st.turn === 'busy') toast(tr`changement appliqué après le tour en cours`, { level: 'warn' })
     store.setOption(key, optKey, value)
   }
 
@@ -425,7 +426,7 @@ export function ThreadView({ key, navigate }) {
     const options = (st.options || []).filter((o) => o.type === 'boolean' || o.type === 'select')
     if (options.length > INLINE_OPTIONS) {
       optionsSlot.append(button('pill', {
-        title: 'Autres réglages', 'aria-label': 'autres réglages', onclick: moreMenu,
+        title: tr`Autres réglages`, 'aria-label': tr`autres réglages`, onclick: moreMenu,
       }, icon('more', 'icon--sm')))
       return
     }
@@ -481,13 +482,13 @@ export function ThreadView({ key, navigate }) {
   function overflowMenu(ev) {
     openMenu(ev.currentTarget, {
       items: [
-        { label: 'Recharger l’historique', icon: 'refresh', onSelect: () => { st.historyComplete = false; store.loadHistory(key) } },
-        { label: settings.showThoughts ? 'Replier les réflexions' : 'Déplier les réflexions', icon: 'lightbulb',
+        { label: tr`Recharger l’historique`, icon: 'refresh', onSelect: () => { st.historyComplete = false; store.loadHistory(key) } },
+        { label: settings.showThoughts ? tr`Replier les réflexions` : tr`Déplier les réflexions`, icon: 'lightbulb',
           onSelect: toggleThoughts },
-        { label: settings.expandTools ? 'Replier les outils' : 'Déplier les outils', icon: 'wrench',
+        { label: settings.expandTools ? tr`Replier les outils` : tr`Déplier les outils`, icon: 'wrench',
           onSelect: () => { updateSettings({ expandTools: !settings.expandTools }); paintAll() } },
         { separator: true },
-        { label: 'Copier l’identifiant du thread', icon: 'copy',
+        { label: tr`Copier l’identifiant du thread`, icon: 'copy',
           onSelect: () => copy(store.splitKey(key).threadId) },
       ],
     })
@@ -555,8 +556,8 @@ function preserveOpen(oldNode, newNode) {
 
 function copy(text) {
   navigator.clipboard?.writeText(text).then(
-    () => toast('copié'),
-    () => toast('copie impossible', { level: 'error' }),
+    () => toast(tr`copié`),
+    () => toast(tr`copie impossible`, { level: 'error' }),
   )
 }
 
@@ -576,11 +577,11 @@ export function dictate(input, { onChange, onActive } = {}) {
   const Rec = window.SpeechRecognition || window.webkitSpeechRecognition
   if (!Rec) {
     input.focus()
-    toast('utilise le micro du clavier de ton téléphone', { level: 'warn' })
+    toast(tr`utilise le micro du clavier de ton téléphone`, { level: 'warn' })
     return
   }
   const rec = new Rec()
-  rec.lang = 'fr-FR'
+  rec.lang = locale
   rec.interimResults = true
   rec.continuous = false
   const base = input.value
@@ -592,14 +593,14 @@ export function dictate(input, { onChange, onActive } = {}) {
     onChange?.()
   }
   rec.onend = () => onActive?.(false)
-  rec.onerror = () => { onActive?.(false); toast('dictée indisponible', { level: 'error' }) }
+  rec.onerror = () => { onActive?.(false); toast(tr`dictée indisponible`, { level: 'error' }) }
   rec.start()
 }
 
 function Composer({ key, onSend, onStop }) {
   const input = h('textarea.composer__input', {
     rows: 1,
-    placeholder: 'Répondre à l’agent…',
+    placeholder: tr`Répondre à l’agent…`,
     enterkeyhint: 'send',
     autocapitalize: 'sentences',
     oninput: () => { autoGrow(); store.setDraft(key, input.value) },
@@ -616,12 +617,12 @@ function Composer({ key, onSend, onStop }) {
 
   const queueBox = h('div.composer__queue')
   // Envoyer ne change jamais : pendant un tour, le message part en file d'attente.
-  const sendBtn = button('send-btn', { onclick: () => send('queue'), title: 'Envoyer (Entrée — Maj+Entrée pour aller à la ligne)' },
-    icon('send', 'icon--sm'), h('span', { text: 'Envoyer' }))
+  const sendBtn = button('send-btn', { onclick: () => send('queue'), title: tr`Envoyer (Entrée — Maj+Entrée pour aller à la ligne)` },
+    icon('send', 'icon--sm'), h('span', { text: tr`Envoyer` }))
   // Stop n'apparaît que pendant un tour : icône seule, à gauche d'Envoyer.
   const stopBtn = button('send-btn.send-btn--icon.send-btn--stop.hidden', {
-    onclick: stop, title: "Interrompre le tour (et envoyer le message en file, s'il y en a un)",
-    'aria-label': 'interrompre',
+    onclick: stop, title: tr`Interrompre le tour (et envoyer le message en file, s'il y en a un)`,
+    'aria-label': tr`interrompre`,
   }, icon('stop', 'icon--sm'))
 
   // Consommation du contexte, comme sous l'éditeur de Zed : « 27k / 1M ».
@@ -675,7 +676,7 @@ function Composer({ key, onSend, onStop }) {
     input.disabled = Boolean(foreign)
     sendBtn.disabled = Boolean(foreign)
     // Le bandeau et le cadenas disent déjà pourquoi : champ grisé, sans texte.
-    input.placeholder = foreign ? '' : 'Répondre à l’agent…'
+    input.placeholder = foreign ? '' : tr`Répondre à l’agent…`
 
     clear(queueBox)
     // Vide, la file ne prend aucune place : marges du composer symétriques.
@@ -685,7 +686,7 @@ function Composer({ key, onSend, onStop }) {
         icon('clock', 'icon--sm'),
         h('span.truncate', { text: q.text }),
         h('span.spacer'),
-        button('icon-btn', { title: 'Annuler', onclick: () => store.cancelQueued(key, q.queueId) },
+        button('icon-btn', { title: tr`Annuler`, onclick: () => store.cancelQueued(key, q.queueId) },
           icon('x', 'icon--sm'))))
     }
   }
@@ -699,10 +700,10 @@ function Composer({ key, onSend, onStop }) {
     usage.textContent = u.size ? `${formatTokens(u.used)} / ${formatTokens(u.size)}` : formatTokens(u.used)
     usage.classList.toggle('usage--warn', ratio !== null && ratio >= 0.8 && ratio < 0.95)
     usage.classList.toggle('usage--full', ratio !== null && ratio >= 0.95)
-    const n = (v) => v.toLocaleString('fr-FR')
+    const n = (v) => v.toLocaleString(locale)
     usage.title = [
-      `contexte : ${n(u.used)}${u.size ? ` / ${n(u.size)}` : ''} tokens${ratio !== null ? ` (${Math.round(ratio * 100)} %)` : ''}`,
-      cost ? `coût de la session : ${cost}` : null,
+      tr`contexte : ${n(u.used) + (u.size ? ` / ${n(u.size)}` : '')} tokens${ratio !== null ? ` (${Math.round(ratio * 100)} %)` : ''}`,
+      cost ? tr`coût de la session : ${cost}` : null,
     ].filter(Boolean).join('\n')
   }
 

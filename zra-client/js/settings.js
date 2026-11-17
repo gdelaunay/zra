@@ -2,6 +2,7 @@
 
 import { emitter } from './dom.js'
 import { THEMES } from './themes.js'
+import { tr } from './i18n.js'
 
 const KEY = 'zra.settings.v2'
 const DEFAULT_THEME = THEMES[0].id
@@ -50,7 +51,7 @@ export function update(patch) {
  * Sans schéma, on prend celui de la page : une PWA servie en HTTPS ne peut
  * ouvrir qu'un `wss://` (contenu mixte bloqué). Sans port : en HTTP celui du
  * daemon, 7777 ; en HTTPS le port standard, 443 — le daemon est alors derrière
- * un reverse proxy (docs/deploy.md §4). Un port explicite est toujours respecté.
+ * un reverse proxy (docs/fr/deploy.md §4). Un port explicite est toujours respecté.
  */
 export function normalizeUrl(input, pageProtocol = globalThis.location?.protocol) {
   let s = String(input || '').trim()
@@ -66,8 +67,8 @@ export function normalizeUrl(input, pageProtocol = globalThis.location?.protocol
 
 export function addMachine(input, label) {
   const url = normalizeUrl(input)
-  if (!url) return { error: 'adresse invalide' }
-  if (settings.machines.some((m) => m.url === url)) return { error: 'poste déjà enregistré' }
+  if (!url) return { error: tr`adresse invalide` }
+  if (settings.machines.some((m) => m.url === url)) return { error: tr`poste déjà enregistré` }
   const machine = { id: `m${Date.now().toString(36)}`, url, label: label || hostLabel(url) }
   update({ machines: [...settings.machines, machine] })
   return { machine }
@@ -117,7 +118,7 @@ export function originMachine() {
   return {
     id: 'origin',
     url: `${location.protocol}//${location.hostname}:7777`,
-    label: local ? 'ce poste' : location.hostname,
+    label: local ? tr`ce poste` : location.hostname,
     implicit: true,
   }
 }

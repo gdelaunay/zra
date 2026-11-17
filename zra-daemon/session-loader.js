@@ -18,6 +18,7 @@
 import { resolveAgentCommand } from './agent-commands.js'
 import { AcpClient } from './acp-client.js'
 import { logger } from './log.js'
+import { tr } from './i18n.js'
 
 const log = logger('history')
 
@@ -77,8 +78,8 @@ export class SessionLoader {
    */
   async load(threadId, { refresh = false } = {}) {
     const thread = this.threads.get(threadId)
-    if (!thread) throw new HistoryError('unknown_thread', 'thread inconnu de cet index')
-    if (!thread.sessionId) throw new HistoryError('no_session', 'thread sans session : historique indisponible')
+    if (!thread) throw new HistoryError('unknown_thread', tr`thread inconnu de cet index`)
+    if (!thread.sessionId) throw new HistoryError('no_session', tr`thread sans session : historique indisponible`)
 
     if (!refresh) {
       const hit = this.cached(thread)
@@ -97,7 +98,7 @@ export class SessionLoader {
   async replay(thread) {
     const cwd = thread.folderPaths?.[0]
     if (!cwd) {
-      throw new HistoryError('history_unavailable', "dossier du thread inconnu : impossible de relancer l'agent")
+      throw new HistoryError('history_unavailable', tr`dossier du thread inconnu : impossible de relancer l'agent`)
     }
 
     let agent
@@ -110,7 +111,7 @@ export class SessionLoader {
       throw new HistoryError('history_unavailable', err.message)
     }
 
-    log.info(`relecture de ${thread.threadId} (${thread.agentId}) dans ${cwd}`)
+    log.info(tr`relecture de ${thread.threadId} (${thread.agentId}) dans ${cwd}`)
     const client = new AcpClient({ command: agent.command, args: agent.args, cwd, env: agent.env })
     /** @type {object[]} */
     const updates = []
@@ -130,7 +131,9 @@ export class SessionLoader {
       if (!init?.agentCapabilities?.loadSession) {
         throw new HistoryError(
           'no_load_session',
-          `l'agent ${thread.agentId ?? ''} ne sait pas relire une session (capacité loadSession absente)`.trim(),
+          thread.agentId
+            ? tr`l'agent ${thread.agentId} ne sait pas relire une session (capacité loadSession absente)`
+            : tr`l'agent ne sait pas relire une session (capacité loadSession absente)`,
         )
       }
 
@@ -144,20 +147,20 @@ export class SessionLoader {
       }
       const payload = { updates, complete: true }
       this.remember(thread, payload)
-      log.info(`relecture de ${thread.threadId} : ${updates.length} événement(s)`)
+      log.info(tr`relecture de ${thread.threadId} : ${updates.length} événement(s)`)
       return payload
     } catch (err) {
       if (err instanceof HistoryError) throw err
       // Replay interrompu : ce qu'on a déjà collecté vaut mieux que rien, et la
       // PWA sait afficher un historique partiel (`complete: false`).
       if (updates.length) {
-        log.warn(`relecture partielle de ${thread.threadId} : ${err.message}`)
+        log.warn(tr`relecture partielle de ${thread.threadId} : ${err.message}`)
         const payload = { updates, complete: false }
         this.remember(thread, payload)
         return payload
       }
       const detail = client.stderr.trim().split('\n').at(-1)
-      throw new HistoryError('history_unavailable', `relecture impossible : ${err.message}${detail ? ` — ${detail}` : ''}`)
+      throw new HistoryError('history_unavailable', tr`relecture impossible : ${err.message}${detail ? ` — ${detail}` : ''}`)
     } finally {
       clearTimeout(guard)
       client.kill()

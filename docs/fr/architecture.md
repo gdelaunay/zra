@@ -2,7 +2,7 @@
 
 ZRA (Zed Remote Agent) permet de suivre et de piloter depuis un téléphone les threads d'agents ACP ouverts dans l'éditeur Zed : liste des threads, flux en direct, envoi de messages, réponses aux permissions, ouverture d'une session.
 
-Le détail est ailleurs : `docs/protocol.md` (protocole PWA ↔ daemon), `docs/deploy.md` (mise en service), `docs/daemon.md`, `docs/shim.md`, `docs/client.md` (un composant chacun).
+Le détail est ailleurs : `docs/fr/protocol.md` (protocole PWA ↔ daemon), `docs/fr/deploy.md` (mise en service), `docs/fr/daemon.md`, `docs/fr/shim.md`, `docs/fr/client.md` (un composant chacun).
 
 ## Principe
 
@@ -57,7 +57,7 @@ flowchart LR
 ### PWA ↔ daemon : HTTP et WebSocket `/ws`
 
 - Même port pour tout (7777 par défaut). HTTP sert `zra-client/` (`zra-daemon/static.js`).
-- WebSocket : protocole décrit dans `docs/protocol.md`. `zra-daemon/hub.js` est le seul module qui connaît les clients.
+- WebSocket : protocole décrit dans `docs/fr/protocol.md`. `zra-daemon/hub.js` est le seul module qui connaît les clients.
 - Les événements ACP sont rediffusés tels quels dans des `acp_event` numérotés (`seq`). Un tampon circulaire par thread (`zra-daemon/ring-buffer.js`, 2 000 événements) permet de reprendre après une coupure.
 - Routes HTTP réservées à la loopback : `/status`, `/pair`, `/pair/rotate`, `/pair/revoke` (utilisées par `npm run setup` et `npm run pair`).
 
@@ -159,8 +159,8 @@ Tranchées, à ne pas rediscuter sans fait nouveau :
 - **Historique** : `session/load`, jamais de lecture d'un format propriétaire d'agent.
 - **Injection** : `acp` seul supporté ; `uia`, `auto` et `wireguard` gardés comme expérimentaux.
 - **Enregistrement des trames** : désactivé par défaut, `npm run setup -- install --record` pour le débogage.
-- **Flatpak / Snap** : non supportés (`docs/limitations.md`).
-- **`-ExecutionPolicy Bypass`** : conservé, limité au processus lancé (`docs/deploy.md` §5).
+- **Flatpak / Snap** : non supportés (`docs/fr/limitations.md`).
+- **`-ExecutionPolicy Bypass`** : conservé, limité au processus lancé (`docs/fr/deploy.md` §5).
 
 ## Vérifier une machine
 
@@ -173,14 +173,14 @@ Sur un nouveau poste, après une mise à jour de Zed ou avec un nouvel agent. Da
 5. Un message envoyé depuis la PWA part, s'affiche des deux côtés ; un thread fermé s'ouvre avec son historique.
 6. Dans un thread live : file pendant un tour, Stop, mode et modèle, permission tranchée depuis la PWA puis depuis Zed.
 7. Pilotage de Zed : `npm run zed -- probe`, le **+** d'un projet, la réouverture d'un thread fermé (`npm run zed -- try <recette>` pour mettre au point).
-8. Téléphone (`docs/deploy.md`) : appairage, révocation, tunnel, changement de réseau, service, HTTPS.
+8. Téléphone (`docs/fr/deploy.md`) : appairage, révocation, tunnel, changement de réseau, service, HTTPS.
 
 ## Par où commencer
 
 | Pour comprendre… | Lire |
 |---|---|
 | Le démarrage et le câblage du daemon | `zra-daemon/index.js`, `zra-daemon/daemon.js` |
-| Le protocole côté serveur | `zra-daemon/hub.js`, avec `docs/protocol.md` |
+| Le protocole côté serveur | `zra-daemon/hub.js`, avec `docs/fr/protocol.md` |
 | Le relais et l'injection ACP | `zra-shim/index.js`, `zra-shim/acp.js` |
 | L'état d'un thread côté client | `zra-client/js/store.js`, `zra-client/js/acp.js` |
 | Le rendu | `zra-client/js/views/thread.js`, `views/entry.js`, `markdown.js` |

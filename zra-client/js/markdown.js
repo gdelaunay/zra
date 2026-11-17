@@ -9,6 +9,7 @@
 // ne gèle pas le rendu.
 
 import { escapeHtml } from './dom.js'
+import { tr } from './i18n.js'
 
 const SAFE_URL = /^(https?:|mailto:|tel:|#|\/|\.\/|\.\.\/)/i
 
@@ -19,7 +20,7 @@ const MAX_LINK_TEXT = 1_000
 const MAX_LINK_URL = 4_096
 
 function bounded(text) {
-  return text.length > MAX_BLOCK ? `${text.slice(0, MAX_BLOCK)}\n…(bloc tronqué)` : text
+  return text.length > MAX_BLOCK ? text.slice(0, MAX_BLOCK) + tr`\n…(bloc tronqué)` : text
 }
 
 /**

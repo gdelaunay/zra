@@ -12,6 +12,7 @@
 // vivent dans le shim, seul à voir le trafic réel.
 
 import { InjectionError } from './backend.js'
+import { tr } from '../i18n.js'
 
 export class AcpBackend {
   /**
@@ -34,8 +35,8 @@ export class AcpBackend {
   /** @returns {string} le `session_id` ACP d'un thread, ou une erreur du protocole. */
   session(threadId) {
     const thread = this.threads.get(threadId)
-    if (!thread) throw new InjectionError('unknown_thread', 'thread inconnu de cet index')
-    if (!thread.sessionId) throw new InjectionError('no_session', "thread sans session : impossible d'y écrire")
+    if (!thread) throw new InjectionError('unknown_thread', tr`thread inconnu de cet index`)
+    if (!thread.sessionId) throw new InjectionError('no_session', tr`thread sans session : impossible d'y écrire`)
     return thread.sessionId
   }
 
@@ -46,7 +47,7 @@ export class AcpBackend {
       return await this.host.command(sessionId, cmd, payload)
     } catch (err) {
       if (err instanceof InjectionError) throw err
-      throw new InjectionError(err?.code || 'inject_failed', err?.message || 'injection refusée')
+      throw new InjectionError(err?.code || 'inject_failed', err?.message || tr`injection refusée`)
     }
   }
 

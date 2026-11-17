@@ -21,6 +21,7 @@ import { EventEmitter } from 'node:events'
 
 import { encodeFrame, idKey } from './framing.js'
 import { Sessions } from './queue.js'
+import { tr } from '../zra-daemon/i18n.js'
 
 /** Méthodes ACP utilisées par le shim. Le reste passe sans être interprété. */
 export const M = {
@@ -37,7 +38,7 @@ export const M = {
   terminalWaitForExit: 'terminal/wait_for_exit',
 }
 
-/** Erreur portant un code du protocole ZRA (`docs/protocol.md` §4). */
+/** Erreur portant un code du protocole ZRA (`docs/fr/protocol.md` §4). */
 export class ShimError extends Error {
   constructor(code, message) {
     super(message)
@@ -239,7 +240,7 @@ export class AcpBridge extends EventEmitter {
    */
   noteDesktopPermission(k, msg, pending) {
     if (pending.mobileResponse) {
-      this.log?.debug(`permission ${k} déjà tranchée depuis le mobile : réponse du poste avalée`)
+      this.log?.debug(tr`permission ${k} déjà tranchée depuis le mobile : réponse du poste avalée`)
       return 'drop'
     }
     const perm = this.permissions.get(k)
@@ -285,7 +286,7 @@ export class AcpBridge extends EventEmitter {
     const mine = this.injected.get(k)
     if (mine) {
       this.injected.delete(k)
-      try { mine.settle(msg) } catch (err) { this.log?.warn('injection :', err.message) }
+      try { mine.settle(msg) } catch (err) { this.log?.warn(tr`injection :`, err.message) }
       return 'drop'
     }
 
@@ -494,7 +495,7 @@ export class AcpBridge extends EventEmitter {
         method: 'session/update',
         params: { sessionId, update: { sessionUpdate: 'user_message_chunk', content: block, _meta: { zra: { synthetic: true, origin: 'mobile' } } } },
       }
-      try { this.toZed(encodeFrame(msg)) } catch (err) { this.log?.warn('écho vers Zed impossible :', err.message) }
+      try { this.toZed(encodeFrame(msg)) } catch (err) { this.log?.warn(tr`écho vers Zed impossible :`, err.message) }
     }
   }
 
@@ -533,7 +534,7 @@ export class AcpBridge extends EventEmitter {
         method,
         params,
         settle: (msg) => {
-          if (msg.error) reject(new ShimError('inject_failed', msg.error.message || `${method} refusé par l'agent`))
+          if (msg.error) reject(new ShimError('inject_failed', msg.error.message || tr`${method} refusé par l'agent`))
           else resolve(msg.result ?? null)
         },
       })
@@ -541,14 +542,14 @@ export class AcpBridge extends EventEmitter {
         this.write({ jsonrpc: '2.0', id, method, params })
       } catch (err) {
         this.injected.delete(k)
-        reject(new ShimError('inject_failed', `envoi impossible : ${err.message}`))
+        reject(new ShimError('inject_failed', tr`envoi impossible : ${err.message}`))
       }
     })
   }
 
   requireSession(sessionId) {
     if (!sessionId || !this.sessions.has(sessionId)) {
-      throw new ShimError('inject_failed', "session inconnue de ce shim : l'agent ne l'a pas ouverte")
+      throw new ShimError('inject_failed', tr`session inconnue de ce shim : l'agent ne l'a pas ouverte`)
     }
     return this.sessions.get(sessionId)
   }
@@ -611,13 +612,13 @@ export class AcpBridge extends EventEmitter {
       if (await this.waitIdle(sessionId, this.cancelTimeoutMs)) {
         // Le fil doit dire ce qui vient de se passer : l'agent, lui, ne produit
         // qu'un tour clos en « cancelled », que la PWA ne saurait pas nommer.
-        this.notice(sessionId, 'tour interrompu', 'warn')
+        this.notice(sessionId, tr`tour interrompu`, 'warn')
         return true
       }
       this.log?.warn(
-        `interruption : pas d'acquittement en ${this.cancelTimeoutMs} ms, tour clos d'office`,
+        tr`interruption : pas d'acquittement en ${this.cancelTimeoutMs} ms, tour clos d'office`,
       )
-      this.forceIdle(sessionId, "l'agent n'a pas acquitté l'interruption : tour clos")
+      this.forceIdle(sessionId, tr`l'agent n'a pas acquitté l'interruption : tour clos`)
       return false
     } finally {
       st.holdQueue = false
@@ -646,17 +647,17 @@ export class AcpBridge extends EventEmitter {
       clearTimeout(waiter.timer)
       waiter.resolve(false)
     }
-    const text = queued ? `${reason} — ${queued} message(s) en attente conservé(s)` : reason
-    this.notice(sessionId, `${text}. Rouvre le thread dans Zed pour relancer l'agent`, 'warn')
+    const text = queued ? tr`${reason} — ${queued} message(s) en attente conservé(s)` : reason
+    this.notice(sessionId, tr`${text}. Rouvre le thread dans Zed pour relancer l'agent`, 'warn')
     return true
   }
 
   /** Le garde-fou a repéré un tour que l'agent ne referme pas : on le clos. */
   noteStalled(sessionId, { silentFor }) {
     const s = Math.round(silentFor / 1000)
-    this.log?.warn(`session ${sessionId} : agent muet depuis ${s} s, tour clos d'office`)
+    this.log?.warn(tr`session ${sessionId} : agent muet depuis ${s} s, tour clos d'office`)
     const mins = Math.round(silentFor / 60_000)
-    this.forceIdle(sessionId, `l'agent ne répond plus depuis ${mins > 0 ? `${mins} min` : `${s} s`}`)
+    this.forceIdle(sessionId, tr`l'agent ne répond plus depuis ${mins > 0 ? `${mins} min` : `${s} s`}`)
   }
 
   /** @returns {Promise<boolean>} vrai si le tour s'est clos, faux sur timeout. */
@@ -697,7 +698,7 @@ export class AcpBridge extends EventEmitter {
         // sien.
         if (!this.sessions.isPending(sessionId, k)) return
         if (msg.error) {
-          const message = msg.error.message || 'prompt refusé'
+          const message = msg.error.message || tr`prompt refusé`
           // Qui attend un verdict en est informé directement : c'est lui qui
           // décide de la suite (repli clavier), un avis serait redondant.
           if (!this.confirm(sessionId, false, message)) this.emit('prompt_failed', { sessionId, message })
@@ -716,7 +717,7 @@ export class AcpBridge extends EventEmitter {
       this.injected.delete(k)
       this.confirm(sessionId, false, err.message)
       this.settlePrompt(sessionId, k)
-      throw new ShimError('inject_failed', `envoi impossible : ${err.message}`)
+      throw new ShimError('inject_failed', tr`envoi impossible : ${err.message}`)
     }
     return verdict ?? Promise.resolve()
   }
@@ -740,7 +741,7 @@ export class AcpBridge extends EventEmitter {
     this.confirming.delete(sessionId)
     clearTimeout(waiter.timer)
     if (ok) waiter.resolve(true)
-    else waiter.reject(new ShimError('prompt_refused', `l'agent a refusé le message : ${message}`))
+    else waiter.reject(new ShimError('prompt_refused', tr`l'agent a refusé le message : ${message}`))
     return true
   }
 
@@ -790,7 +791,7 @@ export class AcpBridge extends EventEmitter {
   flushOptions(sessionId) {
     for (const { key, value } of this.sessions.takeOptions(sessionId)) {
       this.applyOption(sessionId, key, value)
-        .catch((err) => this.log?.warn(`option ${key} non appliquée :`, err.message))
+        .catch((err) => this.log?.warn(tr`option ${key} non appliquée :`, err.message))
     }
   }
 
@@ -803,14 +804,14 @@ export class AcpBridge extends EventEmitter {
   respondPermission(sessionId, requestId, optionId) {
     const perm = this.permissions.get(requestId)
     if (!perm || perm.sessionId !== sessionId) {
-      throw new ShimError('permission_expired', 'demande de permission inconnue ou déjà tranchée')
+      throw new ShimError('permission_expired', tr`demande de permission inconnue ou déjà tranchée`)
     }
     if (perm.resolvedBy) {
-      const who = perm.resolvedBy === 'desktop' ? 'poste' : 'mobile'
-      throw new ShimError('permission_expired', `demande déjà tranchée depuis le ${who}`)
+      const desktop = perm.resolvedBy === 'desktop'
+      throw new ShimError('permission_expired', desktop ? tr`demande déjà tranchée depuis le poste` : tr`demande déjà tranchée depuis le mobile`)
     }
     if (!perm.options?.some((o) => o.optionId === optionId)) {
-      throw new ShimError('permission_expired', "cette option n'est pas proposée par l'agent")
+      throw new ShimError('permission_expired', tr`cette option n'est pas proposée par l'agent`)
     }
 
     perm.resolvedBy = 'mobile'

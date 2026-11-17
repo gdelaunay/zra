@@ -10,6 +10,7 @@ import {
   fullTurn, shortTurn, longTurn, permissionScenario, permissionFollowUp, unknownScenario,
   userChunk,
 } from './scenarios.js'
+import { tr } from '../i18n.js'
 
 // Libellés renvoyés avec `permission_resolved`, comme le ferait un vrai daemon
 // qui relit les `options` de l'agent.
@@ -103,14 +104,14 @@ export class MockLink {
         break
       case 'load_history': {
         if (!t || !t.sessionId) {
-          this.push({ type: 'error', code: 'no_session', message: "thread sans session_id : historique indisponible", threadId: msg.threadId })
+          this.push({ type: 'error', code: 'no_session', message: tr`thread sans session_id : historique indisponible`, threadId: msg.threadId })
           return
         }
         if (t.agentId === 'gemini-acp') {
           // Risque §12.2 : agent sans capacité loadSession.
           this.later(500, () => this.push({
             type: 'error', code: 'no_load_session',
-            message: "historique indisponible pour cet agent (capacité loadSession absente)",
+            message: tr`historique indisponible pour cet agent (capacité loadSession absente)`,
             threadId: msg.threadId,
           }))
           return
@@ -125,7 +126,7 @@ export class MockLink {
         const st = this.turnOf(msg.threadId)
         if (msg.mode === 'interrupt' && st.turn === 'busy') {
           this.cancel(msg.threadId)
-          this.pushEvent(msg.threadId, { sessionUpdate: 'zra/notice', text: 'tour interrompu', level: 'warn' })
+          this.pushEvent(msg.threadId, { sessionUpdate: 'zra/notice', text: tr`tour interrompu`, level: 'warn' })
           // L'envoi différé est suivi comme le reste du tour : un nouveau scénario
           // lancé entre-temps doit pouvoir l'annuler.
           st.timers.push(this.later(200, () => this.deliver(msg.threadId, msg.text)))
@@ -142,7 +143,7 @@ export class MockLink {
         const st = this.turnOf(msg.threadId)
         if (st.turn !== 'busy') return
         this.cancel(msg.threadId)
-        this.pushEvent(msg.threadId, { sessionUpdate: 'zra/notice', text: 'tour interrompu', level: 'warn' })
+        this.pushEvent(msg.threadId, { sessionUpdate: 'zra/notice', text: tr`tour interrompu`, level: 'warn' })
         break
       }
 
@@ -153,7 +154,7 @@ export class MockLink {
           threadId: `n${Math.random().toString(36).slice(2, 10)}`,
           sessionId: `sess-${Math.random().toString(36).slice(2, 8)}`,
           agentId: agent.id,
-          title: 'Nouveau thread',
+          title: tr`Nouveau thread`,
           // Le projet du « + » ; à défaut, celui du thread le plus récent.
           folderPaths: Array.isArray(msg.folderPaths) && msg.folderPaths.length ? msg.folderPaths : (this.threads[0]?.folderPaths || []),
           updatedAt: new Date().toISOString(),
@@ -176,7 +177,7 @@ export class MockLink {
         this.pushEvent(msg.threadId, msg.key === 'mode'
           ? { sessionUpdate: 'current_mode_update', currentModeId: msg.value }
           : msg.key === 'model'
-            ? { sessionUpdate: 'zra/notice', text: `modèle : ${MODELS.find((m) => m.id === msg.value)?.name || msg.value}` }
+            ? { sessionUpdate: 'zra/notice', text: tr`modèle : ${MODELS.find((m) => m.id === msg.value)?.name || msg.value}` }
             : { sessionUpdate: 'zra/notice', text: `${msg.key} : ${String(msg.value)}` })
         break
       }
@@ -186,7 +187,7 @@ export class MockLink {
       case 'respond_permission': {
         const perm = this.pendingPerms.get(msg.requestId)
         if (!perm) {
-          this.push({ type: 'error', code: 'permission_expired', message: 'demande déjà tranchée', threadId: msg.threadId })
+          this.push({ type: 'error', code: 'permission_expired', message: tr`demande déjà tranchée`, threadId: msg.threadId })
           return
         }
         this.pendingPerms.delete(msg.requestId)
@@ -212,7 +213,7 @@ export class MockLink {
         break
       }
       default:
-        this.push({ type: 'error', code: 'unknown_message', message: `message inconnu : ${msg.type}` })
+        this.push({ type: 'error', code: 'unknown_message', message: tr`message inconnu : ${msg.type}` })
     }
   }
 
@@ -271,11 +272,11 @@ export class MockLink {
       }
       case 'unknown': this.play(id, unknownScenario()); break
       case 'error':
-        this.push({ type: 'error', code: 'inject_failed', message: "injection refusée par l'agent (repli UIA disponible)", threadId: id })
+        this.push({ type: 'error', code: 'inject_failed', message: tr`injection refusée par l'agent (repli UIA disponible)`, threadId: id })
         break
       case 'offline':
         this.setStatus('offline')
-        this.lastError = 'poste injoignable (simulé)'
+        this.lastError = tr`poste injoignable (simulé)`
         this.later(4000, () => { this.lastError = null; this.setStatus('online'); this.push({ type: 'threads', threads: this.threads }) })
         break
       case 'shim-lost': {
@@ -283,7 +284,7 @@ export class MockLink {
         if (t) { t.state = 'closed'; this.turnOf(id).queue = [] }
         this.push({ type: 'threads', threads: this.threads })
         this.pushState(id)
-        this.pushEvent(id, { sessionUpdate: 'zra/notice', level: 'warn', text: "Zed a fermé l'agent : file d'attente perdue" })
+        this.pushEvent(id, { sessionUpdate: 'zra/notice', level: 'warn', text: tr`Zed a fermé l'agent : file d'attente perdue` })
         break
       }
       case 'shim-back': {
@@ -298,7 +299,7 @@ export class MockLink {
         const t = {
           threadId: `new${n}${Math.random().toString(36).slice(2, 6)}`,
           sessionId: `sess-new-${n}`, agentId: 'claude-zra',
-          title: `Thread ouvert depuis Zed #${n}`,
+          title: tr`Thread ouvert depuis Zed #${n}`,
           folderPaths: this.threads[0].folderPaths,
           updatedAt: new Date().toISOString(), archived: false, state: 'live',
         }
