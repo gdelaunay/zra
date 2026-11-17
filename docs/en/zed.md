@@ -28,7 +28,7 @@ What ZRA depends on in Zed, and where to check it in its sources. Used for the c
 
 ## Mapping
 
-**Status** of the rows: **verified** (read in the sources of the reference version), **observed** (seen on a machine, not yet reread in the sources), **to check** (source located, not yet reread), **to audit** (the PWA imitates Zed, the gap remains to be measured).
+**Status** of the rows: **verified** (read in the sources of the reference version), **observed** (seen on a machine, not yet reread in the sources), **to check** (source located, not yet reread), **gap** (checked, differs from Zed: see `ISSUES.md`), **to audit** (the PWA imitates Zed, the gap remains to be measured).
 
 ### Zed data and files
 
@@ -40,7 +40,7 @@ What ZRA depends on in Zed, and where to check it in its sources. Used for the c
 | Zed CLI per channel: `Programs\Zed Preview\bin\zed.exe`, `~/.local/zed-preview.app/bin/zed`… | `zra-daemon/platform.js` (`zedCliCandidates`) | `script/bundle-windows.ps1`, `script/install.sh` | verified |
 | Installed registry agents: `external_agents/registry` | `zra-daemon/agent-commands.js` | `crates/paths/src/paths.rs`: `external_agents_dir`; `crates/project/src/agent_server_store.rs` (`.join("registry")`) | verified |
 | `agent_servers` entries in `settings.json`: ZRA writes `type: "custom"` (`command`, `args`, `env`, `default_config_options`), also reads `type: "registry"` | `scripts/setup.mjs` (`buildEntry`), `zra-daemon/zed-settings.js` | `crates/settings_content/src/agent.rs`: `CustomAgentServerSettings` | verified |
-| `settings.json`, `keymap.json` paths | `zra-daemon/platform.js` | `crates/paths/src/paths.rs` | observed |
+| `settings.json`, `keymap.json` paths | `zra-daemon/platform.js` | `crates/paths/src/paths.rs`: `settings_file`, `keymap_file` | verified |
 
 ### Keyboard and window
 
@@ -50,8 +50,8 @@ What ZRA depends on in Zed, and where to check it in its sources. Used for the c
 | `openThread` recipe: palette `multi workspace: focus workspace sidebar` | `zra-daemon/zed/driver.js` | `crates/workspace/src/multi_workspace.rs`: action `FocusWorkspaceSidebar`; label: `crates/command_palette/src/command_palette.rs` (`humanize_action_name`) | verified |
 | `newThread` recipe (fallback): palette `agent: new thread` | `zra-daemon/zed/driver.js` | `crates/agent_ui/src/agent_ui.rs`: `NewThread` | verified |
 | Default keys cited by the driver (`ctrl-shift-p`, `ctrl-n`, `ctrl-f`…) | `zra-daemon/zed/driver.js` | `assets/keymaps/default-windows.json`, `default-linux.json` | verified |
-| Sidebar filter: typing then `enter` opens the first result | `zra-daemon/zed/driver.js` | `crates/sidebar/src/sidebar.rs` | observed |
-| Window recognized by its title ("project — file") | `zra-daemon/zed/keyboard.ps1` | `crates/workspace/src/workspace.rs` (window title) | observed |
+| Sidebar filter: typing then `enter` opens the first result | `zra-daemon/zed/driver.js` | `crates/sidebar/src/sidebar.rs`: `select_first_entry`, `confirm`; fuzzy filter | gap |
+| Window recognized by its title ("project — file") | `zra-daemon/zed/keyboard.ps1` | `crates/workspace/src/workspace.rs`: `apply_window_title`; default format in `assets/settings/default.json` (`window_title_format`) | gap if customized |
 
 ### ACP
 
@@ -59,8 +59,9 @@ What ZRA depends on in Zed, and where to check it in its sources. Used for the c
 |---|---|---|---|
 | Relaying and observing ACP v1 | `zra-shim/acp.js` | `crates/agent_servers/src/acp.rs`: `connect`; `crates/agent_servers/src/acp/v1.rs`. Crate `agent-client-protocol` 5.0.0 (`Cargo.toml`) | verified |
 | ACP v2 | not handled | `crates/agent_servers/src/acp/v2.rs`, tried first when the `AcpBetaFeatureFlag` flag is on, falls back to v1 | verified |
-| Permissions: the shim answers instead of Zed | `zra-shim/acp.js` | `crates/agent_servers/src/acp/v1.rs` (`request_permission`); `crates/acp_thread/` | to check |
-| Mobile message shown in Zed (synthetic `user_message_chunk`) | `zra-shim/acp.js` | `crates/acp_thread/src/acp_thread.rs` (handling of `session/update`) | to check |
+| Permissions: the shim answers instead of Zed | `zra-shim/acp.js` | `crates/agent_servers/src/acp/v1.rs` (`handle_request_permission`); `crates/acp_thread/src/acp_thread.rs` (`apply_reported_status`) | gap |
+| Mobile message shown in Zed (synthetic `user_message_chunk`) | `zra-shim/acp.js` | `crates/acp_thread/src/acp_thread.rs`: `handle_session_update`, `push_user_content_block_from_agent` | verified |
+| Turn started from the mobile, as seen by Zed | `zra-shim/acp.js` | `crates/acp_thread/src/acp_thread.rs`: `uses_reported_activity`, `status` | gap |
 
 ### Interface: PWA ↔ agent panel
 
