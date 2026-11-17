@@ -17,12 +17,15 @@ Fait → effet → à faire. Une issue acceptée (on ne fera rien) part dans
 ## Licence — `priorité`
 
 Pas de `LICENSE`, `package.json` en `"private": true` sans champ `license` : un
-dépôt public resterait « tous droits réservés ». Le client embarque aussi des
-éléments repris du dépôt de Zed : thèmes (`scripts/gen-themes.mjs`) et icônes
-de marques d'agents (`scripts/gen-agent-icons.mjs`).
+dépôt public resterait « tous droits réservés ». Thèmes et icônes Lucide sont
+attribués (`THIRD_PARTY_NOTICES.md`). Restent les icônes de marques d'agents
+(`zra-client/js/agent-icons.js`, `scripts/gen-agent-icons.mjs`) : les
+`assets/icons/ai_*.svg` de Zed ne sont couverts par aucune licence propre aux
+icônes, donc par celle du dépôt de Zed (GPL-3.0), et les logos restent des
+marques de leurs propriétaires.
 → Choisir une licence (MIT la plus simple), l'ajouter avec le champ `license`
-de `package.json`, et vérifier la licence des thèmes et icônes de Zed
-(attribution, ou retrait des icônes de marques).
+de `package.json`. Icônes de marques : les retirer, ou les prendre à une source
+sous licence permissive.
 
 ## Performance sur téléphone non mesurée — `à faire`
 

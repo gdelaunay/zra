@@ -99,6 +99,7 @@ function main() {
   const out = [
     '/* Généré par scripts/gen-themes.mjs — ne pas éditer à la main.',
     ' * Source : thèmes officiels Zed (zed-industries/zed, assets/themes/).',
+    ' * Ayu, Gruvbox, One : licence MIT, voir THIRD_PARTY_NOTICES.md.',
     ' * Les noms de variables reprennent les tokens de thème de Zed :',
     ' *   `element.hover` -> `--element-hover`, `syntax.keyword` -> `--syntax-keyword`.',
     ' */',

@@ -1,4 +1,5 @@
 // Jeu d'icônes, trait 1.6px sur grille 24 — même famille que celles de Zed (Lucide).
+// Tracés en partie repris de Lucide : licence ISC, voir THIRD_PARTY_NOTICES.md.
 // Les icônes d'agents (Claude, Gemini, …) viennent de Zed : voir agent-icons.js.
 
 import { AGENT_GLYPHS } from './agent-icons.js'
