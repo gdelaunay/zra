@@ -34,53 +34,59 @@ Ce dont ZRA dépend dans Zed, et où le vérifier dans ses sources. Sert à l'au
 
 | ZRA | Côté ZRA | Côté Zed | État |
 |---|---|---|---|
-| Index des threads : colonnes requises `thread_id`, `session_id`, `agent_id`, `title`, `updated_at` ; facultatives `created_at`, `folder_paths`, `folder_paths_order`, `archived`, `interacted_at`, `title_override` | `zra-daemon/threads-index.js` | `crates/agent_ui/src/thread_metadata_store.rs` : `ThreadMetadataDb::MIGRATIONS` (schéma), `LIST_QUERY` | vérifié |
-| Projets ouverts : `kv_store` clé `session_id`, puis `workspaces` (`paths`, `paths_order`, `session_id`, `remote_connection_id`) | `zra-daemon/threads-index.js` | `crates/session/src/session.rs` (`SESSION_ID_KEY`), `crates/workspace/src/persistence.rs` (migrations de `workspaces`) | vérifié |
+| Index des threads : colonnes requises `thread_id`, `session_id`, `agent_id`, `title`, `updated_at` ; facultatives `created_at`, `folder_paths`, `folder_paths_order`, `archived`, `interacted_at`, `title_override`. Non lues : `main_worktree_paths(_order)`, `remote_connection` | `zra-daemon/threads-index.js` | `crates/agent_ui/src/thread_metadata_store.rs` : `ThreadMetadataDb::MIGRATIONS` (schéma), `LIST_QUERY`, `impl Column for ThreadMetadata` (valeurs nulles, titres vides, `agent_id` NULL = agent natif) ; `crates/util/src/path_list.rs` : `PathList` (chemins triés, séparés par `\n`, ordre d'affichage dans `*_order`) | écart |
+| Projets ouverts : `kv_store` clé `session_id`, puis `workspaces` (`paths`, `paths_order`, `session_id`, `remote_connection_id`) | `zra-daemon/threads-index.js` | `crates/session/src/session.rs` (`SESSION_ID_KEY`), `crates/workspace/src/persistence.rs` (migrations et écriture de `workspaces`), `crates/workspace/src/multi_workspace.rs` (`detach_workspace` efface `session_id`) | vérifié |
 | Canal de Zed : base `db/0-<canal>/db.sqlite`, canal détecté par la base écrite en dernier, ou fixé par `zedChannel` | `zra-daemon/platform.js` (`detectZedChannel`), `zra-daemon/config.js` | `crates/db/src/db.rs` : `db_path` ; `crates/release_channel/src/lib.rs` : `dev_name` ; `crates/paths/src/paths.rs` : `database_dir` | vérifié |
-| CLI de Zed par canal : `Programs\Zed Preview\bin\zed.exe`, `~/.local/zed-preview.app/bin/zed`… | `zra-daemon/platform.js` (`zedCliCandidates`) | `script/bundle-windows.ps1`, `script/install.sh` | vérifié |
-| Agents installés du registry : `external_agents/registry` | `zra-daemon/agent-commands.js` | `crates/paths/src/paths.rs` : `external_agents_dir` ; `crates/project/src/agent_server_store.rs` (`.join("registry")`) | vérifié |
-| Entrées `agent_servers` de `settings.json` : ZRA écrit `type: "custom"` (`command`, `args`, `env`, `default_config_options`), lit aussi `type: "registry"` | `scripts/setup.mjs` (`buildEntry`), `zra-daemon/zed-settings.js` | `crates/settings_content/src/agent.rs` : `CustomAgentServerSettings` | vérifié |
-| Chemins `settings.json`, `keymap.json` | `zra-daemon/platform.js` | `crates/paths/src/paths.rs` : `settings_file`, `keymap_file` | vérifié |
+| CLI de Zed par canal : `Programs\Zed Preview\bin\zed.exe`, `~/.local/zed-preview.app/bin/zed`… | `zra-daemon/platform.js` (`zedCliCandidates`) | `script/bundle-windows.ps1`, `crates/zed/resources/windows/zed.iss`, `script/install.sh` | vérifié |
+| Ouverture d'un projet : `zed <dossiers>`, `--classic` pour une fenêtre neuve | `zra-daemon/zed/driver.js` (`ZedCli`) | `crates/cli/src/main.rs` : option cachée `classic`, `OpenBehavior` ; défaut réglé par `cli_default_open_behavior` | vérifié |
+| Agents installés du registry : `external_agents/registry`, commande et `env` | `zra-daemon/agent-commands.js` | `crates/paths/src/paths.rs` : `external_agents_dir` ; `crates/project/src/agent_server_store.rs` : `LocalRegistryNpxAgent::get_command`, `LocalRegistryArchiveAgent::get_command` ; `crates/node_runtime/src/node_runtime.rs` : `read_package_executable` | écart |
+| Entrées `agent_servers` de `settings.json` : ZRA écrit `type: "custom"` (`command`, `args`, `env`, `default_config_options`), lit aussi `type: "registry"` | `scripts/setup.mjs` (`buildEntry`), `zra-daemon/zed-settings.js` | `crates/settings_content/src/agent.rs` : `CustomAgentServerSettings` (aussi `default_mode`, `favorite_config_option_values`) | écart |
+| Chemins `settings.json`, `keymap.json` | `zra-daemon/platform.js` | `crates/paths/src/paths.rs` : `config_dir`, `settings_file`, `keymap_file` (Flatpak et `--user-data-dir` non gérés par ZRA) | vérifié |
 
 ### Clavier et fenêtre
 
 | ZRA | Côté ZRA | Côté Zed | État |
 |---|---|---|---|
-| Touche « nouveau thread » par agent : `agent::NewExternalAgentThread`, argument `{ "custom": { "name": id } }` (forme ancienne, acceptée) | `zra-daemon/zed-keymap.js` | `crates/agent_ui/src/agent_ui.rs` : `NewExternalAgentThread`, `deserialize_external_agent_id` | vérifié |
-| Recette `openThread` : palette `multi workspace: focus workspace sidebar` | `zra-daemon/zed/driver.js` | `crates/workspace/src/multi_workspace.rs` : action `FocusWorkspaceSidebar` ; libellé : `crates/command_palette/src/command_palette.rs` (`humanize_action_name`) | vérifié |
+| Touche « nouveau thread » par agent : `agent::NewExternalAgentThread`, argument `{ "custom": { "name": id } }` (forme ancienne, acceptée) ; touches `ctrl-alt-shift-f1`… libres par défaut | `zra-daemon/zed-keymap.js` | `crates/agent_ui/src/agent_ui.rs` : `NewExternalAgentThread`, `deserialize_external_agent_id` ; enregistrée sur le workspace (`crates/agent_ui/src/agent_panel.rs`) | vérifié |
+| Recette `openThread` : palette `multi workspace: focus workspace sidebar` | `zra-daemon/zed/driver.js` | `crates/workspace/src/multi_workspace.rs` : action `FocusWorkspaceSidebar`, `focus_sidebar` (bascule) ; libellé : `crates/command_palette/src/command_palette.rs` (`humanize_action_name`) | écart |
 | Recette `newThread` (repli) : palette `agent: new thread` | `zra-daemon/zed/driver.js` | `crates/agent_ui/src/agent_ui.rs` : `NewThread` | vérifié |
 | Touches par défaut citées par le pilote (`ctrl-shift-p`, `ctrl-n`, `ctrl-f`…) | `zra-daemon/zed/driver.js` | `assets/keymaps/default-windows.json`, `default-linux.json` | vérifié |
-| Filtre du sidebar : taper puis `enter` ouvre le premier résultat | `zra-daemon/zed/driver.js` | `crates/sidebar/src/sidebar.rs` : `select_first_entry`, `confirm` ; filtre flou | écart |
-| Fenêtre reconnue à son titre (« projet — fichier ») | `zra-daemon/zed/keyboard.ps1` | `crates/workspace/src/workspace.rs` : `apply_window_title` ; format par défaut dans `assets/settings/default.json` (`window_title_format`) | écart si personnalisé |
+| Filtre du sidebar : taper puis `enter` ouvre le premier thread | `zra-daemon/zed/driver.js` | `crates/sidebar/src/sidebar.rs` : `rebuild_contents` (filtre flou), `select_first_entry`, `confirm` | écart |
+| Fenêtre reconnue à son titre (« projet — fichier ») | `zra-daemon/zed/keyboard.ps1`, `driver.js` (`projectWindow`) | `crates/workspace/src/workspace.rs` : `apply_window_title`, `project_window_title` ; format par défaut dans `assets/settings/default.json` (`window_title_format`) | écart |
 
 ### ACP
 
 | ZRA | Côté ZRA | Côté Zed | État |
 |---|---|---|---|
-| Relais et observation d'ACP v1 | `zra-shim/acp.js` | `crates/agent_servers/src/acp.rs` : `connect` ; `crates/agent_servers/src/acp/v1.rs`. Crate `agent-client-protocol` 5.0.0 (`Cargo.toml`) | vérifié |
+| Relais et observation d'ACP v1, capacités de Zed transmises telles quelles | `zra-shim/acp.js` | `crates/agent_servers/src/acp.rs` : `connect` ; `crates/agent_servers/src/acp/v1.rs` (`client_builder`, `client_capabilities_for_agent`). Crate `agent-client-protocol` 5.0.0 (`Cargo.toml`) | vérifié |
 | ACP v2 | non géré | `crates/agent_servers/src/acp/v2.rs`, tenté d'abord quand le drapeau `AcpBetaFeatureFlag` est actif, repli sur v1 | vérifié |
-| Permissions : le shim répond à la place de Zed | `zra-shim/acp.js` | `crates/agent_servers/src/acp/v1.rs` (`handle_request_permission`) ; `crates/acp_thread/src/acp_thread.rs` (`apply_reported_status`) | écart |
-| Message du mobile affiché dans Zed (`user_message_chunk` synthétique) | `zra-shim/acp.js` | `crates/acp_thread/src/acp_thread.rs` : `handle_session_update`, `push_user_content_block_from_agent` | vérifié |
+| Sessions suivies : `session/new`, `session/load` | `zra-shim/acp.js` (`noteResponse`) | `crates/agent_ui/src/conversation_view.rs` (`load_session`, sinon `resume_session`) ; `crates/agent_servers/src/acp/v1.rs` (`release_session` : `session/close`) | écart |
+| Permissions : le shim répond à la place de Zed | `zra-shim/acp.js` | `crates/agent_servers/src/acp/v1.rs` (`handle_request_permission`) ; `crates/acp_thread/src/acp_thread.rs` (`apply_reported_status`, `cancel_permission_request`) | écart |
+| Message du mobile affiché dans Zed (`user_message_chunk` synthétique) | `zra-shim/acp.js` | `crates/acp_thread/src/acp_thread.rs` : `handle_session_update`, `push_user_content_block_with_protocol_id` | vérifié |
 | Tour lancé depuis le mobile, vu de Zed | `zra-shim/acp.js` | `crates/acp_thread/src/acp_thread.rs` : `uses_reported_activity`, `status` | écart |
+| Mode, modèle, options : projection et changement | `zra-shim/acp.js` (`projectOptions`, `applyOption`) | `crates/agent_servers/src/acp/v1.rs` : `config_state`, `ConfigOptions::set_config_option`, `AcpSessionModes` ; `crates/acp_thread/src/config_options.rs` | écart |
+| Sortie des terminaux | `zra-shim/acp.js` (`publishTerminal`) | `crates/agent_servers/src/acp/v1.rs` : `handle_terminal_output` ; `_meta.terminal_info`, `terminal_output`, `terminal_exit` dans `handle_session_notification` | écart |
+| Relecture d'un thread fermé : client ACP jetable, `session/load` | `zra-daemon/session-loader.js`, `acp-client.js` | `crates/agent_servers/src/acp/v1.rs` : `load_session`, `session_directories_from_work_dirs` | écart |
 
 ### Interface : PWA ↔ panneau agent
 
-Côté Zed, sauf mention : `crates/agent_ui/src/conversation_view/thread_view.rs`.
+Comportement seulement : l'apparence est auditée à part. Côté Zed, sauf mention : `crates/agent_ui/src/conversation_view/thread_view.rs`.
 
 | PWA (`zra-client/js/`) | Côté Zed | État |
 |---|---|---|
-| Liste des threads, par projet (`views/threads.js` : `threadRow`, `projectHead`) | `crates/sidebar/src/sidebar.rs` : `render_thread`, `render_project_header` | à auditer |
+| Liste des threads, par projet (`views/threads.js` : `threadRow`, `projectHead` ; `format.js` : `relTime`, `projectOf`) | `crates/sidebar/src/sidebar.rs` : `rebuild_contents`, `thread_display_time`, `render_thread`, `render_project_header` ; `crates/project/src/project.rs` : `ProjectGroupKey::display_name` ; `crates/agent_ui/src/threads_archive_view.rs` : `format_history_entry_timestamp` | écart |
+| Fil : réduction des `session/update` (`acp.js` : `Timeline.apply`) | `crates/acp_thread/src/acp_thread.rs` : `handle_session_update`, `upsert_tool_call`, `update_tool_call`, `can_merge_message_chunks` | écart |
 | Message de l'utilisateur, de l'agent (`views/entry.js` : `userMsg`, `agentMsg`) | `render_entry`, `render_message_content` | à auditer |
-| Réflexions (`thoughtMsg`) | `render_thinking_block` | à auditer |
-| Tool calls : en-tête, statut, dépliement (`toolCall`, `statusIcon`) | `render_tool_call`, `render_tool_call_label`, `render_tool_call_content` | à auditer |
-| Terminal (`terminalBlock`) | `render_terminal_tool_call` ; `crates/agent_ui/src/ui/terminal_tool_header.rs` | à auditer |
+| Réflexions (`thoughtMsg`) | `render_thinking_block` ; `crates/agent_ui/src/entry_view_state.rs` : `auto_expand_streaming_thought` | écart |
+| Tool calls : en-tête, statut, dépliement (`toolCall`, `statusIcon`) | `render_tool_call`, `render_tool_call_label`, `render_tool_call_content` ; réglages `expand_edit_card`, `expand_terminal_card` | écart |
+| Terminal (`terminalBlock`) | `render_terminal_tool_call` ; `crates/agent_ui/src/ui/terminal_tool_header.rs` | écart |
 | Diff (`diffBlock`, `diff.js`) | `render_diff_editor` | à auditer |
-| Plan (`planCard`) | `render_plan_entries`, `render_plan_summary` | à auditer |
-| Permission (`permissionCard`) | `render_permission_buttons` et variantes | à auditer |
+| Plan (`planCard`) | `render_activity_bar`, `render_plan_entries`, `render_plan_summary` | écart |
+| Permission (`permissionCard`) | `render_permission_buttons` et variantes | écart |
 | Tour en cours | `render_generating` | à auditer |
 | Composer (`views/thread.js` : `Composer`) | `crates/agent_ui/src/message_editor.rs`, `render_send_button` | à auditer |
-| Mode, modèle, options (`views/thread.js`) | `crates/agent_ui/src/mode_selector.rs`, `model_selector.rs`, `config_options.rs` | à auditer |
-| File d'attente | `conversation_view/message_queue.rs`, `render_message_queue_entries` | à auditer |
+| Mode, modèle, options (`views/thread.js`) | `crates/agent_ui/src/mode_selector.rs`, `model_selector.rs`, `config_options.rs` | écart |
+| File d'attente, Stop (`views/thread.js` : `stopTurn`) | `conversation_view/message_queue.rs` (`MessageQueue`), `cancel_generation`, `render_message_queue_entries` | écart |
 | Thèmes (`css/themes.css`, généré par `scripts/gen-themes.mjs`) | `assets/themes/` (MIT) ; jetons : `crates/theme/` | vérifié |
 | Icônes (`icons.js`), icônes d'agents (`agent-icons.js`, `scripts/gen-agent-icons.mjs`) | `assets/icons/` (Lucide, ISC ; icônes de marques à part) | à auditer |
 | Espacements, tailles de texte, rayons (`css/app.css`) | `crates/ui/src/styles/` (`spacing.rs`, `typography.rs`, `elevation.rs`) ; composants : `crates/ui/src/components/` | à auditer |
@@ -99,7 +105,7 @@ Les styles GPUI s'écrivent comme des classes utilitaires (`.px_2()`, `.gap_1()`
 
    ```sh
    git -C _upstream/zed fetch --depth 1 origin tag vX.Y.Z
-   git -C _upstream/zed diff v1.28.1 vX.Y.Z --stat -- crates/agent_ui crates/sidebar crates/workspace/src/persistence.rs crates/workspace/src/multi_workspace.rs crates/session crates/db crates/paths crates/agent_servers crates/acp_thread crates/project/src/agent_server_store.rs crates/command_palette crates/settings_content/src/agent.rs crates/ui crates/theme assets/keymaps assets/themes assets/icons
+   git -C _upstream/zed diff v1.28.1 vX.Y.Z --stat -- crates/agent_ui crates/sidebar crates/workspace/src/persistence.rs crates/workspace/src/multi_workspace.rs crates/session crates/db crates/paths crates/agent_servers crates/acp_thread crates/project/src/agent_server_store.rs crates/project/src/project.rs crates/workspace/src/workspace.rs crates/util/src/path_list.rs crates/node_runtime crates/cli crates/command_palette crates/settings_content/src/agent.rs crates/ui crates/theme assets/keymaps assets/themes assets/icons
    git -C _upstream/zed checkout vX.Y.Z
    ```
 
