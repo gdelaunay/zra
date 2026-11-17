@@ -50,18 +50,18 @@ numbering, even if it uses the same integers.
 
 ```bash
 npm run setup install              # shows the entries, writes nothing (named agents: install qwen-code pi-acp)
-npm run setup install apply        # adds them (backup in .zra/backups/)
+npm run setup install apply        # adds them (backup in .zra/backups/); asks before renaming an existing entry ("yes" to skip)
 npm run setup -- uninstall --apply # removes them, and only them
 ```
 
 Per agent, **one more** `custom` entry in Zed's `settings.json`, and its
 "new thread" key in `keymap.json`. The original
 agent is left untouched. The shim then finds the real agent on its own, from
-its `id` in Zed's registry. What `setup` sets, in essence:
+its `id` in Zed's registry. Zed displays the entry's key: `setup` names it after the agent's name in its registry, followed by `(zra)`. What `setup` sets, in essence:
 
 ```json
 "agent_servers": {
-  "claude-zra": {
+  "Claude Agent (zra)": {
     "type": "custom",
     "command": "node",
     "args": ["C:/path/to/zra/zra-shim/index.js"],

@@ -96,7 +96,7 @@ curl -sL https://raw.githubusercontent.com/zed-industries/zed/main/assets/icons/
 node scripts/gen-agent-icons.mjs
 ```
 
-L'association `agent_id` → icône se fait par motif (`claude-acp`, `claude-zra`,
+L'association `agent_id` → icône se fait par motif (`claude-acp`, `Claude Agent (zra)`,
 `my-claude` → Claude), agent inconnu → icône générique.
 
 ## Langue

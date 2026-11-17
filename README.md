@@ -26,13 +26,13 @@ pilotage clavier exige Zed sous XWayland : `npm run setup -- xwayland --apply`
 0. `git clone https://forgejo.gdelaunay.fr/gdelaunay/zra.git && cd zra` — aucun
    `npm install` nécessaire pour l'utiliser.
 1. `npm run setup install apply`. Chaque agent de Zed reçoit une entrée ZRA
-   (`claude-zra`…) : l'agent d'origine n'est pas touché. Les threads ouverts
+   (`Claude Agent (zra)`…) : l'agent d'origine n'est pas touché. Les threads ouverts
    avec une entrée ZRA ne se rouvriront plus dans Zed si ZRA est désinstallé.
 2. `npm run daemon`. Le daemon affiche son adresse (`http://192.168.x.x:7777`)
    et un code d'appairage.
 3. Sur le téléphone, même Wi-Fi : ouvrir cette adresse, puis saisir le code.
    Si la page ne charge pas : pare-feu et profil réseau (`docs/fr/deploy.md` §1).
-4. Dans Zed, ouvrir un thread avec l'agent **ZRA** (`claude-zra`) : il est
+4. Dans Zed, ouvrir un thread avec l'agent **… (zra)** (`Claude Agent (zra)`) : il est
    `live` sur le téléphone. Les threads des autres agents s'y lisent, mais ne
    s'écrivent pas une fois fermés.
 
@@ -48,7 +48,7 @@ accès à distance, HTTPS et dépannage (`docs/fr/deploy.md`).
 3. Supprimer `.zra/` et le dossier `zra` de `%LOCALAPPDATA%` (Linux
    `~/.local/state/zra/`) : journaux, appareils appairés, prompts.
 
-Les threads créés avec une entrée ZRA (`claude-zra`…) restent dans la liste de
+Les threads créés avec une entrée ZRA (`Claude Agent (zra)`…) restent dans la liste de
 Zed, mais sans agent pour les rouvrir.
 
 ## Sécurité
@@ -89,7 +89,7 @@ Zed, mais sans agent pour les rouvrir.
 
 | Dossier | Rôle |
 |---|---|
-| `zra-shim/` | enveloppe l'agent dans Zed (entrée `claude-zra`), observe et injecte en ACP |
+| `zra-shim/` | enveloppe l'agent dans Zed (entrée `Claude Agent (zra)`), observe et injecte en ACP |
 | `zra-daemon/` | serveur WebSocket du poste : index des threads, routage, appairage, pilotage clavier de Zed |
 | `zra-client/` | PWA sans build, servie par le daemon ou par n'importe quel serveur statique |
 | `scripts/` | installation, service, appairage, certificat, mise au point clavier |
@@ -97,7 +97,7 @@ Zed, mais sans agent pour les rouvrir.
 
 ```sh
 npm run setup                        # état : entrées Zed, agents, daemon
-npm run setup install apply          # une entrée ZRA par agent de Zed (claude-zra, qwen-code-zra…) + sa touche « nouveau thread »
+npm run setup install apply          # une entrée ZRA par agent de Zed (Claude Agent (zra), Qwen Code (zra)…) + sa touche « nouveau thread »
 npm run setup -- uninstall --apply   # retire les entrées ZRA de Zed
 npm run daemon                       # affiche l'adresse et le code d'appairage
 npm run daemon:dev                   # loopback seule

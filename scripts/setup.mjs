@@ -25,13 +25,15 @@
 // re-sérialisé, commentaires et mise en forme restent tels quels.
 
 import { existsSync, statSync } from 'node:fs'
+import { createInterface } from 'node:readline/promises'
 import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises'
 import { basename, dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { loadConfig } from '../zra-daemon/config.js'
+import { agentLabel } from '../zra-daemon/agents.js'
 import { parseJsonc } from '../zra-daemon/jsonc.js'
-import { discoverAgents, isShimEntry, resolveAgentCommand, wrappedAgentId } from '../zra-daemon/agent-commands.js'
+import { discoverAgents, isShimEntry, registryAgentName, resolveAgentCommand, wrappedAgentId } from '../zra-daemon/agent-commands.js'
 import { assertParsable, removeAgentServer, upsertAgentServer } from '../zra-daemon/zed-settings.js'
 import { assignKeys, readZraKeys, removeZraKeymap, upsertZraKeymap } from '../zra-daemon/zed-keymap.js'
 import { npmSafeArgs } from './lib/args.mjs'
@@ -48,8 +50,8 @@ const SHIM = join(ROOT, 'zra-shim', 'index.js')
 // ---------------------------------------------------------------------------
 
 export function parseArgs(argv) {
-  const out = { command: 'status', apply: false, name: null, agents: [], record: false, port: null }
-  const rest = npmSafeArgs(argv, ['apply', 'record'])
+  const out = { command: 'status', apply: false, name: null, agents: [], record: false, yes: false, port: null }
+  const rest = npmSafeArgs(argv, ['apply', 'record', 'yes'])
   if (rest[0] && !rest[0].startsWith('-')) out.command = rest.shift()
   for (let i = 0; i < rest.length; i++) {
     const a = rest[i]
@@ -57,6 +59,7 @@ export function parseArgs(argv) {
     else if (a === '--name') out.name = rest[++i]
     else if (a === '--agent') out.agents.push(rest[++i])
     else if (a === '--record') out.record = true
+    else if (a === '--yes' || a === '-y') out.yes = true
     else if (a === '--port') out.port = Number(rest[++i])
     else if (a === '--help' || a === '-h') out.command = 'help'
     // Mot nu : un agent. npm transmet toujours les mots nus, jamais `--agent x`.
@@ -85,7 +88,9 @@ const USAGE = tr`zra setup — brancher ZRA dans Zed
                        « apply » tout court marche aussi, si npm avale le --apply
   --agent <id>         agent à envelopper (répétable ; un mot nu suffit)
   --name <id>          nom de l'entrée dans Zed, pour un seul agent
-                       (défaut : claude-acp → claude-zra, qwen-code → qwen-code-zra)
+                       (défaut : « Claude Agent (zra) », « Qwen Code (zra) »…)
+  --yes                ne pas demander confirmation avant de renommer des entrées
+                       ZRA existantes (« yes » tout court marche aussi)
   --record             débogage : enregistre toutes les trames ACP dans
                        .zra/records/ (ZRA_RECORD), conversations comprises
 
@@ -128,10 +133,16 @@ export function buildEntry({ agent, record, nodePath = process.execPath, root = 
   return entry
 }
 
-/** Nom de l'entrée ZRA d'un agent : `claude-acp` → `claude-zra`, `qwen-code` → `qwen-code-zra`. */
-export function zraName(agentId) {
-  return `${String(agentId).replace(/-acp$/, '')}-zra`
+/**
+ * Nom de l'entrée ZRA d'un agent : Zed affiche la clé telle quelle.
+ * `claude-acp` (« Claude Agent » dans le registry) → `Claude Agent (zra)`.
+ */
+export function zraName(agentId, displayName = null) {
+  return `${displayName || agentLabel(agentId)} (zra)`
 }
+
+/** Entrée ZRA au nom d'avant (`claude-zra`), à renommer. */
+const isLegacyName = (name) => /-zra$/.test(name)
 
 /** Diff ligne à ligne minimal : on ne montre que la zone qui change. */
 export function lineDiff(before, after) {
@@ -308,8 +319,20 @@ async function install(opts, config) {
 
   let text = before.text
   const changes = []
+  const renamed = []
   for (const { id, source } of agents) {
-    const name = opts.name ?? existing.get(id) ?? zraName(id)
+    const old = existing.get(id)
+    // Une entrée au nom d'avant (`claude-zra`) prend le nom d'affichage ; un
+    // nom choisi (`--name` ou à la main) reste.
+    const name = opts.name ?? (old && !isLegacyName(old) ? old : zraName(id, await registryAgentName(id)))
+    let carried = null
+    if (old && old !== name && servers[name] === undefined) {
+      renamed.push([old, name])
+      carried = servers[old]?.default_config_options
+      text = removeAgentServer(text, old).text
+      delete servers[old]
+      console.log(tr`  ↻ ${old} renommé en ${name}`)
+    }
     if (servers[name] && !isShimEntry(servers[name])) {
       const msg = tr`« ${name} » existe déjà dans agent_servers et n'est pas une entrée ZRA`
       if (opts.name) throw new Error(tr`${msg} : choisir un autre --name`)
@@ -318,7 +341,7 @@ async function install(opts, config) {
     }
     const entry = buildEntry({ agent: id, record: opts.record, wrapped: servers[id] })
     // Mode et modèle réglés depuis sur l'entrée ZRA elle-même : ils restent.
-    const mine = servers[name]?.default_config_options
+    const mine = carried ?? servers[name]?.default_config_options
     if (mine && typeof mine === 'object') entry.default_config_options = mine
     const res = upsertAgentServer(text, name, entry)
     text = res.text
@@ -347,6 +370,19 @@ async function install(opts, config) {
   if (!opts.apply) {
     console.log(tr`\nsimulation : rien n’a été écrit. Relancer avec --apply (ou « apply » tout court) pour appliquer.`)
     return
+  }
+  if (renamed.length && !opts.yes) {
+    console.log(tr`
+⚠ Renommer ces entrées change l’id de leurs agents : les threads déjà créés avec l’ancien nom ne se rouvriront plus dans Zed.`)
+    for (const [from, to] of renamed) console.log(`  ${from} → ${to}`)
+    if (!process.stdin.isTTY) throw new Error(tr`confirmation impossible hors terminal : relancer avec « yes » (npm run setup install apply yes)`)
+    const rl = createInterface({ input: process.stdin, output: process.stdout })
+    const answer = (await rl.question(tr`Continuer ? [o/N] `)).trim().toLowerCase()
+    rl.close()
+    if (!/^(o|oui|y|yes)$/.test(answer)) {
+      console.log(tr`annulé : rien n’a été écrit.`)
+      return
+    }
   }
   if (changes.length) {
     const backup = await writeZedFile(file, before, text)

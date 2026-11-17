@@ -54,12 +54,12 @@ export async function readAgents(file) {
   if (!servers || typeof servers !== 'object') return []
 
   return Object.entries(servers).map(([id, conf]) => {
-    // Une entrée qui passe par `zra-shim` est nommée d'après l'agent qu'elle
-    // enveloppe : « Claude (ZRA) » à côté de « Claude », pas deux « Claude ».
+    // Zed affiche la clé d'une entrée ZRA (« Claude Agent (zra) ») : on fait
+    // de même, à côté de « Claude », pas deux « Claude ».
     const wraps = wrappedAgentId(conf)
     const agent = {
       id,
-      name: wraps ? `${agentLabel(wraps)} (ZRA)` : agentLabel(id),
+      name: wraps ? id : agentLabel(id),
       // `registry` = agent connu de Zed, `custom` = binaire déclaré à la main.
       kind: conf?.type ?? null,
     }

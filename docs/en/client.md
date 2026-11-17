@@ -96,7 +96,7 @@ curl -sL https://raw.githubusercontent.com/zed-industries/zed/main/assets/icons/
 node scripts/gen-agent-icons.mjs
 ```
 
-The `agent_id` → icon mapping is done by pattern (`claude-acp`, `claude-zra`,
+The `agent_id` → icon mapping is done by pattern (`claude-acp`, `Claude Agent (zra)`,
 `my-claude` → Claude), unknown agent → generic icon.
 
 ## Language

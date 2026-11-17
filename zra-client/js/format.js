@@ -67,7 +67,6 @@ export function agentLabel(agentId) {
   if (!agentId) return tr`agent`
   const known = {
     'claude-acp': 'Claude',
-    'claude-zra': 'Claude (ZRA)',
     'gemini-acp': 'Gemini',
     'codex-acp': 'Codex',
   }

@@ -193,7 +193,7 @@ test('resolveAgentCommand : une entrée ZRA se résout vers l’agent enveloppé
   await assert.rejects(() => resolveAgentCommand('boucle', { settingsFile, overrides }), /sans agent enveloppé valide/)
 
   const agents = await readAgents(settingsFile)
-  assert.deepEqual(agents.find((a) => a.id === 'claude-zra'), { id: 'claude-zra', name: 'Claude (ZRA)', kind: 'custom', wraps: 'claude-acp' })
+  assert.deepEqual(agents.find((a) => a.id === 'claude-zra'), { id: 'claude-zra', name: 'claude-zra', kind: 'custom', wraps: 'claude-acp' })
   assert.deepEqual(agents.find((a) => a.id === 'claude-acp'), { id: 'claude-acp', name: 'Claude', kind: 'registry' })
 })
 
@@ -208,14 +208,16 @@ test('setup : « apply » et les agents passent en mots nus — npm avale les --
   assert.deepEqual(opts.agents, ['qwen-code', 'pi-acp'])
   assert.equal(opts.record, true)
   assert.equal(parseArgs(['install']).record, false, 'pas d’enregistrement par défaut')
+  assert.equal(parseArgs(['install', 'apply', 'yes']).yes, true, '« yes » en mot nu')
+  assert.equal(parseArgs(['install']).yes, false)
   assert.deepEqual(parseArgs(['install', '--agent', 'x']).agents, ['x'])
   assert.throws(() => parseArgs(['install', 'a', 'b', '--name', 'n']), /un seul agent/)
 })
 
-test('setup : nom d’entrée dérivé de l’agent', () => {
-  assert.equal(zraName('claude-acp'), 'claude-zra', 'nom historique conservé')
-  assert.equal(zraName('qwen-code'), 'qwen-code-zra')
-  assert.equal(zraName('pi-acp'), 'pi-zra')
+test('setup : nom d’entrée = nom d’affichage de l’agent + (zra)', () => {
+  assert.equal(zraName('claude-acp', 'Claude Agent'), 'Claude Agent (zra)')
+  assert.equal(zraName('qwen-code', 'Qwen Code'), 'Qwen Code (zra)')
+  assert.equal(zraName('pi-acp'), 'Pi (zra)', 'repli : l’id mis en forme')
 })
 
 test('parseArgs : xwayland est une commande à part, simulation par défaut', () => {

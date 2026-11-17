@@ -50,18 +50,18 @@ de Zed, même si elle utilise les mêmes entiers.
 
 ```bash
 npm run setup install              # montre les entrées, n’écrit rien (agents nommés : install qwen-code pi-acp)
-npm run setup install apply        # les ajoute (sauvegarde dans .zra/backups/)
+npm run setup install apply        # les ajoute (sauvegarde dans .zra/backups/) ; demande confirmation avant de renommer une entrée existante (« yes » pour passer)
 npm run setup -- uninstall --apply # les retire, et elles seules
 ```
 
 Par agent, une entrée `custom` **de plus** dans le `settings.json` de Zed, et sa
 touche « nouveau thread » dans le `keymap.json`. L'agent
 d'origine n'est pas touché. Le shim retrouve ensuite le vrai agent tout seul, à
-partir de son `id` dans le registry de Zed. Ce que `setup` pose, en substance :
+partir de son `id` dans le registry de Zed. Zed affiche la clé de l’entrée : `setup` la nomme d’après le nom de l’agent dans son registry, suivi de `(zra)`. Ce que `setup` pose, en substance :
 
 ```json
 "agent_servers": {
-  "claude-zra": {
+  "Claude Agent (zra)": {
     "type": "custom",
     "command": "node",
     "args": ["C:/chemin/vers/zra/zra-shim/index.js"],

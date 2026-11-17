@@ -183,6 +183,13 @@ export async function resolveAgentCommand(agentId, { settingsFile = null, overri
   throw new AgentCommandError(tr`agent « ${agentId} » : mode de distribution non pris en charge (${modes}) — déclarer sa commande dans \`agentCommands\` de zra.config.json`)
 }
 
+/** Nom d’affichage d’un agent dans le registry de Zed (`Claude Agent`), ou `null`. */
+export async function registryAgentName(agentId, { registryDir = REGISTRY_DIR } = {}) {
+  const registry = await readJsonc(join(registryDir, 'registry.json'))
+  const agent = (Array.isArray(registry?.agents) ? registry.agents : []).find((a) => a?.id === agentId)
+  return typeof agent?.name === 'string' && agent.name ? agent.name : null
+}
+
 /**
  * Les agents ACP de ce poste, pour l'installation sans argument : ceux que
  * déclare le `settings.json` de Zed (hors entrées ZRA), ceux de `agentCommands`,
