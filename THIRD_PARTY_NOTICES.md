@@ -10,6 +10,7 @@ Third-party content shipped with ZRA, with its original license (text reproduced
 | Thèmes One Dark, One Light | idem, et `reference/zed-agent-panel/tokens.css` (One Dark) | Zed, `assets/themes/one/` | MIT |
 | Tracés d'icônes / Icon paths | `zra-client/js/icons.js` | Lucide | ISC |
 | Icônes de Zed / Zed icons | `reference/zed-agent-panel/icons.js` | Zed, `assets/icons/` (tracés Lucide) | ISC |
+| Logos d'agents / Agent logos | `zra-client/js/agent-icons.js` | Zed, `assets/icons/ai_*.svg` | Marques de leurs titulaires, affichées pour désigner l'agent / Trademarks of their owners, shown to identify the agent |
 
 ## Ayu — `assets/themes/ayu/LICENSE` (Zed)
 

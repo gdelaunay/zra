@@ -2,6 +2,7 @@
   "name": "zra",
   "version": "0.3.0",
   "private": true,
+  "license": "UNLICENSED",
   "type": "module",
   "description": "ZRA — Zed Remote Agent : suivre et piloter ses threads d'agents ACP Zed depuis le mobile.",
   "engines": {
