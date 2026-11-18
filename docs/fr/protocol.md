@@ -282,7 +282,12 @@ threads existants.
 
 ### `threads`
 ```ts
-{ type: 'threads', threads: ThreadSummary[] }
+{ type: 'threads', threads: ThreadSummary[], projects?: ZedProject[] | null }
+
+type ZedProject = {
+  folderPaths: string[]     // dossiers du groupe, dans l'ordre d'affichage de Zed
+  open: boolean             // un espace de travail de ce projet est chargé dans une fenêtre
+}
 
 type ThreadSummary = {
   threadId: string          // hex du BLOB sidebar_threads.thread_id
@@ -314,11 +319,21 @@ une pastille de fin de tour non lue. Comme le
 sidebar de Zed, la PWA ne liste ni les brouillons, ni les threads sans `agentId`
 (agent natif de Zed, illisible par ACP), ni les `remote`.
 
-`projectOpen` : relevé dans la base de Zed — `kv_store.session_id` est la session
-en cours, et chaque fenêtre ouverte est une ligne de `workspaces` qui la porte.
-Zed fermé : `false` partout. `null` si la base n'a pas ces tables. La PWA en tire
-un point par projet ; un projet fermé reste utilisable, le daemon l'ouvre dans
-Zed à la demande.
+`projects` : les groupes du sidebar de Zed, toutes fenêtres, dans son ordre.
+Relevés dans sa base : `kv_store.session_id` est la session en cours (la
+dernière si Zed est fermé) ; chaque espace de travail chargé est une ligne de
+`workspaces` qui la porte, avec sa fenêtre ; les groupes d'une fenêtre sont dans
+`scoped_kv_store` (`multi_workspace_state`, clé `window_id`). Les fenêtres se
+suivent de la plus récemment touchée à la plus ancienne. Une entrée périmée
+(identifiant de fenêtre réutilisé d'une session précédente) est ignorée : la
+fenêtre ne compte que ses espaces chargés. Zed fermé : la dernière session, tout
+à `open: false`. `null` si la base n'a pas ces tables. La PWA montre ces projets
+dans cet ordre, même sans thread, et range les autres sous « Projets récents » ;
+`null` : tous les projets, par récence.
+
+`projectOpen` : les dossiers du thread sont chargés dans une fenêtre Zed (mêmes
+sources ; Zed fermé : `false`). Un projet fermé reste utilisable, le daemon
+l'ouvre dans Zed à la demande, dans une nouvelle fenêtre.
 
 ### `thread_state`
 ```ts

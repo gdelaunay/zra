@@ -100,7 +100,7 @@ Thread states: **live** (a shim holds its session: real-time stream, direct writ
 
 | Dependency | Use | If it changes |
 |---|---|---|
-| Zed SQLite database (`db/0-<channel>/db.sqlite`, tables `sidebar_threads`, `workspaces`, `kv_store`) | Thread index, open projects | Required column missing: degraded "live only" mode, reported to the PWA |
+| Zed SQLite database (`db/0-<channel>/db.sqlite`, tables `sidebar_threads`, `workspaces`, `kv_store`, `scoped_kv_store`) | Thread index, sidebar projects and their order | Required column missing: degraded "live only" mode, reported to the PWA |
 | Zed `settings.json` (`agent_servers`) and its agent registry | Knowing how to launch an agent, adding the ZRA entries | `setup` refuses to write if the file is not valid JSONC |
 | Zed `keymap.json` (action `agent::NewExternalAgentThread`) | "New thread" key per agent | The key no longer has an effect: explicit error after 30 s |
 | Zed command palette and sidebar | Keyboard recipes (`zed/driver.js`) | Recipes can be overridden in `zedControl.recipes` |

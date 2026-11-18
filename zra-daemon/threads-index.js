@@ -113,6 +113,12 @@ export class ThreadsIndex extends EventEmitter {
     this.columns = []
     /** @type {import('./protocol.js').ThreadSummary[]} */
     this.threads = []
+    /**
+     * Projets du sidebar de Zed, dans son ordre (`readZedProjects`) ; `null` si
+     * la base ne le dit pas.
+     * @type {Array<{folderPaths:string[], open:boolean}>|null}
+     */
+    this.projects = null
     /** Cause de dégradation, exposée pour le diagnostic. */
     this.degraded = null
     this.timer = null
@@ -147,6 +153,7 @@ export class ThreadsIndex extends EventEmitter {
       // De quoi savoir quels projets sont ouverts ; décidé ici, pas selon que Zed tourne.
       const tables = new Set(this.db.prepare("select name from sqlite_master where type='table'").all().map((r) => r.name))
       this.noWorkspaces = !(tables.has('kv_store') && tables.has('workspaces'))
+      this.noScopedKv = !tables.has('scoped_kv_store')
       const missing = REQUIRED.filter((c) => !this.columns.includes(c))
       if (missing.length) {
         this.close()
@@ -173,6 +180,7 @@ export class ThreadsIndex extends EventEmitter {
     this.degraded = reason
     log.warn(reason)
     this.threads = []
+    this.projects = null
     this.snapshot = ''
     this.emit('degraded', reason)
     this.emit('change', this.threads)
@@ -206,7 +214,15 @@ export class ThreadsIndex extends EventEmitter {
     }
 
     const live = this.shims ? this.shims.liveSessionIds() : new Set()
-    const open = this.readOpenProjects()
+    // Dépôt principal de chaque worktree lié : son espace de travail ouvre le
+    // groupe du dépôt (`ProjectGroupKey` de Zed).
+    const mainOf = new Map()
+    for (const r of rows) {
+      const main = splitFolderPaths(r.main_worktree_paths, r.main_worktree_paths_order)
+      if (main.length) mainOf.set(projectKey(splitFolderPaths(r.folder_paths, r.folder_paths_order)), main)
+    }
+    this.projects = this.readZedProjects(mainOf)
+    const open = this.projects && this.openKeys
 
     const threads = rows.map((r) => {
       const threadId = hex(r.thread_id)
@@ -246,22 +262,67 @@ export class ThreadsIndex extends EventEmitter {
   }
 
   /**
-   * Projets ouverts dans Zed, relevés dans sa base : `kv_store.session_id` est
-   * la session de Zed en cours, et chaque fenêtre ouverte est une ligne de
-   * `workspaces` qui la porte (une fenêtre fermée perd son `session_id`).
-   * @returns {Set<string>|null} clés `projectKey`, `null` si la base ne le dit pas
+   * Projets du sidebar de Zed, dans son ordre, relevés dans sa base.
+   *
+   * `kv_store.session_id` est la session de Zed (la dernière si Zed est fermé) ;
+   * chaque espace de travail chargé est une ligne de `workspaces` qui la porte,
+   * avec sa fenêtre (`window_id`). Les groupes du sidebar d'une fenêtre sont dans
+   * `scoped_kv_store` (`multi_workspace_state`, clé `window_id`), dans l'ordre
+   * affiché ; un groupe sans espace de travail chargé est fermé. Zed ne réécrit
+   * cette entrée qu'à un changement du sidebar, et Windows réutilise les
+   * `window_id` : une entrée dont l'espace actif n'est pas de la fenêtre date
+   * d'une autre session, on s'en tient alors aux espaces chargés.
+   * Fenêtres : la plus récemment touchée d'abord (`session_window_stack`
+   * n'existe pas sous Windows).
+   * @param {Map<string,string[]>} mainOf clé d'un worktree lié → dossiers de son dépôt
+   * @returns {Array<{folderPaths:string[], open:boolean}>|null} `null` si la base ne le dit pas
    */
-  readOpenProjects() {
+  readZedProjects(mainOf = new Map()) {
     // Tables absentes (autre version de Zed), ou illisibles : on ne devine pas.
     if (this.noWorkspaces) return null
-    if (!this.zedRunning()) return new Set()
     try {
       const session = this.db.prepare("select value from kv_store where key = 'session_id'").get()?.value
-      if (!session) return new Set()
+      this.openKeys = new Set()
+      if (!session) return []
       const rows = this.db.prepare(
-        'select paths, paths_order from workspaces where session_id = ? and remote_connection_id is null',
+        'select workspace_id, paths, paths_order, window_id, timestamp from workspaces where session_id = ? and remote_connection_id is null order by timestamp desc',
       ).all(session)
-      return new Set(rows.map((r) => splitFolderPaths(r.paths, r.paths_order)).filter((p) => p.length).map(projectKey))
+      const windows = new Map()
+      for (const r of rows) {
+        const w = windows.get(r.window_id) ?? { ids: new Set(), loaded: [] }
+        windows.set(r.window_id, w)
+        w.ids.add(r.workspace_id)
+        const paths = splitFolderPaths(r.paths, r.paths_order)
+        if (paths.length) w.loaded.push(mainOf.get(projectKey(paths)) ?? paths)
+      }
+      const states = this.noScopedKv ? null : this.db.prepare(
+        "select value from scoped_kv_store where namespace = 'multi_workspace_state' and key = ?",
+      )
+
+      const running = this.zedRunning()
+      // Dossiers chargés tels quels (un worktree lié n'est pas son dépôt) : `projectOpen`.
+      this.openKeys = new Set(running ? rows.map((r) => splitFolderPaths(r.paths, r.paths_order)).filter((p) => p.length).map(projectKey) : [])
+      const projects = new Map()
+      for (const [windowId, w] of windows) {
+        const loaded = new Set(w.loaded.map(projectKey))
+        let state = null
+        try { state = windowId !== null && states ? JSON.parse(states.get(String(windowId))?.value ?? 'null') : null } catch { /* illisible */ }
+        const fresh = state && w.ids.has(state.active_workspace_id) && Array.isArray(state.project_groups)
+        // Un espace chargé a toujours son groupe chez Zed (`ensure_project_group_state`) :
+        // ceux que l'entrée ne cite pas (vide, périmée) suivent.
+        const groups = fresh
+          ? state.project_groups.filter((g) => g?.location === 'Local' && g.path_list)
+            .map((g) => splitFolderPaths(g.path_list.paths, g.path_list.order)).filter((p) => p.length)
+          : []
+        for (const folderPaths of [...groups, ...w.loaded]) {
+          const k = projectKey(folderPaths)
+          const open = running && loaded.has(k)
+          const known = projects.get(k)
+          if (known) known.open ||= open
+          else projects.set(k, { folderPaths, open })
+        }
+      }
+      return [...projects.values()]
     } catch (err) {
       // Schéma d'une autre version de Zed : on ne sait pas, on ne devine pas.
       log.debug(tr`projets ouverts illisibles :`, err.message)
@@ -273,7 +334,7 @@ export class ThreadsIndex extends EventEmitter {
   /** Relit et n'émet `change` que si la projection a bougé. */
   refresh({ force = false } = {}) {
     const threads = this.read()
-    const snapshot = JSON.stringify(threads)
+    const snapshot = JSON.stringify([threads, this.projects])
     if (!force && snapshot === this.snapshot) return false
     const changed = snapshot !== this.snapshot
     this.threads = threads

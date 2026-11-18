@@ -274,6 +274,20 @@ button { cursor: pointer; }
   .project__head:not(:hover) .project__chevron { visibility: hidden; }
 }
 
+/* Projet du sidebar de Zed sans thread, déplié. */
+.project__empty { padding: var(--sp-2) var(--sp-4) var(--sp-2) calc(var(--sp-4) + var(--indent-step) * 2);
+  font-size: var(--fs-xs); color: var(--text-disabled); }
+/* « Projets récents » : connus de la base, absents du sidebar de Zed. */
+.recent__head {
+  display: flex; align-items: center; gap: var(--sp-3);
+  width: 100%; text-align: left;
+  margin-top: var(--sp-4); padding: var(--sp-2) var(--sp-4) var(--sp-2) calc(var(--sp-4) + var(--indent-step));
+}
+.recent__head:hover { background: var(--ghost-element-hover); }
+@media (hover: hover) {
+  .recent__head:not(:hover) .group__chevron { visibility: hidden; }
+}
+
 .thread-row {
   display: flex; align-items: flex-start; gap: var(--sp-4);
   width: 100%; text-align: left;

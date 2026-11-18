@@ -1,5 +1,7 @@
 // Écran 1 — liste des threads, calquée sur le sidebar de Zed :
 // groupée par poste puis par projet, triée par récence, pastille d'état.
+// Les projets suivent le sidebar de Zed (`projects` du poste) ; les autres
+// projets de la base sont rangés sous « Projets récents ».
 //
 // Un poste se replie comme un projet (sa ligne de titre seule reste). Un projet
 // porte son propre « + » : une session s'ouvre toujours dans un projet, jamais
@@ -22,6 +24,7 @@ import { tr } from '../i18n.js'
 // vue), mais un rechargement — donc une reconnexion — repart de zéro.
 const expandedMachines = new Set()
 const expandedProjects = new Set()
+const expandedRecent = new Set()
 
 const FILTERS = [
   { id: 'all', label: tr`Tous` },
@@ -102,18 +105,42 @@ export function ThreadsView({ navigate }) {
             : null))
         continue
       }
-      if (!rows.length) {
+      const groups = byProject(rows, m.projects)
+      const recent = groups.recent
+      // Filtré, un projet du sidebar sans thread correspondant disparaît.
+      const zed = query || filter !== 'all' ? groups.zed.filter((g) => g.threads.length) : groups.zed
+      if (!zed.length && !recent.length) {
         section.append(h('div.empty', { style: { padding: '12px' }, text: tr`aucun thread` }))
         continue
       }
-      for (const group of byProject(rows)) {
+      const projectGroup = (parent, group) => {
         // Une recherche montre ses résultats, même dans un projet replié.
         const open = Boolean(query) || expandedProjects.has(collapseKey(m, group.project))
         const projectSection = h('div.project')
-        section.append(projectSection)
-        projectSection.append(projectHead(m, group.project, open, () => { toggleProject(m, group.project); paint() }, projectState(group.threads), group.threads))
-        if (open) for (const t of group.threads) projectSection.append(threadRow(m, t, navigate))
+        parent.append(projectSection)
+        projectSection.append(projectHead(m, group.project, open, () => { toggleProject(m, group.project); paint() }, group.state ?? projectState(group.threads), group.threads))
+        if (!open) return
+        for (const t of group.threads) projectSection.append(threadRow(m, t, navigate))
+        if (!group.threads.length) projectSection.append(h('div.project__empty', { text: tr`aucun thread` }))
       }
+      for (const group of zed) projectGroup(section, group)
+      if (!recent.length) continue
+      // Projets connus de la base mais absents du sidebar de Zed.
+      const recentOpen = Boolean(query) || !zed.length || expandedRecent.has(m.id)
+      const recentSection = h('div.recent')
+      section.append(recentSection)
+      if (zed.length) {
+        recentSection.append(button('recent__head', {
+          'aria-expanded': String(recentOpen),
+          onclick: () => { if (expandedRecent.has(m.id)) expandedRecent.delete(m.id); else expandedRecent.add(m.id); paint() },
+        },
+          h('span.group__name', { text: tr`Projets récents` }),
+          icon(recentOpen ? 'chevron-down' : 'chevron-right', 'icon--sm group__chevron'),
+          h('span.spacer'),
+          h('span.group__meta', { text: `${recent.length}` }),
+        ))
+      }
+      if (recentOpen) for (const group of recent) projectGroup(recentSection, group)
     }
 
     if (!total && query) {
@@ -181,23 +208,30 @@ function toggleMachine(m) {
 }
 
 /**
- * Threads regroupés par projet, déjà triés par récence : l'ordre des projets
- * suit leur thread le plus récent. Comme Zed, un worktree git lié reste sous
- * son dépôt principal (`mainPaths`), et les noms se distinguent par leur
- * dossier parent quand ils se répètent.
+ * Threads regroupés par projet, déjà triés par récence. Comme Zed, un worktree
+ * git lié reste sous son dépôt principal (`mainPaths`), et les noms se
+ * distinguent par leur dossier parent quand ils se répètent.
+ *
+ * `projects` (sidebar de Zed, dans son ordre) connu : ses projets d'abord, même
+ * sans thread, dans cet ordre (`zed`) ; les autres à part (`recent`), dans
+ * l'ordre de leur thread le plus récent. Inconnu : tout dans `zed`, par récence.
  */
-function byProject(rows) {
+function byProject(rows, projects = null) {
   const groups = new Map()
+  for (const p of projects ?? []) {
+    const project = projectOf(p.folderPaths)
+    if (project.key && !groups.has(project.key)) groups.set(project.key, { project, threads: [], state: p.open ? 'live' : 'closed', zed: true })
+  }
   for (const t of rows) {
     const project = projectOf(t.mainPaths ?? t.folderPaths)
     let g = groups.get(project.key)
-    if (!g) groups.set(project.key, (g = { project, threads: [] }))
+    if (!g) groups.set(project.key, (g = { project, threads: [], zed: !projects }))
     g.threads.push(t)
   }
   const list = [...groups.values()]
   const names = projectNames(list.map((g) => g.project.folderPaths))
   list.forEach((g, i) => { g.project = { ...g.project, name: names[i] } })
-  return list
+  return { zed: list.filter((g) => g.zed), recent: list.filter((g) => !g.zed) }
 }
 
 const collapseKey = (m, project) => `${m.id}|${project.key}`

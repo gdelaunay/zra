@@ -65,6 +65,8 @@ export function addMachine(cfg) {
     status: 'connecting',
     info: null,
     threads: [],
+    /** Projets du sidebar de Zed, dans son ordre ; `null` : le poste ne le dit pas. */
+    projects: null,
     error: null,
     link: state.mock
       ? new MockLink({ id: cfg.id, url: cfg.url, label: cfg.label, clientId: settings.clientId })
@@ -173,6 +175,7 @@ function handle(machine, msg) {
     case 'threads': {
       const all = Array.isArray(msg.threads) ? msg.threads : (Array.isArray(msg) ? msg : [])
       machine.threads = all.filter(listed)
+      machine.projects = Array.isArray(msg.projects) ? msg.projects : null
       for (const t of all) {
         const k = key(machine.id, t.threadId)
         const st = ensureState(k)

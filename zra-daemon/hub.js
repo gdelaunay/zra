@@ -120,7 +120,7 @@ export class Hub {
         return
 
       case 'list_threads':
-        conn.send({ type: 'threads', threads: this.listThreads() })
+        conn.send(this.threadsMessage())
         return
 
       case 'subscribe':
@@ -217,7 +217,7 @@ export class Hub {
   bootstrap(client) {
     const { conn } = client
     conn.send({ type: 'machine', ...this.machine.describe() })
-    conn.send({ type: 'threads', threads: this.listThreads() })
+    conn.send(this.threadsMessage())
     for (const t of this.threads.threads) {
       conn.send(this.states.snapshot(t.threadId, { state: t.state }))
     }
@@ -441,9 +441,11 @@ export class Hub {
     try {
       // Projet fermé dans Zed : il s'ouvre dans sa propre fenêtre.
       const key = project ? projectKey(project) : null
-      const newWindow = Boolean(key) && this.threads.threads.some((t) => t.projectOpen === false && t.folderPaths?.length && projectKey(t.folderPaths) === key)
+      const listed = this.threads.projects?.find((p) => projectKey(p.folderPaths) === key)
+      const newWindow = Boolean(key) && (listed ? !listed.open
+        : this.threads.threads.some((t) => t.projectOpen === false && t.folderPaths?.length && projectKey(t.folderPaths) === key))
       const { thread, cwd } = await this.zed.newThread(agentId, { folderPaths: project, newWindow })
-      conn.send({ type: 'threads', threads: this.listThreads() })
+      conn.send(this.threadsMessage())
       conn.send({ type: 'thread_created', threadId: thread.threadId, agentId: thread.agentId ?? agentId })
       // Zed a pu ouvrir la session ailleurs (fenêtre du projet introuvable,
       // focus volé) : le thread existe, on le dit dans son fil plutôt que de le taire.
@@ -460,15 +462,17 @@ export class Hub {
   }
 
   /**
-   * Un projet se désigne par les dossiers d'un thread existant, jamais par un
-   * chemin libre : le mobile ne fait ouvrir à Zed que ce que Zed a déjà ouvert.
+   * Un projet se désigne par les dossiers d'un thread existant ou d'un groupe du
+   * sidebar de Zed, jamais par un chemin libre : le mobile ne fait ouvrir à Zed
+   * que ce que Zed a déjà ouvert.
    * @returns {string[]|null} les dossiers, tels que l'index les écrit
    */
   knownProject(folderPaths) {
     if (!Array.isArray(folderPaths) || !folderPaths.length || folderPaths.length > 16) return null
     if (!folderPaths.every((p) => typeof p === 'string' && p)) return null
     const key = projectKey(folderPaths)
-    return this.threads.threads.find((t) => t.folderPaths?.length && projectKey(t.folderPaths) === key)?.folderPaths ?? null
+    return this.threads.threads.find((t) => t.folderPaths?.length && projectKey(t.folderPaths) === key)?.folderPaths
+      ?? this.threads.projects?.find((p) => projectKey(p.folderPaths) === key)?.folderPaths ?? null
   }
 
   // ---- sortie --------------------------------------------------------------
@@ -565,8 +569,13 @@ export class Hub {
     })
   }
 
+  /** Message `threads` : l'index et les projets du sidebar de Zed (protocole §4). */
+  threadsMessage() {
+    return { type: 'threads', threads: this.listThreads(), projects: this.threads.projects ?? null }
+  }
+
   broadcastThreads() {
-    this.broadcast({ type: 'threads', threads: this.listThreads() })
+    this.broadcast(this.threadsMessage())
   }
 
   activityOf(threadId) {

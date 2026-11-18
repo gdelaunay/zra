@@ -100,7 +100,7 @@ Ce que ZRA lit, écrit et imite dans Zed, avec l'endroit où le vérifier dans s
 
 | Dépendance | Usage | Si elle change |
 |---|---|---|
-| Base SQLite de Zed (`db/0-<canal>/db.sqlite`, tables `sidebar_threads`, `workspaces`, `kv_store`) | Index des threads, projets ouverts | Colonne requise absente : mode dégradé « live seul », signalé à la PWA |
+| Base SQLite de Zed (`db/0-<canal>/db.sqlite`, tables `sidebar_threads`, `workspaces`, `kv_store`, `scoped_kv_store`) | Index des threads, projets du sidebar et leur ordre | Colonne requise absente : mode dégradé « live seul », signalé à la PWA |
 | `settings.json` de Zed (`agent_servers`) et son registry d'agents | Savoir lancer un agent, y inscrire les entrées ZRA | `setup` refuse d'écrire si le fichier n'est pas un JSONC valide |
 | `keymap.json` de Zed (action `agent::NewExternalAgentThread`) | Touche « nouveau thread » par agent | La touche n'a plus d'effet : erreur explicite après 30 s |
 | Palette de commandes et sidebar de Zed | Recettes clavier (`zed/driver.js`) | Recettes surchargeables dans `zedControl.recipes` |

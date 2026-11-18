@@ -282,7 +282,12 @@ existing threads.
 
 ### `threads`
 ```ts
-{ type: 'threads', threads: ThreadSummary[] }
+{ type: 'threads', threads: ThreadSummary[], projects?: ZedProject[] | null }
+
+type ZedProject = {
+  folderPaths: string[]     // the group's folders, in Zed's display order
+  open: boolean             // a workspace of this project is loaded in a window
+}
 
 type ThreadSummary = {
   threadId: string          // hex of the sidebar_threads.thread_id BLOB
@@ -314,11 +319,20 @@ unread end-of-turn dot. Like Zed's
 sidebar, the PWA lists neither drafts, nor threads without `agentId` (Zed's
 native agent, unreadable over ACP), nor `remote` ones.
 
-`projectOpen`: read from Zed's database — `kv_store.session_id` is the current
-session, and each open window is a `workspaces` row carrying it.
-Zed closed: `false` everywhere. `null` if the database does not have these tables. The PWA derives
-a dot per project from it; a closed project stays usable, the daemon opens it in
-Zed on demand.
+`projects`: the groups of Zed's sidebar, all windows, in its order. Read from
+its database: `kv_store.session_id` is the current session (the last one if Zed
+is closed); each loaded workspace is a `workspaces` row carrying it, with its
+window; a window's groups are in `scoped_kv_store` (`multi_workspace_state`,
+key `window_id`). Windows follow from the most recently touched to the oldest.
+A stale entry (window id reused from a previous session) is ignored: the window
+only counts its loaded workspaces. Zed closed: the last session, all
+`open: false`. `null` if the database does not have these tables. The PWA shows
+these projects in this order, even without threads, and files the others under
+"Recent projects"; `null`: all projects, by recency.
+
+`projectOpen`: the thread's folders are loaded in a Zed window (same sources;
+Zed closed: `false`). A closed project stays usable, the daemon opens it in Zed
+on demand, in a new window.
 
 ### `thread_state`
 ```ts

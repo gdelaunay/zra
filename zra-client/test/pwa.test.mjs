@@ -431,11 +431,13 @@ function projectHead(machine, name) {
   return null
 }
 
-/** Déplie postes puis projets, un clic à la fois, jusqu'à voir tous les threads. */
+/** Déplie postes, « Projets récents » et projets, un clic à la fois, jusqu'à voir tous les threads. */
 async function expandAll() {
   await until(() => {
     const head = $$('.group__head').find((n) => n.getAttribute('aria-expanded') === 'false')
     if (head) { click(head); return false }
+    const recent = $$('.recent__head').find((n) => n.getAttribute('aria-expanded') === 'false')
+    if (recent) { click(recent); return false }
     const toggle = $$('.project__toggle').find((n) => n.getAttribute('aria-expanded') === 'false')
     if (toggle) { click(toggle); return false }
     return $$('.thread-row').length >= 7

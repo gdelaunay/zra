@@ -64,7 +64,7 @@ export class MockLink {
         zedRunning: this.spec.zedRunning, version: this.spec.version,
         agents: AGENTS,
       })
-      this.push({ type: 'threads', threads: this.threads })
+      this.push({ type: 'threads', threads: this.threads, projects: this.spec.projects ?? null })
       for (const t of this.threads) this.pushState(t.threadId)
       if (this.id === 'mock-desk') this.later(900, () => this.play('a1f39c0b', fullTurn('mode ro')))
     })
@@ -93,7 +93,7 @@ export class MockLink {
         this.push({ type: 'pong' })
         break
       case 'list_threads':
-        this.push({ type: 'threads', threads: this.threads })
+        this.push({ type: 'threads', threads: this.threads, projects: this.spec.projects ?? null })
         break
       case 'subscribe':
         this.subs.add(msg.threadId)
@@ -162,7 +162,7 @@ export class MockLink {
           state: 'live',
         }
         this.threads.unshift(created)
-        this.push({ type: 'threads', threads: this.threads })
+        this.push({ type: 'threads', threads: this.threads, projects: this.spec.projects ?? null })
         this.push({ type: 'thread_created', threadId: created.threadId, agentId: agent.id })
         this.pushState(created.threadId)
         break
@@ -277,12 +277,12 @@ export class MockLink {
       case 'offline':
         this.setStatus('offline')
         this.lastError = tr`poste injoignable (simulé)`
-        this.later(4000, () => { this.lastError = null; this.setStatus('online'); this.push({ type: 'threads', threads: this.threads }) })
+        this.later(4000, () => { this.lastError = null; this.setStatus('online'); this.push({ type: 'threads', threads: this.threads, projects: this.spec.projects ?? null }) })
         break
       case 'shim-lost': {
         const t = this.thread(id)
         if (t) { t.state = 'closed'; this.turnOf(id).queue = [] }
-        this.push({ type: 'threads', threads: this.threads })
+        this.push({ type: 'threads', threads: this.threads, projects: this.spec.projects ?? null })
         this.pushState(id)
         this.pushEvent(id, { sessionUpdate: 'zra/notice', level: 'warn', text: tr`Zed a fermé l'agent : file d'attente perdue` })
         break
@@ -290,7 +290,7 @@ export class MockLink {
       case 'shim-back': {
         const t = this.thread(id)
         if (t) t.state = 'live'
-        this.push({ type: 'threads', threads: this.threads })
+        this.push({ type: 'threads', threads: this.threads, projects: this.spec.projects ?? null })
         this.pushState(id)
         break
       }
@@ -304,7 +304,7 @@ export class MockLink {
           updatedAt: new Date().toISOString(), archived: false, state: 'live',
         }
         this.threads.unshift(t)
-        this.push({ type: 'threads', threads: this.threads })
+        this.push({ type: 'threads', threads: this.threads, projects: this.spec.projects ?? null })
         break
       }
       default:
@@ -329,14 +329,14 @@ export class MockLink {
 
   markLive(threadId) {
     const t = this.thread(threadId)
-    if (t && t.state !== 'live') { t.state = 'live'; this.push({ type: 'threads', threads: this.threads }) }
+    if (t && t.state !== 'live') { t.state = 'live'; this.push({ type: 'threads', threads: this.threads, projects: this.spec.projects ?? null }) }
   }
 
   touch(threadId) {
     const t = this.thread(threadId)
     if (!t) return
     t.updatedAt = new Date().toISOString()
-    this.push({ type: 'threads', threads: this.threads })
+    this.push({ type: 'threads', threads: this.threads, projects: this.spec.projects ?? null })
   }
 
   pushState(threadId) {
@@ -359,7 +359,7 @@ export class MockLink {
     if (t && (t.turn === 'busy') !== (st.turn === 'busy')) {
       if (st.turn === 'busy') t.turn = 'busy'
       else delete t.turn
-      this.push({ type: 'threads', threads: this.threads })
+      this.push({ type: 'threads', threads: this.threads, projects: this.spec.projects ?? null })
     }
   }
 

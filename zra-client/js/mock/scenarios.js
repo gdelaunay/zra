@@ -11,6 +11,12 @@ export const MACHINES = {
     os: 'Windows 11',
     zedRunning: true,
     version: '0.1.0-mock',
+    // Sidebar de Zed, dans son ordre : runtimes y est sans thread et non chargé ;
+    // spikes/uia n'y est pas (« Projets récents »).
+    projects: [
+      { folderPaths: ['C:/Users/gd/Documents/Développement/runtimes'], open: false },
+      { folderPaths: ['C:/Users/gd/Documents/Développement/zra'], open: true },
+    ],
     threads: [
       {
         threadId: 'a1f39c0b', sessionId: 'sess-live-1', agentId: 'claude-zra',

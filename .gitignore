@@ -11,6 +11,7 @@ zra-daemon/test/fixtures/registry-args/
 zra-daemon/test/fixtures/settings-discover.json
 zra-daemon/test/fixtures/settings-env.json
 zra-daemon/test/fixtures/list-zed.sqlite*
+zra-daemon/test/fixtures/sidebar-*.sqlite*
 
 # config réelle du poste : copiée depuis zra.config.example.json, jamais committée
 /zra.config.json

@@ -15,7 +15,6 @@ Fait → effet → à faire. Une issue acceptée (on ne fera rien) part dans
 | Logos d'agents : source | `à faire` |
 | Relecture : environnement et capacités différents de Zed | `à faire` |
 | Fil : placement du plan et de la permission | `à faire` |
-| Liste des threads : projets ouverts, ordre des groupes | `à faire` |
 | Réouverture : le filtre du sidebar est flou | `à faire` |
 
 ## Tour lancé depuis le mobile : Zed le croit au repos — `à faire`
@@ -64,24 +63,6 @@ Zed affiche le plan au-dessus du composer (`render_activity_bar`,
 permission dans son tool call (`render_permission_buttons`). La PWA
 (`views/entry.js`) place plan et permission en cartes dans le fil.
 → À trancher avec l'audit d'apparence.
-
-## Liste des threads : projets ouverts, ordre des groupes — `à faire`
-
-Zed ordonne les groupes de son sidebar comme sa fenêtre, le dernier ouvert en
-tête, et non par récence (`crates/workspace/src/multi_workspace.rs`,
-`ensure_project_group_state`). ZRA (`views/threads.js`, `byProject`) les
-ordonne par récence et montre tous les projets de la base.
-→ Décidé : la liste ne montre que les projets ouverts dans Zed (toutes
-fenêtres), dans l'ordre de Zed ; les autres projets de la base restent
-accessibles pour ouvrir un projet récent. Source probable : `kv_store`, clés
-`session_window_stack` (fenêtres en cours) et `multi_workspace_state` (groupes
-du sidebar par fenêtre, ordre et repli : `crates/workspace/src/multi_workspace.rs`,
-`serialize_now` ; `crates/workspace/src/persistence.rs`,
-`read_multi_workspace_state`). Un projet déchargé mais resté au sidebar
-(« fermer l'espace de travail » sans « retirer le projet ») est montré, marqué
-fermé ; l'ouvrir le recharge, comme un clic dans Zed (`crates/sidebar/src/sidebar.rs`,
-`open_workspace_for_group`). À constater d'abord sur une vraie base : le contenu
-de ces clés, et qu'un projet déchargé figure bien dans `multi_workspace_state`.
 
 ## Réouverture : le filtre du sidebar est flou — `à faire`
 

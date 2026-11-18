@@ -215,7 +215,7 @@ test('list_threads rend l’index tel quel', () => {
   const ctx = boot()
   const conn = pairedClient(ctx)
   conn.emit('message', { type: 'list_threads' })
-  assert.deepEqual(conn.last(), { type: 'threads', threads: ctx.threads.threads })
+  assert.deepEqual(conn.last(), { type: 'threads', threads: ctx.threads.threads, projects: null })
 })
 
 test('un changement d’index est diffusé à tous les clients reconnus', () => {
@@ -1049,6 +1049,19 @@ test('new_thread sur un projet fermé dans Zed : demandé dans une nouvelle fen�
   conn.emit('message', { type: 'new_thread', agentId: 'gemini-zra', folderPaths: ['C:/proj/ferme'] })
   await tick()
   assert.equal(zed.calls[0][2].newWindow, true)
+})
+
+test('new_thread sur un projet du sidebar de Zed sans thread : accepté, fenêtre selon son état', async () => {
+  const zed = fakeZedControl()
+  const ctx = boot({ zed })
+  ctx.threads.projects = [{ folderPaths: ['C:/proj/vide'], open: true }, { folderPaths: ['C:/proj/décharge'], open: false }]
+  const conn = pairedClient(ctx)
+  conn.emit('message', { type: 'new_thread', agentId: 'claude-zra', folderPaths: ['C:/proj/vide'] })
+  await tick()
+  conn.emit('message', { type: 'new_thread', agentId: 'claude-zra', folderPaths: ['C:/proj/décharge'] })
+  await tick()
+  assert.deepEqual(conn.only('error'), [])
+  assert.deepEqual(zed.calls.map((c) => [c[2].folderPaths, c[2].newWindow]), [[['C:/proj/vide'], false], [['C:/proj/décharge'], true]])
 })
 
 test('new_thread : projet inconnu du poste → refus, Zed n’est pas piloté', async () => {

@@ -20,6 +20,16 @@ Zed et un téléphone. Un point vérifié est retiré ; un écart constaté part
   âge affiché comme dans le sidebar (`5 min`, `3 h`, `2 j`…).
 - **Worktree git lié** : un thread ouvert dans un worktree apparaît sous son
   dépôt principal ; deux projets homonymes se distinguent par leur dossier parent.
+- **Projets du sidebar de Zed** : la PWA montre les projets du sidebar dans son
+  ordre (ajout d'un projet → en tête ; « Move Up/Down » suivi), les autres sous
+  « Projets récents ». Deux fenêtres Zed : les projets des deux, la fenêtre la
+  plus récemment touchée d'abord. Au premier lancement de Zed, avant tout
+  changement du sidebar : la liste ne doit pas reprendre les groupes d'une
+  fenêtre d'une session précédente.
+- **Projet du sidebar non chargé** (« Close Worktree » dans « Open
+  Worktrees ») : marqué fermé. « + » dessus : le daemon l'ouvre dans une
+  nouvelle fenêtre ; Zed, lui, le recharge dans la même. À juger.
+- **Zed fermé** : la liste garde les projets de la dernière session, tous fermés.
 
 ## Fil (affichage)
 

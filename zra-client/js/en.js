@@ -152,6 +152,7 @@ export default {
   "poste injoignable": "machine unreachable",
   "Réessayer": "Retry",
   "aucun thread": "no thread",
+  "Projets récents": "Recent projects",
   "aucun thread pour « {0} »": "no thread for \"{0}\"",
   "Rafraîchir": "Refresh",
   "en ligne": "online",

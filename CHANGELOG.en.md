@@ -2,6 +2,10 @@
 
 [Français](https://forgejo.gdelaunay.fr/gdelaunay/zra/src/branch/main/CHANGELOG.md)
 
+## In progress
+
+- Thread list: projects follow Zed's sidebar (all windows, in its order, even without threads); the others under "Recent projects"
+
 ## v0.3 — 2026-10-19 — Linux port & regression tests (`e752972`)
 
 - Full Linux port: Ubuntu 24.04/GNOME/Wayland (porting machine), Debian 13/KDE/X11, MX Linux 23/Xfce/X11 checked for real
