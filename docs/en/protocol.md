@@ -295,6 +295,8 @@ type ThreadSummary = {
   createdAt?: string | null // informative, the PWA does not use it in v1
   archived: boolean
   remote?: boolean          // remote project (SSH, WSL: remote_connection)
+  turn?: 'busy'             // turn in progress (absent when idle)
+  waiting?: boolean         // a permission awaits an answer
   state: 'live' | 'closed' | 'unknown'
   projectOpen?: boolean | null // thread's project open in a Zed window; null: unknown
 }
@@ -304,7 +306,9 @@ bootstrap, on `list_threads`, and spontaneously when the index changes (2 s poll
 `updated_at`) or a shim appears/disappears.
 
 `state`: `live` = a shim is connected for this `session_id`; `closed` = known
-to the index without a shim; `unknown` = NULL `session_id` (Zed draft). Like Zed's
+to the index without a shim; `unknown` = NULL `session_id` (Zed draft). `turn` and `waiting`: the thread's activity, re-broadcast when
+it changes; the PWA shows them on the thread's row and its project's, with an
+unread end-of-turn dot. Like Zed's
 sidebar, the PWA lists neither drafts, nor threads without `agentId` (Zed's
 native agent, unreadable over ACP), nor `remote` ones.
 

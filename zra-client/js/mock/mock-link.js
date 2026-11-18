@@ -355,6 +355,12 @@ export class MockLink {
       options: OPTIONS.map(({ default: _, ...o }) => ({ ...o, currentValue: st.options[o.id] })),
       commands: COMMANDS,
     })
+    // Comme le daemon : l'activité du tour remonte dans la liste.
+    if (t && (t.turn === 'busy') !== (st.turn === 'busy')) {
+      if (st.turn === 'busy') t.turn = 'busy'
+      else delete t.turn
+      this.push({ type: 'threads', threads: this.threads })
+    }
   }
 
   pushEvent(threadId, update) {

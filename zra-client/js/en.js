@@ -154,7 +154,11 @@ export default {
   "· Zed fermé": "· Zed closed",
   "ouvert dans Zed": "open in Zed",
   "fermé dans Zed : il s’ouvrira à la demande": "closed in Zed: it will open on demand",
+  "en attente de confirmation": "awaiting confirmation",
+  "en cours": "running",
   "Nouveau thread dans {0}": "New thread in {0}",
   "sans titre": "untitled",
-  "archivé": "archived"
+  "archivé": "archived",
+  "attend une confirmation": "awaiting confirmation",
+  "tour terminé, pas encore lu": "turn finished, not read yet"
 }

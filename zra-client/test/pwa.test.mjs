@@ -378,6 +378,18 @@ test('retour à la liste et changement de thème', async () => {
   assert.equal(doc.documentElement.dataset.theme, before)
 })
 
+test('liste : un tour en cours se voit sur sa ligne, sa fin non lue aussi (comme le sidebar de Zed)', async () => {
+  ZRA.navigate('#/')
+  await until(() => $$('.thread-row').length >= 7, 3000)
+  const row = () => $$('.thread-row').find((r) => /Refactor du lecteur/.test(r.textContent))
+  ZRA.store.state.machines.get('mock-desk').link.send({ type: 'zra/trigger', name: 'short', threadId: 'a1f39c0b' })
+  await until(() => row()?.querySelector('.thread-row__activity.spin'), 3000, 'génération affichée')
+  await until(() => row()?.querySelector('.dot--unseen'), 5000, 'fin de tour non lue')
+  ZRA.store.openThread('mock-desk/a1f39c0b')
+  ZRA.store.closeThread('mock-desk/a1f39c0b')
+  assert.equal(ZRA.store.ensureState('mock-desk/a1f39c0b').unseen, false)
+})
+
 test('le sélecteur de thème s’ouvre par-dessus les réglages, sans les fermer', async () => {
   click($('.header [title="Réglages"]'))
   await until(() => $('.sheet'), 2000, 'feuille des réglages')

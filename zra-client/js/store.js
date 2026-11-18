@@ -175,6 +175,9 @@ function handle(machine, msg) {
       for (const t of all) {
         const k = key(machine.id, t.threadId)
         const st = ensureState(k)
+        // Fin de tour d'un thread qu'on ne regarde pas : pastille, comme le
+        // sidebar de Zed, jusqu'à ce qu'on l'ouvre.
+        if (st.summary?.turn === 'busy' && t.turn !== 'busy' && !st.subscribed) st.unseen = true
         st.summary = t
         st.state = t.state
       }
@@ -408,6 +411,7 @@ export function setDraft(k, text) {
 
 export function openThread(k) {
   const st = ensureState(k)
+  st.unseen = false
   const m = machineOf(k)
   if (!m) return
   const { threadId } = splitKey(k)

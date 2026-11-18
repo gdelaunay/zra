@@ -284,6 +284,12 @@ button { cursor: pointer; }
 .thread-row:hover { background: var(--ghost-element-hover); }
 .thread-row:active { background: var(--ghost-element-active); }
 .thread-row__dot { margin-top: 6px; }
+/* Activité du tour, comme le sidebar de Zed : génération, confirmation, fin non vue. */
+.thread-row__activity { flex: none; color: var(--icon-muted); margin-top: 2px; }
+.thread-row__activity--waiting { color: var(--warning); }
+.dot--unseen { background: var(--icon-accent); margin-top: 6px; }
+.project__activity { font-size: var(--fs-xs); color: var(--text-muted); flex: none; }
+.project__activity--waiting { color: var(--warning); }
 /* Cadenas à la place de la pastille (thread en lecture seule) : même emprise
    (7px), même centre. */
 .lock-dot { flex: none; width: 7px; display: flex; justify-content: center; color: var(--text-muted); }

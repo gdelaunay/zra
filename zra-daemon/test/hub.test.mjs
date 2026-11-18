@@ -411,11 +411,33 @@ test('un changement d’état est poussé aux abonnés, avec l’état de l’in
   conn.mark()
 
   ctx.states.mirror(A, { turn: 'busy', queue: [{ queueId: 'q1', text: 'ensuite', at: 'x' }] })
-  const msg = conn.last()
-  assert.equal(msg.type, 'thread_state')
+  const msg = conn.only('thread_state').at(-1)
   assert.equal(msg.turn, 'busy')
   assert.equal(msg.state, 'live')
   assert.deepEqual(msg.queue.map((q) => q.queueId), ['q1'])
+})
+
+test('liste des threads : tour en cours et permission en attente, comme le sidebar de Zed', () => {
+  const ctx = boot()
+  const conn = pairedClient(ctx)
+  conn.mark()
+  const row = () => conn.only('threads').at(-1).threads.find((t) => t.threadId === A)
+
+  ctx.states.mirror(A, { turn: 'busy' })
+  assert.equal(row().turn, 'busy')
+  assert.equal(row().waiting, false)
+
+  ctx.hub.publish(A, { requestId: 'r1', toolCall: { toolCallId: 't' }, options: [{ optionId: 'ok' }] })
+  assert.equal(row().waiting, true)
+  ctx.hub.permissionResolved(A, { requestId: 'r1', optionId: 'ok' })
+  assert.equal(row().waiting, false)
+
+  const before = conn.only('threads').length
+  ctx.states.mirror(A, { turn: 'busy', queue: [] })
+  assert.equal(conn.only('threads').length, before, 'pas de rediffusion sans changement d’activité')
+
+  ctx.states.mirror(A, { turn: 'idle' })
+  assert.equal(row().turn, undefined, 'au repos : la ligne de l’index telle quelle')
 })
 
 test('thread_state d’un thread sorti de l’index : état unknown, pas d’erreur', () => {

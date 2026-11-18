@@ -111,7 +111,7 @@ export function ThreadsView({ navigate }) {
         const open = Boolean(query) || expandedProjects.has(collapseKey(m, group.project))
         const projectSection = h('div.project')
         section.append(projectSection)
-        projectSection.append(projectHead(m, group.project, open, () => { toggleProject(m, group.project); paint() }, projectState(group.threads)))
+        projectSection.append(projectHead(m, group.project, open, () => { toggleProject(m, group.project); paint() }, projectState(group.threads), group.threads))
         if (open) for (const t of group.threads) projectSection.append(threadRow(m, t, navigate))
       }
     }
@@ -228,7 +228,10 @@ function projectIcon(state) {
 }
 
 /** Ligne de titre d'un projet : toute la ligne replie/déplie (comme Zed), « + » à droite. */
-function projectHead(m, project, open, onToggle, state = null) {
+function projectHead(m, project, open, onToggle, state = null, threads = []) {
+  // Comme la ligne de projet du sidebar de Zed : threads en cours ou en attente.
+  const waiting = threads.filter((t) => t.waiting).length
+  const busy = threads.filter((t) => !t.waiting && t.turn === 'busy').length
   return h('div.project__head', {},
     button('project__toggle', {
       'aria-expanded': String(open),
@@ -238,6 +241,8 @@ function projectHead(m, project, open, onToggle, state = null) {
       projectIcon(state),
       h('span.project__name.truncate', { text: project.name }),
       icon(open ? 'chevron-down' : 'chevron-right', 'icon--sm project__chevron'),
+      waiting ? h('span.project__activity.project__activity--waiting', { title: tr`en attente de confirmation`, text: `${waiting}` }) : null,
+      busy ? h('span.project__activity', { title: tr`en cours`, text: `${busy}` }) : null,
     ),
     project.folderPaths.length
       ? newSessionButton({ machineId: m.id, project: () => project, title: tr`Nouveau thread dans ${project.name}` })
@@ -264,11 +269,33 @@ function threadRow(m, t, navigate) {
         h('span', { text: relTime(t.updatedAt), title: absTime(t.updatedAt) }),
       ),
     ),
+    activityIcon(m, t),
     t.archived ? h('span.thread-row__badge', { text: tr`archivé` }) : null,
     t.agentId
       ? agentIcon(t.agentId, 'thread-row__agent icon--sm')
       : null,
   )
+}
+
+/**
+ * État du tour, comme le sidebar de Zed (`ThreadEntry::apply_active_info`) :
+ * attente de confirmation, génération en cours, fin de tour pas encore vue.
+ */
+function activityIcon(m, t) {
+  if (t.waiting) {
+    const el = icon('alert-triangle', 'icon--sm thread-row__activity thread-row__activity--waiting')
+    el.setAttribute('title', tr`attend une confirmation`)
+    return el
+  }
+  if (t.turn === 'busy') {
+    const el = icon('loader', 'icon--sm spin thread-row__activity')
+    el.setAttribute('title', tr`en cours`)
+    return el
+  }
+  if (store.ensureState(store.key(m.id, t.threadId)).unseen) {
+    return h('span.dot.dot--unseen.thread-row__activity', { title: tr`tour terminé, pas encore lu` })
+  }
+  return null
 }
 
 function matches(t, query, filter) {

@@ -12,7 +12,6 @@ Fait → effet → à faire. Une issue acceptée (on ne fera rien) part dans
 | --- | --- |
 | Tour lancé depuis le mobile : Zed le croit au repos | `à faire` |
 | Liste des threads : tri, regroupement et noms | `à faire` |
-| Liste des threads : état moins riche que le sidebar | `à faire` |
 | Fil : dépliage et placement | `à faire` |
 | Réouverture : le filtre du sidebar est flou | `à faire` |
 | Performance sur téléphone non mesurée | `à faire` |
@@ -56,16 +55,6 @@ projet déchargé mais resté au sidebar (« fermer l'espace de travail » sans
 « retirer le projet ») est montré, marqué fermé ; l'ouvrir le recharge, comme
 un clic dans Zed (`crates/sidebar/src/sidebar.rs`, `open_workspace_for_group`).
 À constater : qu'il figure bien dans `multi_workspace_state`.
-
-## Liste des threads : état moins riche que le sidebar — `à faire`
-
-Le sidebar montre l'état de chaque thread (génération en cours, attente de
-confirmation, erreur, pastille de fin de tour non vue) et, sur la ligne du
-projet, des threads en cours ou en attente (`crates/sidebar/src/sidebar.rs`,
-`ThreadEntry::apply_active_info`, `ListEntry::ProjectHeader`). La liste de la
-PWA ne distingue que `live`, `closed` et `unknown` (`views/threads.js`,
-`threadRow`), alors que le daemon connaît le tour en cours.
-→ Remonter l'état du tour (et les permissions en attente) dans la liste.
 
 ## Fil : dépliage et placement — `à faire`
 

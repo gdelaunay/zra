@@ -51,7 +51,14 @@ export class Hub {
     /** Options demandées pendant un tour, appliquées au retour à `idle` (§3 `set_option`). */
     this.pendingOptions = new Map()
 
-    threads.on('change', (list) => this.broadcast({ type: 'threads', threads: list }))
+    /**
+     * Activité de chaque thread, montrée dans la liste comme dans le sidebar de
+     * Zed : tour en cours, permission en attente (`ThreadEntry::apply_active_info`).
+     * `threadId` → `{ turn, waiting:Set<requestId> }`.
+     */
+    this.activity = new Map()
+
+    threads.on('change', () => this.broadcastThreads())
     states.on('change', (threadId) => this.pushState(threadId))
     states.on('dequeue', (threadId, entry) => this.deliverQueued(threadId, entry))
   }
@@ -113,7 +120,7 @@ export class Hub {
         return
 
       case 'list_threads':
-        conn.send({ type: 'threads', threads: this.threads.threads })
+        conn.send({ type: 'threads', threads: this.listThreads() })
         return
 
       case 'subscribe':
@@ -210,7 +217,7 @@ export class Hub {
   bootstrap(client) {
     const { conn } = client
     conn.send({ type: 'machine', ...this.machine.describe() })
-    conn.send({ type: 'threads', threads: this.threads.threads })
+    conn.send({ type: 'threads', threads: this.listThreads() })
     for (const t of this.threads.threads) {
       conn.send(this.states.snapshot(t.threadId, { state: t.state }))
     }
@@ -436,7 +443,7 @@ export class Hub {
       const key = project ? projectKey(project) : null
       const newWindow = Boolean(key) && this.threads.threads.some((t) => t.projectOpen === false && t.folderPaths?.length && projectKey(t.folderPaths) === key)
       const { thread, cwd } = await this.zed.newThread(agentId, { folderPaths: project, newWindow })
-      conn.send({ type: 'threads', threads: this.threads.threads })
+      conn.send({ type: 'threads', threads: this.listThreads() })
       conn.send({ type: 'thread_created', threadId: thread.threadId, agentId: thread.agentId ?? agentId })
       // Zed a pu ouvrir la session ailleurs (fenêtre du projet introuvable,
       // focus volé) : le thread existe, on le dit dans son fil plutôt que de le taire.
@@ -471,6 +478,8 @@ export class Hub {
    * pas, ne le normalise pas, ne le complète pas (invariant §6.1).
    */
   publish(threadId, update, at = new Date().toISOString()) {
+    // Demande de permission : `toolCall` et `options` ensemble (protocole §4).
+    if (update?.requestId && update.toolCall && Array.isArray(update.options)) this.setWaiting(threadId, update.requestId, true)
     const event = this.rings.push(threadId, { update, at })
     this.broadcastToSubs(threadId, { type: 'acp_event', threadId, ...event })
   }
@@ -492,6 +501,7 @@ export class Hub {
    * réponse du mobile et l'observation du shim peuvent arriver toutes les deux.
    */
   permissionResolved(threadId, { requestId, optionId, optionName = null, by = 'mobile' }) {
+    if (requestId) this.setWaiting(threadId, requestId, false)
     if (!requestId || this.resolvedPermissions.has(requestId)) return
     this.resolvedPermissions.add(requestId)
     // Borne mémoire : on ne garde que l'histoire récente des arbitrages.
@@ -511,6 +521,7 @@ export class Hub {
 
   /** Shim mort ou requête trop tardive : l'encart passe en lecture seule (§6.6). */
   permissionExpired(threadId, requestId) {
+    if (requestId) this.setWaiting(threadId, requestId, false)
     if (requestId) this.resolvedPermissions.add(requestId)
     this.broadcastToSubs(threadId, {
       type: 'error', code: 'permission_expired', threadId,
@@ -522,6 +533,7 @@ export class Hub {
     const thread = this.threads.get(threadId)
     const snapshot = this.states.snapshot(threadId, { state: thread?.state ?? 'unknown' })
     this.broadcastToSubs(threadId, snapshot)
+    this.setTurn(threadId, snapshot.turn)
 
     // Retour au repos : on applique les options mises de côté pendant le tour.
     if (snapshot.turn === 'idle') this.flushOptions(threadId)
@@ -544,6 +556,44 @@ export class Hub {
   }
 
   /** Aux clients reconnus seulement : un client pas encore appairé ne voit rien. */
+  /** Les threads de l'index, avec leur activité (`turn`, `waiting`) quand il y en a. */
+  listThreads() {
+    return this.threads.threads.map((t) => {
+      const a = this.activity.get(t.threadId)
+      if (!a || (a.turn !== 'busy' && !a.waiting.size)) return t
+      return { ...t, turn: a.turn, waiting: a.waiting.size > 0 }
+    })
+  }
+
+  broadcastThreads() {
+    this.broadcast({ type: 'threads', threads: this.listThreads() })
+  }
+
+  activityOf(threadId) {
+    let a = this.activity.get(threadId)
+    if (!a) this.activity.set(threadId, (a = { turn: 'idle', waiting: new Set() }))
+    return a
+  }
+
+  /** Tour au repos : plus rien n'attend de réponse. Rediffuse la liste si l'activité change. */
+  setTurn(threadId, turn) {
+    if (!this.threads.get(threadId)) return
+    const a = this.activityOf(threadId)
+    const wasWaiting = a.waiting.size > 0
+    if (turn === 'idle') a.waiting.clear()
+    if (a.turn === turn && wasWaiting === a.waiting.size > 0) return
+    a.turn = turn
+    this.broadcastThreads()
+  }
+
+  setWaiting(threadId, requestId, on) {
+    const a = this.activityOf(threadId)
+    const before = a.waiting.size > 0
+    if (on) a.waiting.add(requestId)
+    else a.waiting.delete(requestId)
+    if (before !== a.waiting.size > 0) this.broadcastThreads()
+  }
+
   broadcast(msg) {
     for (const client of this.clients.values()) if (client.authed) client.conn.send(msg)
   }
