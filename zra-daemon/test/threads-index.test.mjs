@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url'
 
 import { ThreadsIndex } from '../threads-index.js'
 import { ShimRegistry } from '../shim-registry.js'
-import { ensureFixture, FIXTURE } from '../../scripts/make-fixture.mjs'
+import { ensureFixture, FIXTURE, buildCustom } from '../../scripts/make-fixture.mjs'
 
 ensureFixture(FIXTURE)
 
@@ -154,4 +154,16 @@ test('projets ouverts : fenêtres de la session Zed en cours, et rien quand Zed 
 test('projets ouverts : base sans ces tables (autre version de Zed) => projectOpen null', (t) => {
   const index = open(t)
   assert.ok(index.threads.every((x) => x.projectOpen === null))
+})
+
+test('index : tri sur interacted_at à défaut d’updated_at, dépôt principal des worktrees (comme Zed)', (t) => {
+  const file = buildCustom(join(dirname(FIXTURE), 'list-zed.sqlite'), [
+    { thread_id: '01', session_id: 's1', agent_id: 'a', title: 'récent pour l’agent', updated_at: '2026-11-18T10:00:00Z', interacted_at: '2026-11-01T10:00:00Z', folder_paths: 'C:/p' },
+    { thread_id: '02', session_id: 's2', agent_id: 'a', title: 'touché par l’utilisateur', updated_at: '2026-11-10T10:00:00Z', interacted_at: '2026-11-17T10:00:00Z', folder_paths: 'C:/p-wt', main_worktree_paths: 'C:/p' },
+  ])
+  const index = open(t, { file })
+  assert.deepEqual(index.threads.map((x) => x.title), ['touché par l’utilisateur', 'récent pour l’agent'])
+  assert.deepEqual(index.get('02').mainPaths, ['C:/p'], 'worktree lié : son dépôt principal')
+  assert.equal(index.get('01').mainPaths, undefined, 'identique aux dossiers : absent')
+  assert.equal(index.get('02').interactedAt, '2026-11-17T10:00:00.000Z')
 })

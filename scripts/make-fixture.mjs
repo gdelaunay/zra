@@ -150,7 +150,8 @@ export function buildCustom(file, rows) {
       Buffer.from(r.thread_id, 'hex'),
       r.session_id ?? null, r.agent_id ?? null, r.title, r.updated_at, r.created_at ?? null,
       r.folder_paths ?? null, r.folder_paths_order ?? null, r.archived ?? 0,
-      r.folder_paths ?? null, r.folder_paths_order ?? null, null, r.created_at ?? null, r.title_override ?? null,
+      r.main_worktree_paths ?? r.folder_paths ?? null, r.main_worktree_paths_order ?? r.folder_paths_order ?? null,
+      null, r.interacted_at ?? r.created_at ?? null, r.title_override ?? null,
     )
   }
   db.close()

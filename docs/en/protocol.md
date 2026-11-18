@@ -291,7 +291,9 @@ type ThreadSummary = {
   title: string             // title_override ?? title, read like Zed (empty or "New Agent Thread": absent); '' if absent
   titleOverridden?: boolean // renamed in Zed: takes precedence over the title announced by the agent
   folderPaths: string[]     // decoded UTF-8, any separators, in Zed's display order (folder_paths_order)
+  mainPaths?: string[]      // main repository of a linked git worktree (main_worktree_paths); absent if identical
   updatedAt: string
+  interactedAt?: string | null // last interaction in Zed: orders and dates the list, updatedAt otherwise
   createdAt?: string | null // informative, the PWA does not use it in v1
   archived: boolean
   remote?: boolean          // remote project (SSH, WSL: remote_connection)

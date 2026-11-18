@@ -459,7 +459,7 @@ test('threads regroupés par projet sous chaque poste, nommés d’après leur d
   assert.equal(rowsUnder(zra).length, 3, 'ses trois threads, sans le brouillon')
   assert.deepEqual(rowsUnder(projectHead('DESK-ZED', 'uia')), ['Spike : UI Automation sur la fenêtre Zed'])
   assert.ok(projectHead('LAPTOP-ZED', 'zra'), 'même nom de dossier, autre poste : autre groupe')
-  assert.deepEqual(rowsUnder(projectHead('LAPTOP-ZED', 'zra + notes')), ['Notes de release v0.1'],
+  assert.deepEqual(rowsUnder(projectHead('LAPTOP-ZED', 'zra, notes')), ['Notes de release v0.1'],
     'un thread sur deux dossiers forme son propre projet')
   // Ordre : le projet au thread le plus récent d'abord.
   const names = $$('.project__name').map((n) => n.textContent)
@@ -570,7 +570,7 @@ test('le + d’un thread ouvre la session dans le projet de ce thread', async ()
   await until(() => /Notes de release/.test($('.header__title')?.textContent || ''), 3000)
   click($('.header [aria-label="nouvelle session"]'))
   await until(() => $('.menu'), 2000, 'menu des agents')
-  assert.match($('.menu__label').textContent, /Nouveau thread · zra \+ notes/)
+  assert.match($('.menu__label').textContent, /Nouveau thread · zra, notes/)
   ZRA.navigate('#/t/mock-desk/a1f39c0b')
   await until(() => /Refactor/.test($('.header__title')?.textContent || ''), 3000)
 })

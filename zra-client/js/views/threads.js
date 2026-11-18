@@ -9,7 +9,7 @@
 
 import { h, button, clear, debounce } from '../dom.js'
 import { icon, agentIcon } from '../icons.js'
-import { relTime, absTime, shortPath, agentLabel, toMs, projectOf } from '../format.js'
+import { zedAge, absTime, shortPath, agentLabel, toMs, projectOf, projectNames, displayTime } from '../format.js'
 import * as store from '../store.js'
 import { openMenu } from '../ui.js'
 import { openSettings } from './settings.js'
@@ -75,7 +75,7 @@ export function ThreadsView({ navigate }) {
     for (const m of machines) {
       const rows = m.threads
         .filter((t) => matches(t, query, filter))
-        .sort((a, b) => (toMs(b.updatedAt) ?? 0) - (toMs(a.updatedAt) ?? 0))
+        .sort((a, b) => (toMs(displayTime(b)) ?? 0) - (toMs(displayTime(a)) ?? 0))
       total += rows.length
 
       // Une section par poste : la ligne du poste y reste collée en haut,
@@ -182,17 +182,22 @@ function toggleMachine(m) {
 
 /**
  * Threads regroupés par projet, déjà triés par récence : l'ordre des projets
- * suit leur thread le plus récent.
+ * suit leur thread le plus récent. Comme Zed, un worktree git lié reste sous
+ * son dépôt principal (`mainPaths`), et les noms se distinguent par leur
+ * dossier parent quand ils se répètent.
  */
 function byProject(rows) {
   const groups = new Map()
   for (const t of rows) {
-    const project = projectOf(t.folderPaths)
+    const project = projectOf(t.mainPaths ?? t.folderPaths)
     let g = groups.get(project.key)
     if (!g) groups.set(project.key, (g = { project, threads: [] }))
     g.threads.push(t)
   }
-  return [...groups.values()]
+  const list = [...groups.values()]
+  const names = projectNames(list.map((g) => g.project.folderPaths))
+  list.forEach((g, i) => { g.project = { ...g.project, name: names[i] } })
+  return list
 }
 
 const collapseKey = (m, project) => `${m.id}|${project.key}`
@@ -266,7 +271,7 @@ function threadRow(m, t, navigate) {
         h('span.thread-row__path.truncate', { text: shortPath(t.folderPaths?.[0], 2) }),
         t.folderPaths?.length > 1 ? h('span', { text: `+${t.folderPaths.length - 1}` }) : null,
         h('span', { text: '·' }),
-        h('span', { text: relTime(t.updatedAt), title: absTime(t.updatedAt) }),
+        h('span', { text: zedAge(displayTime(t)), title: absTime(displayTime(t)) }),
       ),
     ),
     activityIcon(m, t),

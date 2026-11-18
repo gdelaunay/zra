@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { baseName, projectOf, formatTokens, formatCost, formatDuration } from '../js/format.js'
+import { baseName, projectOf, projectNames, zedAge, displayTime, formatTokens, formatCost, formatDuration } from '../js/format.js'
 
 test('projet : nommé d’après le dernier segment du dossier', () => {
   assert.equal(baseName('C:\\Users\\gd\\Documents\\Développement\\zra\\'), 'zra')
@@ -17,7 +17,7 @@ test('projet : même dossier quelle que soit l’écriture, plusieurs dossiers �
   assert.notEqual(projectOf(['D:/src/zra']).key, projectOf(['C:/dev/zra']).key, 'même nom, autre dossier')
 
   const both = projectOf(['D:/src/zra', 'D:/src/notes'])
-  assert.equal(both.name, 'zra + notes')
+  assert.equal(both.name, 'zra, notes')
   assert.notEqual(both.key, projectOf(['D:/src/zra']).key)
 
   assert.deepEqual(projectOf([]), { key: '', name: 'sans projet', folderPaths: [] })
@@ -40,4 +40,27 @@ test('coût : devise, deux décimales, jamais « 0 » pour un coût réel', () =
 test('durée du tour : secondes, puis minutes, puis heures', () => {
   assert.deepEqual([0, 8_400, 59_999, 65_000, 3_599_000, 3_720_000, -5].map(formatDuration),
     ['0 s', '8 s', '59 s', '1 min 05 s', '59 min 59 s', '1 h 02 min', '0 s'])
+})
+
+test('projectNames : comme display_name de Zed (ordre, `, `, .git, dossier parent si homonyme)', () => {
+  assert.deepEqual(projectNames([['C:/a/zra', 'C:/a/notes'], ['C:/b/zra'], ['D:/x/outil.git']]),
+    ['a/zra, notes', 'b/zra', 'outil'])
+  assert.deepEqual(projectNames([['C:/dev/zra']]), ['zra'])
+})
+
+test('zedAge : âge compact du sidebar de Zed, jamais moins de 1', () => {
+  const now = Date.parse('2026-11-18T12:00:00Z')
+  const ago = (ms) => new Date(now - ms).toISOString()
+  const MIN = 60_000
+  assert.equal(zedAge(ago(10_000), now), '1 min')
+  assert.equal(zedAge(ago(59 * MIN), now), '59 min')
+  assert.equal(zedAge(ago(3 * 60 * MIN), now), '3 h')
+  assert.equal(zedAge(ago(2 * 24 * 60 * MIN), now), '2 j')
+  assert.equal(zedAge(ago(14 * 24 * 60 * MIN), now), '2 sem.')
+  assert.equal(zedAge(ago(65 * 24 * 60 * MIN), now), '2 mois')
+})
+
+test('displayTime : interactedAt prime sur updatedAt (thread_display_time)', () => {
+  assert.equal(displayTime({ updatedAt: 'u', interactedAt: 'i' }), 'i')
+  assert.equal(displayTime({ updatedAt: 'u', interactedAt: null }), 'u')
 })

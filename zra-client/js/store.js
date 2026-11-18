@@ -34,9 +34,10 @@ export const splitKey = (k) => {
 /**
  * Threads montrés dans la liste, comme le sidebar de Zed : ni brouillon (sans
  * session, sauf rattaché par ZRA), ni thread de l'agent natif de Zed (sans
- * agent, contenu illisible par ACP), ni projet distant (SSH, WSL).
+ * agent, contenu illisible par ACP), ni projet distant (SSH, WSL), ni thread
+ * sans dossier.
  */
-export const listed = (t) => Boolean(t.sessionId && t.agentId && !t.remote)
+export const listed = (t) => Boolean(t.sessionId && t.agentId && !t.remote && t.folderPaths?.length)
 
 let MockLink = null
 

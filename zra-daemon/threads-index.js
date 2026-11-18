@@ -16,7 +16,8 @@ const log = logger('threads')
 /** Sans ces colonnes, l'index n'a plus de sens : on dégrade en « live seul ». */
 const REQUIRED = ['thread_id', 'session_id', 'agent_id', 'title', 'updated_at']
 /** Lues si présentes — une mise à jour de Zed peut les faire disparaître. */
-const OPTIONAL = ['created_at', 'folder_paths', 'folder_paths_order', 'archived', 'interacted_at', 'title_override', 'remote_connection']
+const OPTIONAL = ['created_at', 'folder_paths', 'folder_paths_order', 'archived', 'interacted_at', 'title_override', 'remote_connection',
+  'main_worktree_paths', 'main_worktree_paths_order']
 
 /**
  * Normalise une date Zed en ISO 8601.
@@ -86,6 +87,9 @@ export function zedTitle(row) {
   const title = row.title ? String(row.title) : ''
   return override || (title === DEFAULT_THREAD_TITLE ? '' : title)
 }
+
+/** Date qui ordonne et date un thread dans le sidebar de Zed (`thread_display_time`). */
+export const displayTime = (t) => t.interactedAt ?? t.updatedAt
 
 function hex(value) {
   if (value === null || value === undefined) return null
@@ -206,6 +210,10 @@ export class ThreadsIndex extends EventEmitter {
 
     const threads = rows.map((r) => {
       const threadId = hex(r.thread_id)
+      const folderPaths = splitFolderPaths(r.folder_paths, r.folder_paths_order)
+      // Dossiers du dépôt principal : un worktree git lié reste groupé sous son
+      // projet (`ThreadMetadata::main_worktree_paths`). Absent s'il est identique.
+      const mainPaths = splitFolderPaths(r.main_worktree_paths, r.main_worktree_paths_order)
       if (r.session_id) this.provisional.delete(threadId)
       const sessionId = r.session_id ?? this.provisional.get(threadId) ?? null
       return {
@@ -216,20 +224,24 @@ export class ThreadsIndex extends EventEmitter {
         // Renommé par l'utilisateur dans Zed : ce titre prime sur celui que
         // l'agent annonce en direct (`session_info_update`).
         titleOverridden: Boolean(r.title_override),
-        folderPaths: splitFolderPaths(r.folder_paths, r.folder_paths_order),
+        folderPaths,
+        ...(mainPaths.length && projectKey(mainPaths) !== projectKey(folderPaths) ? { mainPaths } : {}),
         updatedAt: toIso(r.updated_at),
+        // Dernière interaction de l'utilisateur dans Zed : ce qui ordonne et date
+        // le sidebar (`thread_display_time`).
+        interactedAt: toIso(r.interacted_at),
         createdAt: toIso(r.created_at),
         archived: Boolean(r.archived),
         // Projet distant (SSH, WSL) : l'agent tourne sur un autre hôte.
         remote: Boolean(r.remote_connection),
         // Projet ouvert dans une fenêtre Zed ; `null` si la base ne le dit pas.
-        projectOpen: open ? open.has(projectKey(splitFolderPaths(r.folder_paths, r.folder_paths_order))) : null,
+        projectOpen: open ? open.has(projectKey(folderPaths)) : null,
         // `unknown` = session_id NULL : brouillon de Zed (`ThreadMetadata::is_draft`).
         state: !sessionId ? 'unknown' : live.has(sessionId) ? 'live' : 'closed',
       }
     })
 
-    threads.sort((a, b) => String(b.updatedAt ?? '').localeCompare(String(a.updatedAt ?? '')))
+    threads.sort((a, b) => String(displayTime(b) ?? '').localeCompare(String(displayTime(a) ?? '')))
     return threads
   }
 

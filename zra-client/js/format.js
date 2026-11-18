@@ -23,6 +23,26 @@ export function relTime(value, now = Date.now()) {
   })
 }
 
+/**
+ * Âge compact du sidebar de Zed (`format_history_entry_timestamp`) : minutes,
+ * heures, jours, semaines, puis mois de 30 jours ; jamais moins de 1.
+ */
+export function zedAge(value, now = Date.now()) {
+  const t = toMs(value)
+  if (t === null) return ''
+  const minutes = Math.floor(Math.max(0, now - t) / MIN)
+  const hours = Math.floor(minutes / 60)
+  const days = Math.floor(hours / 24)
+  if (minutes < 60) return tr`${Math.max(1, minutes)} min`
+  if (hours < 24) return tr`${Math.max(1, hours)} h`
+  if (days < 7) return tr`${Math.max(1, days)} j`
+  if (days < 28) return tr`${Math.max(1, Math.floor(days / 7))} sem.`
+  return tr`${Math.max(1, Math.floor(days / 30))} mois`
+}
+
+/** Date qui ordonne et date un thread dans le sidebar de Zed (`thread_display_time`). */
+export const displayTime = (t) => t?.interactedAt ?? t?.updatedAt ?? null
+
 export function absTime(value) {
   const t = toMs(value)
   if (t === null) return ''
@@ -80,10 +100,50 @@ export function baseName(p) {
   return parts.at(-1) || ''
 }
 
+/** Chemin affiché par Zed : sans l'extension `.git` d'un clone nu. */
+const displayPath = (p) => String(p || '').replace(/\\/g, '/').replace(/\/+$/, '').replace(/\.git$/i, '')
+
+/** Les `detail + 1` derniers segments d'un chemin (`path_suffix`). */
+function pathSuffix(p, detail) {
+  return displayPath(p).split('/').filter(Boolean).slice(-(detail + 1)).join('/')
+}
+
+/**
+ * Nom des projets d'une liste, comme Zed (`ProjectGroupKey::display_name`) :
+ * les dossiers dans l'ordre d'affichage, joints par `, ` ; un nom qui se
+ * répète prend son dossier parent, jusqu'à ne plus se répéter
+ * (`compute_disambiguation_details`).
+ * @param {string[][]} groups chemins de chaque projet
+ * @returns {string[]} un nom par projet
+ */
+export function projectNames(groups) {
+  const norm = (p) => displayPath(p).toLowerCase()
+  const all = [...new Map(groups.flat().map((p) => [norm(p), p])).values()]
+  const detail = all.map(() => 0)
+  for (let round = 0; round < 32; round++) {
+    const seen = new Map()
+    all.forEach((p, i) => {
+      const d = pathSuffix(p, detail[i]).toLowerCase()
+      seen.set(d, [...(seen.get(d) || []), i])
+    })
+    let collisions = false
+    for (const idx of seen.values()) {
+      if (idx.length < 2) continue
+      // Plus rien à ajouter (même chemin complet) : on s'arrête là.
+      if (idx.every((i) => pathSuffix(all[i], detail[i] + 1) === pathSuffix(all[i], detail[i]))) continue
+      collisions = true
+      for (const i of idx) detail[i]++
+    }
+    if (!collisions) break
+  }
+  const byPath = new Map(all.map((p, i) => [norm(p), pathSuffix(p, detail[i])]))
+  return groups.map((paths) => paths.map((p) => byPath.get(norm(p))).filter(Boolean).join(', '))
+}
+
 /**
  * Projet d'un thread, tel que l'utilisateur le pense : le dossier ouvert dans
  * Zed, nommé d'après son dernier segment. Un thread sur plusieurs dossiers
- * forme son propre projet (« zra + notes ») — c'est un autre espace de travail.
+ * forme son propre projet (« zra, notes ») — c'est un autre espace de travail.
  *
  * `key` compare les chemins sans ordre, casse ni séparateur : Windows ne les distingue
  * pas, et l'index de Zed n'écrit pas toujours les mêmes.
@@ -92,7 +152,7 @@ export function projectOf(folderPaths) {
   const paths = (Array.isArray(folderPaths) ? folderPaths : []).filter(Boolean)
   if (!paths.length) return { key: '', name: tr`sans projet`, folderPaths: [] }
   const key = paths.map((p) => String(p).replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase()).sort().join('|')
-  return { key, name: paths.map(baseName).join(' + '), folderPaths: paths }
+  return { key, name: projectNames([paths])[0], folderPaths: paths }
 }
 
 /** Nombre de tokens compact, façon Zed : 950, 9.4k, 27k, 1M, 1.5M. */

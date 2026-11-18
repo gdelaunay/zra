@@ -11,12 +11,12 @@ Fait → effet → à faire. Une issue acceptée (on ne fera rien) part dans
 | Section | Statut |
 | --- | --- |
 | Tour lancé depuis le mobile : Zed le croit au repos | `à faire` |
-| Liste des threads : tri, regroupement et noms | `à faire` |
 | Réouverture : le filtre du sidebar est flou | `à faire` |
 | Performance sur téléphone non mesurée | `à faire` |
 | Logos d'agents : source | `à faire` |
 | Relecture : environnement et capacités différents de Zed | `à faire` |
 | Fil : placement du plan et de la permission | `à faire` |
+| Liste des threads : projets ouverts, ordre des groupes | `à faire` |
 
 ## Tour lancé depuis le mobile : Zed le croit au repos — `à faire`
 
@@ -25,36 +25,6 @@ En ACP v1, Zed déduit l'activité de ses propres `session/prompt`
 un : la réponse s'affiche dans Zed, mais sans indicateur de génération ni
 bouton Stop, et rien n'empêche d'y envoyer un prompt en parallèle.
 → Constater en vrai. Piste : ACP v2, où l'agent rapporte son activité.
-
-## Liste des threads : tri, regroupement et noms — `à faire`
-
-Zed (`crates/sidebar/src/sidebar.rs`, `rebuild_contents`) trie et date les
-threads sur `interacted_at`, à défaut `updated_at` (`thread_display_time`), au
-format `5m`, `3h`, `2d`, `1w`, `1mo` (`format_history_entry_timestamp`). Il
-groupe par `main_worktree_paths` : un worktree git lié reste sous son projet.
-Les groupes suivent l'ordre de la fenêtre, le dernier ouvert en tête, et non la
-récence (`crates/workspace/src/multi_workspace.rs`,
-`ensure_project_group_state`). Leur nom (`crates/project/src/project.rs`,
-`ProjectGroupKey::display_name`) suit l'ordre d'affichage (`paths_order`),
-joint par `, `, retire `.git`, ajoute le dossier parent si deux noms se
-répètent ; un thread sans dossier n'apparaît pas. ZRA (`threads-index.js`,
-`views/threads.js`, `format.js`) trie et date sur `updated_at`, groupe par
-`folder_paths`, ordonne les groupes par récence, les nomme dans l'ordre
-lexicographique joint par ` + `, et montre un groupe « sans projet ». L'ordre
-et les groupes diffèrent de Zed ; un thread poursuivi depuis le mobile remonte
-dans la PWA, pas dans Zed (le shim ne touche pas `interacted_at`).
-→ Trier sur `interacted_at ?? updated_at`, lire `main_worktree_paths(_order)` et
-`folder_paths_order`, reprendre `display_name`. Décidé : la liste ne montre que
-les projets ouverts dans Zed (toutes fenêtres), dans l'ordre de Zed ; les
-autres projets de la base restent accessibles pour ouvrir un projet récent.
-Source probable : `kv_store`, clés `session_window_stack` (fenêtres en cours) et
-`multi_workspace_state` (groupes du sidebar par fenêtre, ordre et repli :
-`crates/workspace/src/multi_workspace.rs`, `serialize_now` ;
-`crates/workspace/src/persistence.rs`, `read_multi_workspace_state`). Un
-projet déchargé mais resté au sidebar (« fermer l'espace de travail » sans
-« retirer le projet ») est montré, marqué fermé ; l'ouvrir le recharge, comme
-un clic dans Zed (`crates/sidebar/src/sidebar.rs`, `open_workspace_for_group`).
-À constater : qu'il figure bien dans `multi_workspace_state`.
 
 ## Réouverture : le filtre du sidebar est flou — `à faire`
 
@@ -110,3 +80,21 @@ Zed affiche le plan au-dessus du composer (`render_activity_bar`,
 permission dans son tool call (`render_permission_buttons`). La PWA
 (`views/entry.js`) place plan et permission en cartes dans le fil.
 → À trancher avec l'audit d'apparence.
+
+## Liste des threads : projets ouverts, ordre des groupes — `à faire`
+
+Zed ordonne les groupes de son sidebar comme sa fenêtre, le dernier ouvert en
+tête, et non par récence (`crates/workspace/src/multi_workspace.rs`,
+`ensure_project_group_state`). ZRA (`views/threads.js`, `byProject`) les
+ordonne par récence et montre tous les projets de la base.
+→ Décidé : la liste ne montre que les projets ouverts dans Zed (toutes
+fenêtres), dans l'ordre de Zed ; les autres projets de la base restent
+accessibles pour ouvrir un projet récent. Source probable : `kv_store`, clés
+`session_window_stack` (fenêtres en cours) et `multi_workspace_state` (groupes
+du sidebar par fenêtre, ordre et repli : `crates/workspace/src/multi_workspace.rs`,
+`serialize_now` ; `crates/workspace/src/persistence.rs`,
+`read_multi_workspace_state`). Un projet déchargé mais resté au sidebar
+(« fermer l'espace de travail » sans « retirer le projet ») est montré, marqué
+fermé ; l'ouvrir le recharge, comme un clic dans Zed (`crates/sidebar/src/sidebar.rs`,
+`open_workspace_for_group`). À constater d'abord sur une vraie base : le contenu
+de ces clés, et qu'un projet déchargé figure bien dans `multi_workspace_state`.
