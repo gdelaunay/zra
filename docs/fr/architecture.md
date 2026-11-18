@@ -83,7 +83,7 @@ Ce que ZRA lit, écrit et imite dans Zed, avec l'endroit où le vérifier dans s
 
 ## Comportements
 
-- **File et interruption** : le tour (`idle`/`busy`) et la file vivent dans le shim, seul à voir le trafic réel. Un message pendant un tour part en file ; Stop envoie `session/cancel`, puis la file repart. Un tour est clos d'office si l'agent n'acquitte pas une interruption en 5 s ou reste muet `turnTimeoutMs` (10 min) ; la file n'est alors pas dépilée.
+- **File et interruption** : le tour (`idle`/`busy`) et la file vivent dans le shim, seul à voir le trafic réel. Un message pendant un tour part en file ; Stop envoie `session/cancel` et met la file en pause jusqu'au prochain envoi (comme Zed) ; « envoyer maintenant » coupe le tour et envoie un message de la file. Un tour est clos d'office si l'agent n'acquitte pas une interruption en 5 s ou reste muet `turnTimeoutMs` (10 min) ; la file n'est alors pas dépilée.
 - **Options** (mode, modèle, autres `configOptions`) : jamais en plein tour, appliquées au retour à `idle`.
 - **Permissions** : le premier qui répond (Zed ou mobile) gagne. Le shim répond à l'agent à la place de Zed et avale la réponse tardive de Zed.
 - **Thread fermé** : relu par une instance de l'agent lancée pour l'occasion (`session/load`, cache 10 min). Pour y écrire, le daemon le rouvre dans Zed au clavier, attend son shim (30 s), puis injecte : une seule session, aucune divergence. Un thread d'agent non enveloppé par ZRA est refusé (`not_zra_thread`).

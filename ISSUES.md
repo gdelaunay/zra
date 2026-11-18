@@ -14,7 +14,6 @@ Fait → effet → à faire. Une issue acceptée (on ne fera rien) part dans
 | Liste des threads : tri, regroupement et noms | `à faire` |
 | Liste des threads : état moins riche que le sidebar | `à faire` |
 | Fil : dépliage et placement | `à faire` |
-| Stop et file d'attente : sémantique différente | `à faire` |
 | Réouverture : le filtre du sidebar est flou | `à faire` |
 | Performance sur téléphone non mesurée | `à faire` |
 | Logos d'agents : source | `à faire` |
@@ -81,17 +80,6 @@ déplie toutes les réflexions (`showThoughts`), replie tous les tool calls
 (`expandTools`), et place plan et permission en cartes dans le fil.
 → Aligner les défauts de dépliage ; placement du plan et de la permission : à
 trancher avec l'apparence.
-
-## Stop et file d'attente : sémantique différente — `à faire`
-
-Dans Zed, Stop met la file en pause : rien ne part avant un nouvel envoi
-(`crates/agent_ui/src/conversation_view/message_queue.rs`, `MessageQueue::pause`,
-appelé par `cancel_generation`). Envoyer un message en file tout de suite est
-une action à part (`try_fast_track`, `send_now`), et l'envoi automatique
-attend que l'utilisateur ne soit plus en train d'écrire. Le Stop de la PWA
-coupe le tour et envoie aussitôt le premier message en file
-(`views/thread.js`, `stopTurn`).
-→ Stop = pause de la file ; « envoyer maintenant » sur chaque message en file.
 
 ## Réouverture : le filtre du sidebar est flou — `à faire`
 

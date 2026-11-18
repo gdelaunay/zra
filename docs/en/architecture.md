@@ -83,7 +83,7 @@ Thread states: **live** (a shim holds its session: real-time stream, direct writ
 
 ## Behaviors
 
-- **Queue and interruption**: the turn (`idle`/`busy`) and the queue live in the shim, the only one to see the real traffic. A message during a turn is queued; Stop sends `session/cancel`, then the queue resumes. A turn is closed by force if the agent does not acknowledge an interruption within 5 s or stays silent for `turnTimeoutMs` (10 min); the queue is then not dequeued.
+- **Queue and interruption**: the turn (`idle`/`busy`) and the queue live in the shim, the only one to see the real traffic. A message during a turn is queued; Stop sends `session/cancel` and pauses the queue until the next send (like Zed); "send now" cuts the turn and sends a queued message. A turn is closed by force if the agent does not acknowledge an interruption within 5 s or stays silent for `turnTimeoutMs` (10 min); the queue is then not dequeued.
 - **Options** (mode, model, other `configOptions`): never in the middle of a turn, applied on the return to `idle`.
 - **Permissions**: the first to answer (Zed or phone) wins. The shim answers the agent on Zed's behalf and swallows Zed's late answer.
 - **Closed thread**: replayed by an agent instance launched for the occasion (`session/load`, 10 min cache). To write to it, the daemon reopens it in Zed with the keyboard, waits for its shim (30 s), then injects: a single session, no divergence. A thread of an agent not wrapped by ZRA is refused (`not_zra_thread`).

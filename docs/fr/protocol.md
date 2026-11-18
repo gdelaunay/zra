@@ -191,8 +191,8 @@ daemon n'a rien à faire pour ça, mais **ne doit pas réécrire le texte**.
 { type: 'interrupt', threadId: string }
 ```
 Couper le tour en cours **sans rien envoyer** (`session/cancel` seul). C'est ce
-que fait le bouton Stop quand la file est vide — le texte en cours de saisie côté
-mobile n'est jamais envoyé par Stop. Si le tour est déjà `idle`, ne rien faire.
+que fait le bouton Stop ; comme dans Zed, la file reste en pause jusqu'au prochain
+envoi. Le texte en cours de saisie côté mobile n'est jamais envoyé par Stop. Si le tour est déjà `idle`, ne rien faire.
 Émettre ensuite `thread_state` avec `turn: 'idle'` et, idéalement, un
 `zra/notice` « tour interrompu ».
 
@@ -574,7 +574,7 @@ mobile                          daemon
   |                              |-- acp_event(agent_message_chunk) …
 ```
 
-**Stop, file vide** — on coupe, rien d'autre. Le texte en cours de saisie dans la
+**Stop** — on coupe, rien d'autre ; la file attend le prochain envoi. Le texte en cours de saisie dans la
 PWA n'est jamais envoyé par Stop.
 ```
   | interrupt(threadId)          |
@@ -582,7 +582,7 @@ PWA n'est jamais envoyé par Stop.
   |                              |-- thread_state(turn='idle')
 ```
 
-**Stop avec un message en file** — le message en attente part dans la foulée.
+**Envoyer maintenant** (un message en file) — le tour est coupé, le message part.
 ```
   | cancel_queued(queueId)       |
   | send(text, mode='interrupt') |

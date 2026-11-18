@@ -83,6 +83,7 @@ export function ThreadView({ key, navigate }) {
       store.sendMessage(key, text, mode)
     },
     onStop: stopTurn,
+    onSendNow: sendNow,
   })
 
   /** Zed est en train de rouvrir ce thread : `null`, ou l'instant de la demande. */
@@ -126,20 +127,19 @@ export function ThreadView({ key, navigate }) {
   )
 
   /**
-   * Bouton Stop : coupe le tour en cours.
-   *
-   * S'il y a un message **en file d'attente**, il part dans la foulée — c'est le
-   * « stop et envoie ». Le texte en cours de saisie, lui, n'est jamais envoyé
-   * tout seul : seul le bouton Envoyer envoie.
+   * Bouton Stop : coupe le tour, comme dans Zed (`cancel_generation`) — la file
+   * reste en pause jusqu'au prochain envoi. Le texte en cours de saisie n'est
+   * jamais envoyé tout seul.
    */
   function stopTurn() {
-    const queued = st.queue?.[0]
-    if (queued) {
-      store.cancelQueued(key, queued.queueId)
-      store.sendMessage(key, queued.text, 'interrupt')
-      return
-    }
     store.interrupt(key)
+  }
+
+  /** « Envoyer maintenant » d'un message en file (`send_now`) : coupe le tour s'il y en a un. */
+  function sendNow(q) {
+    store.cancelQueued(key, q.queueId)
+    stick = true; jump.classList.add('hidden'); scrollToEnd()
+    store.sendMessage(key, q.text, 'interrupt')
   }
 
   // ---- rendu du flux ----
@@ -597,7 +597,7 @@ export function dictate(input, { onChange, onActive } = {}) {
   rec.start()
 }
 
-function Composer({ key, onSend, onStop }) {
+function Composer({ key, onSend, onStop, onSendNow }) {
   const input = h('textarea.composer__input', {
     rows: 1,
     placeholder: tr`Répondre à l’agent…`,
@@ -621,7 +621,7 @@ function Composer({ key, onSend, onStop }) {
     icon('send', 'icon--sm'), h('span', { text: tr`Envoyer` }))
   // Stop n'apparaît que pendant un tour : icône seule, à gauche d'Envoyer.
   const stopBtn = button('send-btn.send-btn--icon.send-btn--stop.hidden', {
-    onclick: stop, title: tr`Interrompre le tour (et envoyer le message en file, s'il y en a un)`,
+    onclick: stop, title: tr`Interrompre le tour (la file attend le prochain envoi)`,
     'aria-label': tr`interrompre`,
   }, icon('stop', 'icon--sm'))
 
@@ -686,6 +686,8 @@ function Composer({ key, onSend, onStop }) {
         icon('clock', 'icon--sm'),
         h('span.truncate', { text: q.text }),
         h('span.spacer'),
+        button('icon-btn', { title: tr`Envoyer maintenant`, onclick: () => onSendNow?.(q) },
+          icon('send', 'icon--sm')),
         button('icon-btn', { title: tr`Annuler`, onclick: () => store.cancelQueued(key, q.queueId) },
           icon('x', 'icon--sm'))))
     }

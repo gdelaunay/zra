@@ -239,7 +239,7 @@ test('Stop n’envoie jamais le texte en cours de saisie', async () => {
   input.value = ''
 })
 
-test('Stop avec un message en file le dépile et l’envoie', async () => {
+test('Stop met la file en pause ; « envoyer maintenant » envoie le message en file', async () => {
   const key = 'mock-desk/a1f39c0b'
   ZRA.store.state.machines.get('mock-desk').link.send({
     type: 'zra/trigger', name: 'long', threadId: 'a1f39c0b',
@@ -251,6 +251,11 @@ test('Stop avec un message en file le dépile et l’envoie', async () => {
   await until(() => ZRA.store.ensureState(key).queue.length === 1, 3000, 'mis en file')
 
   click($('.composer .send-btn--stop'))
+  await until(() => ZRA.store.ensureState(key).turn === 'idle', 3000, 'tour coupé')
+  await new Promise((r) => setTimeout(r, 300))
+  assert.equal(ZRA.store.ensureState(key).queue.length, 1, 'la file reste, en pause')
+
+  click($('.queued .icon-btn[title="Envoyer maintenant"]'))
   await until(() => ZRA.store.ensureState(key).queue.length === 0, 3000, 'file vidée')
   await until(() => ZRA.store.ensureTimeline(key).entries.some(
     (e) => e.type === 'user' && !e.local && /passe aux tests/.test(JSON.stringify(e.blocks))), 4000,
@@ -270,11 +275,11 @@ test('envoi depuis le mobile : écho local immédiat puis mise en file', async (
   assert.equal(input.value, '', 'le champ est vidé')
   await until(() => $('.queued'), 3000, 'entrée en file affichée')
   // annulation de la file depuis la PWA
-  click($('.queued .icon-btn'))
+  click($('.queued .icon-btn[title="Annuler"]'))
   await until(() => !$('.queued'), 3000, 'file vidée')
 })
 
-test('la file part en mode interrupt : le tour est coupé puis le message envoyé', async () => {
+test('« envoyer maintenant » pendant un tour : le tour est coupé puis le message envoyé', async () => {
   const key = 'mock-desk/a1f39c0b'
   ZRA.store.state.machines.get('mock-desk').link.send({
     type: 'zra/trigger', name: 'long', threadId: 'a1f39c0b',
@@ -286,10 +291,13 @@ test('la file part en mode interrupt : le tour est coupé puis le message envoy�
   click($('.composer .send-btn:not(.send-btn--stop)'))
   await until(() => ZRA.store.ensureState(key).queue.length === 1, 3000, 'mis en file')
 
-  click($('.composer .send-btn--stop'))
+  click($('.queued .icon-btn[title="Envoyer maintenant"]'))
   await until(() => ZRA.store.ensureTimeline(key).entries.some(
     (e) => e.type === 'notice'), 3000, 'tour interrompu')
-  await until(() => /autre chose/.test($$('.msg--user').pop()?.textContent || ''), 4000, 'message envoyé')
+  await until(() => ZRA.store.ensureState(key).queue.length === 0, 3000, 'file vidée')
+  await until(() => ZRA.store.ensureTimeline(key).entries.some(
+    (e) => e.type === 'user' && !e.local && /autre chose/.test(JSON.stringify(e.blocks))), 4000, 'message envoyé')
+  await until(() => ZRA.store.ensureState(key).turn === 'idle', 5000, 'tour terminé')
 })
 
 test('permission : répondue depuis le mobile, le tour reprend', async () => {

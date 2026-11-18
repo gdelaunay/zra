@@ -191,8 +191,8 @@ daemon has nothing to do for that, but **must not rewrite the text**.
 { type: 'interrupt', threadId: string }
 ```
 Cut the current turn **without sending anything** (`session/cancel` alone). It is what
-the Stop button does when the queue is empty — the text being typed on the
-phone is never sent by Stop. If the turn is already `idle`, do nothing.
+the Stop button does; like in Zed, the queue stays paused until the next send.
+The text being typed on the phone is never sent by Stop. If the turn is already `idle`, do nothing.
 Then emit `thread_state` with `turn: 'idle'` and, ideally, a
 `zra/notice` "turn interrupted".
 
@@ -574,7 +574,7 @@ phone                           daemon
   |                              |-- acp_event(agent_message_chunk) …
 ```
 
-**Stop, empty queue** — cut, nothing else. The text being typed in the
+**Stop** — cut, nothing else; the queue waits for the next send. The text being typed in the
 PWA is never sent by Stop.
 ```
   | interrupt(threadId)          |
@@ -582,7 +582,7 @@ PWA is never sent by Stop.
   |                              |-- thread_state(turn='idle')
 ```
 
-**Stop with a queued message** — the pending message goes out right after.
+**Send now** (a queued message) — the turn is cut, the message goes out.
 ```
   | cancel_queued(queueId)       |
   | send(text, mode='interrupt') |
