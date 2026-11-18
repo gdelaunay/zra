@@ -43,11 +43,11 @@ export class Timeline {
 
     switch (kind) {
       case 'user_message_chunk':
-        return [this.chunk('user', update.content, meta)]
+        return [this.chunk('user', update.content, meta, update.messageId)]
       case 'agent_message_chunk':
-        return [this.chunk('agent', update.content, meta)]
+        return [this.chunk('agent', update.content, meta, update.messageId)]
       case 'agent_thought_chunk':
-        return [this.chunk('thought', update.content, meta)]
+        return [this.chunk('thought', update.content, meta, update.messageId)]
 
       case 'tool_call':
         return [this.toolCall(update, meta), ...this.terminalMeta(update)]
@@ -56,6 +56,24 @@ export class Timeline {
 
       case 'plan':
         return [this.plan(update, meta)]
+
+      // Avis de l'agent (`push_notice`) : une ligne dans le fil.
+      case 'notice':
+        this.closeOpenMessage()
+        return [this.push({
+          type: 'notice',
+          text: [update.title, update.description].filter(Boolean).join(' — ') || tr`avis de l'agent`,
+          level: update.severity === 'warning' || update.severity === 'error' ? 'warn' : 'info',
+          at: meta.at,
+        })]
+      case 'compaction_update':
+        return [this.compaction(update.compactionId, meta, (e) => {
+          if (typeof update.status === 'string') e.status = update.status
+          if (Array.isArray(update.summary)) e.blocks = [...update.summary]
+          if (update.error !== undefined) e.error = update.error || null
+        })]
+      case 'compaction_summary_chunk':
+        return [this.compaction(update.compactionId, meta, (e) => { if (update.content) e.blocks.push(update.content) })]
 
       case 'available_commands_update':
         this.availableCommands = update.availableCommands || update.commands || []
@@ -130,9 +148,11 @@ export class Timeline {
 
   last() { return this.entries[this.entries.length - 1] }
 
-  chunk(role, content, meta) {
+  chunk(role, content, meta, messageId = null) {
     const type = role === 'thought' ? 'thought' : role === 'user' ? 'user' : 'agent'
     let entry = this.last()
+    // Deux `messageId` connus et différents : deux messages (`can_merge_message_chunks`).
+    if (entry && messageId && entry.messageId && entry.messageId !== messageId) entry.closed = true
     // Messages utilisateur : un par bulle, sauf blocs d'un même prompt — le
     // shim horodate tous les blocs d'un prompt avec le même `at` (acp.js
     // publishUserMessage). Sans ça, un tour interrompu avant toute réponse de
@@ -143,11 +163,12 @@ export class Timeline {
     // Un écho local (message envoyé depuis le mobile) ne se complète jamais :
     // le message réel arrive dans sa propre bulle, et l'écho lui cède la place.
     if (!entry || entry.type !== type || entry.closed || entry.local || (type === 'user' && !sameUserMessage)) {
-      const added = this.push({ type, blocks: [], at: meta.at })
+      const added = this.push({ type, blocks: [], at: meta.at, messageId })
       entry = added.entry
       appendBlock(entry, content)
       return added
     }
+    if (messageId && !entry.messageId) entry.messageId = messageId
     appendBlock(entry, content)
     entry.rev++
     return { op: 'update', entry }
@@ -159,7 +180,10 @@ export class Timeline {
     if (e && (e.type === 'agent' || e.type === 'user' || e.type === 'thought')) e.closed = true
   }
 
+  /** `tool_call` d'un id connu : mise à jour, comme `upsert_tool_call`. */
   toolCall(u, meta) {
+    const known = this.byToolCall.get(u.toolCallId ?? u.id)
+    if (known) return this.toolCallUpdate(u, meta)
     const added = this.push({
       type: 'tool',
       toolCallId: u.toolCallId ?? u.id ?? nextId(),
@@ -181,7 +205,8 @@ export class Timeline {
   toolCallUpdate(u, meta) {
     const id = u.toolCallId ?? u.id
     const entry = this.byToolCall.get(id)
-    if (!entry) return this.toolCall(u, meta) // update orphelin : on matérialise l'appel
+    // Update orphelin : Zed matérialise un appel en échec (`tool_call_index_for_update`).
+    if (!entry) return this.toolCall({ toolCallId: id, title: tr`appel d'outil introuvable`, status: 'failed' }, meta)
     if (u.title !== undefined) entry.title = u.title
     if (u.kind !== undefined && TOOL_KINDS.includes(u.kind)) entry.kind = u.kind
     if (u.status !== undefined && TOOL_STATUSES.includes(u.status)) entry.status = u.status
@@ -189,6 +214,20 @@ export class Timeline {
     if (u.locations !== undefined) entry.locations = u.locations
     if (u.rawInput !== undefined) entry.rawInput = u.rawInput
     if (u.rawOutput !== undefined) entry.rawOutput = u.rawOutput
+    entry.rev++
+    return { op: 'update', entry }
+  }
+
+  /** Compaction du contexte : une entrée par `compactionId`, mise à jour sur place. */
+  compaction(compactionId, meta, apply) {
+    let entry = this.entries.find((e) => e.type === 'compaction' && e.compactionId === compactionId)
+    if (!entry) {
+      this.closeOpenMessage()
+      const added = this.push({ type: 'compaction', compactionId, status: 'in_progress', blocks: [], error: null, at: meta.at })
+      apply(added.entry)
+      return added
+    }
+    apply(entry)
     entry.rev++
     return { op: 'update', entry }
   }

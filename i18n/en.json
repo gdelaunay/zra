@@ -479,6 +479,7 @@
   "backend clavier : xdotool (autodétecté)": "keyboard backend: xdotool (autodetected)",
   "aucun backend clavier utilisable : xdotool absent — injection `uia` indisponible, `acp` reste le défaut": "no usable keyboard backend: xdotool missing — `uia` injection unavailable, `acp` stays the default",
   "permission {0} déjà tranchée depuis le mobile : réponse du poste avalée": "permission {0} already settled from the phone: the machine's answer swallowed",
+  "l'agent attend une réponse dans Zed (formulaire)": "the agent is waiting for an answer in Zed (form)",
   "injection :": "injection:",
   "écho vers Zed impossible :": "cannot echo to Zed:",
   "{0} refusé par l'agent": "{0} refused by the agent",

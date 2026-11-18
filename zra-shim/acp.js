@@ -266,6 +266,11 @@ export class AcpBridge extends EventEmitter {
     if (typeof msg.method === 'string' && k !== null) {
       this.agentRequests.set(k, { method: msg.method, params: msg.params ?? {} })
       if (msg.method === M.requestPermission) this.notePermission(k, msg.params ?? {})
+      // Élicitation (`handle_create_elicitation`) : seul Zed sait y répondre. Le
+      // mobile, qui verrait un tour occupé sans rien à faire, est prévenu.
+      if (msg.method.includes('elicitation') && msg.params?.sessionId) {
+        this.notice(msg.params.sessionId, tr`l'agent attend une réponse dans Zed (formulaire)`, 'warn')
+      }
       return
     }
 

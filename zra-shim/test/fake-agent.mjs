@@ -124,6 +124,12 @@ async function runPrompt(session, text) {
   // Pas d'écho du message utilisateur en direct : `claude-agent-acp` n'en émet
   // aucun (relevé au test réel). Il ne le rejoue qu'au `session/load`.
 
+  // Formulaire posé au client : le faux Zed le refuse, le tour se termine.
+  if (text.startsWith('elicitation:')) {
+    try { await ask('elicitation/create', { sessionId, message: 'Ton nom ?', requestedSchema: { type: 'object' } }) } catch { /* refusé */ }
+    return { stopReason: 'end_turn' }
+  }
+
   if (text.startsWith('permission:')) {
     update(sessionId, {
       sessionUpdate: 'tool_call',

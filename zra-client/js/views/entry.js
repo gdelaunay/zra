@@ -24,6 +24,7 @@ export function renderEntry(entry, ctx = {}) {
       case 'plan': return planCard(entry)
       case 'permission': return permissionCard(entry, ctx)
       case 'notice': return sysLine(entry.text, entry.level)
+      case 'compaction': return compactionLine(entry)
       case 'raw': return rawCard(entry)
       default: return rawCard({ ...entry, kind: entry.type })
     }
@@ -336,6 +337,21 @@ function permissionCard(entry, ctx) {
 
 function sysLine(text, level = 'info') {
   return h('div.sysline', { class: level === 'warn' ? 'warn' : '' }, h('span', { text }))
+}
+
+/** Comme Zed (`render_context_compaction`) : libellé selon le statut, résumé replié. */
+function compactionLine(entry) {
+  const label = {
+    in_progress: tr`Compaction du contexte…`,
+    completed: tr`Contexte compacté`,
+    failed: tr`Échec de la compaction`,
+    cancelled: tr`Compaction annulée`,
+  }[entry.status] ?? tr`Compaction du contexte`
+  if (!entry.blocks.length && !entry.error) return sysLine(label, entry.status === 'failed' ? 'warn' : 'info')
+  return collapsible(label, h('div', {},
+    entry.blocks.length ? h('div.md', { html: blocksHtml(entry.blocks) }) : null,
+    entry.error ? h('div.sysline.warn', {}, h('span', { text: entry.error })) : null,
+  ))
 }
 
 function rawCard(entry) {

@@ -41,6 +41,13 @@ Zed et un téléphone. Un point vérifié est retiré ; un écart constaté part
 - **Terminal tenu par l'agent** (`_meta.terminal_*`) : relever quels agents
   prennent cette voie ; pour l'un d'eux, la sortie s'affiche sur le mobile.
 
+## Fil
+
+- **Élicitation** (agent qui pose un formulaire, s'il en existe un) : l'avis
+  apparaît sur le mobile, le formulaire répond dans Zed.
+- **Compaction** (long thread, agent qui compacte) : ligne « Contexte
+  compacté » sur le mobile, comme dans Zed.
+
 ## Réglages depuis le mobile
 
 - **Mode, modèle, effort** changés sur le mobile → les sélecteurs de Zed

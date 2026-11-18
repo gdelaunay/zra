@@ -380,11 +380,13 @@ The PWA can render:
 
 | `update.sessionUpdate` | rendering |
 |---|---|
-| `user_message_chunk` | user bubble, streamed markdown |
-| `agent_message_chunk` | agent answer, streamed markdown |
+| `user_message_chunk` | user bubble, streamed markdown; a different `messageId` opens a new message |
+| `agent_message_chunk` | agent answer, streamed markdown; same for `messageId` |
 | `agent_thought_chunk` | "thinking" block, collapsible with a click (expanded or not by default depending on settings) |
-| `tool_call` / `tool_call_update` | collapsible card, icon per `kind`, color per `status` |
+| `tool_call` / `tool_call_update` | collapsible card, icon per `kind`, color per `status`; a `tool_call` with a known id updates the card, a `tool_call_update` with an unknown id gives a failed call (like Zed); `_meta.terminal_*`: output of a terminal held by the agent |
 | `plan` | plan card, updated in place |
+| `notice` | notice line (`title` — `description`) |
+| `compaction_update` / `compaction_summary_chunk` | compaction line, collapsible summary |
 | `current_mode_update` | current mode, read in the command bar — not in the thread |
 | `config_option_update` | ignored: the options (mode included) already arrive through `thread_state` — not in the thread |
 | `available_commands_update` | stored, not displayed in v1 |

@@ -378,6 +378,16 @@ test('session/resume suivie comme un load (sans rejeu), session/close la retire'
   assert.ok(bridge.sessions.has(zed.sessionId), 'les autres sessions restent')
 })
 
+test('élicitation : seul Zed peut répondre, le mobile en est averti', async (t) => {
+  const { bridge, zed } = await boot(t)
+  const notices = []
+  bridge.on('update', (u) => { if (u.update.sessionUpdate === 'zra/notice') notices.push(u.update) })
+  await zed.prompt('elicitation: formulaire')
+  assert.equal(notices.length, 1)
+  assert.equal(notices[0].level, 'warn')
+  assert.match(notices[0].text, /attend une réponse dans Zed/)
+})
+
 test('set_option : appliqué tout de suite au repos, différé pendant un tour', async (t) => {
   const { bridge, zed } = await boot(t)
 

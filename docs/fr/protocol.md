@@ -380,11 +380,13 @@ La PWA sait rendre :
 
 | `update.sessionUpdate` | rendu |
 |---|---|
-| `user_message_chunk` | bulle utilisateur, markdown streamé |
-| `agent_message_chunk` | réponse de l'agent, markdown streamé |
+| `user_message_chunk` | bulle utilisateur, markdown streamé ; un `messageId` différent ouvre un nouveau message |
+| `agent_message_chunk` | réponse de l'agent, markdown streamé ; idem pour `messageId` |
 | `agent_thought_chunk` | bloc « réflexion », repliable d'un clic (déplié ou non par défaut selon les réglages) |
-| `tool_call` / `tool_call_update` | carte repliable, icône par `kind`, couleur par `status` |
+| `tool_call` / `tool_call_update` | carte repliable, icône par `kind`, couleur par `status` ; un `tool_call` d'id connu met la carte à jour, un `tool_call_update` d'id inconnu donne un appel en échec (comme Zed) ; `_meta.terminal_*` : sortie du terminal tenu par l'agent |
 | `plan` | carte de plan, mise à jour en place |
+| `notice` | ligne d'avis (`title` — `description`) |
+| `compaction_update` / `compaction_summary_chunk` | ligne de compaction, résumé repliable |
 | `current_mode_update` | mode courant, lu dans la command bar — pas dans le fil |
 | `config_option_update` | ignoré : les options (mode compris) arrivent déjà par `thread_state` — pas dans le fil |
 | `available_commands_update` | mémorisé, pas affiché en v1 |

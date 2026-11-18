@@ -13,7 +13,6 @@ Fait → effet → à faire. Une issue acceptée (on ne fera rien) part dans
 | Tour lancé depuis le mobile : Zed le croit au repos | `à faire` |
 | Liste des threads : tri, regroupement et noms | `à faire` |
 | Liste des threads : état moins riche que le sidebar | `à faire` |
-| Fil : mises à jour ACP traitées autrement que par Zed | `à faire` |
 | Fil : dépliage et placement | `à faire` |
 | Stop et file d'attente : sémantique différente | `à faire` |
 | Réouverture : le filtre du sidebar est flou | `à faire` |
@@ -68,23 +67,6 @@ projet, des threads en cours ou en attente (`crates/sidebar/src/sidebar.rs`,
 PWA ne distingue que `live`, `closed` et `unknown` (`views/threads.js`,
 `threadRow`), alors que le daemon connaît le tour en cours.
 → Remonter l'état du tour (et les permissions en attente) dans la liste.
-
-## Fil : mises à jour ACP traitées autrement que par Zed — `à faire`
-
-Zed (`crates/acp_thread/src/acp_thread.rs`, `handle_session_update`) :
-- rend `notice`, `compaction_update`, `compaction_summary_chunk` ; la PWA en
-  fait des blocs bruts ;
-- met à jour un `tool_call` dont l'`id` existe (`upsert_tool_call`) ; la PWA
-  ajoute une entrée ;
-- sur un `tool_call_update` inconnu, ajoute un appel en échec « Tool call not
-  found » (`tool_call_index_for_update`) ; la PWA crée un appel normal ;
-- ouvre un nouveau message quand `messageId` change (`can_merge_message_chunks`) ;
-  la PWA l'ignore et fusionne ;
-- traite les demandes d'élicitation de l'agent (`handle_create_elicitation`,
-  `crates/agent_servers/src/acp/v1.rs`) ; le mobile ne les voit pas : un tour
-  bloqué dessus y paraît occupé, sans rien à répondre.
-→ Aligner `Timeline.apply` (`zra-client/js/acp.js`) ; pour l'élicitation, au
-moins un avis dans le fil.
 
 ## Fil : dépliage et placement — `à faire`
 
