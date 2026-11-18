@@ -483,7 +483,7 @@ export function ThreadView({ key, navigate }) {
     openMenu(ev.currentTarget, {
       items: [
         { label: tr`Recharger l’historique`, icon: 'refresh', onSelect: () => { st.historyComplete = false; store.loadHistory(key) } },
-        { label: settings.showThoughts ? tr`Replier les réflexions` : tr`Déplier les réflexions`, icon: 'lightbulb',
+        { label: settings.alwaysShowThoughts ? tr`Replier les réflexions` : tr`Déplier les réflexions`, icon: 'lightbulb',
           onSelect: toggleThoughts },
         { label: settings.expandTools ? tr`Replier les outils` : tr`Déplier les outils`, icon: 'wrench',
           onSelect: () => { updateSettings({ expandTools: !settings.expandTools }); paintAll() } },
@@ -496,7 +496,7 @@ export function ThreadView({ key, navigate }) {
 
   /** Toutes les réflexions d'un coup : le nouvel état par défaut efface les choix un à un. */
   function toggleThoughts() {
-    updateSettings({ showThoughts: !settings.showThoughts })
+    updateSettings({ alwaysShowThoughts: !settings.alwaysShowThoughts })
     for (const entry of store.ensureTimeline(key).entries) if (entry.type === 'thought') delete entry.open
     paintAll()
   }

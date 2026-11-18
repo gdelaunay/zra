@@ -84,8 +84,9 @@ function themeSection() {
 function displaySection(api) {
   return h('section.field', {},
     h('span.label', { text: tr`Affichage` }),
-    toggle(tr`Déplier les réflexions par défaut`, 'showThoughts'),
-    toggle(tr`Déplier les outils par défaut`, 'expandTools'),
+    toggle(tr`Toujours déplier les réflexions`, 'alwaysShowThoughts'),
+    toggle(tr`Déplier tous les outils`, 'expandTools'),
+    h('span.composer__hint', { text: tr`Sinon, comme Zed : réflexions dépliées pendant leur écriture ; diffs, terminaux et demandes d’autorisation dépliés.` }),
     toggle(tr`Mode mock (daemon simulé)`, 'mock', () => {
       confirmSheet(tr`Recharger ?`, tr`Le mode mock change la source de données : la PWA doit être rechargée.`,
         () => location.reload(), { yes: tr`Recharger` })

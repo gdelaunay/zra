@@ -19,7 +19,7 @@ export function renderEntry(entry, ctx = {}) {
     switch (entry.type) {
       case 'user': return userMsg(entry)
       case 'agent': return agentMsg(entry, ctx)
-      case 'thought': return thoughtMsg(entry)
+      case 'thought': return thoughtMsg(entry, ctx)
       case 'tool': return toolCall(entry, ctx)
       case 'plan': return planCard(entry)
       case 'permission': return permissionCard(entry, ctx)
@@ -55,11 +55,12 @@ function agentMsg(entry, ctx) {
 
 /**
  * Une réflexion se replie d'un clic sur sa ligne de titre, comme un tool call.
- * `showThoughts` n'est que l'état par défaut ; le choix de l'utilisateur vit
- * sur l'entrée, et survit donc aux re-rendus du streaming.
+ * Par défaut, comme Zed (`auto_expand_streaming_thought`) : dépliée pendant son
+ * écriture, repliée ensuite ; `alwaysShowThoughts` la laisse dépliée. Le choix
+ * de l'utilisateur vit sur l'entrée, et survit donc aux re-rendus du streaming.
  */
-function thoughtMsg(entry) {
-  const open = entry.open ?? settings.showThoughts
+function thoughtMsg(entry, ctx = {}) {
+  const open = entry.open ?? (settings.alwaysShowThoughts || Boolean(ctx.busy && ctx.isLast))
   const root = h('div.thought', { class: open ? 'is-open' : '' })
   const head = button('thought__head', {
     'aria-expanded': String(open),
@@ -154,8 +155,19 @@ export function messageBody(node) {
 
 // ---- tool call ----
 
+/**
+ * Déplié par défaut comme dans Zed : diff et terminal (`expand_edit_card`,
+ * `expand_terminal_card`), et appel en attente d'autorisation
+ * (`is_tool_call_content_visible`) ; `expandTools` déplie tout.
+ */
+function toolOpenByDefault(entry, ctx) {
+  if (settings.expandTools) return true
+  if ((entry.content || []).some((c) => c?.type === 'diff' || c?.type === 'terminal')) return true
+  return Boolean(ctx?.timeline?.pendingPermissions?.().some((p) => p.toolCall?.toolCallId === entry.toolCallId))
+}
+
 function toolCall(entry, ctx) {
-  const open = entry.open ?? settings.expandTools
+  const open = entry.open ?? toolOpenByDefault(entry, ctx)
   const root = h(`div.tool.tool--${entry.status}`, { class: open ? 'is-open' : '' })
   const head = button('tool__head', {
     'aria-expanded': String(open),

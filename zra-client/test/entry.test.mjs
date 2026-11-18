@@ -112,10 +112,11 @@ test('messageBody() retrouve le corps écrit par le streaming, pour chaque forme
 // Réflexion
 // ---------------------------------------------------------------------------
 
-test('réflexion : repliée selon le réglage, et le choix survit au re-rendu', () => {
+test('réflexion : dépliée pendant son écriture, repliée ensuite (Zed), le choix survit au re-rendu', () => {
   const e = entry({ type: 'thought', blocks: [text('je réfléchis')] })
-  const open = render(e).node
-  assert.equal(open.className.includes('is-open'), true, 'showThoughts vaut true par défaut')
+  assert.equal(render(e).node.className.includes('is-open'), false, 'écrite : repliée')
+  const open = render(e, { busy: true, isLast: true }).node
+  assert.equal(open.className.includes('is-open'), true, 'en cours d’écriture : dépliée')
   assert.equal(q(open, '.thought__head').getAttribute('aria-expanded'), 'true')
 
   click(q(open, '.thought__head'))
@@ -129,16 +130,15 @@ test('réflexion : repliée selon le réglage, et le choix survit au re-rendu', 
   assert.equal(e.open, true)
 })
 
-test('réflexion : le réglage showThoughts=false replie par défaut', () => {
-  const before = settings.showThoughts
-  settings.showThoughts = false
+test('réflexion : alwaysShowThoughts laisse déplié ; entry.open a priorité', () => {
+  const before = settings.alwaysShowThoughts
+  settings.alwaysShowThoughts = true
   try {
-    const node = render(entry({ type: 'thought', blocks: [text('x')] })).node
-    assert.equal(node.className.includes('is-open'), false)
-    const forced = render(entry({ type: 'thought', open: true, blocks: [text('x')] })).node
-    assert.equal(forced.className.includes('is-open'), true, 'entry.open a priorité')
+    assert.equal(render(entry({ type: 'thought', blocks: [text('x')] })).node.className.includes('is-open'), true)
+    const forced = render(entry({ type: 'thought', open: false, blocks: [text('x')] })).node
+    assert.equal(forced.className.includes('is-open'), false, 'entry.open a priorité')
   } finally {
-    settings.showThoughts = before
+    settings.alwaysShowThoughts = before
   }
 })
 
@@ -287,6 +287,16 @@ test('tool call : replié/déplié selon le réglage, choix conservé sur l’en
   } finally {
     settings.expandTools = before
   }
+})
+
+test('tool call : diff, terminal et autorisation en attente dépliés d’office (comme Zed)', () => {
+  const diff = tool({ content: [{ type: 'diff', path: 'a.js', oldText: 'a', newText: 'b' }] })
+  assert.equal(render(diff).node.className.includes('is-open'), true)
+  const term = tool({ content: [{ type: 'terminal', terminalId: 't' }] })
+  assert.equal(render(term).node.className.includes('is-open'), true)
+  const waiting = tool({ toolCallId: 'tc-9' })
+  const timeline = { pendingPermissions: () => [{ toolCall: { toolCallId: 'tc-9' } }], terminals: new Map() }
+  assert.equal(render(waiting, { timeline }).node.className.includes('is-open'), true)
 })
 
 test('tool call : emplacements, sortie, et les replis de brut', () => {

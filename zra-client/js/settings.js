@@ -19,7 +19,9 @@ function load() {
     theme: THEMES.some((t) => t.id === s.theme) ? s.theme : DEFAULT_THEME,
     clientId: s.clientId || `zra-${Math.random().toString(36).slice(2, 10)}`,
     defaultSendMode: s.defaultSendMode === 'interrupt' ? 'interrupt' : 'queue',
-    showThoughts: s.showThoughts !== false,
+    /** Faux (défaut) : comme Zed (`thinking_display: "auto"`), dépliées pendant leur écriture. */
+    alwaysShowThoughts: s.alwaysShowThoughts === true,
+    /** Faux (défaut) : comme Zed, diffs, terminaux et autorisations en attente dépliés. */
     expandTools: s.expandTools === true,
     mock: s.mock === true,
     lastThread: s.lastThread || null,
@@ -31,10 +33,10 @@ function load() {
 export const settings = load()
 
 function persist() {
-  const { machines, theme, clientId, defaultSendMode, showThoughts, expandTools, mock, lastThread, tokens } = settings
+  const { machines, theme, clientId, defaultSendMode, alwaysShowThoughts, expandTools, mock, lastThread, tokens } = settings
   try {
     localStorage.setItem(KEY, JSON.stringify({
-      machines, theme, clientId, defaultSendMode, showThoughts, expandTools, mock, lastThread, tokens,
+      machines, theme, clientId, defaultSendMode, alwaysShowThoughts, expandTools, mock, lastThread, tokens,
     }))
   } catch { /* mode privé : on tourne en mémoire */ }
 }

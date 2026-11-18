@@ -12,11 +12,11 @@ Fait → effet → à faire. Une issue acceptée (on ne fera rien) part dans
 | --- | --- |
 | Tour lancé depuis le mobile : Zed le croit au repos | `à faire` |
 | Liste des threads : tri, regroupement et noms | `à faire` |
-| Fil : dépliage et placement | `à faire` |
 | Réouverture : le filtre du sidebar est flou | `à faire` |
 | Performance sur téléphone non mesurée | `à faire` |
 | Logos d'agents : source | `à faire` |
 | Relecture : environnement et capacités différents de Zed | `à faire` |
+| Fil : placement du plan et de la permission | `à faire` |
 
 ## Tour lancé depuis le mobile : Zed le croit au repos — `à faire`
 
@@ -55,20 +55,6 @@ projet déchargé mais resté au sidebar (« fermer l'espace de travail » sans
 « retirer le projet ») est montré, marqué fermé ; l'ouvrir le recharge, comme
 un clic dans Zed (`crates/sidebar/src/sidebar.rs`, `open_workspace_for_group`).
 À constater : qu'il figure bien dans `multi_workspace_state`.
-
-## Fil : dépliage et placement — `à faire`
-
-Zed déplie la réflexion en cours puis la replie (`thinking_display: "auto"`,
-`crates/agent_ui/src/entry_view_state.rs`, `auto_expand_streaming_thought`) ;
-déplie d'office diffs et terminaux (`expand_edit_card`, `expand_terminal_card`,
-vrais par défaut : `crates/agent_ui/src/conversation_view/thread_view.rs`) et
-tout tool call en attente d'autorisation (`is_tool_call_content_visible`). Il
-affiche le plan au-dessus du composer (`render_activity_bar`), pas dans le
-fil, et la permission dans son tool call. La PWA (`views/entry.js`, `settings.js`)
-déplie toutes les réflexions (`showThoughts`), replie tous les tool calls
-(`expandTools`), et place plan et permission en cartes dans le fil.
-→ Aligner les défauts de dépliage ; placement du plan et de la permission : à
-trancher avec l'apparence.
 
 ## Réouverture : le filtre du sidebar est flou — `à faire`
 
@@ -116,3 +102,11 @@ client de relecture (`zra-daemon/session-loader.js`, `acp-client.js`) lance
 l'agent avec l'environnement du daemon, sans serveur MCP, sans terminal ni
 `_meta`. Le rejeu peut différer de celui de Zed.
 → À constater : effet de l'environnement et des capacités sur le rejeu.
+
+## Fil : placement du plan et de la permission — `à faire`
+
+Zed affiche le plan au-dessus du composer (`render_activity_bar`,
+`crates/agent_ui/src/conversation_view/thread_view.rs`), pas dans le fil, et la
+permission dans son tool call (`render_permission_buttons`). La PWA
+(`views/entry.js`) place plan et permission en cartes dans le fil.
+→ À trancher avec l'audit d'apparence.

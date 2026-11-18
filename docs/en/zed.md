@@ -77,9 +77,9 @@ Behavior only: the appearance is audited separately. Zed side, unless stated: `c
 | Thread list, by project (`views/threads.js`: `threadRow`, `projectHead`; `format.js`: `relTime`, `projectOf`) | `crates/sidebar/src/sidebar.rs`: `rebuild_contents`, `thread_display_time`, `render_thread`, `render_project_header`; `crates/project/src/project.rs`: `ProjectGroupKey::display_name`; `crates/agent_ui/src/threads_archive_view.rs`: `format_history_entry_timestamp` | gap |
 | Thread: reducing `session/update` (`acp.js`: `Timeline.apply`) | `crates/acp_thread/src/acp_thread.rs`: `handle_session_update`, `upsert_tool_call`, `update_tool_call`, `can_merge_message_chunks` | verified |
 | User and agent messages (`views/entry.js`: `userMsg`, `agentMsg`) | `render_entry`, `render_message_content` | to audit |
-| Thoughts (`thoughtMsg`) | `render_thinking_block`; `crates/agent_ui/src/entry_view_state.rs`: `auto_expand_streaming_thought` | gap |
-| Tool calls: header, status, expanding (`toolCall`, `statusIcon`) | `render_tool_call`, `render_tool_call_label`, `render_tool_call_content`; settings `expand_edit_card`, `expand_terminal_card` | gap |
-| Terminal (`terminalBlock`) | `render_terminal_tool_call`; `crates/agent_ui/src/ui/terminal_tool_header.rs` | gap |
+| Thoughts (`thoughtMsg`) | `render_thinking_block`; `crates/agent_ui/src/entry_view_state.rs`: `auto_expand_streaming_thought` | verified |
+| Tool calls: header, status, expanding (`toolCall`, `statusIcon`) | `render_tool_call`, `render_tool_call_label`, `render_tool_call_content`; settings `expand_edit_card`, `expand_terminal_card` | verified |
+| Terminal (`terminalBlock`) | `render_terminal_tool_call`; `crates/agent_ui/src/ui/terminal_tool_header.rs` | verified |
 | Diff (`diffBlock`, `diff.js`) | `render_diff_editor` | to audit |
 | Plan (`planCard`) | `render_activity_bar`, `render_plan_entries`, `render_plan_summary` | gap |
 | Permission (`permissionCard`) | `render_permission_buttons` and variants | gap |

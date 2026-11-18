@@ -239,11 +239,11 @@ test('Affichage : les cases reflètent les réglages et les écrivent', () => {
   const boxes = section(sheet, 'Affichage').querySelectorAll('input[type="checkbox"]')
   const labels = [...section(sheet, 'Affichage').querySelectorAll('label.row span')].map((s) => s.textContent)
   assert.deepEqual(labels, [
-    'Déplier les réflexions par défaut',
-    'Déplier les outils par défaut',
+    'Toujours déplier les réflexions',
+    'Déplier tous les outils',
     'Mode mock (daemon simulé)',
   ])
-  assert.equal(boxes[0].checked, settingsModule.settings.showThoughts)
+  assert.equal(boxes[0].checked, settingsModule.settings.alwaysShowThoughts)
   assert.equal(boxes[1].checked, settingsModule.settings.expandTools)
   assert.equal(boxes[2].checked, settingsModule.settings.mock, 'le mode mock suit le réglage')
   assert.equal(boxes[2].checked, true, 'on est en mode mock')
