@@ -4,7 +4,7 @@ import { h, button, clear, rafBatch, patchHtml } from '../dom.js'
 import { icon, agentIcon } from '../icons.js'
 import { relTime, absTime, shortPath, agentLabel, projectOf, toMs, formatTokens, formatCost, formatDuration } from '../format.js'
 import * as store from '../store.js'
-import { renderEntry, blocksPieces, revealBlocks, textLength, messageBody } from './entry.js'
+import { renderEntry, blocksPieces, revealBlocks, textLength, messageBody, planPanel, permissionButtons, inlineTitle } from './entry.js'
 import { openMenu, toast, switchEl } from '../ui.js'
 import { newSessionButton } from './new-session.js'
 import { settings, update as updateSettings } from '../settings.js'
@@ -46,6 +46,9 @@ export function ThreadView({ key, navigate }) {
   const feed = h('div.scroll.thread__scroll')
   const nodes = new Map()
   let stick = true
+  const activity = h('div.activity.hidden')
+  // Plan replié par défaut, comme dans Zed (`plan_expanded`).
+  let planOpen = false
 
   const jump = button('jump.hidden', {
     onclick: () => { stick = true; scrollToEnd(); jump.classList.add('hidden') },
@@ -117,6 +120,7 @@ export function ThreadView({ key, navigate }) {
     ),
     banner,
     h('div.thread__wrap', {}, feed, jump),
+    activity,
     composer.el,
     h('div.bottombar', {}, modeBtn, modelBtn, optionsSlot, h('span.spacer'),
       // Même boîte que le bouton Envoyer : c'est une action, pas un réglage.
@@ -140,6 +144,43 @@ export function ThreadView({ key, navigate }) {
     store.cancelQueued(key, q.queueId)
     stick = true; jump.classList.add('hidden'); scrollToEnd()
     store.sendMessage(key, q.text, 'interrupt')
+  }
+
+  // ---- barre d'activité ----
+  //
+  // Comme Zed (`render_activity_bar`), au-dessus du composer : la permission en
+  // attente quand sa carte est hors de vue (`render_main_agent_awaiting_permission`),
+  // et le plan de l'agent.
+
+  function syncActivity() {
+    const tl = store.ensureTimeline(key)
+    clear(activity)
+    const pending = tl.pendingPermissions().filter((p) => !p.pendingOptionId)
+    const first = pending[0]
+    const node = first && nodes.get(tl.byToolCall.get(first.toolCallId)?.id)
+    if (first && !(node && inView(node))) {
+      activity.append(h('div.activity__perm', {},
+        button('activity__head', {
+          onclick: () => { stick = false; node?.scrollIntoView?.({ block: 'center' }) },
+        },
+          icon('alert-triangle', 'icon--sm'),
+          h('span', { text: pending.length > 1 ? tr`En attente de confirmation (${pending.length})` : tr`En attente de confirmation` }),
+          h('span.spacer'),
+          node ? icon(node.getBoundingClientRect().top < feed.getBoundingClientRect().top ? 'arrow-up' : 'arrow-down', 'icon--sm') : null),
+        h('div.md.activity__title', { html: inlineTitle(first.toolCall?.title || 'action') }),
+        permissionButtons(first, ctx())))
+    }
+    if (tl.planEntry?.items?.length) {
+      activity.append(planPanel(tl.planEntry, { open: planOpen, onToggle: () => { planOpen = !planOpen; syncActivity() } }))
+    }
+    activity.classList.toggle('hidden', !activity.childElementCount)
+  }
+
+  /** Carte visible dans le fil (au moins en partie). */
+  function inView(node) {
+    const r = node.getBoundingClientRect()
+    const f = feed.getBoundingClientRect()
+    return r.bottom > f.top && r.top < f.bottom
   }
 
   // ---- rendu du flux ----
@@ -171,6 +212,7 @@ export function ThreadView({ key, navigate }) {
     paintStatusLines()
     syncTurn()
     scrollToEnd(true)
+    syncActivity()
   }
 
   /** L'indicateur de tour : toujours en dernier dans le fil, et seulement pendant un tour. */
@@ -298,6 +340,11 @@ export function ThreadView({ key, navigate }) {
       feed.append(node)
     }
     nodes.set(change.entry.id, node)
+    // Une demande se peint dans la carte de son tool call.
+    if (change.entry.type === 'permission') {
+      const tool = tl.byToolCall.get(change.entry.toolCallId)
+      if (tool && nodes.has(tool.id)) patch({ op: 'update', entry: tool })
+    }
   }
 
   // Les événements sont peints par lot, une fois par frame, sans en perdre un seul.
@@ -322,6 +369,7 @@ export function ThreadView({ key, navigate }) {
     if (meta) syncMeta()
     syncTurn()
     scrollToEnd()
+    syncActivity()
   })
 
   /** Ce qui dépend de l'état annoncé par l'agent : titre, date, consommation. */
@@ -341,9 +389,13 @@ export function ThreadView({ key, navigate }) {
 
   /** Les encarts de permission dépendent de l'état du thread, pas d'un événement. */
   function repaintPermissions() {
-    for (const entry of store.ensureTimeline(key).pendingPermissions()) {
+    const tl = store.ensureTimeline(key)
+    for (const entry of tl.pendingPermissions()) {
       if (nodes.has(entry.id)) patch({ op: 'update', entry })
+      const tool = tl.byToolCall.get(entry.toolCallId)
+      if (tool && nodes.has(tool.id)) patch({ op: 'update', entry: tool })
     }
+    syncActivity()
   }
 
   function syncHeader() {
@@ -508,10 +560,13 @@ export function ThreadView({ key, navigate }) {
     feed.scrollTop = feed.scrollHeight
   }
 
+  const syncActivitySoon = rafBatch(() => syncActivity())
   feed.addEventListener('scroll', () => {
     const atEnd = feed.scrollHeight - feed.scrollTop - feed.clientHeight < 60
     stick = atEnd
     jump.classList.toggle('hidden', atEnd)
+    // La permission en attente rejoint la barre quand sa carte sort de la vue.
+    if (store.ensureTimeline(key).pendingPermissions().length) syncActivitySoon()
   })
 
   const offs = [

@@ -110,7 +110,7 @@ export class Timeline {
 
       default:
         // Demande de permission : arrive comme requête ACP, pas comme notification.
-        if (update.options && update.toolCall) return [this.permission(update, meta)]
+        if (update.options && update.toolCall) return this.permission(update, meta)
         this.stats.unknown++
         return [this.push({ type: 'raw', kind: kind || '?', payload: update, at: meta.at })]
     }
@@ -194,7 +194,6 @@ export class Timeline {
       locations: u.locations || [],
       rawInput: u.rawInput,
       rawOutput: u.rawOutput,
-      open: false,
       at: meta.at,
     })
     this.byToolCall.set(added.entry.toolCallId, added.entry)
@@ -245,16 +244,35 @@ export class Timeline {
     return added
   }
 
+  /**
+   * Demande de permission. Comme Zed (`upsert_tool_call`), son tool call est
+   * créé ou mis à jour : la demande s'affiche dans sa carte.
+   */
   permission(u, meta) {
+    const changes = []
+    const toolCallId = u.toolCall?.toolCallId ?? null
+    if (toolCallId) changes.push(this.toolCall(u.toolCall, meta))
     this.closeOpenMessage()
-    return this.push({
+    changes.push(this.push({
       type: 'permission',
       requestId: u.requestId ?? u.id ?? nextId(),
       toolCall: u.toolCall,
+      toolCallId,
       options: u.options || [],
       resolved: false,
       at: meta.at,
-    })
+    }))
+    return changes
+  }
+
+  /** Demande la plus récente rattachée à un tool call. */
+  permissionFor(toolCallId) {
+    if (!toolCallId) return null
+    for (let i = this.entries.length - 1; i >= 0; i--) {
+      const e = this.entries[i]
+      if (e.type === 'permission' && e.toolCallId === toolCallId) return e
+    }
+    return null
   }
 
   /**

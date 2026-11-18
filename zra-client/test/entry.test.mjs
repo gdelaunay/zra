@@ -23,7 +23,8 @@ globalThis.localStorage = {
 }
 after(() => { dom.window.close() })
 
-const { renderEntry, blocksPieces, blocksHtml, textLength, revealBlocks, messageBody } = await import('../js/views/entry.js')
+const { renderEntry, blocksPieces, blocksHtml, textLength, revealBlocks, messageBody, planPanel } = await import('../js/views/entry.js')
+const { Timeline } = await import('../js/acp.js')
 const { settings } = await import('../js/settings.js')
 
 // `.click()` natif : comme dans un navigateur, un bouton `disabled` ne réagit pas.
@@ -395,8 +396,24 @@ test('tool call : un contenu inattendu s’affiche en markdown plutôt que de di
 // Plan
 // ---------------------------------------------------------------------------
 
+test('plan : pas dans le fil, comme Zed (au-dessus du composer)', () => {
+  const { node } = render(entry({ type: 'plan', items: [{ content: 'fait', status: 'completed' }] }))
+  assert.ok(node.classList.contains('entry--placeholder'))
+  assert.equal(q(node, '.plan'), null)
+})
+
+test('plan : résumé sur l’étape en cours, liste dépliée à la demande', () => {
+  let toggled = 0
+  const plan = entry({ type: 'plan', items: [{ content: 'fait', status: 'completed' }, { content: 'en cours', status: 'in_progress' }] })
+  const closed = planPanel(plan, { onToggle: () => toggled++ })
+  assert.match(q(closed, '.plan__head').textContent, /en cours/)
+  assert.equal(q(closed, '.plan__list'), null, 'replié par défaut, comme Zed')
+  click(q(closed, '.plan__head'))
+  assert.equal(toggled, 1)
+})
+
 test('plan : progression, statut de chaque étape, priorité haute', () => {
-  const { node } = render(entry({
+  const node = planPanel(entry({
     type: 'plan',
     items: [
       { content: 'fait', status: 'completed' },
@@ -404,7 +421,7 @@ test('plan : progression, statut de chaque étape, priorité haute', () => {
       { content: 'à venir', status: 'pending' },
       { content: 'sans statut' },
     ],
-  }))
+  }), { open: true })
   assert.equal(q(node, '.plan__head .muted').textContent, '1/4')
   const items = qa(node, '.plan__item')
   assert.deepEqual(items.map((li) => li.className.match(/plan__item--(\w+)/)[1]),
@@ -416,7 +433,7 @@ test('plan : progression, statut de chaque étape, priorité haute', () => {
 })
 
 test('plan vide : 0/0, pas d’erreur', () => {
-  const { node } = render(entry({ type: 'plan', items: [] }))
+  const node = planPanel(entry({ type: 'plan', items: [] }), { open: true })
   assert.equal(q(node, '.plan__head .muted').textContent, '0/0')
   assert.equal(qa(node, '.plan__item').length, 0)
 })
@@ -533,3 +550,31 @@ test('un payload absent s’affiche « null »', () => {
   const { node } = render(entry({ type: 'raw', kind: 'zra/vide' }))
   assert.equal(q(node, '.raw__body').textContent.trim(), 'null')
 })
+
+// ---------------------------------------------------------------------------
+// Permission dans son tool call (Zed : `render_permission_buttons`)
+// ---------------------------------------------------------------------------
+
+test('permission rattachée à un tool call : boutons au pied de sa carte, rien à part dans le fil', () => {
+  const tl = new Timeline()
+  tl.apply({ requestId: 'p1', toolCall: { toolCallId: 't1', title: 'rm -rf', kind: 'execute' }, options: OPTIONS })
+  assert.deepEqual(tl.entries.map((e) => e.type), ['tool', 'permission'], 'le tool call est créé, comme Zed')
+  const [tool, perm] = tl.entries
+  const ctx = { timeline: tl, canRespond: true }
+  assert.ok(render(perm, ctx).node.classList.contains('entry--placeholder'))
+  const card = render(tool, ctx).node
+  assert.deepEqual(qa(card, '.perm--inline .perm__options button').map((b) => b.textContent), ['Autoriser', 'Refuser'])
+  assert.ok(card.classList.contains('is-open'), 'une carte en attente est dépliée')
+
+  tl.resolvePermission('p1', { optionId: 'allow', by: 'mobile' })
+  assert.equal(q(render(tool, ctx).node, '.perm'), null, 'tranchée : les boutons disparaissent')
+})
+
+test('permission : un tool call déjà connu est mis à jour, pas dupliqué', () => {
+  const tl = new Timeline()
+  tl.apply({ sessionUpdate: 'tool_call', toolCallId: 't1', title: 'avant', kind: 'edit', status: 'pending' })
+  tl.apply({ requestId: 'p1', toolCall: { toolCallId: 't1', title: 'après' }, options: OPTIONS })
+  assert.deepEqual(tl.entries.map((e) => e.type), ['tool', 'permission'])
+  assert.equal(tl.entries[0].title, 'après')
+})
+

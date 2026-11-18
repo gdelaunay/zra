@@ -37,6 +37,10 @@ Zed et un téléphone. Un point vérifié est retiré ; un écart constaté part
   terminaux dépliés d'office.
 - **Stop** : la file reste en attente ; « envoyer maintenant » sur un message
   en file coupe le tour et l'envoie.
+- **Permission et plan** : une permission s'affiche au pied de la carte de son
+  tool call (déplié) ; remonter le fil la fait apparaître au-dessus du composer,
+  flèche pour y revenir. Le plan se lit au-dessus du composer, replié sur
+  l'étape en cours.
 
 ## Réouverture et relecture
 

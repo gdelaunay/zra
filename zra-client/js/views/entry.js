@@ -1,6 +1,11 @@
 // Rendu d'une entrée de timeline. Un type d'entrée = une fonction.
 // Tout ce que Zed sait afficher, on l'affiche : texte, diff, terminal, plan,
 // permission — et le brut pour tout le reste.
+//
+// Placés comme dans Zed (`thread_view.rs`) : une permission dans la carte de
+// son tool call (`render_permission_buttons`), le plan au-dessus du composer
+// (`render_activity_bar`, voir `planPanel`). Leurs entrées restent dans la
+// timeline, mais ne se peignent pas dans le fil.
 
 import { h, button, escapeHtml } from '../dom.js'
 import { icon, toolIcon } from '../icons.js'
@@ -21,8 +26,10 @@ export function renderEntry(entry, ctx = {}) {
       case 'agent': return agentMsg(entry, ctx)
       case 'thought': return thoughtMsg(entry, ctx)
       case 'tool': return toolCall(entry, ctx)
-      case 'plan': return planCard(entry)
-      case 'permission': return permissionCard(entry, ctx)
+      case 'plan': return h('div.entry--placeholder')
+      case 'permission': return ctx.timeline?.byToolCall?.has(entry.toolCallId)
+        ? h('div.entry--placeholder')
+        : permissionCard(entry, ctx)
       case 'notice': return sysLine(entry.text, entry.level)
       case 'compaction': return compactionLine(entry)
       case 'raw': return rawCard(entry)
@@ -197,10 +204,13 @@ function toolCall(entry, ctx) {
   if (entry.rawInput !== undefined) body.append(collapsible(tr`entrée brute`, json(entry.rawInput)))
   if (entry.rawOutput !== undefined) body.append(collapsible(tr`sortie brute`, json(entry.rawOutput)))
   root.append(body)
+  // Demande en attente : ses boutons au pied de la carte, même repliée.
+  const perm = ctx.timeline?.permissionFor?.(entry.toolCallId)
+  if (perm && !perm.resolved) root.append(permissionButtons(perm, ctx))
   return root
 }
 
-function inlineTitle(title) {
+export function inlineTitle(title) {
   // Les agents écrivent souvent le chemin en `code` dans le titre.
   return escapeHtml(String(title || '')).replace(/`([^`]+)`/g, '<code>$1</code>')
 }
@@ -281,21 +291,30 @@ function terminalBlock(c, ctx) {
 
 // ---- plan ----
 
-function planCard(entry) {
+/**
+ * Plan de l'agent, au-dessus du composer comme dans Zed (`render_plan_summary`,
+ * `render_plan_entries`) : une ligne de résumé (l'étape en cours, à défaut
+ * « Plan »), qui déplie la liste.
+ * @param {object} entry entrée `plan` de la timeline
+ * @param {{ open?:boolean, onToggle?:Function }} [opts]
+ */
+export function planPanel(entry, { open = false, onToggle } = {}) {
   const done = entry.items.filter((i) => i.status === 'completed').length
-  const root = h('div.plan')
+  const current = entry.items.find((i) => i.status === 'in_progress')
+  const root = h('div.plan', { class: open ? 'is-open' : '' })
   root.append(
-    h('div.plan__head', {},
+    button('plan__head', { 'aria-expanded': String(open), onclick: () => onToggle?.() },
+      icon(open ? 'chevron-down' : 'chevron-right', 'icon--sm'),
       icon('list-todo', 'icon--sm'),
-      h('span', { text: tr`Plan` }),
+      h('span.truncate', { text: current?.content || tr`Plan` }),
       h('span.spacer'),
       h('span.muted', { text: `${done}/${entry.items.length}` })),
-    h('ul.plan__list', {}, ...entry.items.map((it) =>
+    open ? h('ul.plan__list', {}, ...entry.items.map((it) =>
       h(`li.plan__item.plan__item--${it.status || 'pending'}`, {},
         icon(it.status === 'completed' ? 'check' : it.status === 'in_progress' ? 'loader' : 'circle',
           `icon--sm ${it.status === 'in_progress' ? 'spin' : ''}`),
         h('span', { text: it.content || '' }),
-        it.priority === 'high' ? h('span.plan__prio', { text: '!' }) : null))),
+        it.priority === 'high' ? h('span.plan__prio', { text: '!' }) : null))) : null,
   )
   return root
 }
@@ -304,7 +323,29 @@ function planCard(entry) {
 
 const REJECT = /^reject/
 
+/** Boutons d'une demande en attente, au pied de la carte de son tool call. */
+export function permissionButtons(entry, ctx) {
+  const { options, note } = permissionOptions(entry, ctx)
+  return h('div.perm.perm--inline', h('div.perm__options', ...options), note ? h('div.perm__note', { text: note }) : null)
+}
+
+/** Demande sans tool call connu : carte à part, comme les permissions génériques de Zed. */
 function permissionCard(entry, ctx) {
+  const { options, note } = permissionOptions(entry, ctx)
+  const root = h(`div.perm${entry.resolved ? '.perm--done' : ''}`,
+    h('div.perm__head', icon('shield', 'icon--sm'), h('span', { text: tr`Autorisation demandée` }),
+      h('span.spacer'),
+      h('span.muted', { text: relTime(entry.at) })),
+    h('div.perm__body',
+      h('div.md', { html: inlineTitle(entry.toolCall?.title || 'action') }),
+      h('div.perm__options', ...options),
+      note ? h('div.perm__note', { text: note }) : null,
+    ),
+  )
+  return root
+}
+
+function permissionOptions(entry, ctx) {
   const sent = Boolean(entry.pendingOptionId) && !entry.resolved
   const locked = entry.resolved || sent || !ctx.canRespond
 
@@ -331,18 +372,7 @@ function permissionCard(entry, ctx) {
   if (entry.resolved) {
     if (!(entry.options || []).some((o) => o.optionId === entry.pendingOptionId)) note = tr`réponse : ${entry.outcome}`
   } else if (!sent && !ctx.canRespond) note = tr`thread injoignable — à traiter sur le poste`
-
-  const root = h(`div.perm${entry.resolved ? '.perm--done' : ''}`,
-    h('div.perm__head', icon('shield', 'icon--sm'), h('span', { text: tr`Autorisation demandée` }),
-      h('span.spacer'),
-      h('span.muted', { text: relTime(entry.at) })),
-    h('div.perm__body',
-      h('div.md', { html: inlineTitle(entry.toolCall?.title || 'action') }),
-      h('div.perm__options', ...options),
-      note ? h('div.perm__note', { text: note }) : null,
-    ),
-  )
-  return root
+  return { options, note }
 }
 
 // ---- divers ----

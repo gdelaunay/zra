@@ -12,10 +12,9 @@ Fait → effet → à faire. Une issue acceptée (on ne fera rien) part dans
 | --- | --- |
 | Tour lancé depuis le mobile : Zed le croit au repos | `à faire` |
 | Performance sur téléphone non mesurée | `à faire` |
-| Logos d'agents : source | `à faire` |
 | Relecture : environnement et capacités différents de Zed | `à faire` |
-| Fil : placement du plan et de la permission | `à faire` |
 | Réouverture : le filtre du sidebar est flou | `à faire` |
+| Questions de l'agent : sans réponse depuis le mobile | `à faire` |
 
 ## Tour lancé depuis le mobile : Zed le croit au repos — `à faire`
 
@@ -35,16 +34,6 @@ relit toute la table `sidebar_threads` toutes les 2 s ; le diff alloue jusqu'à
 attente.
 → Mesurer sur un long thread, sur un vrai réseau.
 
-## Logos d'agents : source — `à faire`
-
-Les logos (`zra-client/js/agent-icons.js`, `scripts/gen-agent-icons.mjs`) sont
-copiés des `assets/icons/ai_*.svg` de Zed, qui ne peut pas accorder de droits
-sur eux : ils appartiennent à leurs marques. Les afficher pour désigner
-l'agent, comme le fait Zed, est un usage courant ; c'est leur source qui pose
-question (`THIRD_PARTY_NOTICES.md`).
-→ À trancher : les reprendre des kits presse officiels et suivre leurs règles
-d'usage, ou garder la source Zed.
-
 ## Relecture : environnement et capacités différents de Zed — `à faire`
 
 Zed lance l'agent avec l'environnement du projet (`project_environment`,
@@ -55,14 +44,6 @@ client de relecture (`zra-daemon/session-loader.js`, `acp-client.js`) lance
 l'agent avec l'environnement du daemon, sans serveur MCP, sans terminal ni
 `_meta`. Le rejeu peut différer de celui de Zed.
 → À constater : effet de l'environnement et des capacités sur le rejeu.
-
-## Fil : placement du plan et de la permission — `à faire`
-
-Zed affiche le plan au-dessus du composer (`render_activity_bar`,
-`crates/agent_ui/src/conversation_view/thread_view.rs`), pas dans le fil, et la
-permission dans son tool call (`render_permission_buttons`). La PWA
-(`views/entry.js`) place plan et permission en cartes dans le fil.
-→ À trancher avec l'audit d'apparence.
 
 ## Réouverture : le filtre du sidebar est flou — `à faire`
 
@@ -82,3 +63,17 @@ d'un thread par identifiant (`zed://agent` n'ouvre que le panneau :
 → À constater : la bascule du focus, et la fréquence des mauvais threads sur
 des titres proches. Piste si c'est gênant : un pas de recette qui rend le
 focus à l'éditeur avant d'ouvrir le sidebar.
+
+## Questions de l'agent : sans réponse depuis le mobile — `à faire`
+
+Claude Agent pose ses questions (`AskUserQuestion`) en élicitation ACP :
+`elicitation/create`, formulaire à choix (`oneOf`, ou `array` en choix
+multiple) et champ libre par question, rattaché à son tool call
+(`claude-agent-acp`, `dist/elicitation.js`, `askUserQuestionsToCreateRequest`).
+Zed l'affiche (`crates/agent_ui/src/conversation_view/elicitation.rs`) ; le shim
+(`zra-shim/acp.js`, `observeFromAgent`) ne fait que prévenir le mobile
+(« l'agent attend une réponse dans Zed »). Le tour reste bloqué tant qu'on
+n'a pas répondu dans Zed.
+→ Répondre depuis le mobile, comme une permission : formulaire rendu dans le
+fil, réponse envoyée à l'agent par le shim, formulaire retiré de Zed
+(`$/cancel_request`, comme pour une permission tranchée sur le mobile).

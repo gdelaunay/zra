@@ -499,6 +499,26 @@ button { cursor: pointer; }
 .perm__note { font-size: var(--fs-xs); color: var(--text-muted); }
 .perm--done { border-color: var(--border-variant); background: var(--element-background); }
 .perm--done .perm__head { color: var(--text-muted); }
+/* Au pied de la carte de son tool call, comme dans Zed. */
+.perm--inline { border: 0; border-top: 1px solid var(--warning-border); border-radius: 0; padding: var(--sp-3) var(--sp-4); }
+/* Plan et permission : leur entrée reste dans la timeline, sans rien peindre dans le fil. */
+.entry--placeholder { display: none; }
+
+/* Barre d'activité, au-dessus du composer (Zed : `render_activity_bar`). */
+.activity {
+  flex: none; display: flex; flex-direction: column;
+  border-top: 1px solid var(--border); background: var(--panel-background);
+}
+.activity .plan { border: 0; border-radius: 0; }
+.activity .plan + *, .activity * + .plan { border-top: 1px solid var(--border-variant); }
+.activity__perm { background: var(--warning-background); }
+.activity__perm .perm--inline { border-top: 0; padding-top: 0; }
+.activity__head {
+  display: flex; align-items: center; gap: var(--sp-3);
+  width: 100%; padding: var(--sp-3) var(--sp-4); text-align: left;
+  font-size: var(--fs-sm); color: var(--warning);
+}
+.activity__title { padding: 0 var(--sp-4) var(--sp-3); font-size: var(--fs-sm); }
 
 /* brut / inconnu : la regle du 1 — on n'echoue jamais sur un update inconnu */
 .raw { border: 1px dashed var(--border-variant); border-radius: var(--radius); }
