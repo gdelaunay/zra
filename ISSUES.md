@@ -14,7 +14,6 @@ Fait → effet → à faire. Une issue acceptée (on ne fera rien) part dans
 | Performance sur téléphone non mesurée | `à faire` |
 | Relecture : environnement et capacités différents de Zed | `à faire` |
 | Réouverture : le filtre du sidebar est flou | `à faire` |
-| Questions de l'agent : sans réponse depuis le mobile | `à faire` |
 
 ## Tour lancé depuis le mobile : Zed le croit au repos — `à faire`
 
@@ -63,17 +62,3 @@ d'un thread par identifiant (`zed://agent` n'ouvre que le panneau :
 → À constater : la bascule du focus, et la fréquence des mauvais threads sur
 des titres proches. Piste si c'est gênant : un pas de recette qui rend le
 focus à l'éditeur avant d'ouvrir le sidebar.
-
-## Questions de l'agent : sans réponse depuis le mobile — `à faire`
-
-Claude Agent pose ses questions (`AskUserQuestion`) en élicitation ACP :
-`elicitation/create`, formulaire à choix (`oneOf`, ou `array` en choix
-multiple) et champ libre par question, rattaché à son tool call
-(`claude-agent-acp`, `dist/elicitation.js`, `askUserQuestionsToCreateRequest`).
-Zed l'affiche (`crates/agent_ui/src/conversation_view/elicitation.rs`) ; le shim
-(`zra-shim/acp.js`, `observeFromAgent`) ne fait que prévenir le mobile
-(« l'agent attend une réponse dans Zed »). Le tour reste bloqué tant qu'on
-n'a pas répondu dans Zed.
-→ Répondre depuis le mobile, comme une permission : formulaire rendu dans le
-fil, réponse envoyée à l'agent par le shim, formulaire retiré de Zed
-(`$/cancel_request`, comme pour une permission tranchée sur le mobile).

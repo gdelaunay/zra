@@ -174,6 +174,8 @@ export async function startDaemon(config) {
   })
   host.on('permission_resolved', (p) => hub.permissionResolved(p.threadId, p))
   host.on('permission_expired', ({ threadId, requestId }) => hub.permissionExpired(threadId, requestId))
+  host.on('elicitation_resolved', (p) => hub.elicitationResolved(p.threadId, p))
+  host.on('elicitation_expired', ({ threadId, requestId }) => hub.elicitationExpired(threadId, requestId))
   // Un thread qui reprend vie a pu changer depuis sa mise en cache.
   host.on('session', ({ sessionId }) => loader.invalidate(sessionId))
   // Zed recharge la session : le replay va tout redire, le ring repart de zéro.

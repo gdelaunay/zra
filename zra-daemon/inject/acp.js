@@ -74,4 +74,8 @@ export class AcpBackend {
   respondPermission(threadId, requestId, optionId) {
     return this.run(threadId, 'respond_permission', { requestId, optionId })
   }
+
+  respondElicitation(threadId, requestId, action, content) {
+    return this.run(threadId, 'respond_elicitation', { requestId, action, content })
+  }
 }

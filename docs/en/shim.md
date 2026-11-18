@@ -27,7 +27,7 @@ They are local, deliberate, and both in `acp.js`:
 
 | Frame swallowed | Why |
 |---|---|
-| Zed's **late** answer to a permission already settled from the phone | two answers for the same JSON-RPC `id` would confuse the agent |
+| Zed's **late** answer to a permission already settled, or a question already answered, from the phone | two answers for the same JSON-RPC `id` would confuse the agent |
 | the agent's answers to the requests **injected by ZRA** (`id` as `zra-N`) | Zed never sent them; they do not concern it |
 
 The `zra-N` id space is textual: no possible collision with Zed's

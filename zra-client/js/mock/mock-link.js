@@ -7,7 +7,7 @@
 import { emitter } from '../dom.js'
 import {
   MACHINES, MODES, MODELS, OPTIONS, COMMANDS, historyFor,
-  fullTurn, shortTurn, longTurn, permissionScenario, permissionFollowUp, unknownScenario,
+  fullTurn, shortTurn, longTurn, permissionScenario, permissionFollowUp, questionScenario, questionFollowUp, unknownScenario,
   userChunk,
 } from './scenarios.js'
 import { tr } from '../i18n.js'
@@ -42,6 +42,7 @@ export class MockLink {
     this.turns = new Map()   // threadId -> { timers:[], queue:[], turn }
     this.subs = new Set()
     this.pendingPerms = new Map()  // requestId -> { threadId, toolCallId }
+    this.pendingQuestions = new Map()  // requestId -> { threadId }
     this.timers = new Set()
     const e = emitter()
     this.on = e.on
@@ -203,6 +204,19 @@ export class MockLink {
         this.play(perm.threadId, permissionFollowUp(perm.toolCallId, allowed))
         break
       }
+      // Réponse à une question de l'agent : il reprend son tour avec la réponse.
+      case 'respond_elicitation': {
+        const q = this.pendingQuestions.get(msg.requestId)
+        if (!q) {
+          this.push({ type: 'error', code: 'elicitation_expired', message: tr`question inconnue ou déjà répondue`, threadId: msg.threadId })
+          return
+        }
+        this.pendingQuestions.delete(msg.requestId)
+        this.push({ type: 'elicitation_resolved', threadId: q.threadId, requestId: msg.requestId, action: msg.action, by: 'mobile' })
+        const answer = msg.action === 'accept' ? [msg.content?.question_0, msg.content?.question_0_custom].filter(Boolean).join(' — ') : null
+        this.play(q.threadId, questionFollowUp(answer))
+        break
+      }
       case 'zra/trigger':
         this.trigger(msg.name, msg.threadId)
         break
@@ -267,6 +281,12 @@ export class MockLink {
         const { steps, requestId, toolCallId } = permissionScenario()
         this.pendingPerms.set(requestId, { threadId: id, toolCallId })
         // `hold` : le tour ne se termine pas, l'agent attend la réponse.
+        this.play(id, steps, { hold: true })
+        break
+      }
+      case 'question': {
+        const { steps, requestId } = questionScenario()
+        this.pendingQuestions.set(requestId, { threadId: id })
         this.play(id, steps, { hold: true })
         break
       }

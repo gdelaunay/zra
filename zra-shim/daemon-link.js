@@ -9,9 +9,10 @@
 // du même poste, distincte du protocole PWA ↔ daemon du `docs/fr/protocol.md`.
 //
 //   shim → daemon   shim_hello · session · acp_update · state ·
-//                   permission_resolved · permission_expired · notice · ack
+//                   permission_resolved · permission_expired ·
+//                   elicitation_resolved · elicitation_expired · notice · ack
 //   daemon → shim   cmd { id, cmd: prompt|cancel|set_option|
-//                                 respond_permission|cancel_queued }
+//                                 respond_permission|respond_elicitation|cancel_queued }
 
 import { tr } from '../zra-daemon/i18n.js'
 

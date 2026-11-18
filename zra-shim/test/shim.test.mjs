@@ -378,14 +378,68 @@ test('session/resume suivie comme un load (sans rejeu), session/close la retire'
   assert.ok(bridge.sessions.has(zed.sessionId), 'les autres sessions restent')
 })
 
-test('élicitation : seul Zed peut répondre, le mobile en est averti', async (t) => {
+test('élicitation par lien : seul Zed peut l’ouvrir, le mobile en est averti', async (t) => {
   const { bridge, zed } = await boot(t)
   const notices = []
   bridge.on('update', (u) => { if (u.update.sessionUpdate === 'zra/notice') notices.push(u.update) })
-  await zed.prompt('elicitation: formulaire')
+  await zed.prompt('elicitation: lien')
   assert.equal(notices.length, 1)
   assert.equal(notices[0].level, 'warn')
   assert.match(notices[0].text, /attend une réponse dans Zed/)
+})
+
+test('question : publiée en zra/elicitation, le mobile répond, Zed retire son formulaire', async (t) => {
+  const { bridge, zed } = await boot(t, { zed: { answerElicitation: null } })
+  const published = []
+  bridge.on('update', (u) => { if (u.update.sessionUpdate === 'zra/elicitation') published.push(u.update) })
+  const resolutions = []
+  bridge.on('elicitation_resolved', (r) => resolutions.push(r))
+
+  const turn = zed.prompt('question: framework')
+  const q = await until(() => published[0], { label: 'question publiée' })
+  assert.equal(q.message, 'Quel framework ?')
+  assert.equal(q.toolCallId, 'tc-q')
+  assert.deepEqual(Object.keys(q.requestedSchema.properties), ['question_0', 'question_0_custom'])
+
+  // Un champ hors schéma ne part pas.
+  const res = bridge.respondElicitation(zed.sessionId, q.requestId, 'accept', { question_0: 'Vue', intrus: 1 })
+  assert.deepEqual(res, { by: 'mobile', action: 'accept' })
+  assert.deepEqual(resolutions, [{ sessionId: zed.sessionId, requestId: q.requestId, action: 'accept', by: 'mobile' }])
+  await until(() => zed.cancelled.length, { label: '$/cancel_request' })
+  assert.deepEqual(zed.cancelled, [zed.elicitations[0].id])
+
+  await turn
+  const reply = zed.updates.find((u) => u.sessionUpdate === 'agent_message_chunk')?.content.text
+  assert.equal(reply, 'réponse:{"action":"accept","content":{"question_0":"Vue"}}')
+  assert.throws(() => bridge.respondElicitation(zed.sessionId, q.requestId, 'decline'), /déjà répondue/)
+})
+
+test('question : le poste répond le premier, le mobile est refusé', async (t) => {
+  const { bridge, zed } = await boot(t, { zed: { answerElicitation: { action: 'decline' } } })
+  const published = []
+  bridge.on('update', (u) => { if (u.update.sessionUpdate === 'zra/elicitation') published.push(u.update) })
+  const resolutions = []
+  bridge.on('elicitation_resolved', (r) => resolutions.push(r))
+
+  await zed.prompt('question: framework')
+  assert.deepEqual(resolutions, [{ sessionId: zed.sessionId, requestId: published[0].requestId, action: 'decline', by: 'desktop' }])
+  assert.throws(() => bridge.respondElicitation(zed.sessionId, published[0].requestId, 'accept', {}), /elicitation_expired|déjà répondue/)
+})
+
+test('question répondue du mobile : la réponse tardive du poste est avalée', async (t) => {
+  const { bridge, zed, agent } = await boot(t, { zed: { answerElicitation: { action: 'decline' }, permissionDelayMs: 300 } })
+  const erreurs = []
+  agent.stderr.on('data', (c) => erreurs.push(c.toString()))
+  const published = []
+  bridge.on('update', (u) => { if (u.update.sessionUpdate === 'zra/elicitation') published.push(u.update) })
+
+  const turn = zed.prompt('question: framework')
+  const q = await until(() => published[0], { label: 'question publiée' })
+  bridge.respondElicitation(zed.sessionId, q.requestId, 'cancel')
+  await turn
+  await wait(400)
+  assert.match(zed.updates.find((u) => u.sessionUpdate === 'agent_message_chunk').content.text, /"action":"cancel"/)
+  assert.equal(erreurs.join(''), '')
 })
 
 test('set_option : appliqué tout de suite au repos, différé pendant un tour', async (t) => {

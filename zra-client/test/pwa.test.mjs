@@ -325,6 +325,23 @@ test('permission : répondue depuis le mobile, dans la carte de son tool call, l
   await until(() => ZRA.store.ensureState(key).turn === 'idle', 5000, 'tour terminé')
 })
 
+test('question de l’agent : répondue depuis le mobile, la carte quitte le fil, le tour reprend', async () => {
+  const key = 'mock-desk/a1f39c0b'
+  ZRA.store.state.machines.get('mock-desk').link.send({
+    type: 'zra/trigger', name: 'question', threadId: 'a1f39c0b',
+  })
+  const card = () => $('.thread__scroll .elicit')
+  await until(card, 5000, 'carte de question')
+  assert.match(card().textContent, /Quel moteur de stockage/)
+  const radios = [...card().querySelectorAll('input[type=radio]')]
+  radios[0].checked = true
+  radios[0].dispatchEvent(new win.Event('change'))
+  click([...card().querySelectorAll('.elicit__actions button')].find((b) => /Envoyer/.test(b.textContent)))
+  await until(() => !card(), 3000, 'question répondue')
+  await until(() => /Noté : SQLite/.test(doc.body.textContent), 5000, 'suite du tour')
+  await until(() => ZRA.store.ensureState(key).turn === 'idle', 5000, 'tour terminé')
+})
+
 test('permission : un refus est relayé tel quel', async () => {
   ZRA.store.state.machines.get('mock-desk').link.send({
     type: 'zra/trigger', name: 'permission', threadId: 'a1f39c0b',

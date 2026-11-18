@@ -268,8 +268,23 @@ function handle(machine, msg) {
       break
     }
 
+    case 'elicitation_resolved': {
+      const k = key(machine.id, msg.threadId)
+      const changes = ensureTimeline(k).resolveElicitation(msg.requestId, { action: msg.action, by: msg.by || 'desktop' })
+      if (changes.length) emit(`timeline:${k}`, { changes })
+      break
+    }
+
     case 'error': {
       const k = msg.threadId ? key(machine.id, msg.threadId) : null
+      // Question déjà répondue ailleurs ou retirée : celle qu'on venait de
+      // répondre quitte le fil.
+      if (k && msg.code === 'elicitation_expired') {
+        const tl = ensureTimeline(k)
+        const changes = tl.pendingElicitations().filter((e) => e.pendingAction)
+          .flatMap((e) => tl.resolveElicitation(e.requestId, { action: 'cancel', by: 'agent' }))
+        if (changes.length) emit(`timeline:${k}`, { changes })
+      }
       if (k) {
         const st = ensureState(k)
         if (st.historyPending) { st.historyPending = false; st.historyError = msg.message }
@@ -497,6 +512,28 @@ export function respondPermission(k, requestId, option) {
     threadId: splitKey(k).threadId,
     requestId,
     optionId: option.optionId,
+  })
+}
+
+/**
+ * Répond à une question de l'agent : `accept` avec les réponses, `decline` ou
+ * `cancel` (boutons Submit, Decline, Cancel de Zed). La carte se verrouille
+ * tout de suite ; le daemon confirme par `elicitation_resolved`.
+ */
+export function respondElicitation(k, requestId, action, content) {
+  const m = machineOf(k)
+  if (!m) return
+  const tl = ensureTimeline(k)
+  const asked = tl.entries.find((e) => e.type === 'elicitation' && e.requestId === requestId)
+  if (!asked || asked.resolved || asked.pendingAction) return
+  const changes = tl.resolveElicitation(requestId, { action, pending: true })
+  if (changes.length) emit(`timeline:${k}`, { changes })
+  m.link.send({
+    type: 'respond_elicitation',
+    threadId: splitKey(k).threadId,
+    requestId,
+    action,
+    ...(action === 'accept' ? { content: content ?? {} } : {}),
   })
 }
 

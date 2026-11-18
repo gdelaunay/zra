@@ -17,6 +17,7 @@ const SHELL = [
   './js/dom.js',
   './js/icons.js',
   './js/format.js',
+  './js/elicitation.js',
   './js/markdown.js',
   './js/diff.js',
   './js/acp.js',

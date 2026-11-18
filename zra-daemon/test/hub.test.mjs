@@ -92,6 +92,11 @@ function fakeBackend(over = {}) {
       if (this.fail) throw this.fail
       return { optionId, optionName: 'Autoriser', by: 'mobile' }
     },
+    async respondElicitation(threadId, requestId, action, content) {
+      calls.push(['respond_elicitation', threadId, requestId, action, content])
+      if (this.fail) throw this.fail
+      return { action, by: 'mobile' }
+    },
     ...over,
   }
 }
@@ -712,6 +717,49 @@ test('set_option sur thread inconnu → unknown_thread', async () => {
   await tick()
   assert.deepEqual(conn.only('error').map((m) => m.code), ['unknown_thread'])
   assert.deepEqual(ctx.backend.calls, [])
+})
+
+// ---------------------------------------------------------------------------
+// respond_elicitation (questions de l'agent)
+// ---------------------------------------------------------------------------
+
+test('question de l’agent : thread en attente, réponse du mobile relayée, verdict dans le ring', async () => {
+  const ctx = boot()
+  const conn = pairedClient(ctx)
+  conn.emit('message', { type: 'subscribe', threadId: A })
+  conn.mark()
+  const row = () => conn.only('threads').at(-1)?.threads.find((t) => t.threadId === A)
+
+  ctx.hub.publish(A, { sessionUpdate: 'zra/elicitation', requestId: 'number:3', message: 'Quel framework ?', requestedSchema: { type: 'object', properties: {} } })
+  assert.equal(row().waiting, true, 'comme Zed (`has_pending_turn_action`)')
+
+  conn.emit('message', { type: 'respond_elicitation', threadId: A, requestId: 'number:3', action: 'accept', content: { question_0: 'Vue' } })
+  await tick()
+  assert.deepEqual(ctx.backend.calls, [['respond_elicitation', A, 'number:3', 'accept', { question_0: 'Vue' }]])
+  assert.deepEqual(conn.only('elicitation_resolved')[0], { type: 'elicitation_resolved', threadId: A, requestId: 'number:3', action: 'accept', by: 'mobile' })
+  assert.ok(!row().waiting)
+  assert.deepEqual(ctx.rings.read(A).at(-1).update, { sessionUpdate: 'zra/elicitation_resolved', requestId: 'number:3', action: 'accept', by: 'mobile' })
+
+  // Le shim confirme ensuite : rien n'est rediffusé.
+  ctx.hub.elicitationResolved(A, { requestId: 'number:3', action: 'accept', by: 'mobile' })
+  assert.equal(conn.only('elicitation_resolved').length, 1)
+})
+
+test('question : même requestId sur un autre thread, toujours en attente', () => {
+  const ctx = boot()
+  const conn = pairedClient(ctx)
+  ctx.hub.elicitationResolved(A, { requestId: 'number:3', action: 'decline', by: 'desktop' })
+  ctx.hub.publish(B, { sessionUpdate: 'zra/elicitation', requestId: 'number:3', message: 'q', requestedSchema: { type: 'object', properties: {} } })
+  assert.equal(conn.only('threads').at(-1).threads.find((t) => t.threadId === B).waiting, true)
+})
+
+test('respond_elicitation refusé par le shim : le code remonte', async () => {
+  const ctx = boot()
+  ctx.backend.fail = Object.assign(new Error('question inconnue ou déjà répondue'), { code: 'elicitation_expired' })
+  const conn = pairedClient(ctx)
+  conn.emit('message', { type: 'respond_elicitation', threadId: A, requestId: 'number:9', action: 'decline' })
+  await tick()
+  assert.equal(conn.last().code, 'elicitation_expired')
 })
 
 // ---------------------------------------------------------------------------

@@ -408,6 +408,7 @@ test('plan : résumé sur l’étape en cours, liste dépliée à la demande', (
   const closed = planPanel(plan, { onToggle: () => toggled++ })
   assert.match(q(closed, '.plan__head').textContent, /en cours/)
   assert.equal(q(closed, '.plan__list'), null, 'replié par défaut, comme Zed')
+  assert.doesNotMatch(closed.textContent, /null/, 'rien d’autre que le résumé')
   click(q(closed, '.plan__head'))
   assert.equal(toggled, 1)
 })
@@ -578,3 +579,60 @@ test('permission : un tool call déjà connu est mis à jour, pas dupliqué', ()
   assert.equal(tl.entries[0].title, 'après')
 })
 
+
+// ---------------------------------------------------------------------------
+// Question de l'agent (Zed : `ElicitationCard`)
+// ---------------------------------------------------------------------------
+
+const question = (over = {}) => entry({
+  type: 'elicitation', requestId: 'number:3', message: 'Quel framework ?', values: {}, resolved: false,
+  schema: {
+    type: 'object', required: ['question_0'],
+    properties: {
+      question_0: { type: 'string', title: 'Framework', oneOf: [{ const: 'React', title: 'React' }, { const: 'Vue', title: 'Vue', description: 'plus léger' }] },
+      question_1: { type: 'array', title: 'Outils', items: { anyOf: [{ const: 'vite', title: 'Vite' }, { const: 'jest', title: 'Jest' }] } },
+      question_0_custom: { type: 'string', title: 'Other' },
+      ok: { type: 'boolean', title: 'Confirmer' },
+    },
+  },
+  ...over,
+})
+
+test('question : choix unique, multiple, texte libre et case, avec Envoyer, Refuser, Annuler', () => {
+  const calls = []
+  const { node } = render(question(), { canRespond: true, agentName: 'Claude', onElicitation: (e, action, content) => calls.push([action, content]) })
+  assert.match(q(node, '.elicit__head').textContent, /Saisie demandée par Claude/)
+  assert.equal(qa(node, 'input[type=radio]').length, 2)
+  assert.equal(qa(node, 'input[type=checkbox]').length, 3, 'deux choix multiples et la case')
+  assert.equal(qa(node, 'input[type=text]').length, 1)
+  assert.deepEqual(qa(node, '.elicit__actions button').map((b) => b.textContent), ['Envoyer', 'Refuser', 'Annuler'])
+
+  // Requis non rempli : rien ne part, l'erreur s'affiche.
+  click(qa(node, '.elicit__actions button')[0])
+  assert.deepEqual(calls, [])
+  assert.match(q(node, '.elicit__error:not(.hidden)').textContent, /requise/)
+
+  const change = (el, prop, v) => { el[prop] = v; el.dispatchEvent(new dom.window.Event(prop === 'value' ? 'input' : 'change')) }
+  change(qa(node, 'input[type=radio]')[1], 'checked', true)
+  change(qa(node, 'input[type=checkbox]')[0], 'checked', true)
+  change(q(node, 'input[type=text]'), 'value', 'avec Pinia')
+  click(qa(node, '.elicit__actions button')[0])
+  assert.deepEqual(calls, [['accept', { question_0: 'Vue', question_1: ['vite'], question_0_custom: 'avec Pinia' }]])
+
+  click(qa(node, '.elicit__actions button')[1])
+  assert.deepEqual(calls.at(-1), ['decline', undefined])
+})
+
+test('question en cours d’envoi ou thread injoignable : tout est verrouillé', () => {
+  const sending = render(question({ pendingAction: 'decline' }), { canRespond: true }).node
+  assert.ok(qa(sending, '.elicit__actions button').every((b) => b.disabled))
+  assert.ok(q(qa(sending, '.elicit__actions button')[1], '.spin'), 'le choix envoyé tourne')
+  const offline = render(question(), { canRespond: false }).node
+  assert.ok(qa(offline, 'input').every((i) => i.disabled))
+  assert.match(offline.textContent, /injoignable/)
+})
+
+test('question répondue : elle quitte le fil, comme dans Zed', () => {
+  const { node } = render(question({ resolved: true, action: 'accept' }))
+  assert.ok(node.classList.contains('entry--placeholder'))
+})

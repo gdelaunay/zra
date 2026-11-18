@@ -27,7 +27,7 @@ Elles sont locales, assumées, et toutes deux dans `acp.js` :
 
 | Trame avalée | Pourquoi |
 |---|---|
-| la réponse **tardive** de Zed à une permission déjà tranchée depuis le mobile | deux réponses pour le même `id` JSON-RPC embrouilleraient l'agent |
+| la réponse **tardive** de Zed à une permission déjà tranchée, ou à une question déjà répondue, depuis le mobile | deux réponses pour le même `id` JSON-RPC embrouilleraient l'agent |
 | les réponses de l'agent aux requêtes **injectées par ZRA** (`id` en `zra-N`) | Zed ne les a jamais émises ; elles ne le concernent pas |
 
 L'espace d'`id` `zra-N` est textuel : collision impossible avec la numérotation

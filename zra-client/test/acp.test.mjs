@@ -269,3 +269,31 @@ test('notice et compaction : rendus, pas de bloc brut', () => {
   assert.equal(compactions[0].status, 'completed')
   assert.equal(compactions[0].blocks.length, 1)
 })
+
+const QUESTION = {
+  sessionUpdate: 'zra/elicitation', requestId: 'number:3', toolCallId: 'tc-q', message: 'Quel framework ?',
+  requestedSchema: { type: 'object', properties: { question_0: { type: 'string', oneOf: [{ const: 'Vue', title: 'Vue' }] } } },
+}
+
+test('question de l’agent : une entrée du fil, comme Zed, une seule fois', () => {
+  const tl = new Timeline()
+  tl.apply(QUESTION)
+  tl.apply(QUESTION)
+  assert.deepEqual(tl.entries.map((e) => e.type), ['elicitation'])
+  const [q] = tl.entries
+  assert.equal(q.message, 'Quel framework ?')
+  assert.deepEqual(Object.keys(q.schema.properties), ['question_0'])
+  assert.equal(tl.pendingElicitations().length, 1)
+})
+
+test('question : réponse optimiste puis confirmée, rejouée depuis le ring', () => {
+  const tl = new Timeline()
+  tl.apply(QUESTION)
+  tl.resolveElicitation('number:3', { action: 'accept', pending: true })
+  assert.equal(tl.entries[0].pendingAction, 'accept')
+  assert.equal(tl.entries[0].resolved, false)
+  tl.apply({ sessionUpdate: 'zra/elicitation_resolved', requestId: 'number:3', action: 'accept', by: 'mobile' })
+  assert.equal(tl.entries[0].resolved, true)
+  assert.equal(tl.pendingElicitations().length, 0)
+  assert.deepEqual(tl.resolveElicitation('number:3', { action: 'decline' }), [], 'immuable une fois close')
+})

@@ -11,6 +11,7 @@
 //  · le tour en cours, déduit des `session/prompt` réellement en vol ;
 //  · les `session/update`, republiés **verbatim** (principe de ZRA) ;
 //  · les demandes de permission en attente, avec leur `id` JSON-RPC ;
+//  · les questions de l'agent (élicitation en formulaire), de même ;
 //  · la sortie des terminaux, qui ne transite que par des requêtes de l'agent
 //    vers le client (`terminal/output`) : elle n'apparaît dans aucun `update`.
 //
@@ -36,9 +37,14 @@ export const M = {
   sessionSetConfigOption: 'session/set_config_option',
   sessionUpdate: 'session/update',
   requestPermission: 'session/request_permission',
+  createElicitation: 'elicitation/create',
+  cancelRequest: '$/cancel_request',
   terminalOutput: 'terminal/output',
   terminalWaitForExit: 'terminal/wait_for_exit',
 }
+
+/** Réponses possibles à une question de l'agent (ACP `ElicitationAction`). */
+const ELICITATION_ACTIONS = new Set(['accept', 'decline', 'cancel'])
 
 /** Erreur portant un code du protocole ZRA (`docs/fr/protocol.md` §4). */
 export class ShimError extends Error {
@@ -175,6 +181,8 @@ export class AcpBridge extends EventEmitter {
     this.injected = new Map()
     /** Demandes de permission en attente : `idKey` → `{ …, resolvedBy }`. */
     this.permissions = new Map()
+    /** Questions de l'agent en attente (élicitation en formulaire) : `idKey` → demande. */
+    this.elicitations = new Map()
     /** Prompts injectés en attente de confirmation (mode `auto`) : `sessionId` → attente. */
     this.confirming = new Map()
 
@@ -223,6 +231,7 @@ export class AcpBridge extends EventEmitter {
     if (!pending) return
 
     if (pending.method === M.requestPermission) return this.noteDesktopPermission(k, msg, pending)
+    if (pending.method === M.createElicitation) return this.noteDesktopElicitation(k, msg, pending)
 
     if (pending.method === M.terminalOutput || pending.method === M.terminalWaitForExit) {
       this.publishTerminal(pending, msg.result)
@@ -253,6 +262,26 @@ export class AcpBridge extends EventEmitter {
     })
   }
 
+  /** Zed a répondu à une question de l'agent ; après le mobile, sa réponse est avalée. */
+  noteDesktopElicitation(k, msg, pending) {
+    if (pending.mobileResponse) {
+      this.log?.debug(tr`question ${k} déjà répondue depuis le mobile : réponse du poste avalée`)
+      return 'drop'
+    }
+    const el = this.elicitations.get(k)
+    if (!el) return
+    this.elicitations.delete(k)
+    const action = ELICITATION_ACTIONS.has(msg.result?.action) ? msg.result.action : 'cancel'
+    this.emit('elicitation_resolved', { sessionId: el.sessionId, requestId: k, action, by: 'desktop' })
+  }
+
+  noteElicitationCancelled(k) {
+    const el = k !== null && this.elicitations.get(k)
+    if (!el) return
+    this.elicitations.delete(k)
+    this.emit('elicitation_resolved', { sessionId: el.sessionId, requestId: k, action: 'cancel', by: 'agent' })
+  }
+
   // =========================================================================
   // Observation — agent → Zed
   // =========================================================================
@@ -266,10 +295,12 @@ export class AcpBridge extends EventEmitter {
     if (typeof msg.method === 'string' && k !== null) {
       this.agentRequests.set(k, { method: msg.method, params: msg.params ?? {} })
       if (msg.method === M.requestPermission) this.notePermission(k, msg.params ?? {})
-      // Élicitation (`handle_create_elicitation`) : seul Zed sait y répondre. Le
-      // mobile, qui verrait un tour occupé sans rien à faire, est prévenu.
-      if (msg.method.includes('elicitation') && msg.params?.sessionId) {
-        this.notice(msg.params.sessionId, tr`l'agent attend une réponse dans Zed (formulaire)`, 'warn')
+      // Question de l'agent (`handle_create_elicitation`) : un formulaire se
+      // répond aussi du mobile. Un lien à ouvrir (mode `url`) reste à Zed, et
+      // le mobile, qui verrait un tour occupé sans rien à faire, est prévenu.
+      if (msg.method === M.createElicitation && msg.params?.sessionId) {
+        if (msg.params.mode === 'form' && msg.params.requestedSchema) this.noteElicitation(k, msg.params)
+        else this.notice(msg.params.sessionId, tr`l'agent attend une réponse dans Zed (lien à ouvrir)`, 'warn')
       }
       return
     }
@@ -277,6 +308,8 @@ export class AcpBridge extends EventEmitter {
     // Notification de l'agent vers Zed.
     if (typeof msg.method === 'string') {
       if (msg.method === M.sessionUpdate) this.noteUpdate(msg.params ?? {})
+      // L'agent retire sa question (tour annulé) : Zed la retire aussi (`cancel_elicitation`).
+      if (msg.method === M.cancelRequest) this.noteElicitationCancelled(idKey(msg.params?.requestId))
       return
     }
 
@@ -461,6 +494,31 @@ export class AcpBridge extends EventEmitter {
       at: new Date().toISOString(),
     })
     this.emit('permission', entry)
+  }
+
+  /**
+   * Question de l'agent en formulaire (`AskUserQuestion` chez Claude Agent).
+   * Publiée sous l'extension `zra/elicitation` (protocole §5), sans réécrire
+   * l'ACP : message et schéma tels que l'agent les envoie.
+   */
+  noteElicitation(k, params) {
+    const entry = {
+      requestId: k,
+      sessionId: params.sessionId,
+      toolCallId: params.toolCallId ?? null,
+      message: params.message ?? '',
+      requestedSchema: params.requestedSchema,
+    }
+    this.elicitations.set(k, entry)
+    this.emit('update', {
+      sessionId: entry.sessionId,
+      update: {
+        sessionUpdate: 'zra/elicitation', requestId: k, toolCallId: entry.toolCallId,
+        message: entry.message, requestedSchema: entry.requestedSchema,
+      },
+      at: new Date().toISOString(),
+    })
+    this.emit('elicitation', entry)
   }
 
   /**
@@ -876,12 +934,50 @@ export class AcpBridge extends EventEmitter {
     return { by: 'mobile', optionId, optionName }
   }
 
+  /**
+   * Répond à une question de l'agent à la place de Zed, comme `respondPermission` :
+   * le premier qui répond gagne, et Zed retire son formulaire sur
+   * `$/cancel_request` (`cancel_elicitation`).
+   * @param {'accept'|'decline'|'cancel'} action
+   * @param {object} [content] réponses par champ du schéma (`accept` seulement)
+   */
+  respondElicitation(sessionId, requestId, action, content) {
+    const el = this.elicitations.get(requestId)
+    if (!el || el.sessionId !== sessionId) {
+      throw new ShimError('elicitation_expired', tr`question inconnue ou déjà répondue`)
+    }
+    if (!ELICITATION_ACTIONS.has(action)) {
+      throw new ShimError('elicitation_expired', tr`réponse invalide : ${action}`)
+    }
+    let result = { action }
+    if (action === 'accept') {
+      // Seuls les champs du schéma partent : l'agent ne lit rien d'autre.
+      const fields = Object.keys(el.requestedSchema?.properties ?? {})
+      const given = content && typeof content === 'object' && !Array.isArray(content) ? content : {}
+      result = { action, content: Object.fromEntries(fields.filter((f) => given[f] !== undefined).map((f) => [f, given[f]])) }
+    }
+
+    const id = requestId.startsWith('number:') ? Number(requestId.slice(7)) : requestId.slice(7)
+    this.write({ jsonrpc: '2.0', id, result })
+    const pending = this.agentRequests.get(requestId)
+    if (pending) pending.mobileResponse = true
+    this.elicitations.delete(requestId)
+    if (this.toZed) {
+      const cancel = { jsonrpc: '2.0', method: M.cancelRequest, params: { requestId: id } }
+      try { this.toZed(encodeFrame(cancel)) } catch (err) { this.log?.warn(tr`annulation vers Zed impossible :`, err.message) }
+    }
+    this.emit('elicitation_resolved', { sessionId, requestId, action, by: 'mobile' })
+    return { by: 'mobile', action }
+  }
+
   /** L'agent s'en va : les demandes en attente n'ont plus de destinataire. */
   shutdown() {
     for (const perm of this.permissions.values()) {
       if (!perm.resolvedBy) this.emit('permission_expired', perm)
     }
     this.permissions.clear()
+    for (const el of this.elicitations.values()) this.emit('elicitation_expired', el)
+    this.elicitations.clear()
     this.injected.clear()
     this.sessions.close()
   }

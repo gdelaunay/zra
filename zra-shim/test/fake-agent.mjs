@@ -124,9 +124,29 @@ async function runPrompt(session, text) {
   // Pas d'écho du message utilisateur en direct : `claude-agent-acp` n'en émet
   // aucun (relevé au test réel). Il ne le rejoue qu'au `session/load`.
 
-  // Formulaire posé au client : le faux Zed le refuse, le tour se termine.
+  // Lien à ouvrir posé au client : le faux Zed le refuse, le tour se termine.
   if (text.startsWith('elicitation:')) {
-    try { await ask('elicitation/create', { sessionId, message: 'Ton nom ?', requestedSchema: { type: 'object' } }) } catch { /* refusé */ }
+    try { await ask('elicitation/create', { mode: 'url', sessionId, elicitationId: 'e1', url: 'https://exemple.test', message: 'Connexion' }) } catch { /* refusé */ }
+    return { stopReason: 'end_turn' }
+  }
+
+  // Question en formulaire, comme `AskUserQuestion` chez claude-agent-acp ;
+  // la réponse reçue est renvoyée en message, pour que le test la lise.
+  if (text.startsWith('question:')) {
+    let answer
+    try {
+      answer = await ask('elicitation/create', {
+        mode: 'form', sessionId, toolCallId: 'tc-q', message: 'Quel framework ?',
+        requestedSchema: {
+          type: 'object',
+          properties: {
+            question_0: { type: 'string', title: 'Framework', oneOf: [{ const: 'React', title: 'React' }, { const: 'Vue', title: 'Vue' }] },
+            question_0_custom: { type: 'string', title: 'Other' },
+          },
+        },
+      })
+    } catch (err) { answer = { error: err.message } }
+    update(sessionId, { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: `réponse:${JSON.stringify(answer)}` } })
     return { stopReason: 'end_turn' }
   }
 

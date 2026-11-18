@@ -228,6 +228,22 @@ make it up. Possible answers:
 - `permission_resolved` with `by: 'desktop'` — the machine had already settled it;
 - `error` `permission_expired` — unknown or too late request.
 
+### `respond_elicitation`
+```ts
+{
+  type: 'respond_elicitation', threadId: string, requestId: string,
+  action: 'accept' | 'decline' | 'cancel',
+  content?: Record<string, string | number | boolean | string[]>, // with `accept`
+}
+```
+Answers an agent question (`zra/elicitation`, §5): Zed's Submit, Decline,
+Cancel buttons. `content` carries one value per schema field; the shim only
+passes on the schema's fields. Same race as `respond_permission`: the first to
+answer wins, and Zed removes its form. Possible answers:
+
+- `elicitation_resolved` with `by: 'mobile'` — the answer was passed on;
+- `error` `elicitation_expired` — unknown, already answered or withdrawn question.
+
 ### `new_thread`
 ```ts
 { type: 'new_thread', agentId: string, folderPaths?: string[] }
@@ -303,7 +319,7 @@ type ThreadSummary = {
   archived: boolean
   remote?: boolean          // remote project (SSH, WSL: remote_connection)
   turn?: 'busy'             // turn in progress (absent when idle)
-  waiting?: boolean         // a permission awaits an answer
+  waiting?: boolean         // a permission or a question awaits an answer
   state: 'live' | 'closed' | 'unknown'
   projectOpen?: boolean | null // thread's project open in a Zed window; null: unknown
 }
@@ -464,6 +480,17 @@ thread, otherwise the PWA opens an untitled screen. It navigates to it right awa
 Locks the card. `optionName` is the displayed label (taken from the agent's
 `options`); absent, the PWA falls back to `optionId`.
 
+### `elicitation_resolved`
+```ts
+{
+  type: 'elicitation_resolved', threadId: string, requestId: string,
+  action: 'accept' | 'decline' | 'cancel', by: 'mobile' | 'desktop' | 'agent',
+}
+```
+The question is closed: answered from the mobile or in Zed, or withdrawn by the
+agent (`by: 'agent'`, turn cancelled or agent stopped). As in Zed, its card
+leaves the thread.
+
 ### `error`
 ```ts
 { type: 'error', code: string, message: string, threadId?: string }
@@ -480,6 +507,7 @@ the machine's language (French or English). Codes expected by the PWA (others ge
 | `index_degraded` | `sidebar_threads` unreadable or with an unexpected schema | toast; the machine only exposes live threads |
 | `inject_failed` | the agent refused the prompt (§12.1) | toast, the message stays displayed |
 | `permission_expired` | request already settled | toast, card locked |
+| `elicitation_expired` | question already answered or withdrawn | toast, the card leaves the thread |
 | `new_thread_failed` | Zed did not open a session | toast |
 | `not_zra_thread` | closed thread of an agent without a ZRA entry: Zed would reopen it without a shim | toast, read-only |
 | `prompt_refused` | the agent refused the injected prompt (`auto` mode, before the keyboard fallback) | toast |
@@ -537,6 +565,31 @@ locks it too on a `subscribe` replay and in the history of a live
 thread, without which a reloaded PWA would show the request as open again.
 Both are idempotent.
 
+### `zra/elicitation`
+```ts
+{
+  sessionUpdate: 'zra/elicitation', requestId: string, toolCallId: string | null,
+  message: string,
+  requestedSchema: { type: 'object', properties: Record<string, object>, required?: string[], title?: string, description?: string },
+}
+```
+Agent question: ACP request `elicitation/create` in `form` mode (with Claude
+Agent, the `AskUserQuestion` tool), republished by the shim with its schema
+as is. As in Zed, the PWA makes it a card in the thread: single choice
+(`oneOf`/`enum`), multiple choice (`array`), checkbox (`boolean`), text or
+number. It validates the answers as Zed does before sending them: required
+fields, lengths, `pattern`, `email`, `uri`, `date`, `date-time` formats,
+number bounds, number of choices. The thread is waiting (`waiting`) until
+answered. A link to open
+(`url` mode) stays in Zed: the mobile is warned by a `zra/notice`.
+
+### `zra/elicitation_resolved`
+```ts
+{ sessionUpdate: 'zra/elicitation_resolved', requestId: string, action: 'accept' | 'decline' | 'cancel', by: 'mobile' | 'desktop' | 'agent' }
+```
+Duplicate of `elicitation_resolved` in the ring buffer, for the same reason as
+`zra/permission_resolved`.
+
 ---
 
 ## 6. Invariants expected from the daemon
@@ -558,7 +611,7 @@ Both are idempotent.
    slow, Zed keeps working normally. No message of this protocol
    may be able to block the IDE.
 8. **Logging.** Every write coming from the phone (`send`, `set_option`,
-   `respond_permission`, `new_thread`) is logged in
+   `respond_permission`, `respond_elicitation`, `new_thread`) is logged in
    `%LOCALAPPDATA%\zra\injections.log`.
 
 ### What the PWA never does

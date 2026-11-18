@@ -1,6 +1,6 @@
 # ZRA — architecture
 
-ZRA (Zed Remote Agent) lets you follow and drive, from a phone, the ACP agent threads open in the Zed editor: thread list, live stream, sending messages, answering permissions, opening a session.
+ZRA (Zed Remote Agent) lets you follow and drive, from a phone, the ACP agent threads open in the Zed editor: thread list, live stream, sending messages, answering permissions and agent questions, opening a session.
 
 The details are elsewhere: `docs/en/protocol.md` (PWA ↔ daemon protocol), `docs/en/deploy.md` (setup), `docs/en/daemon.md`, `docs/en/shim.md`, `docs/en/client.md` (one component each), `docs/en/zed.md` (mapping to Zed).
 
@@ -44,14 +44,14 @@ flowchart LR
 - `zra-shim/acp.js` (`AcpBridge`) does four things on top of the relay:
   - it sends the agent requests of its own (`session/prompt`, `session/set_mode`…), with a `zra-N` id, and removes their answers from the stream to Zed;
   - it sends Zed a synthetic `user_message_chunk` so that a message from the phone shows up in Zed;
-  - it answers the agent on Zed's behalf when the phone settles a permission, then removes Zed's late answer;
+  - it answers the agent on Zed's behalf when the phone settles a permission or answers a question, then removes Zed's late answer;
   - it holds the message queue and a turn watchdog (`zra-shim/queue.js`, 10 min of silence by default).
 
 ### Shim ↔ daemon: WebSocket `/shim`
 
 - The shim connects to `ws://127.0.0.1:<port>/shim` and reconnects on its own (`zra-shim/daemon-link.js`). The daemon refuses this path outside loopback.
-- Shim → daemon: `shim_hello`, `session`, `session_closed`, `acp_update`, `state`, `session_replay`, `permission_resolved`, `permission_expired`, `notice`, `ack`.
-- Daemon → shim: `cmd` (`prompt`, `cancel`, `set_option`, `respond_permission`, `cancel_queued`), acknowledged by `ack`.
+- Shim → daemon: `shim_hello`, `session`, `session_closed`, `acp_update`, `state`, `session_replay`, `permission_resolved`, `permission_expired`, `elicitation_resolved`, `elicitation_expired`, `notice`, `ack`.
+- Daemon → shim: `cmd` (`prompt`, `cancel`, `set_option`, `respond_permission`, `respond_elicitation`, `cancel_queued`), acknowledged by `ack`.
 - Daemon side: `zra-daemon/shim-link.js` (`ShimHost`) and `zra-daemon/shim-registry.js`.
 
 ### PWA ↔ daemon: HTTP and WebSocket `/ws`
@@ -104,7 +104,7 @@ Thread states: **live** (a shim holds its session: real-time stream, direct writ
 | Zed `settings.json` (`agent_servers`) and its agent registry | Knowing how to launch an agent, adding the ZRA entries | `setup` refuses to write if the file is not valid JSONC |
 | Zed `keymap.json` (action `agent::NewExternalAgentThread`) | "New thread" key per agent | The key no longer has an effect: explicit error after 30 s |
 | Zed command palette and sidebar | Keyboard recipes (`zed/driver.js`) | Recipes can be overridden in `zedControl.recipes` |
-| ACP protocol | `session/*`, `session/update`, `session/request_permission` methods | The relay keeps working; observation and injection to be reviewed |
+| ACP protocol | `session/*`, `session/update`, `session/request_permission`, `elicitation/create` methods | The relay keeps working; observation and injection to be reviewed |
 | Node ≥ 24 | `node:sqlite`, global `WebSocket` | Enforced by `engines` and `.npmrc` |
 | Windows: PowerShell, `schtasks`; Linux: `xdotool`, `pgrep`, systemd or XDG autostart | Keyboard, service | Detection centralized in `zra-daemon/platform.js` |
 
@@ -123,7 +123,7 @@ Local state: `.zra/` in the repository (hashed tokens, logs, backups, frames rec
 
 ## Weak spots
 
-- **The shim is not passive.** It starts turns Zed did not ask for, announces to Zed messages it did not send, settles permissions in its place and force-closes a turn silent for 10 min. Zed's state and the agent's can therefore diverge; two simultaneous prompts (Zed and phone) on the same session depend on the agent's behavior.
+- **The shim is not passive.** It starts turns Zed did not ask for, announces to Zed messages it did not send, settles permissions and answers questions in its place and force-closes a turn silent for 10 min. Zed's state and the agent's can therefore diverge; two simultaneous prompts (Zed and phone) on the same session depend on the agent's behavior.
 - **Replaying a closed thread launches a second agent** on the machine (`session-loader.js`).
 - **The keyboard is the fragile part**: real keystrokes in Zed's palette, hard-coded labels (`zed/driver.js`). The only part that can write in the wrong place.
 

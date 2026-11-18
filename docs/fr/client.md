@@ -9,7 +9,7 @@ zra-client/
   index.html  manifest.webmanifest  sw.js  icon.svg
   css/   themes.css (généré)  app.css
   js/    main.js store.js link.js settings.js acp.js markdown.js diff.js
-         dom.js icons.js format.js ui.js i18n.js en.js
+         dom.js icons.js format.js ui.js i18n.js en.js elicitation.js
          themes.js + agent-icons.js (générés depuis Zed)
          views/  threads.js thread.js entry.js settings.js new-session.js pair.js devbar.js
          mock/   mock-link.js scenarios.js

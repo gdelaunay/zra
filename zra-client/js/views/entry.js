@@ -14,6 +14,7 @@ import { lineDiff, collapse } from '../diff.js'
 import { shortPath, relTime } from '../format.js'
 import { settings } from '../settings.js'
 import { tr } from '../i18n.js'
+import * as elicit from '../elicitation.js'
 
 /**
  * @param {object} entry
@@ -30,6 +31,7 @@ export function renderEntry(entry, ctx = {}) {
       case 'permission': return ctx.timeline?.byToolCall?.has(entry.toolCallId)
         ? h('div.entry--placeholder')
         : permissionCard(entry, ctx)
+      case 'elicitation': return entry.resolved ? h('div.entry--placeholder') : elicitationCard(entry, ctx)
       case 'notice': return sysLine(entry.text, entry.level)
       case 'compaction': return compactionLine(entry)
       case 'raw': return rawCard(entry)
@@ -301,8 +303,8 @@ function terminalBlock(c, ctx) {
 export function planPanel(entry, { open = false, onToggle } = {}) {
   const done = entry.items.filter((i) => i.status === 'completed').length
   const current = entry.items.find((i) => i.status === 'in_progress')
-  const root = h('div.plan', { class: open ? 'is-open' : '' })
-  root.append(
+  // `h` plutôt que `append` : il ignore le `null` du plan replié.
+  return h('div.plan', { class: open ? 'is-open' : '' },
     button('plan__head', { 'aria-expanded': String(open), onclick: () => onToggle?.() },
       icon(open ? 'chevron-down' : 'chevron-right', 'icon--sm'),
       icon('list-todo', 'icon--sm'),
@@ -316,7 +318,6 @@ export function planPanel(entry, { open = false, onToggle } = {}) {
         h('span', { text: it.content || '' }),
         it.priority === 'high' ? h('span.plan__prio', { text: '!' }) : null))) : null,
   )
-  return root
 }
 
 // ---- permission (§6.6 : répondable depuis le mobile) ----
@@ -373,6 +374,130 @@ function permissionOptions(entry, ctx) {
     if (!(entry.options || []).some((o) => o.optionId === entry.pendingOptionId)) note = tr`réponse : ${entry.outcome}`
   } else if (!sent && !ctx.canRespond) note = tr`thread injoignable — à traiter sur le poste`
   return { options, note }
+}
+
+// ---- question de l'agent (élicitation en formulaire) ----
+
+/**
+ * Carte de question, comme Zed (`conversation_view/elicitation.rs`,
+ * `ElicitationCard`) : en-tête « saisie demandée par l'agent », message, un
+ * champ par propriété du schéma — choix unique (`oneOf`/`enum`), choix
+ * multiple (`array`), case à cocher (`boolean`), texte ou nombre — puis
+ * Envoyer, Refuser, Annuler. Répondue, elle quitte le fil.
+ */
+function elicitationCard(entry, ctx) {
+  const sending = Boolean(entry.pendingAction)
+  const locked = sending || !ctx.canRespond
+  const schema = entry.schema || {}
+  // Défauts du schéma posés une fois : la saisie survit ensuite aux re-rendus.
+  if (!entry.valuesReady) {
+    entry.values = { ...elicit.initialValues(schema), ...entry.values }
+    entry.valuesReady = true
+  }
+
+  const form = h('div.elicit__form')
+  if (schema.title) form.append(h('div.elicit__title', { text: schema.title }))
+  if (schema.description) form.append(h('div.muted', { text: schema.description }))
+  const errorNodes = {}
+  for (const [name, prop] of Object.entries(schema.properties || {})) {
+    const node = elicitField(entry, name, prop, locked)
+    if (!node) continue
+    errorNodes[name] = h('div.elicit__error', { class: entry.errors?.[name] ? '' : 'hidden', text: entry.errors?.[name] || '' })
+    node.append(errorNodes[name])
+    form.append(node)
+  }
+
+  const act = (action) => {
+    if (action === 'accept') {
+      const { content, errors } = elicit.validate(schema, entry.values)
+      entry.errors = errors
+      for (const [name, el] of Object.entries(errorNodes)) {
+        el.textContent = errors[name] || ''
+        el.classList.toggle('hidden', !errors[name])
+      }
+      if (Object.keys(errors).length) return
+      ctx.onElicitation?.(entry, 'accept', content)
+    } else {
+      ctx.onElicitation?.(entry, action)
+    }
+  }
+  const actionBtn = (action, label, cls) => button(`btn.btn--sm${cls}`, {
+    disabled: locked,
+    onclick: () => act(action),
+  }, sending && entry.pendingAction === action ? icon('loader', 'icon--sm spin') : null, label)
+
+  return h('div.elicit',
+    h('div.elicit__head', {},
+      icon('message', 'icon--sm'),
+      h('span.truncate', { text: tr`Saisie demandée par ${ctx.agentName || tr`l'agent`}` }),
+      h('span.spacer'),
+      h('span.muted', { text: tr`En attente de réponse` })),
+    h('div.elicit__body', {},
+      entry.message ? h('div.md', { html: blocksHtml([{ type: 'text', text: entry.message }]) }) : null,
+      form,
+      !ctx.canRespond ? h('div.perm__note', { text: tr`thread injoignable — à traiter sur le poste` }) : null),
+    h('div.elicit__actions', {},
+      actionBtn('accept', tr`Envoyer`, '.btn--accent'),
+      actionBtn('decline', tr`Refuser`, '.btn--danger'),
+      actionBtn('cancel', tr`Annuler`, '')),
+  )
+}
+
+/** Un champ, selon sa nature (`render_field` de Zed) ; `null` si Zed ne le rend pas non plus. */
+function elicitField(entry, name, prop, locked) {
+  const kind = elicit.fieldKind(prop)
+  if (!kind) return null
+  const label = elicit.fieldTitle(name, prop)
+  const wrap = h('div.elicit__field', {},
+    h('div.elicit__label', { text: label }),
+    prop.description ? h('div.muted', { text: prop.description }) : null)
+  const set = (v) => { entry.values[name] = v }
+  const value = entry.values[name]
+
+  if (kind === 'multi') {
+    const options = elicit.options(prop) || []
+    const chosen = new Set(Array.isArray(value) ? value.map(String) : [])
+    for (const o of options) {
+      wrap.append(h('label.elicit__choice', {},
+        h('input', {
+          type: 'checkbox', checked: chosen.has(o.value), disabled: locked,
+          onchange: (ev) => {
+            if (ev.target.checked) chosen.add(o.value)
+            else chosen.delete(o.value)
+            set(options.map((x) => x.value).filter((v) => chosen.has(v)))
+          },
+        }),
+        h('span', {}, h('span', { text: o.label }), o.description ? h('span.muted', { text: ` — ${o.description}` }) : null)))
+    }
+    return wrap
+  }
+  if (kind === 'select') {
+    const group = `${entry.requestId}|${name}`
+    for (const o of elicit.options(prop)) {
+      wrap.append(h('label.elicit__choice', {},
+        h('input', {
+          type: 'radio', name: group, checked: String(value) === o.value, disabled: locked,
+          onchange: () => set(o.value),
+        }),
+        h('span', {}, h('span', { text: o.label }), o.description ? h('span.muted', { text: ` — ${o.description}` }) : null)))
+    }
+    return wrap
+  }
+  if (kind === 'boolean') {
+    return h('label.elicit__choice', {},
+      h('input', { type: 'checkbox', checked: Boolean(value), disabled: locked, onchange: (ev) => set(ev.target.checked) }),
+      h('span', {}, h('span', { text: label }), prop.description ? h('span.muted', { text: ` — ${prop.description}` }) : null))
+  }
+  // Texte et nombres : un champ texte, comme Zed — la validation dit ce qui ne va
+  // pas, là où `type=number` effacerait en silence une saisie invalide.
+  wrap.append(h('input.input', {
+    type: 'text',
+    inputmode: kind === 'integer' ? 'numeric' : kind === 'number' ? 'decimal' : undefined,
+    value: value ?? '',
+    disabled: locked,
+    oninput: (ev) => set(ev.target.value),
+  }))
+  return wrap
 }
 
 // ---- divers ----

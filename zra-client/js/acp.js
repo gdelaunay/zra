@@ -103,6 +103,10 @@ export class Timeline {
         return this.terminalOutput(update)
       case 'zra/notice':
         return [this.push({ type: 'notice', text: update.text, level: update.level || 'info', at: meta.at })]
+      case 'zra/elicitation':
+        return this.elicitation(update, meta)
+      case 'zra/elicitation_resolved':
+        return this.resolveElicitation(update.requestId, { action: update.action, by: update.by })
       case 'zra/permission_resolved':
         return this.resolvePermission(update.requestId, {
           optionId: update.optionId, optionName: update.optionName, by: update.by || 'desktop',
@@ -131,6 +135,48 @@ export class Timeline {
     }
     entry.rev++
     return [{ op: 'update', entry }]
+  }
+
+  /**
+   * Question de l'agent (élicitation en formulaire). Comme Zed
+   * (`AgentThreadEntry::Elicitation`), une entrée du fil à part entière.
+   */
+  elicitation(u, meta) {
+    if (!u.requestId || this.entries.some((e) => e.type === 'elicitation' && e.requestId === u.requestId)) return []
+    this.closeOpenMessage()
+    return [this.push({
+      type: 'elicitation',
+      requestId: u.requestId,
+      toolCallId: u.toolCallId ?? null,
+      message: u.message || '',
+      schema: u.requestedSchema && typeof u.requestedSchema === 'object' ? u.requestedSchema : { type: 'object', properties: {} },
+      // Réponses saisies, gardées sur l'entrée : elles survivent aux re-rendus.
+      values: {},
+      resolved: false,
+      at: meta.at,
+    })]
+  }
+
+  /**
+   * Question répondue (`accept`, `decline`, `cancel`) : `pending` tant que le
+   * daemon n'a pas confirmé, puis close — elle quitte alors le fil, comme dans
+   * Zed (`should_render_elicitation`).
+   */
+  resolveElicitation(requestId, { action, by, pending = false } = {}) {
+    const entry = this.entries.find((e) => e.type === 'elicitation' && e.requestId === requestId)
+    if (!entry || entry.resolved) return []
+    entry.pendingAction = action ?? entry.pendingAction
+    if (!pending) {
+      entry.resolved = true
+      entry.action = action || 'cancel'
+      entry.by = by || 'mobile'
+    }
+    entry.rev++
+    return [{ op: 'update', entry }]
+  }
+
+  pendingElicitations() {
+    return this.entries.filter((e) => e.type === 'elicitation' && !e.resolved)
   }
 
   /** Demandes encore ouvertes (utile pour griser l'encart si le shim meurt). */

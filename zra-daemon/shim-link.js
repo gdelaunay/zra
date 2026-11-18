@@ -29,7 +29,8 @@ const PENDING_MAX = 2000
 const COMMAND_TIMEOUT = 20_000
 
 /** Messages bornés à une session : leur shim doit en être le détenteur. */
-const SESSION_SCOPED = new Set(['session', 'session_closed', 'acp_update', 'state', 'session_replay', 'permission_resolved', 'permission_expired', 'notice'])
+const SESSION_SCOPED = new Set(['session', 'session_closed', 'acp_update', 'state', 'session_replay', 'permission_resolved', 'permission_expired',
+  'elicitation_resolved', 'elicitation_expired', 'notice'])
 
 export class ShimHost extends EventEmitter {
   /**
@@ -163,6 +164,8 @@ export class ShimHost extends EventEmitter {
       case 'session_replay': return this.replay(msg)
       case 'permission_resolved': return this.permissionResolved(msg)
       case 'permission_expired': return this.permissionExpired(msg)
+      case 'elicitation_resolved': return this.elicitationResolved(msg)
+      case 'elicitation_expired': return this.elicitationExpired(msg)
       case 'notice': return this.notice(msg)
       case 'ack': return this.ack(msg)
       default:
@@ -250,6 +253,23 @@ export class ShimHost extends EventEmitter {
     const thread = this.threads.getBySession(msg.sessionId)
     if (!thread) return
     this.emit('permission_expired', { threadId: thread.threadId, requestId: msg.requestId })
+  }
+
+  elicitationResolved(msg) {
+    const thread = this.threads.getBySession(msg.sessionId)
+    if (!thread) return
+    this.emit('elicitation_resolved', {
+      threadId: thread.threadId,
+      requestId: msg.requestId,
+      action: ['accept', 'decline', 'cancel'].includes(msg.action) ? msg.action : 'cancel',
+      by: ['desktop', 'agent'].includes(msg.by) ? msg.by : 'mobile',
+    })
+  }
+
+  elicitationExpired(msg) {
+    const thread = this.threads.getBySession(msg.sessionId)
+    if (!thread) return
+    this.emit('elicitation_expired', { threadId: thread.threadId, requestId: msg.requestId })
   }
 
   /** Un avis du shim, rendu dans le fil comme n'importe quel événement (protocole §5). */

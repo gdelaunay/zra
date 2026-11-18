@@ -18,9 +18,12 @@ export class FakeZed {
    *   answerPermission?: string|null, answerTerminal?: object|null,
    * }} opts
    */
-  constructor({ toShim, fromShim, answerPermission = 'allow', answerTerminal = null, permissionDelayMs = 0 }) {
+  constructor({ toShim, fromShim, answerPermission = 'allow', answerTerminal = null, permissionDelayMs = 0, answerElicitation = { action: 'decline' } }) {
     this.toShim = toShim
     this.answerPermission = answerPermission
+    this.answerElicitation = answerElicitation
+    /** Questions de l'agent vues passer (même sans réponse). */
+    this.elicitations = []
     this.permissionDelayMs = permissionDelayMs
     this.answerTerminal = answerTerminal ?? { output: 'bonjour\n', truncated: false, exitStatus: { exitCode: 0 } }
 
@@ -78,6 +81,16 @@ export class FakeZed {
           result: { outcome: { outcome: 'selected', optionId: this.answerPermission } },
         })
         // Un poste lent laisse au mobile le temps de gagner la course.
+        if (this.permissionDelayMs) setTimeout(answer, this.permissionDelayMs).unref?.()
+        else answer()
+        return
+      }
+      // Question de l'agent : `answerElicitation` (`{ action, content }`) répond,
+      // `null` laisse le formulaire ouvert, comme un Zed où personne n'a cliqué.
+      if (msg.method === 'elicitation/create' && msg.params?.mode === 'form') {
+        this.elicitations.push(msg)
+        if (this.answerElicitation === null) return
+        const answer = () => this.send({ jsonrpc: '2.0', id: msg.id, result: this.answerElicitation })
         if (this.permissionDelayMs) setTimeout(answer, this.permissionDelayMs).unref?.()
         else answer()
         return

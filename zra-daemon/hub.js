@@ -14,7 +14,7 @@ import { tr } from './i18n.js'
 const log = logger('hub')
 
 /** Messages entrants qui constituent une écriture, donc à journaliser (§9). */
-const WRITES = new Set(['send', 'set_option', 'respond_permission', 'new_thread', 'interrupt', 'cancel_queued'])
+const WRITES = new Set(['send', 'set_option', 'respond_permission', 'respond_elicitation', 'new_thread', 'interrupt', 'cancel_queued'])
 
 export class Hub {
   /**
@@ -45,6 +45,8 @@ export class Hub {
     this.recordInjection = recordInjection || (() => {})
     /** Permissions déjà tranchées, pour ne verrouiller l'encart qu'une fois. */
     this.resolvedPermissions = new Set()
+    /** Questions de l'agent déjà répondues, de même. */
+    this.resolvedElicitations = new Set()
 
     /** @type {Map<object, { conn:object, clientId:string|null, subs:Set<string> }>} */
     this.clients = new Map()
@@ -147,6 +149,9 @@ export class Hub {
 
       case 'respond_permission':
         return this.respondPermission(conn, msg)
+
+      case 'respond_elicitation':
+        return this.respondElicitation(conn, msg)
 
       case 'new_thread':
         return this.newThread(conn, msg)
@@ -361,6 +366,20 @@ export class Hub {
     }
   }
 
+  /** Réponse à une question de l'agent : même course que `respondPermission`, arbitrée par le shim. */
+  async respondElicitation(conn, msg) {
+    if (!this.backend.respondElicitation) {
+      return this.error(conn, 'elicitation_expired', tr`aucune question en attente sur ce poste`, msg.threadId)
+    }
+    try {
+      const result = await this.backend.respondElicitation(msg.threadId, msg.requestId, msg.action, msg.content)
+      this.elicitationResolved(msg.threadId, { requestId: msg.requestId, action: result?.action ?? msg.action, by: 'mobile' })
+    } catch (err) {
+      const code = err instanceof InjectionError ? err.code : (err.code || 'elicitation_expired')
+      this.error(conn, code, err.message, msg.threadId)
+    }
+  }
+
   async interrupt(conn, threadId) {
     const thread = this.requireWritable(conn, threadId)
     if (!thread) return
@@ -482,8 +501,13 @@ export class Hub {
    * pas, ne le normalise pas, ne le complète pas (invariant §6.1).
    */
   publish(threadId, update, at = new Date().toISOString()) {
-    // Demande de permission : `toolCall` et `options` ensemble (protocole §4).
+    // Demande de permission : `toolCall` et `options` ensemble (protocole §4) ;
+    // question de l'agent : `zra/elicitation`. Comme Zed (`has_pending_turn_action`),
+    // l'une et l'autre mettent le thread en attente.
     if (update?.requestId && update.toolCall && Array.isArray(update.options)) this.setWaiting(threadId, update.requestId, true)
+    if (update?.sessionUpdate === 'zra/elicitation' && update.requestId && !this.resolvedElicitations.has(`${threadId}|${update.requestId}`)) {
+      this.setWaiting(threadId, update.requestId, true)
+    }
     const event = this.rings.push(threadId, { update, at })
     this.broadcastToSubs(threadId, { type: 'acp_event', threadId, ...event })
   }
@@ -531,6 +555,28 @@ export class Hub {
       type: 'error', code: 'permission_expired', threadId,
       message: tr`la demande de permission a expiré : l'agent n'attend plus de réponse`,
     })
+  }
+
+  /**
+   * Question répondue (mobile, poste) ou retirée par l'agent : comme Zed, le
+   * formulaire quitte le fil. Le ring garde la réponse, sinon un historique
+   * rejouerait la question comme encore ouverte.
+   */
+  elicitationResolved(threadId, { requestId, action, by = 'mobile' }) {
+    if (requestId) this.setWaiting(threadId, requestId, false)
+    if (!requestId || this.resolvedElicitations.has(`${threadId}|${requestId}`)) return
+    this.resolvedElicitations.add(`${threadId}|${requestId}`)
+    if (this.resolvedElicitations.size > 500) {
+      this.resolvedElicitations.delete(this.resolvedElicitations.values().next().value)
+    }
+    this.broadcastToSubs(threadId, { type: 'elicitation_resolved', threadId, requestId, action, by })
+    this.publish(threadId, { sessionUpdate: 'zra/elicitation_resolved', requestId, action, by })
+  }
+
+  /** Shim mort : plus personne n'attend la réponse. */
+  elicitationExpired(threadId, requestId) {
+    if (!requestId) return
+    this.elicitationResolved(threadId, { requestId, action: 'cancel', by: 'agent' })
   }
 
   pushState(threadId) {

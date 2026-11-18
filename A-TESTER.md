@@ -41,6 +41,12 @@ Zed et un téléphone. Un point vérifié est retiré ; un écart constaté part
   tool call (déplié) ; remonter le fil la fait apparaître au-dessus du composer,
   flèche pour y revenir. Le plan se lit au-dessus du composer, replié sur
   l'étape en cours.
+- **Questions de l'agent** : demander à Claude Agent de poser une question à
+  choix (`AskUserQuestion`). La carte apparaît dans le fil du mobile et le
+  thread passe en attente dans la liste. Répondre du mobile → le formulaire
+  disparaît de Zed et l'agent reprend avec la réponse ; répondre dans Zed → la
+  carte quitte le fil du mobile. Essayer aussi Refuser, Annuler, un choix
+  multiple et le champ libre « Other ».
 
 ## Réouverture et relecture
 

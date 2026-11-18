@@ -501,6 +501,24 @@ button { cursor: pointer; }
 .perm--done .perm__head { color: var(--text-muted); }
 /* Au pied de la carte de son tool call, comme dans Zed. */
 .perm--inline { border: 0; border-top: 1px solid var(--warning-border); border-radius: 0; padding: var(--sp-3) var(--sp-4); }
+
+/* Question de l'agent (Zed : `ElicitationCard`) : en-tête, formulaire, actions. */
+.elicit { border: 1px solid var(--border-variant); border-radius: var(--radius); overflow: hidden; }
+.elicit__head {
+  display: flex; align-items: center; gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4); font-size: var(--fs-sm);
+  background: var(--element-background);
+}
+.elicit__body { padding: var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-3); font-size: var(--fs-sm); }
+.elicit__form, .elicit__field { display: flex; flex-direction: column; gap: var(--sp-2); }
+.elicit__label { font-weight: 600; }
+.elicit__choice { display: flex; align-items: flex-start; gap: var(--sp-3); cursor: pointer; }
+.elicit__choice input { margin-top: 3px; }
+.elicit__error { font-size: var(--fs-xs); color: var(--error); }
+.elicit__actions {
+  display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-4); border-top: 1px solid var(--border-variant);
+}
 /* Plan et permission : leur entrée reste dans la timeline, sans rien peindre dans le fil. */
 .entry--placeholder { display: none; }
 

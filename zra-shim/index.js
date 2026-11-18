@@ -131,6 +131,8 @@ export function createShim({
   bridge.on('session_closed', (s) => push({ type: 'session_closed', sessionId: s.sessionId }))
   bridge.on('permission_resolved', (p) => push({ type: 'permission_resolved', ...p }))
   bridge.on('permission_expired', (p) => push({ type: 'permission_expired', sessionId: p.sessionId, requestId: p.requestId }))
+  bridge.on('elicitation_resolved', (p) => push({ type: 'elicitation_resolved', ...p }))
+  bridge.on('elicitation_expired', (p) => push({ type: 'elicitation_expired', sessionId: p.sessionId, requestId: p.requestId }))
   // Les capacités n'existent qu'après la réponse à `initialize` : on se
   // ré-annonce pour que le daemon les connaisse sans attendre une reconnexion.
   bridge.on('initialized', () => {
@@ -172,6 +174,8 @@ export async function runCommand(bridge, msg) {
       return bridge.setOption(msg.sessionId, msg.key, msg.value)
     case 'respond_permission':
       return bridge.respondPermission(msg.sessionId, msg.requestId, msg.optionId)
+    case 'respond_elicitation':
+      return bridge.respondElicitation(msg.sessionId, msg.requestId, msg.action, msg.content)
     case 'cancel_queued':
       return bridge.cancelQueued(msg.sessionId, msg.queueId)
     default:

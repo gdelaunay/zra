@@ -358,6 +358,44 @@ export function permissionScenario() {
   }
 }
 
+/**
+ * Question de l'agent (`AskUserQuestion` de Claude Agent, en élicitation) : un
+ * choix unique et son champ libre, comme `askUserQuestionsToCreateRequest`.
+ */
+export function questionScenario() {
+  const tc = `tc-${rid()}`
+  const requestId = `q-${rid()}`
+  return {
+    requestId,
+    steps: [
+      { at: 200, update: agentChunk('Avant de continuer, une question.\n\n') },
+      { at: 500, update: toolCall({ id: tc, title: 'AskUserQuestion', kind: 'other', status: 'pending' }) },
+      { at: 800, update: {
+        sessionUpdate: 'zra/elicitation', requestId, toolCallId: tc,
+        message: 'Quel moteur de stockage pour l’index ?',
+        requestedSchema: {
+          type: 'object',
+          properties: {
+            question_0: {
+              type: 'string', title: 'Stockage',
+              oneOf: [
+                { const: 'SQLite', title: 'SQLite', description: 'lecture seule, comme aujourd’hui' },
+                { const: 'JSON', title: 'JSON', description: 'un fichier par thread' },
+              ],
+            },
+            question_0_custom: { type: 'string', title: 'Other', description: 'Type your own answer, or add a note to the option you chose above (optional).' },
+          },
+        },
+      } },
+    ],
+  }
+}
+
+/** Suite du tour une fois la question répondue (`null` : refusée ou annulée). */
+export function questionFollowUp(answer) {
+  return streamSteps(answer ? `Noté : ${answer}.\n` : 'Pas de réponse, je garde le choix actuel.\n', 300)
+}
+
 /** Suite du tour une fois la permission tranchée (§6.6). */
 export function permissionFollowUp(toolCallId, allowed) {
   if (!allowed) {

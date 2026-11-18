@@ -39,4 +39,5 @@ export class AutoBackend {
   setOption(threadId, key, value) { return this.acp.setOption(threadId, key, value) }
   cancelQueued(threadId, queueId) { return this.acp.cancelQueued(threadId, queueId) }
   respondPermission(threadId, requestId, optionId) { return this.acp.respondPermission(threadId, requestId, optionId) }
+  respondElicitation(threadId, requestId, action, content) { return this.acp.respondElicitation(threadId, requestId, action, content) }
 }

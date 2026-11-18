@@ -193,6 +193,8 @@ export function ThreadView({ key, navigate }) {
       // Une permission ne se répond que si l'agent est encore au bout du fil.
       canRespond: st.state === 'live' && store.machineOf(key)?.status === 'online',
       onPermission: (entry, option) => store.respondPermission(key, entry.requestId, option),
+      onElicitation: (entry, action, content) => store.respondElicitation(key, entry.requestId, action, content),
+      agentName: agentLabel(st.summary?.agentId),
     }
   }
 
@@ -394,6 +396,10 @@ export function ThreadView({ key, navigate }) {
       if (nodes.has(entry.id)) patch({ op: 'update', entry })
       const tool = tl.byToolCall.get(entry.toolCallId)
       if (tool && nodes.has(tool.id)) patch({ op: 'update', entry: tool })
+    }
+    // Questions de l'agent : répondables ou non selon le même état.
+    for (const entry of tl.pendingElicitations()) {
+      if (nodes.has(entry.id)) patch({ op: 'update', entry })
     }
     syncActivity()
   }
