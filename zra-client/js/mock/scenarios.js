@@ -391,6 +391,21 @@ export function questionScenario() {
   }
 }
 
+/** Lien à ouvrir sur le poste, comme la connexion OAuth d'un serveur MCP chez Claude Agent. */
+export function linkScenario() {
+  const requestId = `l-${rid()}`
+  return {
+    requestId,
+    steps: [
+      { at: 300, update: {
+        sessionUpdate: 'zra/elicitation', requestId, mode: 'url', toolCallId: null,
+        message: 'Authenticate with MCP server github',
+        url: 'https://github.com/login/oauth/authorize?client_id=zra-mock&redirect_uri=http%3A%2F%2Flocalhost%3A43117%2Fcallback',
+      } },
+    ],
+  }
+}
+
 /** Suite du tour une fois la question répondue (`null` : refusée ou annulée). */
 export function questionFollowUp(answer) {
   return streamSteps(answer ? `Noté : ${answer}.\n` : 'Pas de réponse, je garde le choix actuel.\n', 300)

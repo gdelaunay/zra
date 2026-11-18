@@ -384,11 +384,16 @@ function permissionOptions(entry, ctx) {
  * champ par propriété du schéma — choix unique (`oneOf`/`enum`), choix
  * multiple (`array`), case à cocher (`boolean`), texte ou nombre — puis
  * Envoyer, Refuser, Annuler. Répondue, elle quitte le fil.
+ *
+ * Un lien à ouvrir (mode `url`, `render_url_elicitation`) montre sa destination
+ * et son adresse ; « Ouvrir » reste grisé : la connexion revient au `localhost`
+ * du poste, elle n'aboutirait pas depuis le téléphone.
  */
 function elicitationCard(entry, ctx) {
   const sending = Boolean(entry.pendingAction)
   const locked = sending || !ctx.canRespond
-  const schema = entry.schema || {}
+  const isUrl = entry.mode === 'url'
+  const schema = isUrl ? {} : entry.schema || {}
   // Défauts du schéma posés une fois : la saisie survit ensuite aux re-rendus.
   if (!entry.valuesReady) {
     entry.values = { ...elicit.initialValues(schema), ...entry.values }
@@ -434,13 +439,31 @@ function elicitationCard(entry, ctx) {
       h('span.muted', { text: tr`En attente de réponse` })),
     h('div.elicit__body', {},
       entry.message ? h('div.md', { html: blocksHtml([{ type: 'text', text: entry.message }]) }) : null,
-      form,
+      isUrl ? urlSummary(entry.url) : form,
+      isUrl ? h('div.perm__note', { text: tr`À ouvrir sur le poste, dans Zed : la connexion revient au poste et n’aboutirait pas depuis le téléphone.` }) : null,
       !ctx.canRespond ? h('div.perm__note', { text: tr`thread injoignable — à traiter sur le poste` }) : null),
     h('div.elicit__actions', {},
-      actionBtn('accept', tr`Envoyer`, '.btn--accent'),
+      isUrl
+        ? button('btn.btn--sm', { disabled: true, title: tr`à ouvrir sur le poste, dans Zed` }, icon('link', 'icon--sm'), tr`Ouvrir`)
+        : actionBtn('accept', tr`Envoyer`, '.btn--accent'),
       actionBtn('decline', tr`Refuser`, '.btn--danger'),
       actionBtn('cancel', tr`Annuler`, '')),
   )
+}
+
+/**
+ * Destination et adresse d'un lien (`render_url_elicitation`). Comme Zed, un
+ * nom de domaine internationalisé est signalé : il peut imiter une autre adresse.
+ */
+function urlSummary(url) {
+  let host = null
+  try { host = new URL(url).hostname } catch { /* adresse illisible : montrée telle quelle */ }
+  return h('div.elicit__url', {},
+    host ? h('div', {}, h('span.muted', { text: tr`Destination` }), ' ', h('span', { text: host })) : null,
+    host && host.split('.').some((label) => label.startsWith('xn--'))
+      ? h('div.elicit__warn', {}, icon('alert-triangle', 'icon--sm'), h('span', { text: tr`Adresse internationalisée : vérifie-la avec soin.` }))
+      : null,
+    h('div.elicit__link', {}, icon('link', 'icon--sm'), h('span', { text: url || '' })))
 }
 
 /** Un champ, selon sa nature (`render_field` de Zed) ; `null` si Zed ne le rend pas non plus. */

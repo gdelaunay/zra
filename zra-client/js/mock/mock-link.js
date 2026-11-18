@@ -7,7 +7,7 @@
 import { emitter } from '../dom.js'
 import {
   MACHINES, MODES, MODELS, OPTIONS, COMMANDS, historyFor,
-  fullTurn, shortTurn, longTurn, permissionScenario, permissionFollowUp, questionScenario, questionFollowUp, unknownScenario,
+  fullTurn, shortTurn, longTurn, permissionScenario, permissionFollowUp, questionScenario, questionFollowUp, linkScenario, unknownScenario,
   userChunk,
 } from './scenarios.js'
 import { tr } from '../i18n.js'
@@ -286,6 +286,12 @@ export class MockLink {
       }
       case 'question': {
         const { steps, requestId } = questionScenario()
+        this.pendingQuestions.set(requestId, { threadId: id })
+        this.play(id, steps, { hold: true })
+        break
+      }
+      case 'link': {
+        const { steps, requestId } = linkScenario()
         this.pendingQuestions.set(requestId, { threadId: id })
         this.play(id, steps, { hold: true })
         break

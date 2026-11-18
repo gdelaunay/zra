@@ -378,14 +378,33 @@ test('session/resume suivie comme un load (sans rejeu), session/close la retire'
   assert.ok(bridge.sessions.has(zed.sessionId), 'les autres sessions restent')
 })
 
-test('élicitation par lien : seul Zed peut l’ouvrir, le mobile en est averti', async (t) => {
-  const { bridge, zed } = await boot(t)
-  const notices = []
-  bridge.on('update', (u) => { if (u.update.sessionUpdate === 'zra/notice') notices.push(u.update) })
-  await zed.prompt('elicitation: lien')
-  assert.equal(notices.length, 1)
-  assert.equal(notices[0].level, 'warn')
-  assert.match(notices[0].text, /attend une réponse dans Zed/)
+test('lien à ouvrir : publié, refusable du mobile, jamais accepté de là', async (t) => {
+  const { bridge, zed } = await boot(t, { zed: { answerElicitation: null } })
+  const published = []
+  bridge.on('update', (u) => { if (u.update.sessionUpdate === 'zra/elicitation') published.push(u.update) })
+  const turn = zed.prompt('elicitation: lien')
+  const q = await until(() => published[0], { label: 'lien publié' })
+  assert.equal(q.mode, 'url')
+  assert.equal(q.url, 'https://exemple.test/login')
+  assert.equal(q.requestedSchema, undefined)
+
+  // La connexion revient au `localhost` du poste : l'ouvrir du mobile n'aboutirait pas.
+  assert.throws(() => bridge.respondElicitation(zed.sessionId, q.requestId, 'accept'), /sur le poste/)
+  bridge.respondElicitation(zed.sessionId, q.requestId, 'decline')
+  await turn
+  assert.equal(zed.updates.find((u) => u.sessionUpdate === 'agent_message_chunk').content.text, 'réponse:{"action":"decline"}')
+})
+
+test('question rattachée à une requête de Zed : publiée dans le thread de cette requête', async (t) => {
+  const { bridge, zed } = await boot(t, { zed: { answerElicitation: null } })
+  const published = []
+  bridge.on('update', (u) => { if (u.update.sessionUpdate === 'zra/elicitation') published.push(u) })
+  const turn = zed.prompt('question-requete: framework')
+  const q = await until(() => published[0], { label: 'question publiée' })
+  assert.equal(q.sessionId, zed.sessionId, 'la session du session/prompt cité')
+  bridge.respondElicitation(zed.sessionId, q.update.requestId, 'accept', { question_0: 'React' })
+  await turn
+  assert.match(zed.updates.find((u) => u.sessionUpdate === 'agent_message_chunk').content.text, /"question_0":"React"/)
 })
 
 test('question : publiée en zra/elicitation, le mobile répond, Zed retire son formulaire', async (t) => {

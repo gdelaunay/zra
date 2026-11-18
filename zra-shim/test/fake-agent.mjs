@@ -119,24 +119,32 @@ function newSession(id, cwd) {
 // Scénarios
 // ---------------------------------------------------------------------------
 
-async function runPrompt(session, text) {
+async function runPrompt(session, text, promptId) {
   const sessionId = session.id
   // Pas d'écho du message utilisateur en direct : `claude-agent-acp` n'en émet
   // aucun (relevé au test réel). Il ne le rejoue qu'au `session/load`.
 
-  // Lien à ouvrir posé au client : le faux Zed le refuse, le tour se termine.
+  // Lien à ouvrir (connexion OAuth d'un serveur MCP) : la réponse est renvoyée
+  // en message, pour que le test la lise.
   if (text.startsWith('elicitation:')) {
-    try { await ask('elicitation/create', { mode: 'url', sessionId, elicitationId: 'e1', url: 'https://exemple.test', message: 'Connexion' }) } catch { /* refusé */ }
+    let answer
+    try {
+      answer = await ask('elicitation/create', { mode: 'url', sessionId, elicitationId: 'e1', url: 'https://exemple.test/login', message: 'Connexion' })
+    } catch (err) { answer = { error: err.message } }
+    update(sessionId, { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: `réponse:${JSON.stringify(answer)}` } })
     return { stopReason: 'end_turn' }
   }
 
   // Question en formulaire, comme `AskUserQuestion` chez claude-agent-acp ;
   // la réponse reçue est renvoyée en message, pour que le test la lise.
-  if (text.startsWith('question:')) {
+  // `question-requete:` la rattache au `session/prompt` en cours plutôt qu'à la
+  // session (`ElicitationRequestScope`).
+  if (text.startsWith('question:') || text.startsWith('question-requete:')) {
+    const scope = text.startsWith('question:') ? { sessionId, toolCallId: 'tc-q' } : { requestId: promptId }
     let answer
     try {
       answer = await ask('elicitation/create', {
-        mode: 'form', sessionId, toolCallId: 'tc-q', message: 'Quel framework ?',
+        mode: 'form', ...scope, message: 'Quel framework ?',
         requestedSchema: {
           type: 'object',
           properties: {
@@ -291,7 +299,7 @@ async function handle(msg) {
       if (!session) return fail(id, 'session inconnue')
       if (REFUSE_INJECTED && String(id).startsWith('zra-')) return fail(id, 'prompt non émis par le client')
       const text = (params.prompt ?? []).map((p) => p.text ?? '').join('')
-      const result = await runPrompt(session, text)
+      const result = await runPrompt(session, text, id)
       return reply(id, result)
     }
 

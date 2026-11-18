@@ -13,6 +13,7 @@ const TRIGGERS = [
   ['long', tr`Tour long (annulable)`, 'clock'],
   ['permission', tr`Demande de permission`, 'shield'],
   ['question', tr`Question de l’agent`, 'message'],
+  ['link', tr`Lien à ouvrir (connexion)`, 'link'],
   ['unknown', tr`Événement ACP inconnu`, 'hash'],
   ['error', tr`Erreur daemon`, 'alert-triangle'],
   ['offline', tr`Poste hors ligne 4 s`, 'plug'],

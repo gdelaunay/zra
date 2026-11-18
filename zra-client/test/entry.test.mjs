@@ -636,3 +636,21 @@ test('question répondue : elle quitte le fil, comme dans Zed', () => {
   const { node } = render(question({ resolved: true, action: 'accept' }))
   assert.ok(node.classList.contains('entry--placeholder'))
 })
+
+test('lien à ouvrir : destination et adresse, « Ouvrir » grisé, Refuser et Annuler actifs', () => {
+  const calls = []
+  const { node } = render(question({ mode: 'url', url: 'https://xn--exmple-cua.test/login?x=1', schema: {} }), {
+    canRespond: true, onElicitation: (e, action) => calls.push(action),
+  })
+  assert.match(q(node, '.elicit__url').textContent, /Destination xn--exmple-cua\.test/)
+  assert.match(q(node, '.elicit__link').textContent, /login\?x=1/)
+  assert.ok(q(node, '.elicit__warn'), 'domaine internationalisé signalé, comme Zed')
+  assert.equal(qa(node, 'input').length, 0, 'aucun champ')
+  assert.match(node.textContent, /sur le poste/)
+  const [open, decline, cancel] = qa(node, '.elicit__actions button')
+  assert.match(open.textContent, /Ouvrir/)
+  assert.equal(open.disabled, true)
+  click(decline)
+  click(cancel)
+  assert.deepEqual(calls, ['decline', 'cancel'])
+})

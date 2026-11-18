@@ -87,7 +87,7 @@ export class FakeZed {
       }
       // Question de l'agent : `answerElicitation` (`{ action, content }`) répond,
       // `null` laisse le formulaire ouvert, comme un Zed où personne n'a cliqué.
-      if (msg.method === 'elicitation/create' && msg.params?.mode === 'form') {
+      if (msg.method === 'elicitation/create') {
         this.elicitations.push(msg)
         if (this.answerElicitation === null) return
         const answer = () => this.send({ jsonrpc: '2.0', id: msg.id, result: this.answerElicitation })

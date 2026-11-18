@@ -51,3 +51,11 @@ does not start with a space, the window is no longer found: no thread opening
 and no `submit` from the PWA.
 → If the need arises: read these settings from `settings.json` and derive the
 title pattern from them.
+
+## Agent questions outside a thread
+
+An agent question (ACP elicitation) tied to a Zed request that belongs to no
+thread — while a session is being created (`session/new`) or the agent is
+signing in (`authenticate`) — only shows in Zed: on the mobile side, there is
+no thread yet to show it in, nor a thread to warn in.
+→ Way forward if the case comes up: a machine-level card in the thread list.

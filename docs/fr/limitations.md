@@ -51,3 +51,12 @@ défaut de Zed, `${projectName}${separator}${fileName}`). Un
 n'est plus trouvée : pas d'ouverture de thread ni de `submit` depuis la PWA.
 → Si la demande apparaît : lire ces réglages dans `settings.json` et en
 déduire le motif du titre.
+
+## Questions de l'agent hors d'un thread
+
+Une question de l'agent (élicitation ACP) rattachée à une requête de Zed qui
+n'appartient à aucun thread — pendant la création d'une session (`session/new`)
+ou la connexion de l'agent (`authenticate`) — ne s'affiche que dans Zed : côté
+mobile, il n'y a pas encore de thread où la montrer, ni de fil où prévenir.
+→ Piste si le cas se présente : un encart au niveau du poste, dans la liste des
+threads.

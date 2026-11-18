@@ -148,6 +148,9 @@ export class Timeline {
       type: 'elicitation',
       requestId: u.requestId,
       toolCallId: u.toolCallId ?? null,
+      // `form` : un formulaire ; `url` : un lien à ouvrir sur le poste.
+      mode: u.mode === 'url' ? 'url' : 'form',
+      url: typeof u.url === 'string' ? u.url : null,
       message: u.message || '',
       schema: u.requestedSchema && typeof u.requestedSchema === 'object' ? u.requestedSchema : { type: 'object', properties: {} },
       // Réponses saisies, gardées sur l'entrée : elles survivent aux re-rendus.

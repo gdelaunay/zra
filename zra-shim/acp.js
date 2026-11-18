@@ -295,12 +295,16 @@ export class AcpBridge extends EventEmitter {
     if (typeof msg.method === 'string' && k !== null) {
       this.agentRequests.set(k, { method: msg.method, params: msg.params ?? {} })
       if (msg.method === M.requestPermission) this.notePermission(k, msg.params ?? {})
-      // Question de l'agent (`handle_create_elicitation`) : un formulaire se
-      // répond aussi du mobile. Un lien à ouvrir (mode `url`) reste à Zed, et
-      // le mobile, qui verrait un tour occupé sans rien à faire, est prévenu.
-      if (msg.method === M.createElicitation && msg.params?.sessionId) {
-        if (msg.params.mode === 'form' && msg.params.requestedSchema) this.noteElicitation(k, msg.params)
-        else this.notice(msg.params.sessionId, tr`l'agent attend une réponse dans Zed (lien à ouvrir)`, 'warn')
+      // Question de l'agent (`handle_create_elicitation`) : formulaire ou lien à
+      // ouvrir, publié dans son thread. Un mode inconnu reste à Zed, et le
+      // mobile, qui verrait un tour occupé sans rien à faire, est prévenu.
+      if (msg.method === M.createElicitation) {
+        const params = msg.params ?? {}
+        const sessionId = this.elicitationSession(params)
+        if (!sessionId) return
+        const known = (params.mode === 'form' && params.requestedSchema) || (params.mode === 'url' && params.url)
+        if (known) this.noteElicitation(k, params, sessionId)
+        else this.notice(sessionId, tr`l'agent attend une réponse dans Zed`, 'warn')
       }
       return
     }
@@ -497,24 +501,39 @@ export class AcpBridge extends EventEmitter {
   }
 
   /**
-   * Question de l'agent en formulaire (`AskUserQuestion` chez Claude Agent).
-   * Publiée sous l'extension `zra/elicitation` (protocole §5), sans réécrire
-   * l'ACP : message et schéma tels que l'agent les envoie.
+   * Thread d'une question. Rattachée à une session, c'est elle ; rattachée à
+   * une requête de Zed (`ElicitationRequestScope`), c'est la session de cette
+   * requête, là où Zed l'affiche aussi. Une requête sans session (`session/new`,
+   * `authenticate`) n'a pas de thread côté mobile : `null`.
    */
-  noteElicitation(k, params) {
+  elicitationSession(params) {
+    if (params.sessionId) return params.sessionId
+    if (params.requestId === undefined || params.requestId === null) return null
+    return this.zedRequests.get(idKey(params.requestId))?.params?.sessionId ?? null
+  }
+
+  /**
+   * Question de l'agent : formulaire (`AskUserQuestion` chez Claude Agent) ou
+   * lien à ouvrir (connexion OAuth d'un serveur MCP). Publiée sous l'extension
+   * `zra/elicitation` (protocole §5), sans réécrire l'ACP : message, schéma ou
+   * lien tels que l'agent les envoie.
+   */
+  noteElicitation(k, params, sessionId) {
     const entry = {
       requestId: k,
-      sessionId: params.sessionId,
+      sessionId,
+      mode: params.mode,
       toolCallId: params.toolCallId ?? null,
       message: params.message ?? '',
-      requestedSchema: params.requestedSchema,
+      ...(params.mode === 'url' ? { url: params.url } : { requestedSchema: params.requestedSchema }),
     }
     this.elicitations.set(k, entry)
     this.emit('update', {
-      sessionId: entry.sessionId,
+      sessionId,
       update: {
-        sessionUpdate: 'zra/elicitation', requestId: k, toolCallId: entry.toolCallId,
-        message: entry.message, requestedSchema: entry.requestedSchema,
+        sessionUpdate: 'zra/elicitation', requestId: k, mode: entry.mode, toolCallId: entry.toolCallId,
+        message: entry.message,
+        ...(entry.mode === 'url' ? { url: entry.url } : { requestedSchema: entry.requestedSchema }),
       },
       at: new Date().toISOString(),
     })
@@ -948,6 +967,11 @@ export class AcpBridge extends EventEmitter {
     }
     if (!ELICITATION_ACTIONS.has(action)) {
       throw new ShimError('elicitation_expired', tr`réponse invalide : ${action}`)
+    }
+    // Un lien s'ouvre sur le poste : la connexion revient à `localhost`, celui du
+    // poste. Du mobile, on peut seulement refuser ou annuler.
+    if (el.mode === 'url' && action === 'accept') {
+      throw new ShimError('elicitation_expired', tr`ce lien s'ouvre sur le poste, dans Zed`)
     }
     let result = { action }
     if (action === 'accept') {

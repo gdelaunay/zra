@@ -47,6 +47,10 @@ Zed et un téléphone. Un point vérifié est retiré ; un écart constaté part
   disparaît de Zed et l'agent reprend avec la réponse ; répondre dans Zed → la
   carte quitte le fil du mobile. Essayer aussi Refuser, Annuler, un choix
   multiple et le champ libre « Other ».
+- **Lien de connexion** (serveur MCP à authentifier) : la carte montre la
+  destination et le lien, « Ouvrir » grisé. Ouvrir dans Zed → la connexion
+  aboutit et la carte quitte le fil du mobile ; Refuser du mobile → Zed retire
+  son lien.
 
 ## Réouverture et relecture
 

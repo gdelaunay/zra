@@ -568,20 +568,28 @@ Both are idempotent.
 ### `zra/elicitation`
 ```ts
 {
-  sessionUpdate: 'zra/elicitation', requestId: string, toolCallId: string | null,
-  message: string,
-  requestedSchema: { type: 'object', properties: Record<string, object>, required?: string[], title?: string, description?: string },
+  sessionUpdate: 'zra/elicitation', requestId: string, mode: 'form' | 'url',
+  toolCallId: string | null, message: string,
+  requestedSchema?: { type: 'object', properties: Record<string, object>, required?: string[], title?: string, description?: string }, // `form` mode
+  url?: string,             // `url` mode
 }
 ```
-Agent question: ACP request `elicitation/create` in `form` mode (with Claude
-Agent, the `AskUserQuestion` tool), republished by the shim with its schema
-as is. As in Zed, the PWA makes it a card in the thread: single choice
-(`oneOf`/`enum`), multiple choice (`array`), checkbox (`boolean`), text or
+Agent question: ACP request `elicitation/create`, republished by the shim as
+is, in its session's thread — or, when tied to a Zed request (ACP
+`requestId`), in that request's thread, where Zed shows it too.
+
+`form` mode (with Claude Agent, the `AskUserQuestion` tool): as in Zed, the PWA
+makes it a card in the thread — single choice (`oneOf`/`enum`), multiple choice (`array`), checkbox (`boolean`), text or
 number. It validates the answers as Zed does before sending them: required
 fields, lengths, `pattern`, `email`, `uri`, `date`, `date-time` formats,
 number bounds, number of choices. The thread is waiting (`waiting`) until
-answered. A link to open
-(`url` mode) stays in Zed: the mobile is warned by a `zra/notice`.
+answered.
+
+`url` mode (with Claude Agent, an MCP server's OAuth sign-in): the card shows
+the destination and the address, as Zed does, but "Open" stays greyed out.
+The sign-in returns to the machine's `localhost` and would not complete from
+the phone; the mobile can only decline or cancel (the shim refuses an
+`accept`).
 
 ### `zra/elicitation_resolved`
 ```ts

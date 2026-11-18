@@ -569,20 +569,28 @@ Les deux sont idempotents.
 ### `zra/elicitation`
 ```ts
 {
-  sessionUpdate: 'zra/elicitation', requestId: string, toolCallId: string | null,
-  message: string,
-  requestedSchema: { type: 'object', properties: Record<string, object>, required?: string[], title?: string, description?: string },
+  sessionUpdate: 'zra/elicitation', requestId: string, mode: 'form' | 'url',
+  toolCallId: string | null, message: string,
+  requestedSchema?: { type: 'object', properties: Record<string, object>, required?: string[], title?: string, description?: string }, // mode `form`
+  url?: string,             // mode `url`
 }
 ```
-Question de l'agent : requête ACP `elicitation/create` en mode `form` (chez
-Claude Agent, l'outil `AskUserQuestion`), republiée par le shim avec son schéma
-tel quel. Comme Zed, la PWA en fait une carte du fil : choix unique
-(`oneOf`/`enum`), choix multiple (`array`), case à cocher (`boolean`), texte ou
+Question de l'agent : requête ACP `elicitation/create`, republiée par le shim
+telle quelle, dans le thread de sa session — ou, rattachée à une requête de Zed
+(`requestId` ACP), dans le thread de cette requête, là où Zed l'affiche aussi.
+
+Mode `form` (chez Claude Agent, l'outil `AskUserQuestion`) : comme Zed, la PWA
+en fait une carte du fil — choix unique (`oneOf`/`enum`), choix multiple (`array`), case à cocher (`boolean`), texte ou
 nombre. Elle valide les réponses comme Zed avant de les envoyer : champs
 requis, longueurs, `pattern`, formats `email`, `uri`, `date`, `date-time`,
 bornes des nombres, nombre de choix. Le thread passe en attente (`waiting`)
-jusqu'à la réponse. Un lien à
-ouvrir (mode `url`) reste à Zed : le mobile en est prévenu par un `zra/notice`.
+jusqu'à la réponse.
+
+Mode `url` (chez Claude Agent, la connexion OAuth d'un serveur MCP) : la carte
+montre la destination et l'adresse, comme Zed, mais « Ouvrir » reste grisé.
+La connexion revient au `localhost` du poste et n'aboutirait pas depuis le
+téléphone ; on peut seulement refuser ou annuler du mobile (le shim refuse un
+`accept`).
 
 ### `zra/elicitation_resolved`
 ```ts
