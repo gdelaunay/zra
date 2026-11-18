@@ -363,6 +363,21 @@ test('mode interrupt : on coupe, puis le message part', async (t) => {
   )
 })
 
+test('session/resume suivie comme un load (sans rejeu), session/close la retire', async (t) => {
+  const { bridge, zed } = await boot(t)
+  const closed = []
+  bridge.on('session_closed', (e) => closed.push(e.sessionId))
+
+  await zed.request('session/resume', { sessionId: 'reprise', cwd: process.cwd(), mcpServers: [] })
+  assert.ok(bridge.sessions.has('reprise'), 'session reprise connue du shim')
+  assert.equal(bridge.sessions.get('reprise').currentModeId, 'default')
+
+  await zed.request('session/close', { sessionId: 'reprise' })
+  assert.ok(!bridge.sessions.has('reprise'))
+  assert.deepEqual(closed, ['reprise'])
+  assert.ok(bridge.sessions.has(zed.sessionId), 'les autres sessions restent')
+})
+
 test('set_option : appliqué tout de suite au repos, différé pendant un tour', async (t) => {
   const { bridge, zed } = await boot(t)
 

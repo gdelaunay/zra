@@ -50,7 +50,7 @@ flowchart LR
 ### Shim ↔ daemon: WebSocket `/shim`
 
 - The shim connects to `ws://127.0.0.1:<port>/shim` and reconnects on its own (`zra-shim/daemon-link.js`). The daemon refuses this path outside loopback.
-- Shim → daemon: `shim_hello`, `session`, `acp_update`, `state`, `session_replay`, `permission_resolved`, `permission_expired`, `notice`, `ack`.
+- Shim → daemon: `shim_hello`, `session`, `session_closed`, `acp_update`, `state`, `session_replay`, `permission_resolved`, `permission_expired`, `notice`, `ack`.
 - Daemon → shim: `cmd` (`prompt`, `cancel`, `set_option`, `respond_permission`, `cancel_queued`), acknowledged by `ack`.
 - Daemon side: `zra-daemon/shim-link.js` (`ShimHost`) and `zra-daemon/shim-registry.js`.
 

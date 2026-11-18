@@ -163,3 +163,31 @@ test('shim-host : un faux shim ne publie ni événements ni état dans la sessio
   assert.equal(reg.forSession('s1').shimId, 'a')
   host.close()
 })
+test('shim-host : session/close de Zed — la session quitte le registre, un faux shim ne la ferme pas', () => {
+  const reg = new ShimRegistry()
+  const threads = new EventEmitter()
+  threads.getBySession = (sid) => (sid === 's1' ? { threadId: 't1' } : null)
+  const mirrored = []
+  const states = { mirror: (tid, msg) => mirrored.push({ tid, msg }), get: () => ({ queue: [{ queueId: 'q' }] }) }
+  const host = new ShimHost({ shims: reg, threads, states })
+  const updates = []
+  host.on('update', (u) => updates.push(u))
+
+  const conn = (id) => Object.assign(new EventEmitter(), { id, send: () => true, close: () => {} })
+  const a = conn('a')
+  const b = conn('b')
+  host.attach(a)
+  host.attach(b)
+  host.handle({ conn: a, shimId: null }, { type: 'shim_hello', shimId: 'a', sessions: [{ sessionId: 's1' }] })
+  host.handle({ conn: b, shimId: null }, { type: 'shim_hello', shimId: 'b', sessions: [] })
+
+  host.handle({ conn: b, shimId: 'b' }, { type: 'session_closed', sessionId: 's1' })
+  assert.ok(reg.hasSession('s1'), 'un faux shim ne ferme pas la session d un autre')
+
+  host.handle({ conn: a, shimId: 'a' }, { type: 'session_closed', sessionId: 's1' })
+  assert.ok(!reg.hasSession('s1'))
+  assert.ok(reg.shims.has('a'), 'le shim reste connecté')
+  assert.deepEqual(mirrored.at(-1), { tid: 't1', msg: { turn: 'idle', queue: [] } })
+  assert.match(updates.at(-1).update.text, /Zed a fermé la session : 1 message/)
+  host.close()
+})

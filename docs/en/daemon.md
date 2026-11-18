@@ -68,8 +68,8 @@ A second WebSocket path on the same port, **reserved to loopback**:
 machine, separate from `docs/en/protocol.md` (which only describes PWA ↔ daemon).
 
 ```
-shim → daemon   shim_hello · session · session_replay · acp_update · state ·
-                permission_resolved · permission_expired · notice · ack
+shim → daemon   shim_hello · session · session_closed · session_replay · acp_update ·
+                state · permission_resolved · permission_expired · notice · ack
 daemon → shim   cmd { id, cmd: prompt|cancel|set_option|
                               respond_permission|cancel_queued }
 ```

@@ -10,7 +10,6 @@ Fait → effet → à faire. Une issue acceptée (on ne fera rien) part dans
 
 | Section | Statut |
 | --- | --- |
-| Sessions reprises ou fermées par Zed : le shim ne suit pas | `à faire` |
 | Permission tranchée sur mobile : Zed garde l'invite | `à faire` |
 | Tour lancé depuis le mobile : Zed le croit au repos | `à faire` |
 | Sortie de terminal par `_meta` ignorée | `à faire` |
@@ -23,24 +22,6 @@ Fait → effet → à faire. Une issue acceptée (on ne fera rien) part dans
 | Performance sur téléphone non mesurée | `à faire` |
 | Logos d'agents : source | `à faire` |
 | Relecture : environnement et capacités différents de Zed | `à faire` |
-
-## Sessions reprises ou fermées par Zed : le shim ne suit pas — `à faire`
-
-Zed rouvre par `session/resume` un agent qui ne sait pas `session/load`
-(`crates/agent_ui/src/conversation_view.rs`, choix `supports_load_session` puis
-`supports_resume_session`). Il ferme une session par `session/close` quand il
-libère son thread (`crates/agent_servers/src/acp/v1.rs`,
-`AcpConnection::release_session`), entre autres au-delà de
-`max_idle_retained_threads` threads inactifs (5 par défaut,
-`crates/agent_ui/src/agent_panel.rs`, `cleanup_retained_threads`). Le shim
-(`zra-shim/acp.js`, `noteResponse`) ne suit que `session/new` et `session/load`.
-Une session reprise lui reste inconnue : le mobile ne peut pas y écrire. Une
-session fermée reste `live` pour ZRA : un message du mobile part vers une
-session que l'agent a fermée, ou que Zed n'affiche plus (il ignore les
-notifications d'une session inconnue, `handle_session_notification`).
-→ Traiter `session/resume` comme `session/load` (sans rejeu) ; à
-`session/close`, retirer la session. À constater : comportement des agents
-qui déclarent `sessionCapabilities.close`.
 
 ## Permission tranchée sur mobile : Zed garde l'invite — `à faire`
 

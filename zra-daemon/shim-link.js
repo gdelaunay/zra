@@ -29,7 +29,7 @@ const PENDING_MAX = 2000
 const COMMAND_TIMEOUT = 20_000
 
 /** Messages bornés à une session : leur shim doit en être le détenteur. */
-const SESSION_SCOPED = new Set(['session', 'acp_update', 'state', 'session_replay', 'permission_resolved', 'permission_expired', 'notice'])
+const SESSION_SCOPED = new Set(['session', 'session_closed', 'acp_update', 'state', 'session_replay', 'permission_resolved', 'permission_expired', 'notice'])
 
 export class ShimHost extends EventEmitter {
   /**
@@ -98,29 +98,7 @@ export class ShimHost extends EventEmitter {
     this.byShim.delete(entry.shimId)
     this.shims.unregister(entry.shimId)
     log.info(tr`shim ${entry.shimId} déconnecté (${sessions.length} session(s))`)
-
-    // Le shim meurt (Zed fermé) ⇒ la file est perdue, et le mobile doit
-    // l'apprendre explicitement plutôt que de voir une file figée.
-    for (const sessionId of sessions) {
-      this.whole.delete(sessionId)
-      this.parked.delete(sessionId)
-      this.parkedState.delete(sessionId)
-      const thread = this.threads.getBySession(sessionId)
-      if (!thread) continue
-      const lost = this.states.get(thread.threadId).queue.length
-      this.states.mirror(thread.threadId, { turn: 'idle', queue: [] })
-      if (lost) {
-        this.emit('update', {
-          threadId: thread.threadId,
-          update: {
-            sessionUpdate: 'zra/notice',
-            level: 'warn',
-            text: tr`Zed a fermé l'agent : ${lost} message(s) en attente perdu(s)`,
-          },
-          at: new Date().toISOString(),
-        })
-      }
-    }
+    for (const sessionId of sessions) this.release(sessionId, tr`Zed a fermé l'agent`)
 
     // Les commandes encore en vol vers ce shim n'auront jamais d'accusé.
     for (const [id, waiter] of this.pending) {
@@ -129,6 +107,35 @@ export class ShimHost extends EventEmitter {
       clearTimeout(waiter.timer)
       waiter.reject(Object.assign(new Error(tr`le shim s'est arrêté avant de répondre`), { code: 'inject_failed' }))
     }
+  }
+
+  /**
+   * Une session n'est plus portée (shim mort, ou `session/close` de Zed) : la
+   * file est perdue, et le mobile doit l'apprendre explicitement plutôt que de
+   * voir une file figée.
+   */
+  release(sessionId, why) {
+    this.whole.delete(sessionId)
+    this.parked.delete(sessionId)
+    this.parkedState.delete(sessionId)
+    const thread = this.threads.getBySession(sessionId)
+    if (!thread) return
+    const lost = this.states.get(thread.threadId).queue.length
+    this.states.mirror(thread.threadId, { turn: 'idle', queue: [] })
+    if (lost) {
+      this.emit('update', {
+        threadId: thread.threadId,
+        update: { sessionUpdate: 'zra/notice', level: 'warn', text: tr`${why} : ${lost} message(s) en attente perdu(s)` },
+        at: new Date().toISOString(),
+      })
+    }
+  }
+
+  /** Zed a fermé la session (`session/close`) : le thread n'est plus `live`. */
+  sessionClosed(entry, msg) {
+    if (!this.shims.removeSession(entry.shimId, msg.sessionId)) return
+    log.info(tr`shim ${entry.shimId} : session ${msg.sessionId} fermée par Zed`)
+    this.release(msg.sessionId, tr`Zed a fermé la session`)
   }
 
   // =========================================================================
@@ -150,6 +157,7 @@ export class ShimHost extends EventEmitter {
     switch (msg.type) {
       case 'shim_hello': return this.hello(entry, msg)
       case 'session': return this.session(entry, msg)
+      case 'session_closed': return this.sessionClosed(entry, msg)
       case 'acp_update': return this.update(msg)
       case 'state': return this.state(msg)
       case 'session_replay': return this.replay(msg)

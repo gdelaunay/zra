@@ -49,6 +49,15 @@ export class ShimRegistry extends EventEmitter {
     return true
   }
 
+  /** Session fermée par Zed (`session/close`) : le shim ne la porte plus. */
+  removeSession(shimId, sessionId) {
+    const shim = this.shims.get(shimId)
+    if (!shim?.sessions.delete(sessionId)) return false
+    if (this.bySession.get(sessionId) === shimId) this.bySession.delete(sessionId)
+    this.emit('change', { session: sessionId })
+    return true
+  }
+
   unregister(shimId) {
     const shim = this.shims.get(shimId)
     if (!shim) return false

@@ -249,6 +249,17 @@ async function handle(msg) {
       return reply(id, { modes: modesOf(session), configOptions: configOf(session) })
     }
 
+    // Reprise sans rejeu (Zed, pour un agent sans `loadSession`).
+    case 'session/resume': {
+      const session = sessions.get(params.sessionId) ?? newSession(params.sessionId, params.cwd)
+      sessions.set(params.sessionId, session)
+      return reply(id, { modes: modesOf(session), configOptions: configOf(session) })
+    }
+
+    case 'session/close':
+      sessions.delete(params.sessionId)
+      return reply(id, {})
+
     case 'session/prompt': {
       const session = sessions.get(params.sessionId)
       if (!session) return fail(id, 'session inconnue')

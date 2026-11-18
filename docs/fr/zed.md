@@ -60,7 +60,7 @@ Ce dont ZRA dépend dans Zed, et où le vérifier dans ses sources. Sert à l'au
 |---|---|---|---|
 | Relais et observation d'ACP v1, capacités de Zed transmises telles quelles | `zra-shim/acp.js` | `crates/agent_servers/src/acp.rs` : `connect` ; `crates/agent_servers/src/acp/v1.rs` (`client_builder`, `client_capabilities_for_agent`). Crate `agent-client-protocol` 5.0.0 (`Cargo.toml`) | vérifié |
 | ACP v2 | non géré | `crates/agent_servers/src/acp/v2.rs`, tenté d'abord quand le drapeau `AcpBetaFeatureFlag` est actif, repli sur v1 | vérifié |
-| Sessions suivies : `session/new`, `session/load` | `zra-shim/acp.js` (`noteResponse`) | `crates/agent_ui/src/conversation_view.rs` (`load_session`, sinon `resume_session`) ; `crates/agent_servers/src/acp/v1.rs` (`release_session` : `session/close`) | écart |
+| Sessions suivies : `session/new`, `session/load`, `session/resume` ; retirées à `session/close` | `zra-shim/acp.js` (`noteResponse`) | `crates/agent_ui/src/conversation_view.rs` (`load_session`, sinon `resume_session`) ; `crates/agent_servers/src/acp/v1.rs` (`release_session` : `session/close`) | vérifié |
 | Permissions : le shim répond à la place de Zed | `zra-shim/acp.js` | `crates/agent_servers/src/acp/v1.rs` (`handle_request_permission`) ; `crates/acp_thread/src/acp_thread.rs` (`apply_reported_status`, `cancel_permission_request`) | écart |
 | Message du mobile affiché dans Zed (`user_message_chunk` synthétique) | `zra-shim/acp.js` | `crates/acp_thread/src/acp_thread.rs` : `handle_session_update`, `push_user_content_block_with_protocol_id` | vérifié |
 | Tour lancé depuis le mobile, vu de Zed | `zra-shim/acp.js` | `crates/acp_thread/src/acp_thread.rs` : `uses_reported_activity`, `status` | écart |

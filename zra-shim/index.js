@@ -128,6 +128,7 @@ export function createShim({
   bridge.on('state', (s) => push({ type: 'state', ...s }))
   bridge.on('replay', ({ sessionId }) => push({ type: 'session_replay', sessionId }))
   bridge.on('session', (s) => push({ type: 'session', ...s }))
+  bridge.on('session_closed', (s) => push({ type: 'session_closed', sessionId: s.sessionId }))
   bridge.on('permission_resolved', (p) => push({ type: 'permission_resolved', ...p }))
   bridge.on('permission_expired', (p) => push({ type: 'permission_expired', sessionId: p.sessionId, requestId: p.requestId }))
   // Les capacités n'existent qu'après la réponse à `initialize` : on se

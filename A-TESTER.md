@@ -21,6 +21,15 @@ Zed et un téléphone. Un point vérifié est retiré ; un écart constaté part
 - **`env` des réglages** : un agent `registry` avec une variable dans
   `agent_servers.<id>.env` → l'agent ZRA et la relecture la reçoivent.
 
+## Sessions
+
+- **Fermeture par Zed** : ouvrir plus de 5 threads d'un agent (au-delà de
+  `max_idle_retained_threads`) → les plus anciens passent `closed` dans la
+  PWA. À noter : quels agents reçoivent `session/close` (capacité
+  `sessionCapabilities.close`), et ce que deviennent les autres.
+- **Reprise** (agent sans `loadSession`, s'il en existe un) : thread rouvert
+  dans Zed → `live` dans la PWA, le mobile peut y écrire.
+
 ## Réglages depuis le mobile
 
 - **Mode, modèle, effort** changés sur le mobile → les sélecteurs de Zed

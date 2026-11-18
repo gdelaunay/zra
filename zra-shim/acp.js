@@ -28,6 +28,8 @@ export const M = {
   initialize: 'initialize',
   sessionNew: 'session/new',
   sessionLoad: 'session/load',
+  sessionResume: 'session/resume',
+  sessionClose: 'session/close',
   sessionPrompt: 'session/prompt',
   sessionCancel: 'session/cancel',
   sessionSetMode: 'session/set_mode',
@@ -319,6 +321,22 @@ export class AcpBridge extends EventEmitter {
         return
       }
 
+      // Zed reprend sans rejeu un agent qui ne sait pas `session/load`
+      // (`conversation_view.rs` : `supports_resume_session`).
+      case M.sessionResume: {
+        const sessionId = pending.params?.sessionId
+        if (!sessionId || msg.error) return
+        this.openSession(sessionId, { cwd: pending.params?.cwd ?? null, source: 'resume', result })
+        return
+      }
+
+      // Zed libère le thread (`release_session`) : la session n'est plus écrite.
+      case M.sessionClose: {
+        const sessionId = pending.params?.sessionId
+        if (sessionId && !msg.error) this.closeSession(sessionId)
+        return
+      }
+
       case M.sessionPrompt: {
         const sessionId = pending.params?.sessionId
         if (sessionId) this.settlePrompt(sessionId, k)
@@ -346,6 +364,12 @@ export class AcpBridge extends EventEmitter {
     assignOptions(st, projectOptions(result ?? {}))
     this.emit('session', { sessionId, cwd: st.cwd, source, ...this.sessions.snapshot(sessionId) })
     this.sessions.changed(sessionId)
+  }
+
+  closeSession(sessionId) {
+    if (!this.sessions.has(sessionId)) return
+    this.sessions.remove(sessionId)
+    this.emit('session_closed', { sessionId })
   }
 
   /**
