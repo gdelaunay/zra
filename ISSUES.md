@@ -11,12 +11,12 @@ Fait → effet → à faire. Une issue acceptée (on ne fera rien) part dans
 | Section | Statut |
 | --- | --- |
 | Tour lancé depuis le mobile : Zed le croit au repos | `à faire` |
-| Réouverture : le filtre du sidebar est flou | `à faire` |
 | Performance sur téléphone non mesurée | `à faire` |
 | Logos d'agents : source | `à faire` |
 | Relecture : environnement et capacités différents de Zed | `à faire` |
 | Fil : placement du plan et de la permission | `à faire` |
 | Liste des threads : projets ouverts, ordre des groupes | `à faire` |
+| Réouverture : le filtre du sidebar est flou | `à faire` |
 
 ## Tour lancé depuis le mobile : Zed le croit au repos — `à faire`
 
@@ -25,22 +25,6 @@ En ACP v1, Zed déduit l'activité de ses propres `session/prompt`
 un : la réponse s'affiche dans Zed, mais sans indicateur de génération ni
 bouton Stop, et rien n'empêche d'y envoyer un prompt en parallèle.
 → Constater en vrai. Piste : ACP v2, où l'agent rapporte son activité.
-
-## Réouverture : le filtre du sidebar est flou — `à faire`
-
-La recette `openThread` tape le titre dans le filtre du sidebar et ouvre le
-premier résultat. Le filtre est flou (`fuzzy_match_positions`), et un projet
-dont le nom correspond fait apparaître tous ses threads
-(`crates/sidebar/src/sidebar.rs`, `rebuild_contents`). `enter` ouvre le
-premier **thread** (`select_first_entry`), dans l'ordre des groupes de la
-fenêtre, qui peuvent être d'autres projets. Un autre thread peut donc s'ouvrir :
-ZRA attend la session visée et échoue proprement après 30 s, mais un agent a
-été lancé pour rien. De plus, `FocusWorkspaceSidebar` bascule : si le sidebar a
-déjà le focus, il le rend (`crates/workspace/src/multi_workspace.rs`,
-`focus_sidebar`) et le titre est tapé ailleurs.
-→ Chercher une voie plus précise (action d'ouverture par identifiant, ou
-vérifier le titre de la fenêtre avant `enter`). À constater : la bascule du
-focus.
 
 ## Performance sur téléphone non mesurée — `à faire`
 
@@ -98,3 +82,22 @@ du sidebar par fenêtre, ordre et repli : `crates/workspace/src/multi_workspace.
 fermé ; l'ouvrir le recharge, comme un clic dans Zed (`crates/sidebar/src/sidebar.rs`,
 `open_workspace_for_group`). À constater d'abord sur une vraie base : le contenu
 de ces clés, et qu'un projet déchargé figure bien dans `multi_workspace_state`.
+
+## Réouverture : le filtre du sidebar est flou — `à faire`
+
+La recette `openThread` tape le titre dans le filtre du sidebar et ouvre le
+premier résultat. Le filtre est flou (`fuzzy_match_positions`), et un projet
+dont le nom correspond fait apparaître tous ses threads
+(`crates/sidebar/src/sidebar.rs`, `rebuild_contents`). `enter` ouvre le
+premier **thread** (`select_first_entry`), dans l'ordre des groupes de la
+fenêtre, qui peuvent être d'autres projets. Un autre thread peut donc s'ouvrir :
+ZRA attend la session visée et échoue proprement après 30 s, mais un agent a
+été lancé pour rien. De plus, `FocusWorkspaceSidebar` bascule : si le sidebar a
+déjà le focus, il le rend (`crates/workspace/src/multi_workspace.rs`,
+`focus_sidebar`) et le titre est tapé ailleurs.
+Zed 1.28.1 n'offre aucune voie plus précise : ni action ni URL d'ouverture
+d'un thread par identifiant (`zed://agent` n'ouvre que le panneau :
+`crates/zed/src/zed/open_listener.rs`, `parse_agent_url`).
+→ À constater : la bascule du focus, et la fréquence des mauvais threads sur
+des titres proches. Piste si c'est gênant : un pas de recette qui rend le
+focus à l'éditeur avant d'ouvrir le sidebar.

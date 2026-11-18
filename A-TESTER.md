@@ -12,6 +12,22 @@ Zed et un téléphone. Un point vérifié est retiré ; un écart constaté part
   ordre non alphabétique (`zed b a`). La PWA nomme le projet d'après le premier
   dans l'ordre de Zed ; le pilote retrouve sa fenêtre.
 
+- **Activité** : un tour lancé dans Zed → indicateur « en cours » sur la ligne
+  du thread et compteur sur son projet ; permission en attente → triangle ; fin
+  de tour sur un thread fermé côté mobile → pastille jusqu'à l'ouverture.
+- **Ordre et dates** : un thread où l'on écrit dans Zed remonte en tête ; un
+  thread poursuivi seulement depuis le mobile ne remonte pas (comme Zed) ;
+  âge affiché comme dans le sidebar (`5 min`, `3 h`, `2 j`…).
+- **Worktree git lié** : un thread ouvert dans un worktree apparaît sous son
+  dépôt principal ; deux projets homonymes se distinguent par leur dossier parent.
+
+## Fil (affichage)
+
+- **Réflexions** dépliées pendant leur écriture, repliées ensuite ; diffs et
+  terminaux dépliés d'office.
+- **Stop** : la file reste en attente ; « envoyer maintenant » sur un message
+  en file coupe le tour et l'envoie.
+
 ## Réouverture et relecture
 
 - **Thread sans titre** : rouvrir depuis la PWA un thread que Zed affiche
