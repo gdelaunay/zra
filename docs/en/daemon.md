@@ -69,9 +69,10 @@ machine, separate from `docs/en/protocol.md` (which only describes PWA ↔ daemo
 
 ```
 shim → daemon   shim_hello · session · session_closed · session_replay · acp_update ·
-                state · permission_resolved · permission_expired · notice · ack
+                state · permission_resolved · permission_expired ·
+                elicitation_resolved · elicitation_expired · notice · ack
 daemon → shim   cmd { id, cmd: prompt|cancel|set_option|
-                              respond_permission|cancel_queued }
+                              respond_permission|respond_elicitation|cancel_queued }
 ```
 
 Two translations, and they only happen in `shim-link.js`:
@@ -115,7 +116,8 @@ phone is warned by an explicit `zra/notice`.
 | `shim-registry.js` | shim → sessions registry (multi-session: Zed launches one agent per window) |
 | `shim-link.js` | `/shim` channel: incoming events, outgoing commands |
 | `session-loader.js` | replay of a closed thread, 10 min TTL cache |
-| `acp-client.js` | minimal, disposable ACP client, for that replay |
+| `acp-client.js` | minimal, disposable ACP client, for that replay; announces Zed's capabilities |
+| `shell-env.js` | project environment captured as Zed does (login shell, direnv), for that replay |
 | `agent-commands.js` | how to launch an agent: config, `settings.json`, Zed registry |
 | `agents.js` | `agent_servers` registry, Zed presence |
 | `jsonc.js` | tolerant parser for Zed's `settings.json` |

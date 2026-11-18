@@ -67,7 +67,7 @@ What ZRA depends on in Zed, and where to check it in its sources. Used for the c
 | Turn started from the mobile, as seen by Zed | `zra-shim/acp.js` | `crates/acp_thread/src/acp_thread.rs`: `uses_reported_activity`, `status` | gap |
 | Mode, model, options: projection and changes | `zra-shim/acp.js` (`projectOptions`, `applyOption`) | `crates/agent_servers/src/acp/v1.rs`: `config_state`, `ConfigOptions::set_config_option`, `AcpSessionModes`; `crates/acp_thread/src/config_options.rs` | verified |
 | Terminal output: replies to `terminal/*`, or tool calls' `_meta` | `zra-shim/acp.js` (`publishTerminal`), `zra-client/js/acp.js` (`terminalMeta`) | `crates/agent_servers/src/acp/v1.rs`: `handle_terminal_output`; `_meta.terminal_info`, `terminal_output`, `terminal_exit` in `handle_session_notification` | verified |
-| Replaying a closed thread: throwaway ACP client, `session/load` | `zra-daemon/session-loader.js`, `acp-client.js` | `crates/agent_servers/src/acp/v1.rs`: `load_session`, `session_directories_from_work_dirs` | gap |
+| Replaying a closed thread: throwaway ACP client, `session/load`, Zed's capabilities (including `_meta.terminal_output`), project environment (login shell and direnv on Linux and macOS; on Windows, the session's, as Zed does). No MCP servers, by choice (`docs/en/limitations.md`) | `zra-daemon/session-loader.js`, `acp-client.js`, `shell-env.js` | `crates/agent_servers/src/acp/v1.rs`: `load_session`, `session_directories_from_work_dirs`, `client_capabilities_for_agent`; `crates/project/src/environment.rs`: `local_directory_environment`, `load_direnv_environment`; `crates/util/src/shell_env.rs`: `capture` | verified |
 
 ### Interface: PWA ↔ agent panel
 

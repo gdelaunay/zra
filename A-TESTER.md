@@ -58,6 +58,9 @@ Zed et un téléphone. Un point vérifié est retiré ; un écart constaté part
   `New Agent Thread` → le bon thread s'ouvre.
 - **Relecture d'un projet à plusieurs dossiers** : thread fermé, historique
   chargé depuis la PWA.
+- **Relecture comme Zed** : un thread fermé qui a lancé des commandes → leur
+  sortie de terminal apparaît dans l'historique du mobile, comme dans Zed. Sous
+  Linux : un agent installé via nvm (ou une clé dans `.bashrc`) se relit.
 - **`env` des réglages** : un agent `registry` avec une variable dans
   `agent_servers.<id>.env` → l'agent ZRA et la relecture la reçoivent.
 

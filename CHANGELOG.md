@@ -6,7 +6,7 @@
 
 - Sécurité : XSS markdown corrigée, canaux loopback, connexions non appairées plafonnées, appairage verrouillable, réseaux publics écartés
 - Durcissement : rotation du journal, file hors ligne, filet du shim, Wayland explicite, CI
-- Alignement sur Zed 1.28.1 : index des threads, lancement des agents, canaux stable/preview/nightly/dev
+- Alignement sur Zed 1.28.1 : index des threads, lancement des agents, canaux stable/preview/nightly/dev ; relecture des threads fermés lancée comme Zed (capacités, environnement du projet), sorties de terminal comprises
 - Shim : sessions reprises et fermées suivies, mode et options synchronisés avec Zed, permission tranchée sur le mobile retirée de Zed ; questions de l’agent (élicitation) répondues depuis le mobile, comme dans Zed
 - Fil comme dans Zed : `session/update`, sortie des terminaux, dépliage par défaut ; permission dans la carte de son tool call, plan au-dessus du composer ; Stop met la file en pause, « envoyer maintenant »
 - Liste des threads comme le sidebar de Zed : tour en cours, permission en attente, fin non lue, tri, dates et noms ; projets et ordre du sidebar, autres sous « Projets récents »

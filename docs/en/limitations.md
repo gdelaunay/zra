@@ -59,3 +59,14 @@ thread — while a session is being created (`session/new`) or the agent is
 signing in (`authenticate`) — only shows in Zed: on the mobile side, there is
 no thread yet to show it in, nor a thread to warn in.
 → Way forward if the case comes up: a machine-level card in the thread list.
+
+## Replay without MCP servers
+
+To show the history of a closed thread, the daemon relaunches the agent as Zed
+does (capabilities, project environment), but passes no MCP server to
+`session/load`. The history is replayed from the transcript: past MCP calls
+are in it (title, input, result) without any server running. Starting them
+each time an old thread is opened would cost several seconds, and a requested
+OAuth sign-in would go unanswered. Parity would be partial anyway: Zed adds
+the servers of its extensions, which the daemon does not see.
+→ To revisit only if an agent cannot replay without its MCP servers.

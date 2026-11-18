@@ -17,6 +17,7 @@
 
 import { resolveAgentCommand } from './agent-commands.js'
 import { AcpClient } from './acp-client.js'
+import { projectEnvironment } from './shell-env.js'
 import { logger } from './log.js'
 import { tr } from './i18n.js'
 
@@ -37,10 +38,12 @@ export class SessionLoader {
    *   threads: import('./threads-index.js').ThreadsIndex,
    *   settingsFile?: string|null, agentCommands?: object,
    *   ttlMs?: number, timeoutMs?: number,
-   * }} opts
+   *   projectEnv?: (dir:string) => Promise<Record<string,string>>,
+   * }} opts `projectEnv` : environnement du projet, relevé comme Zed (`shell-env.js`)
    */
-  constructor({ threads, settingsFile = null, agentCommands = {}, ttlMs = 10 * 60_000, timeoutMs = 60_000, settleMs = 150 }) {
+  constructor({ threads, settingsFile = null, agentCommands = {}, ttlMs = 10 * 60_000, timeoutMs = 60_000, settleMs = 150, projectEnv = projectEnvironment }) {
     this.threads = threads
+    this.projectEnv = projectEnv
     this.settingsFile = settingsFile
     this.agentCommands = agentCommands
     this.ttlMs = ttlMs
@@ -112,7 +115,10 @@ export class SessionLoader {
     }
 
     log.info(tr`relecture de ${thread.threadId} (${thread.agentId}) dans ${cwd}`)
-    const client = new AcpClient({ command: agent.command, args: agent.args, cwd, env: agent.env })
+    // Comme Zed (`LocalRegistryNpxAgent::get_command`) : l'environnement du
+    // projet, puis l'`env` des réglages de l'agent par-dessus.
+    const env = { ...await this.projectEnv(cwd), ...agent.env }
+    const client = new AcpClient({ command: agent.command, args: agent.args, cwd, env })
     /** @type {object[]} */
     const updates = []
     let lastUpdateAt = 0

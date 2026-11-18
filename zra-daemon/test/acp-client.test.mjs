@@ -1,7 +1,7 @@
 // Le daemon en client ACP (`acp-client.js`).
 //
-// Client minimal et jetable : il ne sait qu'`initialize` et `session/load`, ne
-// déclare aucune capacité, et meurt aussitôt après. L'agent en face est un
+// Client minimal et jetable : il ne sait qu'`initialize` et `session/load`,
+// annonce les capacités de Zed, et meurt aussitôt après. L'agent en face est un
 // bouchon (`test/fixtures/replay-agent.mjs`) lancé en vrai sous-processus — c'est
 // le seul moyen de vérifier le découpage des trames, la mort de l'agent et le
 // nettoyage du processus.
@@ -43,16 +43,24 @@ test('le client parle la version 1 du protocole', () => {
   assert.equal(PROTOCOL_VERSION, 1)
 })
 
-test('initialize : aucune capacité déclarée, et l’agent répond', async (t) => {
+test('initialize : les capacités de Zed sont annoncées, et l’agent répond', async (t) => {
   const client = boot(t)
   const init = await client.initialize()
 
   assert.equal(init.agentCapabilities.loadSession, true)
   assert.deepEqual(init.agentInfo, { name: 'replay-agent', version: '2.0.0' })
-  // Ce que l'agent a reçu de nous (renvoyé tel quel par le bouchon).
+  // Ce que l'agent a reçu de nous (renvoyé tel quel par le bouchon) : les
+  // capacités de Zed (`client_capabilities_for_agent`), pour le même rejeu.
   assert.deepEqual(init.echo, {
     protocolVersion: 1,
-    clientCapabilities: { fs: { readTextFile: false, writeTextFile: false }, terminal: false },
+    clientCapabilities: {
+      fs: { readTextFile: true, writeTextFile: true },
+      terminal: true,
+      auth: { terminal: true },
+      session: { configOptions: { boolean: {} }, compaction: {}, notices: {} },
+      elicitation: { form: {}, url: {} },
+      _meta: { terminal_output: true, 'terminal-auth': true },
+    },
     clientInfo: { name: 'zra-daemon', version: '1' },
   })
 })

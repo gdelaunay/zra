@@ -2,8 +2,9 @@
 //
 // Pour relire un thread fermé, le daemon lance lui-même une instance de l'agent
 // et joue le rôle que Zed tient d'habitude. C'est un client **minimal et
-// jetable** : il ne sait qu'`initialize` et `session/load`, ne déclare aucune
-// capacité (ni système de fichiers, ni terminal), et meurt aussitôt après.
+// jetable** : il ne sait qu'`initialize` et `session/load`, et meurt aussitôt
+// après. Il annonce les capacités de Zed pour obtenir le même rejeu, mais
+// refuse toute requête de l'agent.
 //
 // Il ne sert qu'à lire. Jamais à prompter : écrire passe par le shim, donc par
 // la session que Zed tient réellement ouverte.
@@ -18,6 +19,22 @@ const log = logger('acp')
 
 /** Version du protocole ACP parlée par le client (schéma `PROTOCOL_VERSION`). */
 export const PROTOCOL_VERSION = 1
+
+/**
+ * Capacités annoncées : celles de Zed (`client_capabilities_for_agent`,
+ * `crates/agent_servers/src/acp/v1.rs`), pour que l'agent rejoue la session
+ * comme il la rejoue à Zed — notamment la sortie des terminaux dans les tool
+ * calls (`_meta.terminal_output`). Une relecture ne fait que rejouer : les
+ * requêtes que ces capacités permettraient reçoivent quand même un refus.
+ */
+export const CLIENT_CAPABILITIES = {
+  fs: { readTextFile: true, writeTextFile: true },
+  terminal: true,
+  auth: { terminal: true },
+  session: { configOptions: { boolean: {} }, compaction: {}, notices: {} },
+  elicitation: { form: {}, url: {} },
+  _meta: { terminal_output: true, 'terminal-auth': true },
+}
 
 export class AcpClient {
   /** @param {{ command:string, args?:string[], cwd?:string, env?:object }} opts */
@@ -116,7 +133,7 @@ export class AcpClient {
   initialize() {
     return this.request('initialize', {
       protocolVersion: PROTOCOL_VERSION,
-      clientCapabilities: { fs: { readTextFile: false, writeTextFile: false }, terminal: false },
+      clientCapabilities: CLIENT_CAPABILITIES,
       clientInfo: { name: 'zra-daemon', version: '1' },
     })
   }

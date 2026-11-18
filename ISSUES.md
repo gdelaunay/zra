@@ -12,7 +12,6 @@ Fait → effet → à faire. Une issue acceptée (on ne fera rien) part dans
 | --- | --- |
 | Tour lancé depuis le mobile : Zed le croit au repos | `à faire` |
 | Performance sur téléphone non mesurée | `à faire` |
-| Relecture : environnement et capacités différents de Zed | `à faire` |
 | Réouverture : le filtre du sidebar est flou | `à faire` |
 
 ## Tour lancé depuis le mobile : Zed le croit au repos — `à faire`
@@ -32,17 +31,6 @@ relit toute la table `sidebar_threads` toutes les 2 s ; le diff alloue jusqu'à
 (`zra-daemon/ws.js`) ne s'est jamais déclenchée sous Windows, même avec 12 Mo en
 attente.
 → Mesurer sur un long thread, sur un vrai réseau.
-
-## Relecture : environnement et capacités différents de Zed — `à faire`
-
-Zed lance l'agent avec l'environnement du projet (`project_environment`,
-`crates/project/src/agent_server_store.rs`, `LocalRegistryNpxAgent::get_command`),
-lui passe ses serveurs MCP à `session/load` et déclare terminal et `_meta`
-(`crates/agent_servers/src/acp/v1.rs`, `client_capabilities_for_agent`). Le
-client de relecture (`zra-daemon/session-loader.js`, `acp-client.js`) lance
-l'agent avec l'environnement du daemon, sans serveur MCP, sans terminal ni
-`_meta`. Le rejeu peut différer de celui de Zed.
-→ À constater : effet de l'environnement et des capacités sur le rejeu.
 
 ## Réouverture : le filtre du sidebar est flou — `à faire`
 

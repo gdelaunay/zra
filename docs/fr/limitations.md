@@ -60,3 +60,15 @@ ou la connexion de l'agent (`authenticate`) — ne s'affiche que dans Zed : côt
 mobile, il n'y a pas encore de thread où la montrer, ni de fil où prévenir.
 → Piste si le cas se présente : un encart au niveau du poste, dans la liste des
 threads.
+
+## Relecture sans serveurs MCP
+
+Pour afficher l'historique d'un thread fermé, le daemon relance l'agent comme
+Zed (capacités, environnement du projet), mais sans lui passer de serveur MCP à
+`session/load`. L'historique est rejoué depuis la transcription : les appels MCP
+déjà faits y figurent (titre, entrée, résultat) sans qu'aucun serveur ne tourne.
+Les démarrer à chaque ouverture d'un vieux thread coûterait plusieurs secondes,
+et une connexion OAuth demandée resterait sans réponse. La parité serait de
+toute façon partielle : Zed y ajoute les serveurs de ses extensions, que le
+daemon ne voit pas.
+→ À revoir seulement si un agent ne sait pas rejouer sans ses serveurs MCP.

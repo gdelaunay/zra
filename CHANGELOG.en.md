@@ -6,7 +6,7 @@
 
 - Security: markdown XSS fixed, loopback channels, unpaired connections capped, lockable pairing, public networks excluded
 - Hardening: log rotation, offline queue, shim safety net, explicit Wayland, CI
-- Aligned with Zed 1.28.1: thread index, agent launch, stable/preview/nightly/dev channels
+- Aligned with Zed 1.28.1: thread index, agent launch, stable/preview/nightly/dev channels; closed threads replayed as Zed launches them (capabilities, project environment), terminal output included
 - Shim: resumed and closed sessions tracked, mode and options synced with Zed, permission settled on mobile withdrawn from Zed; agent questions (elicitation) answered from the mobile, as in Zed
 - Thread view as in Zed: `session/update`, terminal output, default expansion; permission in its tool call's card, plan above the composer; Stop pauses the queue, "send now"
 - Thread list as in Zed's sidebar: turn in progress, pending permission, unread end, sorting, dates and names; sidebar projects and order, the others under "Recent projects"
