@@ -372,11 +372,8 @@ test('set_option : le mode change réellement côté agent', async (t) => {
   const client = await (await Client.open(t)).hello()
   await subscribe(client, VIVANT)
 
+  // Mode porté par `configOptions` : changé par set_config_option, comme dans Zed.
   client.send({ type: 'set_option', threadId: VIVANT, key: 'mode', value: 'plan' })
-  await client.until(
-    (m) => m.type === 'acp_event' && m.update.sessionUpdate === 'current_mode_update' && m.update.currentModeId === 'plan',
-    { label: 'current_mode_update' },
-  )
   await client.until(
     (m) => m.type === 'thread_state' && m.currentModeId === 'plan',
     { label: 'thread_state à jour' },

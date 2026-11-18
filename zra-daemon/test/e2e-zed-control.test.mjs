@@ -263,11 +263,11 @@ test('new_thread désactivé : new_thread_failed explicite, aucune touche', asyn
   assert.equal(keyboard.calls.length, 0)
 })
 
-test('machine.agents : l’entrée ZRA est nommée d’après l’agent enveloppé', async (t) => {
+test('machine.agents : l’entrée ZRA est nommée par sa clé, comme dans Zed', async (t) => {
   await boot(t)
   const client = await Client.open(t)
   const machine = await client.until((m) => m.type === 'machine', { label: 'machine' })
-  assert.deepEqual(machine.agents, [{ id: 'fake-zra', name: 'Fake (ZRA)', kind: 'custom', wraps: 'fake-acp' }])
+  assert.deepEqual(machine.agents, [{ id: 'fake-zra', name: 'fake-zra', kind: 'custom', wraps: 'fake-acp' }])
 })
 
 test('new_thread : Zed ouvre la session, threads puis thread_created', async (t) => {

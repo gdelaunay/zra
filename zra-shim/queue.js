@@ -38,6 +38,8 @@ export class SessionState {
     this.currentModelId = null
     /** Id réel du sélecteur de modèle côté agent — souvent `model`, pas toujours. */
     this.modelConfigId = null
+    /** Id du sélecteur de mode dans `configOptions` ; `null` : mode par `session/set_mode`. */
+    this.modeConfigId = null
     /** Les autres sélecteurs de l'agent (effort, mode rapide…), projetés par `projectOptions`. */
     this.options = null
     /** Une interruption est en cours : la réponse au prompt va arriver « cancelled ». */

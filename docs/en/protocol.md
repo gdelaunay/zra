@@ -352,6 +352,10 @@ remove some (effort disappears with a model that does not support it). Only the
 is indicative (`thought_level`, `model_config`, …), never required. They are changed
 through `set_option` with `key` = the option's `id` (boolean for a `boolean`).
 
+Zed's rule: if the agent announces `configOptions`, its `modes` are ignored; the
+modes are those of the `mode`-category selector, changed through
+`session/set_config_option`. Otherwise, `modes` and `session/set_mode`.
+
 ### `acp_event`
 ```ts
 { type: 'acp_event', threadId: string, update: object, at?: string, seq?: number }

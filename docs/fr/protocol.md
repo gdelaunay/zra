@@ -352,6 +352,10 @@ en retirer (l'effort disparaît avec un modèle qui ne le gère pas). Seuls les 
 est indicative (`thought_level`, `model_config`, …), jamais requise. On les change
 par `set_option` avec `key` = `id` de l'option (booléen pour un `boolean`).
 
+Règle de Zed : si l'agent annonce `configOptions`, ses `modes` sont ignorés ; les
+modes sont ceux du sélecteur de catégorie `mode`, changés par
+`session/set_config_option`. Sinon, `modes` et `session/set_mode`.
+
 ### `acp_event`
 ```ts
 { type: 'acp_event', threadId: string, update: object, at?: string, seq?: number }

@@ -13,8 +13,6 @@ Fait → effet → à faire. Une issue acceptée (on ne fera rien) part dans
 | Sessions reprises ou fermées par Zed : le shim ne suit pas | `à faire` |
 | Permission tranchée sur mobile : Zed garde l'invite | `à faire` |
 | Tour lancé depuis le mobile : Zed le croit au repos | `à faire` |
-| Réglage changé depuis le mobile : Zed ne le voit pas | `à faire` |
-| Mode et options : la règle de Zed n'est pas suivie | `à faire` |
 | Sortie de terminal par `_meta` ignorée | `à faire` |
 | Liste des threads : tri, regroupement et noms | `à faire` |
 | Liste des threads : état moins riche que le sidebar | `à faire` |
@@ -65,29 +63,6 @@ En ACP v1, Zed déduit l'activité de ses propres `session/prompt`
 un : la réponse s'affiche dans Zed, mais sans indicateur de génération ni
 bouton Stop, et rien n'empêche d'y envoyer un prompt en parallèle.
 → Constater en vrai. Piste : ACP v2, où l'agent rapporte son activité.
-
-## Réglage changé depuis le mobile : Zed ne le voit pas — `à faire`
-
-Zed met ses sélecteurs à jour à la réponse de ses propres requêtes
-(`ConfigOptions::set_config_option`, `AcpSessionModes::set_mode` :
-`crates/agent_servers/src/acp/v1.rs`), ou sur `current_mode_update` et
-`config_option_update` (`handle_session_notification`). La réponse à une
-requête du shim lui est cachée (`zra-shim/acp.js`, `applyOption`), et un agent
-ne notifie pas forcément. Zed affiche alors l'ancien mode ou modèle, et son
-prochain prompt part avec le réglage du mobile sans le montrer.
-→ Après un changement injecté, envoyer à Zed le `current_mode_update` ou
-`config_option_update` correspondant, comme `mirrorUserMessage`. À constater.
-
-## Mode et options : la règle de Zed n'est pas suivie — `à faire`
-
-Quand l'agent annonce `configOptions`, Zed ignore `modes` : le mode n'est
-qu'un sélecteur parmi les autres, changé par `session/set_config_option`
-(`crates/agent_servers/src/acp/v1.rs`, `config_state`). Le shim fait l'inverse
-(`zra-shim/acp.js`, `projectOptions`) : `modes` prime, et le mode passe par
-`session/set_mode`. Le mobile peut donc proposer une autre liste de modes que
-Zed, changée par une autre méthode. Zed affiche aussi un sélecteur par option,
-dans l'ordre de l'agent (`crates/agent_ui/src/config_options.rs`).
-→ Suivre `config_state` : `configOptions` présent, `modes` ignoré.
 
 ## Sortie de terminal par `_meta` ignorée — `à faire`
 

@@ -61,21 +61,18 @@ export const TURN_TIMEOUT_MS = 600_000
 export const TURN_TICK_MS = 5_000
 
 /**
- * Projette les options de session ACP sur le contrat de la PWA.
+ * Projette les options de session ACP sur le contrat de la PWA, avec la règle de
+ * Zed (`config_state`, `crates/agent_servers/src/acp/v1.rs`) : si l'agent annonce
+ * `configOptions`, `modes` est ignoré et le mode n'est qu'un sélecteur parmi
+ * les autres, changé par `session/set_config_option`. Sinon, `modes` et
+ * `session/set_mode`.
  *
- * L'ACP moderne expose les modes dans `modes` et **tout le reste** — dont le
- * modèle — dans `configOptions`, un tableau de sélecteurs typés. On fait la
- * projection ici, une fois : le mode et le modèle — les réglages de base — ont
- * leurs champs dédiés (`modes`, `models`) ; tous les autres sélecteurs (effort,
- * mode rapide…) partent tels quels dans `options`, adressables par `set_option`
- * sous leur propre `id`.
+ * Le mode et le modèle ont leurs champs dédiés (`modes`, `models`) ; tous les
+ * autres sélecteurs (effort, mode rapide…) partent tels quels dans `options`,
+ * dans l'ordre de l'agent, adressables par `set_option` sous leur propre `id`.
  */
 export function projectOptions({ modes, configOptions } = {}) {
   const out = {}
-  if (modes && Array.isArray(modes.availableModes)) {
-    out.modes = modes.availableModes.map((m) => ({ id: m.id, name: m.name ?? m.id }))
-    out.currentModeId = modes.currentModeId ?? null
-  }
   if (Array.isArray(configOptions)) {
     const model = configOptions.find((o) => o?.category === 'model')
       ?? configOptions.find((o) => o?.id === 'model')
@@ -84,29 +81,25 @@ export function projectOptions({ modes, configOptions } = {}) {
       out.currentModelId = model.currentValue ?? null
       out.modelConfigId = model.id ?? 'model'
     }
-    // Le mode peut aussi vivre dans `configOptions` ; `modes` fait foi s'il est là.
-    const mode = configOptions.find((o) => o?.category === 'mode' || o?.id === 'mode')
-    if (mode?.currentValue != null && out.currentModeId == null) out.currentModeId = mode.currentValue
+    const mode = configOptions.find((o) => o?.category === 'mode')
+      ?? configOptions.find((o) => o?.id === 'mode')
+    const modeSelect = mode && Array.isArray(mode.options) ? mode : null
+    out.modes = modeSelect ? flattenSelect(modeSelect.options) : []
+    out.currentModeId = modeSelect?.currentValue ?? null
+    out.modeConfigId = modeSelect?.id ?? null
     out.options = configOptions
-      .filter((o) => o && o !== model && o !== mode)
+      .filter((o) => o && o !== model && o !== modeSelect)
       .map(projectOption)
       .filter(Boolean)
-
-    // Un agent sans vrai mode peut habiller un autre réglage en « modes » (pi :
-    // ses niveaux de réflexion), qu'il annonce aussi en sélecteur typé. Mêmes
-    // valeurs ⇒ le même réglage : on ne garde que le sélecteur, une seule fois,
-    // et on ne présume pas d'un mode qui n'existe pas.
-    const modeIds = out.modes?.map((m) => m.id)
-      ?? (Array.isArray(mode?.options) ? flattenSelect(mode.options).map((v) => v.id) : null)
-    if (modeIds?.length && out.options.some((o) => o.type === 'select' && sameIds(o.values.map((v) => v.id), modeIds))) {
-      out.modes = []
-      out.currentModeId = null
-    }
+    return out
+  }
+  if (modes && Array.isArray(modes.availableModes)) {
+    out.modes = modes.availableModes.map((m) => ({ id: m.id, name: m.name ?? m.id }))
+    out.currentModeId = modes.currentModeId ?? null
+    out.modeConfigId = null
   }
   return out
 }
-
-const sameIds = (a, b) => a.length === b.length && a.every((id) => b.includes(id))
 
 /**
  * Un sélecteur générique, pour la PWA. Seuls les types connus passent : un
@@ -138,10 +131,11 @@ function flattenSelect(options) {
 
 /** Reporte une projection sur l'état de session : seul ce qu'elle porte change. */
 function assignOptions(st, p) {
-  if (p.modes) st.modes = p.modes
-  if (p.currentModeId != null) st.currentModeId = p.currentModeId
-  // Plus de mode (alias écarté) : plus de mode courant non plus.
-  if (p.modes && !p.modes.length) st.currentModeId = null
+  if (p.modes) {
+    st.modes = p.modes
+    st.currentModeId = p.currentModeId ?? null
+    st.modeConfigId = p.modeConfigId ?? null
+  }
   if (p.models) {
     st.models = p.models
     st.currentModelId = p.currentModelId
@@ -366,7 +360,7 @@ export class AcpBridge extends EventEmitter {
       assignOptions(st, projectOptions({ configOptions: result.configOptions }))
     } else if (params.configId) {
       if (params.configId === (st.modelConfigId || 'model')) st.currentModelId = params.value
-      else if (params.configId === 'mode') st.currentModeId = params.value
+      else if (params.configId === st.modeConfigId) st.currentModeId = params.value
       else {
         const option = st.options?.find((o) => o.id === params.configId)
         if (option) option.currentValue = params.value
@@ -397,8 +391,9 @@ export class AcpBridge extends EventEmitter {
 
     const st = this.sessions.get(sessionId)
     switch (update.sessionUpdate) {
+      // Mode porté par `configOptions` : Zed n'a pas d'état `modes` à mettre à jour.
       case 'current_mode_update':
-        if (update.currentModeId) { st.currentModeId = update.currentModeId; this.sessions.changed(sessionId) }
+        if (update.currentModeId && !st.modeConfigId) { st.currentModeId = update.currentModeId; this.sessions.changed(sessionId) }
         break
       // L'agent republie la liste **complète** : un changement de modèle peut
       // faire apparaître ou disparaître l'effort, on remplace donc tout.
@@ -497,6 +492,17 @@ export class AcpBridge extends EventEmitter {
       }
       try { this.toZed(encodeFrame(msg)) } catch (err) { this.log?.warn(tr`écho vers Zed impossible :`, err.message) }
     }
+  }
+
+  /**
+   * Réglage changé depuis le mobile : Zed ne voit pas la réponse à la requête du
+   * shim, et n'a que la notification pour mettre ses sélecteurs à jour
+   * (`handle_session_notification`).
+   */
+  mirrorToZed(sessionId, update) {
+    if (!this.toZed) return
+    const msg = { jsonrpc: '2.0', method: 'session/update', params: { sessionId, update } }
+    try { this.toZed(encodeFrame(msg)) } catch (err) { this.log?.warn(tr`écho vers Zed impossible :`, err.message) }
   }
 
   /** Écrit une trame **produite par ZRA** vers l'agent. */
@@ -757,9 +763,10 @@ export class AcpBridge extends EventEmitter {
   }
 
   /**
-   * Change une option de session. `mode` passe par `session/set_mode` ; tout le
-   * reste — `model` comme les sélecteurs génériques d'`options`, sous leur `id` —
-   * par `session/set_config_option`, où l'ACP moderne les range.
+   * Change une option de session. `mode` passe par `session/set_mode`, sauf s'il
+   * est un sélecteur de `configOptions` ; tout le reste — `model` comme les
+   * sélecteurs génériques d'`options`, sous leur `id` — par
+   * `session/set_config_option`.
    */
   async setOption(sessionId, key, value) {
     const st = this.requireSession(sessionId)
@@ -774,18 +781,23 @@ export class AcpBridge extends EventEmitter {
 
   async applyOption(sessionId, key, value) {
     const st = this.sessions.get(sessionId)
-    if (key === 'mode') {
+    if (key === 'mode' && !st.modeConfigId) {
       const params = { sessionId, modeId: value }
       await this.request(M.sessionSetMode, params)
       this.noteOptions(sessionId, M.sessionSetMode, params)
+      this.mirrorToZed(sessionId, { sessionUpdate: 'current_mode_update', currentModeId: value })
       return
     }
-    const configId = key === 'model' ? (st.modelConfigId || 'model') : key
+    const configId = key === 'model' ? (st.modelConfigId || 'model') : key === 'mode' ? st.modeConfigId : key
     const params = typeof value === 'boolean'
       ? { sessionId, configId, value, type: 'boolean' }
       : { sessionId, configId, value }
     const result = await this.request(M.sessionSetConfigOption, params)
     this.noteOptions(sessionId, M.sessionSetConfigOption, params, result)
+    // Zed remplace toute sa liste : sans la liste complète de l'agent, rien à lui dire.
+    if (Array.isArray(result?.configOptions)) {
+      this.mirrorToZed(sessionId, { sessionUpdate: 'config_option_update', configOptions: result.configOptions })
+    }
   }
 
   flushOptions(sessionId) {

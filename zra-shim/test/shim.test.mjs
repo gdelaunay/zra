@@ -158,7 +158,14 @@ test('proxy : un observateur qui jette laisse quand même passer la trame (fail-
   assert.deepEqual(errors, ['boum'])
 })
 
-test('projection des options : modes ACP et sélecteur de modèle → contrat PWA', () => {
+test('projection des options : sans `configOptions`, les modes ACP', () => {
+  const p = projectOptions({ modes: { currentModeId: 'plan', availableModes: [{ id: 'plan', name: 'Plan' }] } })
+  assert.deepEqual(p.modes, [{ id: 'plan', name: 'Plan' }])
+  assert.equal(p.currentModeId, 'plan')
+  assert.equal(p.modeConfigId, null, 'mode changé par session/set_mode')
+})
+
+test('projection des options : avec `configOptions`, `modes` est ignoré (comme Zed)', () => {
   const p = projectOptions({
     modes: { currentModeId: 'plan', availableModes: [{ id: 'plan', name: 'Plan' }] },
     configOptions: [{
@@ -166,8 +173,8 @@ test('projection des options : modes ACP et sélecteur de modèle → contrat PW
       options: [{ group: 'g', name: 'Groupe', options: [{ value: 'a', name: 'A' }, { value: 'b', name: 'B' }] }],
     }],
   })
-  assert.deepEqual(p.modes, [{ id: 'plan', name: 'Plan' }])
-  assert.equal(p.currentModeId, 'plan')
+  assert.deepEqual(p.modes, [])
+  assert.equal(p.currentModeId, null)
   // Les valeurs groupées sont aplaties : la PWA n'affiche qu'une liste.
   assert.deepEqual(p.models, [{ id: 'a', name: 'A' }, { id: 'b', name: 'B' }])
   assert.equal(p.currentModelId, 'b')
@@ -184,8 +191,10 @@ test('projection des options : les autres sélecteurs passent dans `options`, mo
       { id: 'futur', type: 'slider', name: 'Inconnu', currentValue: 3 },
     ],
   })
-  // Sans `modes`, le mode courant se lit dans son sélecteur.
+  // Le mode est un sélecteur de `configOptions`, changé sous son id.
+  assert.deepEqual(p.modes, [{ id: 'plan', name: 'Plan' }])
   assert.equal(p.currentModeId, 'plan')
+  assert.equal(p.modeConfigId, 'mode')
   assert.deepEqual(p.options, [
     { id: 'effort', name: 'Effort', category: 'thought_level', type: 'select',
       values: [{ id: 'low', name: 'Low' }, { id: 'high', name: 'High' }], currentValue: 'high' },
@@ -208,17 +217,6 @@ test('projection des options : des « modes » qui doublent un sélecteur dispar
   assert.deepEqual(p.options.map((o) => o.id), ['thinking'])
 })
 
-test('projection des options : de vrais modes restent des modes (claude)', () => {
-  const p = projectOptions({
-    modes: { currentModeId: 'plan', availableModes: [{ id: 'default' }, { id: 'plan' }] },
-    configOptions: [
-      { id: 'effort', type: 'select', category: 'thought_level', currentValue: 'low',
-        options: [{ value: 'default' }, { value: 'low' }] },
-    ],
-  })
-  assert.deepEqual(p.modes.map((m) => m.id), ['default', 'plan'])
-  assert.equal(p.currentModeId, 'plan')
-})
 
 // ---------------------------------------------------------------------------
 // Observation
@@ -368,11 +366,13 @@ test('mode interrupt : on coupe, puis le message part', async (t) => {
 test('set_option : appliqué tout de suite au repos, différé pendant un tour', async (t) => {
   const { bridge, zed } = await boot(t)
 
+  // Mode porté par `configOptions` (comme claude-agent-acp) : set_config_option.
   assert.deepEqual(await bridge.setOption(zed.sessionId, 'mode', 'plan'), { deferred: false })
-  await until(
-    () => zed.updates.some((u) => u.sessionUpdate === 'current_mode_update' && u.currentModeId === 'plan'),
-    { label: 'changement de mode' },
-  )
+  assert.equal(bridge.sessions.get(zed.sessionId).currentModeId, 'plan')
+  assert.ok(!zed.updates.some((u) => u.sessionUpdate === 'current_mode_update'), 'pas de session/set_mode')
+  // Zed apprend le changement par la liste complète de l'agent.
+  await until(() => zed.updates.some((u) => u.sessionUpdate === 'config_option_update'
+    && u.configOptions.find((o) => o.id === 'mode')?.currentValue === 'plan'), { label: 'miroir vers Zed' })
 
   const turn = zed.prompt('lent: tour occupé')
   await until(() => bridge.sessions.get(zed.sessionId).turn === 'busy', { label: 'busy' })

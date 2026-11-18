@@ -21,6 +21,13 @@ Zed et un téléphone. Un point vérifié est retiré ; un écart constaté part
 - **`env` des réglages** : un agent `registry` avec une variable dans
   `agent_servers.<id>.env` → l'agent ZRA et la relecture la reçoivent.
 
+## Réglages depuis le mobile
+
+- **Mode, modèle, effort** changés sur le mobile → les sélecteurs de Zed
+  suivent ; le prompt suivant envoyé depuis Zed part avec ces réglages.
+- **Agent à `modes` sans `configOptions`** (s'il en existe un) : le mode
+  changé sur le mobile apparaît dans Zed.
+
 ## Installation
 
 - **`npm run setup -- install`** avec `default_mode` et
