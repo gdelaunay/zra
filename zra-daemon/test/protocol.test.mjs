@@ -49,6 +49,15 @@ async function boot(t, overrides = {}) {
   return daemon
 }
 
+/**
+ * Tour bouchon long (60 ms par défaut) : l'interruption ou l'annulation arrive
+ * toujours pendant le tour, même sous charge.
+ */
+function slowTurns(daemon) {
+  daemon.backend.delayMs = 10_000
+  return daemon
+}
+
 /** Client de test : collecte les messages et sait attendre une condition. */
 class Client {
   constructor(ws) {
@@ -229,7 +238,7 @@ test('file d’attente : envoi pendant un tour, dépilé à la fin (§7)', async
 })
 
 test('cancel_queued retire l’entrée ; un queueId inconnu est sans effet (§3)', async (t) => {
-  await boot(t)
+  slowTurns(await boot(t))
   const c = await (await Client.open(t)).hello()
   c.send({ type: 'subscribe', threadId: VIVANT })
   await c.until((m) => m.type === 'thread_state')
@@ -247,11 +256,8 @@ test('cancel_queued retire l’entrée ; un queueId inconnu est sans effet (§3)
   assert.equal(c.of('error').length, 0, 'un queueId inconnu ne produit pas d’erreur')
 })
 
-// INSTABLE sous charge (suite complète) : le tour bouchon dure 60 ms, l'interrupt
-// ou le cancel_queued arrive parfois après. Idem « cancel_queued » et « send mode
-// interrupt ». Connu, sans conséquence : relancer.
 test('interrupt : stop sec, rien n’est envoyé (§7)', async (t) => {
-  await boot(t)
+  slowTurns(await boot(t))
   const c = await (await Client.open(t)).hello()
   c.send({ type: 'subscribe', threadId: VIVANT })
   await c.until((m) => m.type === 'thread_state')
@@ -277,7 +283,7 @@ test('interrupt : stop sec, rien n’est envoyé (§7)', async (t) => {
 })
 
 test('send mode interrupt : coupe puis envoie (§6.4)', async (t) => {
-  await boot(t)
+  slowTurns(await boot(t))
   const c = await (await Client.open(t)).hello()
   c.send({ type: 'subscribe', threadId: VIVANT })
   await c.until((m) => m.type === 'thread_state')
