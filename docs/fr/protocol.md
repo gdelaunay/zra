@@ -288,12 +288,13 @@ type ThreadSummary = {
   threadId: string          // hex du BLOB sidebar_threads.thread_id
   sessionId: string | null
   agentId: string | null    // "claude-acp", … — sert à choisir l'icône
-  title: string             // title_override ?? title
+  title: string             // title_override ?? title, lus comme Zed (vide ou « New Agent Thread » : absent) ; '' si absent
   titleOverridden?: boolean // renommé dans Zed : prime sur le titre annoncé par l'agent
-  folderPaths: string[]     // UTF-8 décodé, séparateurs libres
+  folderPaths: string[]     // UTF-8 décodé, séparateurs libres, dans l'ordre d'affichage de Zed (folder_paths_order)
   updatedAt: string
   createdAt?: string | null // informatif, la PWA ne s'en sert pas en v1
   archived: boolean
+  remote?: boolean          // projet distant (SSH, WSL : remote_connection)
   state: 'live' | 'closed' | 'unknown'
   projectOpen?: boolean | null // projet du thread ouvert dans une fenêtre Zed ; null : inconnu
 }
@@ -303,8 +304,9 @@ bootstrap, sur `list_threads`, et spontanément quand l'index change (poll 2 s s
 `updated_at`) ou qu'un shim apparaît/disparaît.
 
 `state` : `live` = un shim est connecté pour ce `session_id` ; `closed` = connu
-de l'index sans shim ; `unknown` = `session_id` NULL (thread avorté). La PWA
-affiche les `unknown` grisés et non cliquables — **ne pas les masquer**.
+de l'index sans shim ; `unknown` = `session_id` NULL (brouillon de Zed). Comme le
+sidebar de Zed, la PWA ne liste ni les brouillons, ni les threads sans `agentId`
+(agent natif de Zed, illisible par ACP), ni les `remote`.
 
 `projectOpen` : relevé dans la base de Zed — `kv_store.session_id` est la session
 en cours, et chaque fenêtre ouverte est une ligne de `workspaces` qui la porte.

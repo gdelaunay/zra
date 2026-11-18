@@ -40,3 +40,14 @@ Node ≥ 24 to install by hand (distro Node versions are older); `xdotool`
 is a standard package everywhere. Pure Node code, no native dependency, XDG
 paths: no effect expected.
 → `npm install && npm test`, then "Checking a machine" in `docs/en/architecture.md`.
+
+## Custom window title
+
+The driver recognizes a project's window by the start of its title: the name
+of the first folder, followed by a space, a comma or nothing (Zed's default
+format, `${projectName}${separator}${fileName}`). With a `window_title_format`
+that does not start with `${projectName}`, or a `window_title_separator` that
+does not start with a space, the window is no longer found: no thread opening
+and no `submit` from the PWA.
+→ If the need arises: read these settings from `settings.json` and derive the
+title pattern from them.

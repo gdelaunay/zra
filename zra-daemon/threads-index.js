@@ -16,7 +16,7 @@ const log = logger('threads')
 /** Sans ces colonnes, l'index n'a plus de sens : on dégrade en « live seul ». */
 const REQUIRED = ['thread_id', 'session_id', 'agent_id', 'title', 'updated_at']
 /** Lues si présentes — une mise à jour de Zed peut les faire disparaître. */
-const OPTIONAL = ['created_at', 'folder_paths', 'folder_paths_order', 'archived', 'interacted_at', 'title_override']
+const OPTIONAL = ['created_at', 'folder_paths', 'folder_paths_order', 'archived', 'interacted_at', 'title_override', 'remote_connection']
 
 /**
  * Normalise une date Zed en ISO 8601.
@@ -40,20 +40,27 @@ export function toIso(value) {
 }
 
 /**
- * `folder_paths` accolé à `folder_paths_order` (une liste d'indices séparés par
- * des virgules). On ne découpe que si l'ordre annonce plusieurs entrées **et**
- * que le découpage retombe sur le bon compte — un chemin Windows peut contenir
- * une virgule, et se tromper vaut pire qu'un chemin unique.
+ * `folder_paths` et `folder_paths_order` (`PathList` de Zed) : chemins triés,
+ * séparés par `\n`, et pour chacun son rang d'affichage (`"1,0"`). Rendus dans
+ * l'ordre d'affichage, celui des noms de fenêtre et du `cwd` passé à l'agent.
+ *
+ * On ne découpe que si l'ordre annonce plusieurs entrées **et** que le découpage
+ * retombe sur le bon compte — un chemin Windows peut contenir une virgule, et se
+ * tromper vaut pire qu'un chemin unique.
  */
 export function splitFolderPaths(raw, order) {
   if (raw === null || raw === undefined || raw === '') return []
   const text = String(raw)
-  const count = order ? String(order).split(',').filter((x) => x.trim() !== '').length : 1
-  if (count <= 1) return [text]
+  const ranks = order ? String(order).split(',').map((x) => x.trim()).filter((x) => x !== '') : []
+  if (ranks.length <= 1) return [text]
   // Saut de ligne d'abord : aucun chemin n'en contient.
   for (const sep of ['\n', ',']) {
     const parts = text.split(sep).map((p) => p.trim()).filter(Boolean)
-    if (parts.length === count) return parts
+    if (parts.length !== ranks.length) continue
+    // Rangs invalides : Zed retombe sur l'ordre trié (`PathList::deserialize`).
+    const n = ranks.map(Number)
+    const valid = [...n].sort((x, y) => x - y).every((r, i) => r === i)
+    return valid ? parts.map((p, i) => [n[i], p]).sort((x, y) => x[0] - y[0]).map((e) => e[1]) : parts
   }
   return [text]
 }
@@ -63,8 +70,22 @@ export function normPath(p) {
   return String(p).replace(/[\\/]+/g, '/').replace(/\/$/, '').toLowerCase()
 }
 
-/** Identité d'un projet : ses dossiers, dans l'ordre. */
-export const projectKey = (paths) => paths.map(normPath).join('|')
+/** Identité d'un projet : ses dossiers, sans ordre (égalité de `PathList`). */
+export const projectKey = (paths) => paths.map(normPath).sort().join('|')
+
+/** Titre affiché par Zed quand il n'en a pas (`DEFAULT_THREAD_TITLE`). */
+export const DEFAULT_THREAD_TITLE = 'New Agent Thread'
+
+/**
+ * Titre d'une ligne, lu comme Zed (`impl Column for ThreadMetadata`) : un
+ * `title_override` vide est ignoré, un `title` vide ou égal au titre par défaut
+ * vaut absent. Absent : `''`.
+ */
+export function zedTitle(row) {
+  const override = row.title_override ? String(row.title_override) : ''
+  const title = row.title ? String(row.title) : ''
+  return override || (title === DEFAULT_THREAD_TITLE ? '' : title)
+}
 
 function hex(value) {
   if (value === null || value === undefined) return null
@@ -191,17 +212,19 @@ export class ThreadsIndex extends EventEmitter {
         threadId,
         sessionId,
         agentId: r.agent_id ?? null,
-        title: (r.title_override ?? r.title ?? '').toString(),
+        title: zedTitle(r),
         // Renommé par l'utilisateur dans Zed : ce titre prime sur celui que
         // l'agent annonce en direct (`session_info_update`).
-        titleOverridden: r.title_override !== null && r.title_override !== undefined && r.title_override !== '',
+        titleOverridden: Boolean(r.title_override),
         folderPaths: splitFolderPaths(r.folder_paths, r.folder_paths_order),
         updatedAt: toIso(r.updated_at),
         createdAt: toIso(r.created_at),
         archived: Boolean(r.archived),
+        // Projet distant (SSH, WSL) : l'agent tourne sur un autre hôte.
+        remote: Boolean(r.remote_connection),
         // Projet ouvert dans une fenêtre Zed ; `null` si la base ne le dit pas.
         projectOpen: open ? open.has(projectKey(splitFolderPaths(r.folder_paths, r.folder_paths_order))) : null,
-        // `unknown` = session_id NULL (thread avorté) : affiché grisé, jamais masqué.
+        // `unknown` = session_id NULL : brouillon de Zed (`ThreadMetadata::is_draft`).
         state: !sessionId ? 'unknown' : live.has(sessionId) ? 'live' : 'closed',
       }
     })

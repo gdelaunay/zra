@@ -137,7 +137,11 @@ export class SessionLoader {
         )
       }
 
-      await client.loadSession({ sessionId: thread.sessionId, cwd })
+      // Comme Zed (`session_directories_from_work_dirs`) : `cwd` = premier dossier
+      // dans l'ordre d'affichage, les suivants si l'agent sait les recevoir.
+      const additionalDirectories = init.agentCapabilities?.sessionCapabilities?.additionalDirectories
+        ? thread.folderPaths.slice(1) : []
+      await client.loadSession({ sessionId: thread.sessionId, cwd, additionalDirectories })
       // Un agent peut répondre au `session/load` avant d'avoir fini d'émettre
       // son replay : on attend un court silence (borné) avant de tuer l'instance,
       // sans quoi le dernier message pouvait manquer.

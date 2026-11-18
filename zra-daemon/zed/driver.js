@@ -14,6 +14,7 @@ import { execFile } from 'node:child_process'
 
 import { defaultZedCli as hostZedCli } from '../platform.js'
 import { readAgentKey, toChord } from '../zed-keymap.js'
+import { DEFAULT_THREAD_TITLE } from '../threads-index.js'
 import { defaultKeyboardRunner } from './keyboard.js'
 import { tr } from '../i18n.js'
 
@@ -332,7 +333,8 @@ export class ZedDriver {
     const project = projectWindow(thread.folderPaths)
     // Projet fermé dans Zed : sa propre fenêtre, pas un espace de travail de plus.
     if (project) await this.openWorkspace(thread.folderPaths, { newWindow: thread.projectOpen === false })
-    return this.play('openThread', { title: thread.title ?? '', agent: thread.agentId ?? '' }, { project })
+    // Sans titre, le sidebar affiche celui par défaut de Zed : c'est lui qu'on filtre.
+    return this.play('openThread', { title: thread.title || DEFAULT_THREAD_TITLE, agent: thread.agentId ?? '' }, { project })
   }
 
   submit(text) {

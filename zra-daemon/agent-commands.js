@@ -73,10 +73,19 @@ export function packageName(spec) {
   return at > 0 ? s.slice(0, at) : s
 }
 
-/** Le binaire d'un paquet npm : `bin` en chaîne, ou première entrée de l'objet. */
-function binPath(dir, pkg) {
+/**
+ * Le binaire d'un paquet npm, choisi comme Zed (`read_package_executable`) :
+ * `bin` en chaîne, l'unique entrée de l'objet, sinon celle qui porte le nom du
+ * paquet (sans portée).
+ */
+export function binPath(dir, pkg, name) {
   const bin = pkg?.bin
-  const rel = typeof bin === 'string' ? bin : bin && typeof bin === 'object' ? Object.values(bin)[0] : pkg?.main
+  let rel = null
+  if (typeof bin === 'string') rel = bin
+  else if (bin && typeof bin === 'object') {
+    const entries = Object.values(bin)
+    rel = entries.length === 1 ? entries[0] : bin[String(name).split('/').pop()]
+  }
   return rel ? join(dir, String(rel)) : null
 }
 
@@ -142,6 +151,9 @@ export async function resolveAgentCommand(agentId, { settingsFile = null, overri
   if (entry?.command) {
     return { command: entry.command, args: entry.args ?? [], env: entry.env ?? {}, source: 'settings' }
   }
+  // Entrée `registry` : son `env` s'ajoute à celui du registry, et l'emporte
+  // (`LocalRegistryNpxAgent::get_command`).
+  const settingsEnv = entry?.env && typeof entry.env === 'object' ? entry.env : {}
 
   const registry = await readJsonc(join(registryDir, 'registry.json'))
   const agent = Array.isArray(registry?.agents) ? registry.agents.find((a) => a?.id === agentId) : null
@@ -154,14 +166,14 @@ export async function resolveAgentCommand(agentId, { settingsFile = null, overri
     const name = packageName(npx.package)
     const dir = join(registryDir, 'npx', agentId, 'node_modules', ...name.split('/'))
     const pkg = await readJsonc(join(dir, 'package.json'))
-    const bin = pkg ? binPath(dir, pkg) : null
+    const bin = pkg ? binPath(dir, pkg, name) : null
     if (!bin || !existsSync(bin)) {
       throw new AgentCommandError(tr`agent « ${agentId} » (${name}) pas encore installé par Zed (${dir}) — ${NOT_INSTALLED_HINT}`)
     }
     // Les `args`/`env` du registry font partie de la commande : sans le
     // `--acp` de qwen-code, l'agent démarre en mode interactif.
     const args = Array.isArray(npx.args) ? npx.args.map(String) : []
-    const env = npx.env && typeof npx.env === 'object' ? npx.env : {}
+    const env = { ...(npx.env && typeof npx.env === 'object' ? npx.env : {}), ...settingsEnv }
     // Un paquet peut livrer un exécutable natif : on le lance tel quel.
     if (/\.(exe|cmd|bat)$/i.test(bin)) return { command: bin, args, env, source: 'registry/npx' }
     // Node lance Node : on réutilise l'exécutable courant plutôt que de dépendre
@@ -175,7 +187,7 @@ export async function resolveAgentCommand(agentId, { settingsFile = null, overri
     const dir = newestVersionDir(join(registryDir, agentId), file)
     if (!dir) throw new AgentCommandError(tr`agent « ${agentId} » pas encore installé par Zed (${join(registryDir, agentId)}) — ${NOT_INSTALLED_HINT}`)
     const args = Array.isArray(binary.args) ? binary.args.map(String) : []
-    const env = binary.env && typeof binary.env === 'object' ? binary.env : {}
+    const env = { ...(binary.env && typeof binary.env === 'object' ? binary.env : {}), ...settingsEnv }
     return { command: join(dir, file), args, env, source: 'registry/binary' }
   }
 

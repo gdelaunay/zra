@@ -31,6 +31,13 @@ export const splitKey = (k) => {
   return { machineId: k.slice(0, i), threadId: k.slice(i + 1) }
 }
 
+/**
+ * Threads montrés dans la liste, comme le sidebar de Zed : ni brouillon (sans
+ * session, sauf rattaché par ZRA), ni thread de l'agent natif de Zed (sans
+ * agent, contenu illisible par ACP), ni projet distant (SSH, WSL).
+ */
+export const listed = (t) => Boolean(t.sessionId && t.agentId && !t.remote)
+
 let MockLink = null
 
 /** `mock` : la classe `MockLink`, chargée à la demande par l'appelant (hors production). */
@@ -163,8 +170,9 @@ function handle(machine, msg) {
       break
 
     case 'threads': {
-      machine.threads = Array.isArray(msg.threads) ? msg.threads : (Array.isArray(msg) ? msg : [])
-      for (const t of machine.threads) {
+      const all = Array.isArray(msg.threads) ? msg.threads : (Array.isArray(msg) ? msg : [])
+      machine.threads = all.filter(listed)
+      for (const t of all) {
         const k = key(machine.id, t.threadId)
         const st = ensureState(k)
         st.summary = t

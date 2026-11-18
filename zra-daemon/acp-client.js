@@ -121,8 +121,11 @@ export class AcpClient {
     })
   }
 
-  loadSession({ sessionId, cwd }) {
-    return this.request('session/load', { sessionId, cwd, mcpServers: [] })
+  /** `additionalDirectories` : seulement si l'agent les annonce (comme Zed). */
+  loadSession({ sessionId, cwd, additionalDirectories = [] }) {
+    const params = { sessionId, cwd, mcpServers: [] }
+    if (additionalDirectories.length) params.additionalDirectories = additionalDirectories
+    return this.request('session/load', params)
   }
 
   kill() {

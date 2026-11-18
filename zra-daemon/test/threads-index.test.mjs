@@ -56,7 +56,7 @@ test('index : états live / closed / unknown', (t) => {
 
   // Aucun shim : tout ce qui a une session est `closed`.
   assert.equal(index.get('0000000000000000000000000000000a').state, 'closed')
-  // session_id NULL => `unknown`, affiché grisé et jamais masqué.
+  // session_id NULL => `unknown` : brouillon, que la PWA ne liste pas.
   assert.equal(index.get('0000000000000000000000000000000d').state, 'unknown')
 
   // Un shim qui apparaît bascule le thread en `live` sans attendre le poll.

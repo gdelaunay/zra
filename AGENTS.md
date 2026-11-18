@@ -5,7 +5,7 @@
 - La doc française fait référence : `README.md`, `CHANGELOG.md`, `docs/fr/`. L'anglais en est la traduction : `README.en.md`, `CHANGELOG.en.md`, `docs/en/`, mêmes noms de fichiers.
 - **Toute modification d'une page française se reporte dans sa traduction, dans le même commit** : mêmes sections, mêmes tableaux, mêmes liens. Une page ajoutée, déplacée ou supprimée l'est des deux côtés (et dans les tableaux des deux README).
 - Les ancres changent avec la langue (`#sécurité` → `#security`) : un lien vers une section anglaise vise le titre anglais. Entre `README.md` et `README.en.md`, `CHANGELOG.md` et `CHANGELOG.en.md` : liens absolus (URL du dépôt).
-- Restent en français seulement : `ROADMAP.md`, `ISSUES.md`, `reference/`.
+- Restent en français seulement : `ROADMAP.md`, `ISSUES.md`, `A-TESTER.md`, `reference/`.
 - Règles de contenu : une information, une maison ; état courant, pas l'historique.
 
 ## Messages et fichiers livrés

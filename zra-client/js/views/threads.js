@@ -246,13 +246,10 @@ function projectHead(m, project, open, onToggle, state = null) {
 }
 
 function threadRow(m, t, navigate) {
-  const unknown = t.state === 'unknown'
   // Créé hors ZRA et fermé : consultable, mais on ne peut pas y répondre.
-  const readOnly = !unknown && Boolean(store.foreignAgentOf(m, t))
+  const readOnly = Boolean(store.foreignAgentOf(m, t))
   return button('thread-row', {
-    class: unknown ? 'thread-row--unknown' : '',
-    disabled: unknown,
-    title: unknown ? tr`thread sans session : non consultable` : t.title,
+    title: t.title,
     onclick: () => navigate(`#/t/${m.id}/${t.threadId}`),
   },
     readOnly

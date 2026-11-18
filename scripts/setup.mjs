@@ -108,9 +108,10 @@ const USAGE = tr`zra setup — brancher ZRA dans Zed
  * `command` est le Node qui exécute ce script, en chemin absolu : Zed lance ses
  * agents avec son propre environnement, on ne parie pas sur le PATH.
  *
- * `default_config_options` est recopié de l'agent enveloppé : sans ça, un
- * thread ouvert avec l'entrée ZRA partirait avec d'autres mode et modèle par
- * défaut que ceux que l'utilisateur a choisis dans Zed.
+ * `default_mode`, `default_config_options` et `favorite_config_option_values`
+ * sont recopiés de l'agent enveloppé : sans ça, un thread ouvert avec l'entrée
+ * ZRA partirait avec d'autres mode, modèle et favoris que ceux que
+ * l'utilisateur a choisis dans Zed.
  */
 export function buildEntry({ agent, record, nodePath = process.execPath, root = ROOT, wrapped = null }) {
   const env = {
@@ -127,10 +128,20 @@ export function buildEntry({ agent, record, nodePath = process.execPath, root = 
     args: [join(root, 'zra-shim', 'index.js')],
     env,
   }
-  if (wrapped?.default_config_options && typeof wrapped.default_config_options === 'object') {
-    entry.default_config_options = wrapped.default_config_options
-  }
+  // Son `env`, lui, est appliqué par le shim (`resolveAgentCommand`).
+  carryStartSettings(entry, wrapped)
   return entry
+}
+
+/** Réglages de démarrage d'une entrée (`CustomAgentServerSettings`). */
+const START_SETTINGS = ['default_mode', 'default_config_options', 'favorite_config_option_values']
+
+/** Recopie dans `entry` les réglages de démarrage présents dans `from`. */
+function carryStartSettings(entry, from) {
+  for (const key of START_SETTINGS) {
+    const v = from?.[key]
+    if (key === 'default_mode' ? typeof v === 'string' && v : v && typeof v === 'object') entry[key] = v
+  }
 }
 
 /**
@@ -328,7 +339,7 @@ async function install(opts, config) {
     let carried = null
     if (old && old !== name && servers[name] === undefined) {
       renamed.push([old, name])
-      carried = servers[old]?.default_config_options
+      carried = servers[old]
       text = removeAgentServer(text, old).text
       delete servers[old]
       console.log(tr`  ↻ ${old} renommé en ${name}`)
@@ -340,9 +351,8 @@ async function install(opts, config) {
       continue
     }
     const entry = buildEntry({ agent: id, record: opts.record, wrapped: servers[id] })
-    // Mode et modèle réglés depuis sur l'entrée ZRA elle-même : ils restent.
-    const mine = carried ?? servers[name]?.default_config_options
-    if (mine && typeof mine === 'object') entry.default_config_options = mine
+    // Réglés depuis sur l'entrée ZRA elle-même : ils restent.
+    carryStartSettings(entry, carried ?? servers[name])
     const res = upsertAgentServer(text, name, entry)
     text = res.text
     console.log(`  ${res.action === 'unchanged' ? '✓' : '+'} ${name} → ${id} (${source})${res.action === 'unchanged' ? tr` — déjà à jour` : ''}`)

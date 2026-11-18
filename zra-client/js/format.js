@@ -85,13 +85,13 @@ export function baseName(p) {
  * Zed, nommé d'après son dernier segment. Un thread sur plusieurs dossiers
  * forme son propre projet (« zra + notes ») — c'est un autre espace de travail.
  *
- * `key` compare les chemins sans casse ni séparateur : Windows ne les distingue
+ * `key` compare les chemins sans ordre, casse ni séparateur : Windows ne les distingue
  * pas, et l'index de Zed n'écrit pas toujours les mêmes.
  */
 export function projectOf(folderPaths) {
   const paths = (Array.isArray(folderPaths) ? folderPaths : []).filter(Boolean)
   if (!paths.length) return { key: '', name: tr`sans projet`, folderPaths: [] }
-  const key = paths.map((p) => String(p).replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase()).join('|')
+  const key = paths.map((p) => String(p).replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase()).sort().join('|')
   return { key, name: paths.map(baseName).join(' + '), folderPaths: paths }
 }
 

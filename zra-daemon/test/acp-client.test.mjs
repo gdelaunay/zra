@@ -64,6 +64,9 @@ test('session/load : les updates du replay arrivent verbatim, dans l’ordre', a
   const result = await client.loadSession({ sessionId: 'sess-1', cwd: CWD })
 
   assert.deepEqual(result.received, { sessionId: 'sess-1', cwd: CWD, mcpServers: [] })
+  const multi = await client.loadSession({ sessionId: 'sess-1', cwd: CWD, additionalDirectories: ['C:/autre'] })
+  assert.deepEqual(multi.received.additionalDirectories, ['C:/autre'])
+  updates.splice(3)
   assert.deepEqual(updates, [
     { sessionId: 'sess-1', update: { sessionUpdate: 'user_message_chunk', content: { type: 'text', text: 'question archivée' } } },
     { sessionId: 'sess-1', update: { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'réponse archivée' } } },

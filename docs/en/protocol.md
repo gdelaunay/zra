@@ -288,12 +288,13 @@ type ThreadSummary = {
   threadId: string          // hex of the sidebar_threads.thread_id BLOB
   sessionId: string | null
   agentId: string | null    // "claude-acp", … — used to pick the icon
-  title: string             // title_override ?? title
+  title: string             // title_override ?? title, read like Zed (empty or "New Agent Thread": absent); '' if absent
   titleOverridden?: boolean // renamed in Zed: takes precedence over the title announced by the agent
-  folderPaths: string[]     // decoded UTF-8, any separators
+  folderPaths: string[]     // decoded UTF-8, any separators, in Zed's display order (folder_paths_order)
   updatedAt: string
   createdAt?: string | null // informative, the PWA does not use it in v1
   archived: boolean
+  remote?: boolean          // remote project (SSH, WSL: remote_connection)
   state: 'live' | 'closed' | 'unknown'
   projectOpen?: boolean | null // thread's project open in a Zed window; null: unknown
 }
@@ -303,8 +304,9 @@ bootstrap, on `list_threads`, and spontaneously when the index changes (2 s poll
 `updated_at`) or a shim appears/disappears.
 
 `state`: `live` = a shim is connected for this `session_id`; `closed` = known
-to the index without a shim; `unknown` = NULL `session_id` (aborted thread). The PWA
-shows `unknown` ones greyed out and not clickable — **do not hide them**.
+to the index without a shim; `unknown` = NULL `session_id` (Zed draft). Like Zed's
+sidebar, the PWA lists neither drafts, nor threads without `agentId` (Zed's
+native agent, unreadable over ACP), nor `remote` ones.
 
 `projectOpen`: read from Zed's database — `kv_store.session_id` is the current
 session, and each open window is a `workspaces` row carrying it.

@@ -158,6 +158,9 @@ test('pilote : le résultat nomme la recette jouée — le message d’échec en
 
   // Les autres recettes sont nommées aussi : même besoin d'explication.
   assert.equal((await driver.openThread({ title: 'x', folderPaths: ['/tmp/p'] })).recipe, 'openThread')
+  // Sans titre, le sidebar montre celui par défaut de Zed : c'est lui qui est tapé.
+  await driver.openThread({ title: '', folderPaths: ['/tmp/p'] })
+  assert.ok(keyboard.calls.at(-1).steps.some((s) => s.text === 'New Agent Thread'))
   assert.equal((await driver.submit('bonjour')).recipe, 'submit')
   rmSync(file, { force: true })
 })

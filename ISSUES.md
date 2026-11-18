@@ -10,40 +10,21 @@ Fait → effet → à faire. Une issue acceptée (on ne fera rien) part dans
 
 | Section | Statut |
 | --- | --- |
-| Licence | `priorité` |
 | Sessions reprises ou fermées par Zed : le shim ne suit pas | `à faire` |
 | Permission tranchée sur mobile : Zed garde l'invite | `à faire` |
 | Tour lancé depuis le mobile : Zed le croit au repos | `à faire` |
 | Réglage changé depuis le mobile : Zed ne le voit pas | `à faire` |
 | Mode et options : la règle de Zed n'est pas suivie | `à faire` |
 | Sortie de terminal par `_meta` ignorée | `à faire` |
-| Relecture : agent lancé autrement que par Zed | `à faire` |
-| Entrée ZRA : réglages de l'agent enveloppé incomplets | `à faire` |
 | Liste des threads : tri, regroupement et noms | `à faire` |
-| Liste des threads : brouillons affichés | `à faire` |
-| Liste des threads : agent natif et projets distants | `à faire` |
-| Liste des threads : titres vides | `à faire` |
 | Liste des threads : état moins riche que le sidebar | `à faire` |
 | Fil : mises à jour ACP traitées autrement que par Zed | `à faire` |
 | Fil : dépliage et placement | `à faire` |
 | Stop et file d'attente : sémantique différente | `à faire` |
 | Réouverture : le filtre du sidebar est flou | `à faire` |
-| Fenêtre du projet mal reconnue | `à faire` |
 | Performance sur téléphone non mesurée | `à faire` |
-| Course dans `protocol.test.mjs` | `à faire` |
-
-## Licence — `priorité`
-
-Pas de `LICENSE`, `package.json` en `"private": true` sans champ `license` : un
-dépôt public resterait « tous droits réservés ». Thèmes et icônes Lucide sont
-attribués (`THIRD_PARTY_NOTICES.md`). Restent les icônes de marques d'agents
-(`zra-client/js/agent-icons.js`, `scripts/gen-agent-icons.mjs`), copiées des
-`assets/icons/ai_*.svg` de Zed. Zed ne peut pas accorder de droits sur ces
-logos : ils appartiennent à leurs marques. Les afficher pour désigner l'agent,
-comme le fait Zed, est un usage courant ; c'est leur source qui pose question.
-→ Choisir une licence (MIT la plus simple), l'ajouter avec le champ `license`
-de `package.json`. Icônes de marques : les reprendre des kits presse officiels
-de chaque marque et suivre leurs règles d'usage, plutôt que de Zed.
+| Logos d'agents : source | `à faire` |
+| Relecture : environnement et capacités différents de Zed | `à faire` |
 
 ## Sessions reprises ou fermées par Zed : le shim ne suit pas — `à faire`
 
@@ -121,38 +102,6 @@ terminal reste vide sur le mobile.
 → Lire ces `_meta` (shim ou `zra-client/js/acp.js`). À constater : quels
 agents prennent cette voie.
 
-## Relecture : agent lancé autrement que par Zed — `à faire`
-
-Zed passe à `session/load` `cwd` = premier dossier **dans l'ordre d'affichage**
-et `additionalDirectories` = les suivants (`crates/agent_servers/src/acp/v1.rs`,
-`session_directories_from_work_dirs`), ses serveurs MCP, et lance l'agent avec
-l'environnement du projet, l'`env` du registry et celui des réglages
-(`crates/project/src/agent_server_store.rs`, `LocalRegistryNpxAgent::get_command`,
-`LocalRegistryArchiveAgent::get_command`). Un paquet à plusieurs `bin` : celui
-qui porte le nom du paquet (`crates/node_runtime/src/node_runtime.rs`,
-`read_package_executable`). ZRA (`zra-daemon/session-loader.js`,
-`agent-commands.js`) prend le premier dossier **dans l'ordre lexicographique**
-(`folder_paths` est stocké trié, `splitFolderPaths` ignore
-`folder_paths_order`), sans dossiers additionnels ni `env` des réglages, avec
-l'environnement du daemon, et le premier `bin` venu ; il ne déclare ni
-terminal ni `_meta`. Projet à plusieurs dossiers : l'agent peut ne pas
-retrouver la session ; agent qui dépend d'une variable des réglages :
-relecture impossible ; le rejeu peut différer de celui de Zed.
-→ Ordonner par `folder_paths_order`, passer `additionalDirectories`, fusionner
-l'`env` des réglages, choisir le `bin` comme Zed. À constater : effet de
-l'environnement et des capacités sur le rejeu.
-
-## Entrée ZRA : réglages de l'agent enveloppé incomplets — `à faire`
-
-`buildEntry` (`scripts/setup.mjs`) ne reporte que `default_config_options` de
-l'entrée d'origine. `CustomAgentServerSettings`
-(`crates/settings_content/src/agent.rs`) porte aussi `default_mode` et
-`favorite_config_option_values`, et l'entrée d'origine son `env`, que le shim
-n'applique pas en lançant l'agent (`resolveAgentCommand` ne le lit pas pour un
-agent du registry). L'agent ZRA ne démarre pas comme l'agent d'origine.
-→ Reporter `default_mode` et `favorite_config_option_values` ; appliquer l'`env`
-de l'entrée d'origine au lancement.
-
 ## Liste des threads : tri, regroupement et noms — `à faire`
 
 Zed (`crates/sidebar/src/sidebar.rs`, `rebuild_contents`) trie et date les
@@ -171,41 +120,17 @@ lexicographique joint par ` + `, et montre un groupe « sans projet ». L'ordre
 et les groupes diffèrent de Zed ; un thread poursuivi depuis le mobile remonte
 dans la PWA, pas dans Zed (le shim ne touche pas `interacted_at`).
 → Trier sur `interacted_at ?? updated_at`, lire `main_worktree_paths(_order)` et
-`folder_paths_order`, reprendre `display_name`. Ordre des groupes : décider
-(ZRA montre tous les projets de la base, Zed ceux de sa fenêtre).
-
-## Liste des threads : brouillons affichés — `à faire`
-
-`session_id` NULL marque un brouillon (`crates/agent_ui/src/thread_metadata_store.rs`,
-`ThreadMetadata::is_draft`), pas un thread avorté. Zed n'affiche un brouillon
-que s'il porte du texte saisi, ou s'il est le thread actif
-(`crates/sidebar/src/sidebar.rs`, `rebuild_contents`,
-`draft_display_label_for_thread_metadata`). ZRA les liste tous, grisés et
-inertes (`state: 'unknown'`, `views/threads.js`).
-→ Masquer les brouillons, sauf ceux que ZRA a rattachés (`bindSession`).
-
-## Liste des threads : agent natif et projets distants — `à faire`
-
-`agent_id` NULL désigne l'agent natif de Zed (`ZED_AGENT_ID`, `impl Column for
-ThreadMetadata` dans `thread_metadata_store.rs`), dont le contenu vit dans
-`threads/threads.db`. `remote_connection` non NULL désigne un projet SSH ou
-WSL ; Zed filtre par hôte (`ThreadMetadata::matches_remote_connection`). ZRA ne
-lit ni l'un ni l'autre : un thread natif paraît sans icône ni verrou et sa
-relecture échoue (« aucun agent demandé ») ; un thread distant passe pour un
-projet local fermé, que ZRA tenterait d'ouvrir en local.
-→ Lire `remote_connection` ; marquer ces threads (lecture seule, non
-relisibles) ou les masquer.
-
-## Liste des threads : titres vides — `à faire`
-
-Zed traite un `title` vide ou égal à `New Agent Thread` comme absent, ignore un
-`title_override` vide (`impl Column for ThreadMetadata`), et affiche alors
-`New Agent Thread` (`ThreadMetadata::display_title`). ZRA prend
-`title_override ?? title` (`threads-index.js`, `read`) : un override vide
-donne un titre vide ; il affiche « sans titre ». La recette `openThread` tape
-alors un filtre vide : rien ne s'ouvre.
-→ Ignorer les chaînes vides comme Zed ; taper `New Agent Thread` pour un titre
-absent.
+`folder_paths_order`, reprendre `display_name`. Décidé : la liste ne montre que
+les projets ouverts dans Zed (toutes fenêtres), dans l'ordre de Zed ; les
+autres projets de la base restent accessibles pour ouvrir un projet récent.
+Source probable : `kv_store`, clés `session_window_stack` (fenêtres en cours) et
+`multi_workspace_state` (groupes du sidebar par fenêtre, ordre et repli :
+`crates/workspace/src/multi_workspace.rs`, `serialize_now` ;
+`crates/workspace/src/persistence.rs`, `read_multi_workspace_state`). Un
+projet déchargé mais resté au sidebar (« fermer l'espace de travail » sans
+« retirer le projet ») est montré, marqué fermé ; l'ouvrir le recharge, comme
+un clic dans Zed (`crates/sidebar/src/sidebar.rs`, `open_workspace_for_group`).
+À constater : qu'il figure bien dans `multi_workspace_state`.
 
 ## Liste des threads : état moins riche que le sidebar — `à faire`
 
@@ -275,19 +200,6 @@ déjà le focus, il le rend (`crates/workspace/src/multi_workspace.rs`,
 vérifier le titre de la fenêtre avant `enter`). À constater : la bascule du
 focus.
 
-## Fenêtre du projet mal reconnue — `à faire`
-
-ZRA reconnaît la fenêtre d'un projet au début de son titre
-(`zra-daemon/zed/keyboard.ps1`, `Test-ProjectTitle`), c'est-à-dire au format
-par défaut de Zed `${projectName}${separator}${fileName}`. Les réglages
-`window_title_format` et `window_title_separator` le changent : la fenêtre
-n'est alors plus trouvée. Projet à plusieurs dossiers : Zed nomme la fenêtre
-d'après le premier dans l'ordre d'affichage (`crates/workspace/src/workspace.rs`,
-`project_window_title`), le pilote d'après le premier dans l'ordre
-lexicographique (`zra-daemon/zed/driver.js`, `projectWindow`).
-→ Ordonner par `folder_paths_order`. Lire `window_title_format` dans
-`settings.json`, ou le signaler dans `docs/fr/limitations.md`.
-
 ## Performance sur téléphone non mesurée — `à faire`
 
 Rien de bloquant à la lecture, aucune mesure sur un téléphone. À surveiller si
@@ -298,9 +210,23 @@ relit toute la table `sidebar_threads` toutes les 2 s ; le diff alloue jusqu'à
 attente.
 → Mesurer sur un long thread, sur un vrai réseau.
 
-## Course dans `protocol.test.mjs` — `à faire`
+## Logos d'agents : source — `à faire`
 
-Les tests `interrupt` et `cancel_queued` échouent parfois : le tour du bouchon
-dure 60 ms et l'interruption arrive parfois après (cause notée dans le fichier).
-Non reproduit en 16 passages.
-→ Rendre la durée du tour réglable dans le test.
+Les logos (`zra-client/js/agent-icons.js`, `scripts/gen-agent-icons.mjs`) sont
+copiés des `assets/icons/ai_*.svg` de Zed, qui ne peut pas accorder de droits
+sur eux : ils appartiennent à leurs marques. Les afficher pour désigner
+l'agent, comme le fait Zed, est un usage courant ; c'est leur source qui pose
+question (`THIRD_PARTY_NOTICES.md`).
+→ À trancher : les reprendre des kits presse officiels et suivre leurs règles
+d'usage, ou garder la source Zed.
+
+## Relecture : environnement et capacités différents de Zed — `à faire`
+
+Zed lance l'agent avec l'environnement du projet (`project_environment`,
+`crates/project/src/agent_server_store.rs`, `LocalRegistryNpxAgent::get_command`),
+lui passe ses serveurs MCP à `session/load` et déclare terminal et `_meta`
+(`crates/agent_servers/src/acp/v1.rs`, `client_capabilities_for_agent`). Le
+client de relecture (`zra-daemon/session-loader.js`, `acp-client.js`) lance
+l'agent avec l'environnement du daemon, sans serveur MCP, sans terminal ni
+`_meta`. Le rejeu peut différer de celui de Zed.
+→ À constater : effet de l'environnement et des capacités sur le rejeu.

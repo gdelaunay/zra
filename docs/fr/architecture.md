@@ -79,7 +79,7 @@ Backends d'injection (`zra-daemon/inject/`) : `acp` (défaut et seul supporté, 
 
 Ce que ZRA lit, écrit et imite dans Zed, avec l'endroit où le vérifier dans ses sources : `docs/fr/zed.md`.
 
-États d'un thread : **live** (un shim tient sa session : flux temps réel, écriture directe), **fermé** (dans l'index, sans shim : historique par `session/load`, écriture après réouverture dans Zed), **inconnu** (`session_id` nul : affiché grisé, jamais masqué).
+États d'un thread : **live** (un shim tient sa session : flux temps réel, écriture directe), **fermé** (dans l'index, sans shim : historique par `session/load`, écriture après réouverture dans Zed), **inconnu** (`session_id` nul : brouillon de Zed, non listé).
 
 ## Comportements
 

@@ -10,14 +10,14 @@ import { fileURLToPath } from 'node:url'
 import { parseJsonc, stripJsonc } from '../jsonc.js'
 import { inCidr, isPrivate, findTunnel, findLan, resolveBinds, resolveNetwork, listInterfaces, bindAddresses, NetWatch, TunnelMissingError } from '../net.js'
 import { acceptKey, encodeFrame, createDecoder, WsConnection } from '../ws.js'
-import { toIso, splitFolderPaths } from '../threads-index.js'
+import { toIso, splitFolderPaths, zedTitle } from '../threads-index.js'
 import { RingBuffers } from '../ring-buffer.js'
 import { ThreadStates } from '../thread-state.js'
 import { ShimRegistry } from '../shim-registry.js'
 import { agentLabel } from '../agents.js'
 import { checkOrigin, selfOrigins, isLoopback } from '../server.js'
 import { ShimHost } from '../shim-link.js'
-import { resolveAgentCommand, packageName, discoverAgents } from '../agent-commands.js'
+import { resolveAgentCommand, packageName, discoverAgents, binPath } from '../agent-commands.js'
 import { SessionLoader } from '../session-loader.js'
 
 /** Dossier de travail des fixtures fabriquées à la volée. */
@@ -275,10 +275,21 @@ test('splitFolderPaths : découpe seulement si l’ordre le confirme', () => {
   assert.deepEqual(splitFolderPaths(null, null), [])
   assert.deepEqual(splitFolderPaths('C:\\a', '0'), ['C:\\a'])
   assert.deepEqual(splitFolderPaths('C:\\a,C:\\b', '0,1'), ['C:\\a', 'C:\\b'])
+  // Ordre d'affichage de Zed : rang de chaque chemin trié.
+  assert.deepEqual(splitFolderPaths('C:\\a\nC:\\b', '1,0'), ['C:\\b', 'C:\\a'])
+  // Rangs invalides : ordre trié, comme Zed.
+  assert.deepEqual(splitFolderPaths('C:\\a\nC:\\b', '0,0'), ['C:\\a', 'C:\\b'])
   // Chemin contenant une virgule : un seul dossier annoncé, on ne touche à rien.
   assert.deepEqual(splitFolderPaths('C:\\a,b', '0'), ['C:\\a,b'])
   // Découpage incohérent avec l'ordre : on préfère un chemin unique à une bouillie.
   assert.deepEqual(splitFolderPaths('C:\\a,b,c', '0,1'), ['C:\\a,b,c'])
+})
+
+test('zedTitle : chaînes vides et titre par défaut valent absent, comme Zed', () => {
+  assert.equal(zedTitle({ title: 'fil', title_override: '' }), 'fil')
+  assert.equal(zedTitle({ title: 'fil', title_override: 'renommé' }), 'renommé')
+  assert.equal(zedTitle({ title: 'New Agent Thread', title_override: null }), '')
+  assert.equal(zedTitle({ title: '', title_override: null }), '')
 })
 
 // ---- ring buffer -----------------------------------------------------------
@@ -555,6 +566,19 @@ test('agent-commands : les args et env du registry font partie de la commande', 
   assert.equal(bin.command, join(binDir, 'agent.exe'))
   assert.deepEqual(bin.args, ['acp'])
   await assert.rejects(() => resolveAgentCommand('pas-installe', { registryDir }), /ouvrir une fois un thread/)
+
+  // L'`env` de l'entrée `registry` des réglages s'ajoute, et l'emporte (comme Zed).
+  const settingsFile = join(FIXTURES, 'settings-env.json')
+  writeFileSync(settingsFile, JSON.stringify({ agent_servers: { 'qwen-code': { type: 'registry', env: { X: '2', Y: 'y' } } } }), 'utf8')
+  assert.deepEqual((await resolveAgentCommand('qwen-code', { registryDir, settingsFile })).env, { X: '2', Y: 'y' })
+})
+
+test('agent-commands : plusieurs `bin`, celui qui porte le nom du paquet (comme Zed)', () => {
+  const dir = join('C:', 'p')
+  assert.equal(binPath(dir, { bin: 'cli.js' }, 'x'), join(dir, 'cli.js'))
+  assert.equal(binPath(dir, { bin: { autre: 'a.js' } }, 'x'), join(dir, 'a.js'))
+  assert.equal(binPath(dir, { bin: { outil: 'o.js', 'faux-agent': 'f.js' } }, '@editeur/faux-agent'), join(dir, 'f.js'))
+  assert.equal(binPath(dir, { bin: { a: 'a.js', b: 'b.js' } }, 'x'), null)
 })
 
 test('agent-commands : découverte — déclarés dans Zed ou installés, résolus ou pas', async () => {

@@ -143,7 +143,10 @@ test('remove : une entrée au milieu, ou la première', () => {
 test('buildEntry : chemins absolus, tout sous .zra/, options de l’agent recopiées', () => {
   const entry = buildEntry({
     agent: 'claude-acp', record: true, nodePath: 'C:/node.exe', root: 'C:/zra',
-    wrapped: { type: 'registry', default_config_options: { mode: 'auto' } },
+    wrapped: {
+      type: 'registry', env: { X: '1' }, default_mode: 'plan',
+      default_config_options: { mode: 'auto' }, favorite_config_option_values: { model: ['opus'] },
+    },
   })
   assert.equal(entry.type, 'custom')
   assert.equal(entry.command, 'C:/node.exe')
@@ -152,6 +155,9 @@ test('buildEntry : chemins absolus, tout sous .zra/, options de l’agent recopi
   assert.equal(entry.env.ZRA_RECORD, '1')
   for (const k of ['ZRA_LOG_FILE', 'ZRA_RECORD_DIR']) assert.match(entry.env[k].replace(/\\/g, '/'), /^C:\/zra\/\.zra\//)
   assert.deepEqual(entry.default_config_options, { mode: 'auto' })
+  assert.equal(entry.default_mode, 'plan')
+  assert.deepEqual(entry.favorite_config_option_values, { model: ['opus'] })
+  assert.equal(entry.env.X, undefined, 'l’env de l’agent est appliqué par le shim, pas recopié')
 
   const sans = buildEntry({ agent: 'x', record: false, root: 'C:/zra' })
   assert.equal(sans.env.ZRA_RECORD, undefined)

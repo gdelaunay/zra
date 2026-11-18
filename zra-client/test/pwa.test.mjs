@@ -64,10 +64,8 @@ test('écran 1 : tout est replié par défaut, puis les threads des deux postes 
   assert.ok(!titles.some((t) => t.includes('Ancien essai')), 'les archivés restent sous leur filtre')
 })
 
-test('un thread sans session_id est grisé et non cliquable', () => {
-  const row = $$('.thread-row--unknown')
-  assert.equal(row.length, 1)
-  assert.equal(row[0].disabled, true)
+test('un brouillon (sans session_id) n’est pas listé, comme dans Zed', () => {
+  assert.ok(!$$('.thread-row__title').some((n) => n.textContent === 'Nouveau thread'))
 })
 
 test('le filtre texte réduit la liste', async () => {
@@ -438,7 +436,7 @@ test('threads regroupés par projet sous chaque poste, nommés d’après leur d
   await until(() => $$('.thread-row').length >= 7, 3000)
   const zra = projectHead('DESK-ZED', 'zra')
   assert.ok(zra, 'projet zra sur DESK-ZED')
-  assert.equal(rowsUnder(zra).length, 4, 'ses quatre threads, dont celui sans session')
+  assert.equal(rowsUnder(zra).length, 3, 'ses trois threads, sans le brouillon')
   assert.deepEqual(rowsUnder(projectHead('DESK-ZED', 'uia')), ['Spike : UI Automation sur la fenêtre Zed'])
   assert.ok(projectHead('LAPTOP-ZED', 'zra'), 'même nom de dossier, autre poste : autre groupe')
   assert.deepEqual(rowsUnder(projectHead('LAPTOP-ZED', 'zra + notes')), ['Notes de release v0.1'],
@@ -474,7 +472,7 @@ test('un projet se replie sur sa ligne de titre, et le reste après un rendu', a
   await until(() => $$('.thread-row').length >= 3)
 
   click(toggle())
-  assert.equal(rowsUnder(projectHead('DESK-ZED', 'zra')).length, 4, 'déplié à nouveau')
+  assert.equal(rowsUnder(projectHead('DESK-ZED', 'zra')).length, 3, 'déplié à nouveau')
 })
 
 test('thread créé hors ZRA : cadenas dans la liste, bandeau et composer en lecture seule', async () => {

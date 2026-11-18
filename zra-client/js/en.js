@@ -147,7 +147,6 @@ export default {
   "ouvert dans Zed": "open in Zed",
   "fermé dans Zed : il s’ouvrira à la demande": "closed in Zed: it will open on demand",
   "Nouveau thread dans {0}": "New thread in {0}",
-  "thread sans session : non consultable": "thread without session: cannot be viewed",
   "sans titre": "untitled",
   "archivé": "archived"
 }

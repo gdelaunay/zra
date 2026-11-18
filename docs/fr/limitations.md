@@ -40,3 +40,14 @@ Node ≥ 24 à installer à la main (les Node de distro sont plus vieux) ; `xdot
 est un paquet standard partout. Code Node pur, sans dépendance native, chemins
 XDG : effet attendu nul.
 → `npm install && npm test`, puis « Vérifier une machine » de `docs/fr/architecture.md`.
+
+## Titre de fenêtre personnalisé
+
+Le pilote reconnaît la fenêtre d'un projet au début de son titre : le nom du
+premier dossier, suivi d'une espace, d'une virgule ou de rien (format par
+défaut de Zed, `${projectName}${separator}${fileName}`). Un
+`window_title_format` qui ne commence pas par `${projectName}`, ou un
+`window_title_separator` qui ne commence pas par une espace, et la fenêtre
+n'est plus trouvée : pas d'ouverture de thread ni de `submit` depuis la PWA.
+→ Si la demande apparaît : lire ces réglages dans `settings.json` et en
+déduire le motif du titre.
