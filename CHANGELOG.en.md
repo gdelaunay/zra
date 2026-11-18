@@ -2,9 +2,16 @@
 
 [Français](https://forgejo.gdelaunay.fr/gdelaunay/zra/src/branch/main/CHANGELOG.md)
 
-## In progress
+## v0.4 — in progress — Audit, security, Zed conformance
 
-- Thread list: projects follow Zed's sidebar (all windows, in its order, even without threads); the others under "Recent projects"
+- Security: markdown XSS fixed, loopback channels, unpaired connections capped, lockable pairing, public networks excluded
+- Hardening: log rotation, offline queue, shim safety net, explicit Wayland, CI
+- Aligned with Zed 1.28.1: thread index, agent launch, stable/preview/nightly/dev channels
+- Shim: resumed and closed sessions tracked, mode and options synced with Zed, permission settled on mobile withdrawn from Zed
+- Thread view as in Zed: `session/update`, terminal output, default expansion; Stop pauses the queue, "send now"
+- Thread list as in Zed's sidebar: turn in progress, pending permission, unread end, sorting, dates and names; sidebar projects and order, the others under "Recent projects"
+- French and English: daemon, shim, script and PWA messages; bilingual docs grouped in `docs/`
+- Setup: entries named after Zed's registry; licence and `THIRD_PARTY_NOTICES.md`
 
 ## v0.3 — 2026-10-19 — Linux port & regression tests (`e752972`)
 

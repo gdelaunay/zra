@@ -1,17 +1,20 @@
 # ZRA — roadmap
 
-Version actuelle : **0.3**. Un numéro par jalon ; l'historique est dans `CHANGELOG.md`.
+Version actuelle : **0.3**. Un numéro mineur par jalon (0.4, 0.5…) ; entre deux
+jalons, un numéro de correctif (0.3.1…) quand un lot de corrections est fini.
+L'historique est dans `CHANGELOG.md`.
 
-- **0.4 — coller au panneau agent de Zed** (retouches d'interface, en cours) ;
-- **0.5 — `zra-tray`** : le tray natif Rust et la distribution binaire.
+- **0.4 — audit, sécurité, conformité à Zed** (comparaison au code de Zed, constats en réel ; en cours, voir `ISSUES.md`) ;
+- **0.5 — coller au panneau agent de Zed** (retouches d'interface) ;
+- **0.6 — `zra-tray`** : le tray natif Rust et la distribution binaire.
 
 ---
 
 ## Ouvert
 
-### 0.4 — Retouches d'interface : coller au panneau agent de Zed 🎯
+### 0.5 — Retouches d'interface : coller au panneau agent de Zed 🎯
 
-**Le jalon en cours.** Pour coller au plus près du panneau agent de Zed :
+Pour coller au plus près du panneau agent de Zed :
 
 - **tool calls** : dépliement / repliement et affichage (en-tête, corps,
   entrées et sorties brutes) ;
@@ -29,11 +32,11 @@ Les threads d'un agent que ZRA n'enveloppe pas (`claude-acp`, créés avant ZRA)
 se lisent mais ne s'écrivent pas une fois fermés : Zed les rouvre avec l'agent
 d'origine, sans shim (`not_zra_thread`). La PWA le signale (cadenas à la place
 de la pastille, bandeau dans le thread). Piste : « Tous les threads par le
-shim » ci-dessous — à faire avant la 0.5.
+shim » ci-dessous — à faire avant la 0.6.
 
 ---
 
-## Avant la 0.5 — utile rapidement
+## Avant la 0.6 — utile rapidement
 
 - **commandes `/`** : taper `/` dans le composer propose les commandes de
   l'agent. ACP les annonce (`available_commands_update`), la PWA les mémorise
@@ -49,7 +52,7 @@ shim » ci-dessous — à faire avant la 0.5.
   `notificationclick` (`docs/fr/client.md`). Exige le HTTPS.
 
 
-## Tray natif — `zra-tray` (décidé, **jalon 0.5**)
+## Tray natif — `zra-tray` (décidé, **jalon 0.6**)
 
 Un petit binaire Rust distribué par plateforme, à la fois **icône de zone de
 notification** et **superviseur du daemon**. Il ne remplace rien : le daemon
@@ -121,7 +124,7 @@ Ce que ça règle d'un coup :
 
 ### Distribution : trajectoire A → C
 
-- **MVP (0.5) — le tray seul** : `npm run setup` télécharge le binaire
+- **MVP (0.6) — le tray seul** : `npm run setup` télécharge le binaire
   prébuild (GitHub Releases) dans `.zra/bin/` ; il pilote le daemon du repo
   cloné. Flux dev inchangé, versions tray/daemon cohérentes (même repo).
 - **Cible — l'archive « app » par plateforme** (option C) :
@@ -166,14 +169,14 @@ Ce que ça règle d'un coup :
 Que `npm run setup` fasse passer l'entrée d'origine (`claude-acp`) elle-même
 par le shim, plutôt que d'ajouter `claude-zra` à côté. Tous les threads,
 anciens compris, deviendraient pilotables, et il n'y aurait plus deux familles
-d'agents. À faire avant la 0.5. À peser : on touche l'agent d'origine, et
+d'agents. À faire avant la 0.6. À peser : on touche l'agent d'origine, et
 Zed pourrait ne plus le mettre à jour lui-même (entrée `registry` remplacée par
 une commande).
 
 
 ## Relais HTTPS livré avec le client
 
-À faire avant la 0.5 si possible — pas obligatoire.
+À faire avant la 0.6 si possible — pas obligatoire.
 
 Un client servi en `https://` ne peut ouvrir que des `wss://`
 (contenu mixte bloqué) : aujourd'hui, chaque poste a besoin de son propre
@@ -205,7 +208,7 @@ défaut** (décision).
 ## Homelab — la réponse retenue au problème central
 
 La réponse au problème du poste qui doit rester allumé. À formaliser en doc
-avant la 0.5 (si possible). Public visé : ceux qui ont déjà un homelab.
+avant la 0.6 (si possible). Public visé : ceux qui ont déjà un homelab.
 
 - PWA hostée sur le homelab (Nginx/Caddy + HTTPS)
 - Homelab peut **wake** le desktop via Wake-on-LAN
