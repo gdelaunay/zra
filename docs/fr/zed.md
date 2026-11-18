@@ -65,7 +65,7 @@ Ce dont ZRA dépend dans Zed, et où le vérifier dans ses sources. Sert à l'au
 | Message du mobile affiché dans Zed (`user_message_chunk` synthétique) | `zra-shim/acp.js` | `crates/acp_thread/src/acp_thread.rs` : `handle_session_update`, `push_user_content_block_with_protocol_id` | vérifié |
 | Tour lancé depuis le mobile, vu de Zed | `zra-shim/acp.js` | `crates/acp_thread/src/acp_thread.rs` : `uses_reported_activity`, `status` | écart |
 | Mode, modèle, options : projection et changement | `zra-shim/acp.js` (`projectOptions`, `applyOption`) | `crates/agent_servers/src/acp/v1.rs` : `config_state`, `ConfigOptions::set_config_option`, `AcpSessionModes` ; `crates/acp_thread/src/config_options.rs` | vérifié |
-| vérifié || Sortie des terminaux : réponses à `terminal/*`, ou `_meta` des tool calls | `zra-shim/acp.js` (`publishTerminal`), `zra-client/js/acp.js` (`terminalMeta`) | `crates/agent_servers/src/acp/v1.rs` : `handle_terminal_output` ; `_meta.terminal_info`, `terminal_output`, `terminal_exit` dans `handle_session_notification` | écart |
+| Sortie des terminaux : réponses à `terminal/*`, ou `_meta` des tool calls | `zra-shim/acp.js` (`publishTerminal`), `zra-client/js/acp.js` (`terminalMeta`) | `crates/agent_servers/src/acp/v1.rs` : `handle_terminal_output` ; `_meta.terminal_info`, `terminal_output`, `terminal_exit` dans `handle_session_notification` | vérifié |
 | Relecture d'un thread fermé : client ACP jetable, `session/load` | `zra-daemon/session-loader.js`, `acp-client.js` | `crates/agent_servers/src/acp/v1.rs` : `load_session`, `session_directories_from_work_dirs` | écart |
 
 ### Interface : PWA ↔ panneau agent
