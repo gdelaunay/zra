@@ -34,6 +34,8 @@ export class FakeZed {
     this.updates = []
     /** Requêtes de permission vues passer (même si on n'y répond pas). */
     this.permissions = []
+    /** `$/cancel_request` reçues (ids des requêtes annulées). */
+    this.cancelled = []
 
     const framer = createFramer()
     fromShim.on('data', (chunk) => {
@@ -57,7 +59,14 @@ export class FakeZed {
         this.updates.push(msg.params?.update)
         return
       }
-      if (msg.id === undefined) return
+      if (msg.id === undefined) {
+        // Requête de permission annulée : Zed retire l'invite et répond en erreur.
+        if (msg.method === '$/cancel_request') {
+          this.cancelled.push(msg.params?.requestId)
+          this.send({ jsonrpc: '2.0', id: msg.params?.requestId, error: { code: -32800, message: 'Request cancelled' } })
+        }
+        return
+      }
 
       if (msg.method === 'session/request_permission') {
         this.permissions.push(msg)

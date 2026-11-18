@@ -496,6 +496,7 @@
   "demande déjà tranchée depuis le poste": "request already settled from the machine",
   "demande déjà tranchée depuis le mobile": "request already settled from the phone",
   "cette option n'est pas proposée par l'agent": "this option is not offered by the agent",
+  "annulation vers Zed impossible :": "cancellation to Zed failed:",
   "daemon injoignable :": "daemon unreachable:",
   "daemon connecté ({0})": "daemon connected ({0})",
   "commande :": "command:",

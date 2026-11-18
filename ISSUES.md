@@ -10,7 +10,6 @@ Fait → effet → à faire. Une issue acceptée (on ne fera rien) part dans
 
 | Section | Statut |
 | --- | --- |
-| Permission tranchée sur mobile : Zed garde l'invite | `à faire` |
 | Tour lancé depuis le mobile : Zed le croit au repos | `à faire` |
 | Sortie de terminal par `_meta` ignorée | `à faire` |
 | Liste des threads : tri, regroupement et noms | `à faire` |
@@ -22,20 +21,6 @@ Fait → effet → à faire. Une issue acceptée (on ne fera rien) part dans
 | Performance sur téléphone non mesurée | `à faire` |
 | Logos d'agents : source | `à faire` |
 | Relecture : environnement et capacités différents de Zed | `à faire` |
-
-## Permission tranchée sur mobile : Zed garde l'invite — `à faire`
-
-Zed ne retire l'invite d'un tool call qu'à son statut final (`completed`,
-`failed`, `cancelled` : `crates/acp_thread/src/acp_thread.rs`,
-`apply_reported_status`). Tranchée sur le mobile, la permission reste donc
-affichée dans Zed tant que l'outil tourne ; un clic y est avalé par le shim.
-Zed 1.28.1 gère `$/cancel_request` sur `session/request_permission`
-(`crates/agent_servers/src/acp/v1.rs`, `handle_request_permission`) : l'invite
-est alors retirée, mais `cancel_permission_request` passe aussi le tool call en
-`Canceled` côté Zed, jusqu'au prochain statut envoyé par l'agent.
-→ Après une réponse du mobile, envoyer `$/cancel_request` à Zed pour cette
-requête et avaler sa réponse d'erreur. À constater : l'état `Canceled`
-transitoire, s'il se voit.
 
 ## Tour lancé depuis le mobile : Zed le croit au repos — `à faire`
 

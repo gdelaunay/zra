@@ -861,6 +861,12 @@ export class AcpBridge extends EventEmitter {
     const pending = this.agentRequests.get(requestId)
     if (pending) pending.mobileResponse = true
     this.permissions.delete(requestId)
+    // Zed retire son invite sur `$/cancel_request` (`handle_request_permission`) ;
+    // sa réponse en erreur est avalée comme une réponse tardive (`mobileResponse`).
+    if (this.toZed) {
+      const cancel = { jsonrpc: '2.0', method: '$/cancel_request', params: { requestId: id } }
+      try { this.toZed(encodeFrame(cancel)) } catch (err) { this.log?.warn(tr`annulation vers Zed impossible :`, err.message) }
+    }
     this.emit('permission_resolved', { sessionId, requestId, optionId, optionName, by: 'mobile' })
     return { by: 'mobile', optionId, optionName }
   }

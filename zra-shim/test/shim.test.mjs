@@ -443,6 +443,10 @@ test('permission : le mobile répond à la place de Zed, qui n’a pas encore cl
     optionId: 'allow', optionName: 'Autoriser', by: 'mobile',
   }])
 
+  // Zed retire son invite ; sa réponse d'erreur n'atteint pas l'agent.
+  await until(() => zed.cancelled.length, { label: '$/cancel_request' })
+  assert.deepEqual(zed.cancelled, [zed.permissions[0].id])
+
   await turn
   const fin = zed.updates.find((u) => u.sessionUpdate === 'tool_call_update')
   assert.equal(fin.status, 'completed')

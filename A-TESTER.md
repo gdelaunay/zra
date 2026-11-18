@@ -30,6 +30,12 @@ Zed et un téléphone. Un point vérifié est retiré ; un écart constaté part
 - **Reprise** (agent sans `loadSession`, s'il en existe un) : thread rouvert
   dans Zed → `live` dans la PWA, le mobile peut y écrire.
 
+## Permissions
+
+- **Tranchée sur le mobile** : l'invite disparaît de Zed. À noter : le tool
+  call passe-t-il visiblement en « annulé » avant le statut suivant de
+  l'agent (`cancel_permission_request`) ?
+
 ## Réglages depuis le mobile
 
 - **Mode, modèle, effort** changés sur le mobile → les sélecteurs de Zed
