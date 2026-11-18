@@ -167,6 +167,21 @@ test('sortie de terminal accumulée et rattachée au tool call', () => {
   assert.equal(changes.length, 1, 'le tool call concerné est repeint')
 })
 
+test('terminal tenu par l’agent : sortie et fin lues dans le `_meta` des tool calls (comme Zed)', () => {
+  const tl = new Timeline()
+  tl.apply({
+    sessionUpdate: 'tool_call', toolCallId: 't1', title: 'ls', kind: 'execute', status: 'in_progress',
+    content: [{ type: 'terminal', terminalId: 'term-9' }],
+    _meta: { terminal_info: { terminal_id: 'term-9', cwd: '/tmp' } },
+  })
+  assert.equal(tl.terminals.get('term-9').output, '')
+  tl.apply({ sessionUpdate: 'tool_call_update', toolCallId: 't1', _meta: { terminal_output: { terminal_id: 'term-9', data: 'a\n' } } })
+  tl.apply({ sessionUpdate: 'tool_call_update', toolCallId: 't1', _meta: { terminal_output: { terminal_id: 'term-9', data: 'b\n' } } })
+  tl.apply({ sessionUpdate: 'tool_call_update', toolCallId: 't1', status: 'completed', _meta: { terminal_exit: { terminal_id: 'term-9', exit_code: 2 } } })
+  assert.equal(tl.terminals.get('term-9').output, 'a\nb\n')
+  assert.deepEqual(tl.terminals.get('term-9').exitStatus, { exitCode: 2, signal: null })
+})
+
 test('mode courant suivi, sans ligne dans le fil', () => {
   const tl = new Timeline()
   const changes = tl.apply({ sessionUpdate: 'current_mode_update', currentModeId: 'plan' })

@@ -36,6 +36,11 @@ Zed et un téléphone. Un point vérifié est retiré ; un écart constaté part
   call passe-t-il visiblement en « annulé » avant le statut suivant de
   l'agent (`cancel_permission_request`) ?
 
+## Terminaux
+
+- **Terminal tenu par l'agent** (`_meta.terminal_*`) : relever quels agents
+  prennent cette voie ; pour l'un d'eux, la sortie s'affiche sur le mobile.
+
 ## Réglages depuis le mobile
 
 - **Mode, modèle, effort** changés sur le mobile → les sélecteurs de Zed

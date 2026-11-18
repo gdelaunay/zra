@@ -11,7 +11,6 @@ Fait → effet → à faire. Une issue acceptée (on ne fera rien) part dans
 | Section | Statut |
 | --- | --- |
 | Tour lancé depuis le mobile : Zed le croit au repos | `à faire` |
-| Sortie de terminal par `_meta` ignorée | `à faire` |
 | Liste des threads : tri, regroupement et noms | `à faire` |
 | Liste des threads : état moins riche que le sidebar | `à faire` |
 | Fil : mises à jour ACP traitées autrement que par Zed | `à faire` |
@@ -29,19 +28,6 @@ En ACP v1, Zed déduit l'activité de ses propres `session/prompt`
 un : la réponse s'affiche dans Zed, mais sans indicateur de génération ni
 bouton Stop, et rien n'empêche d'y envoyer un prompt en parallèle.
 → Constater en vrai. Piste : ACP v2, où l'agent rapporte son activité.
-
-## Sortie de terminal par `_meta` ignorée — `à faire`
-
-Zed annonce `_meta.terminal_output: true` dans ses capacités
-(`crates/agent_servers/src/acp/v1.rs`, `client_capabilities_for_agent`). Un
-agent peut alors créer le terminal et en streamer la sortie dans
-`_meta.terminal_info`, `terminal_output` et `terminal_exit` de ses
-`tool_call`/`tool_call_update`, sans requête `terminal/*`
-(`handle_session_notification`). ZRA ne lit que les réponses à
-`terminal/output` (`zra-shim/acp.js`, `publishTerminal`) : pour ces agents, le
-terminal reste vide sur le mobile.
-→ Lire ces `_meta` (shim ou `zra-client/js/acp.js`). À constater : quels
-agents prennent cette voie.
 
 ## Liste des threads : tri, regroupement et noms — `à faire`
 

@@ -50,9 +50,9 @@ export class Timeline {
         return [this.chunk('thought', update.content, meta)]
 
       case 'tool_call':
-        return [this.toolCall(update, meta)]
+        return [this.toolCall(update, meta), ...this.terminalMeta(update)]
       case 'tool_call_update':
-        return [this.toolCallUpdate(update, meta)]
+        return [this.toolCallUpdate(update, meta), ...this.terminalMeta(update)]
 
       case 'plan':
         return [this.plan(update, meta)]
@@ -238,6 +238,33 @@ export class Timeline {
     if ('title' in u) this.info.title = typeof u.title === 'string' && u.title.trim() ? u.title : null
     if ('updatedAt' in u) this.info.updatedAt = u.updatedAt ?? null
     return [{ op: 'meta', what: 'info' }]
+  }
+
+  /**
+   * Terminal tenu par l'agent lui-même (Zed annonce `_meta.terminal_output`) :
+   * création, sortie et fin arrivent dans le `_meta` des tool calls, sans
+   * requête `terminal/*` (`handle_session_notification`, `acp/v1.rs`).
+   */
+  terminalMeta(u) {
+    const m = u._meta
+    if (!m || typeof m !== 'object') return []
+    const ops = []
+    const created = m.terminal_info?.terminal_id
+    if (typeof created === 'string' && !this.terminals.has(created)) {
+      this.terminals.set(created, { output: '', exitStatus: null, truncated: false })
+    }
+    const out = m.terminal_output
+    if (typeof out?.terminal_id === 'string' && typeof out.data === 'string') {
+      ops.push(...this.terminalOutput({ terminalId: out.terminal_id, output: out.data, append: true }))
+    }
+    const exit = m.terminal_exit
+    if (typeof exit?.terminal_id === 'string') {
+      ops.push(...this.terminalOutput({
+        terminalId: exit.terminal_id,
+        exitStatus: { exitCode: Number.isInteger(exit.exit_code) ? exit.exit_code : null, signal: typeof exit.signal === 'string' ? exit.signal : null },
+      }))
+    }
+    return ops
   }
 
   terminalOutput(u) {
