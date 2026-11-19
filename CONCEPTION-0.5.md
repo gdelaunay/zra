@@ -1,5 +1,14 @@
 # Conception — 0.5 « coller au panneau agent de Zed »
 
+**Objectif** : reproduire dans `zra-client` l'interface de Zed — panel agent,
+liste des threads, barre du bas — mêmes formes, mêmes couleurs, mêmes
+comportements, sur le thème de Zed extrait dans `reference/`. Les seules
+divergences sont les adaptations décidées dans cette fiche (mobile, éléments
+propres ZRA). Pas un refacto : le fonctionnement existant est conservé (sauf
+décisions contraires ci-dessous), mais on ne garde ni code mort ni
+rétro-compatibilité, et on ne conserve pas ni ne contourne du code
+sous-optimal — on le remplace proprement.
+
 Fiche de travail (français, comme `ROADMAP.md` et `ISSUES.md`).
 Références visuelles : `reference/zed-agent-panel/` (panel),
 `reference/zed-threads-sidebar/` (liste et historique) et
