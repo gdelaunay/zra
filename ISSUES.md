@@ -13,6 +13,9 @@ Fait → effet → à faire. Une issue acceptée (on ne fera rien) part dans
 | Tour lancé depuis le mobile : Zed le croit au repos | `à faire` |
 | Performance sur téléphone non mesurée | `à faire` |
 | Réouverture : le filtre du sidebar est flou | `à faire` |
+| Changement de profil réseau (Public/Privé) non détecté | `à faire` |
+| Brouillons : libellé « sans titre » et projets fermés | `à faire` |
+| Relecture (`session/load`) : tout le replay est ignoré | `priorité` |
 
 ## Tour lancé depuis le mobile : Zed le croit au repos — `à faire`
 
@@ -21,6 +24,21 @@ En ACP v1, Zed déduit l'activité de ses propres `session/prompt`
 un : la réponse s'affiche dans Zed, mais sans indicateur de génération ni
 bouton Stop, et rien n'empêche d'y envoyer un prompt en parallèle.
 → Constater en vrai. Piste : ACP v2, où l'agent rapporte son activité.
+
+## Relecture (`session/load`) : tout le replay est ignoré — `priorité`
+
+Le shim émet `session_replay` dès la requête `session/load` de Zed
+(`zra-shim/acp.js`, `observeFromZed`), mais ne revendique la session
+(`session`, via `openSession`) qu'à la **réponse** de l'agent. Or l'agent
+rejoue l'historique en notifications `acp_update` avant cette réponse, et le
+garde-fou du daemon (`zra-daemon/shim-link.js`, `handle`) exige une session
+déjà revendiquée pour `session_replay` et `acp_update`.
+→ Relevé en réel (Windows, pi-acp) : chaque rechargement d'un thread produit
+`session_replay ignoré … non revendiquée` puis des centaines de
+`acp_update ignoré` (~9400 warns dans `.zra/logs/daemon.log`) ; l'historique
+rechargé n'arrive pas au mobile.
+→ Revendiquer la session dès la requête `session/load` (ou accepter
+`session_replay` comme revendication), puis vérifier la relecture sur mobile.
 
 ## Performance sur téléphone non mesurée — `à faire`
 
@@ -31,6 +49,33 @@ relit toute la table `sidebar_threads` toutes les 2 s ; le diff alloue jusqu'à
 (`zra-daemon/ws.js`) ne s'est jamais déclenchée sous Windows, même avec 12 Mo en
 attente.
 → Mesurer sur un long thread, sur un vrai réseau.
+
+## Changement de profil réseau (Public/Privé) non détecté — `à faire`
+
+`refreshPublic()` (`zra-daemon/daemon.js`) ne relit les profils Windows que
+si la liste des interfaces (nom=adresse) change. Une catégorie changée seule
+ne l'est donc jamais : Public → Privé, le daemon n'écoute pas le réseau tant
+qu'il n'est pas redémarré (constaté en réel : box passée en Privé, aucune
+écoute sur l'IP LAN après plusieurs tours de 10 s) ; Privé → Public, il
+continue d'écouter sur un réseau marqué Public — le commentaire de
+`netTimer` promet l'inverse (« relus avant chaque tour… jamais écouté, même
+un instant »).
+→ Relire les profils à chaque tour, ou détecter le changement de catégorie
+autrement ; le coût PowerShell (quelques centaines de ms tous les 10 s) est
+à mettre en balance.
+
+## Brouillons : libellé « sans titre » et projets fermés — `à faire`
+
+Constaté en réel (v1.28.1), deux cas selon l'agent :
+- Agent muet à `session/new` (qwen-code) : vrai brouillon. Projet fermé →
+  `session_id` écrit en base, Zed le masque du sidebar, la PWA l'affiche
+  « sans titre » sous « Projets récents ».
+- Agent qui parle dès `session/new` (pi : message de contexte) : une
+  entrée existe, le thread n'est pas un brouillon — l'afficher est
+  conforme. Mais son titre vide s'affiche « sans titre » là où Zed dit
+  « New Agent Thread » (`DEFAULT_THREAD_TITLE`).
+→ Masquer les brouillons des projets fermés ; aligner les titres vides sur
+Zed.
 
 ## Réouverture : le filtre du sidebar est flou — `à faire`
 
