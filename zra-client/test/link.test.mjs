@@ -204,3 +204,54 @@ test('file hors ligne bornée : au plafond, la plus ancienne écriture est aband
   assert.equal(dropped.length, 1)
   assert.equal(dropped[0].text, 'm0')
 })
+
+// ---- Wake : le backoff survit aux événements automatiques -------------------
+
+test('wake automatique : backoff préservé ; bouton « réessayer » : remis à zéro', (t) => {
+  const l = link(t)
+  const retries = []
+  l.on('retry', (r) => retries.push(r.in))
+  l.lost(FakeSocket.all[0]) // offline, attempt = 1
+  l.scheduleRetry() // attempt = 2
+  l.scheduleRetry() // attempt = 3
+  l.wake() // événement automatique : reconnexion immédiate, backoff préservé
+  assert.equal(l.status, 'connecting')
+  assert.equal(l.attempt, 3)
+  l.lost(FakeSocket.all.at(-1))
+  assert.equal(retries.at(-1), 8000, 'le backoff continue où il en était')
+  l.wake(true) // bouton explicite
+  assert.equal(l.attempt, 0)
+})
+
+// ---- Diagnostic des échecs répétés ------------------------------------------
+
+test('trois échecs : le GET de diagnostic dit pourquoi (502, réseau, 403)', async (t) => {
+  const responses = []
+  globalThis.fetch = async () => responses.shift()
+  t.after(() => { delete globalThis.fetch })
+  const l = link(t)
+  const fail = () => l.lost(FakeSocket.all.at(-1))
+  fail(); clock.tick(1400)
+  fail(); clock.tick(2400)
+  assert.equal(l.diag, null, 'pas de diagnostic avant le troisième échec')
+  responses.push({ ok: false, status: 502 })
+  fail()
+  await Promise.resolve(); await Promise.resolve()
+  assert.equal(l.lastError, 'le proxy répond mais pas le poste — machine éteinte ou daemon arrêté ?')
+  // Le diagnostic prime sur le message générique de l’échec suivant.
+  clock.tick(4400)
+  FakeSocket.all.at(-1).onerror?.()
+  assert.equal(l.lastError, 'le proxy répond mais pas le poste — machine éteinte ou daemon arrêté ?')
+  // Réseau coupé : le fetch échoue, le message le dit.
+  responses.push(Promise.reject(new Error('réseau coupé')))
+  await l.diagnose()
+  assert.equal(l.lastError, 'poste injoignable — réseau ou VPN coupé ?')
+  // Refus de configuration.
+  responses.push({ ok: false, status: 403 })
+  await l.diagnose()
+  assert.equal(l.lastError, 'accès refusé (403) — origine ou IP non autorisée (proxy, allowedOrigins)')
+  // La reconnexion efface le diagnostic.
+  FakeSocket.all.at(-1).open()
+  assert.equal(l.diag, null)
+  assert.equal(l.lastError, null)
+})

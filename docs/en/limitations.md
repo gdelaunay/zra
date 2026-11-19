@@ -116,3 +116,16 @@ Zed 1.28.1 offers no action or URL to open a thread by identifier
 (a unique title per thread lifts the filter ambiguity), if that path is
 possible. The focus toggle, however, is fixed (`FocusCenterPane`, `openThread`
 recipe).
+
+## Mobile background tab freeze (OS)
+
+**Decision: accepted, structural.** On mobile, the OS freezes background tabs:
+the browser closes the socket (code 1001 "going away") or throttles timers —
+the daemon then sees a TCP drop without a code, or a silent peer cut at 75 s.
+The PWA reconnects on return to the foreground. Network transitions
+(Wi-Fi ↔ cellular, VPN tunnel coming up) cause a few fast failures before the
+path is usable; the backoff absorbs them and the HTTP diagnostic (protocol §1)
+says what is blocking.
+→ Nothing to fix on the ZRA side: the behavior comes from the OS and the
+network. If the discomfort persists: measure on a real device with the `[link]`
+logs (browser console, debug level).

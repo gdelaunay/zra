@@ -54,7 +54,12 @@ modules ne chargent pas : `.js → text/javascript`, `.css → text/css`,
    60 s, jitter), et un handshake WS qui traîne est abandonné au bout de 15 s. À la
    reconnexion elle renvoie `hello`, puis `list_threads`, puis un `subscribe`
    et un `load_history` pour chaque thread qu'elle avait ouvert : ce qui est
-   passé pendant la coupure n'est pas rejoué autrement.
+   passé pendant la coupure n'est pas rejoué autrement. Le retour réseau
+   (`online`) attend 1 s avant de retenter — la pile réseau vient de changer.
+   Les réveils automatiques (refocus, réseau) préservent le backoff ; seul le
+   bouton « réessayer » le remet à zéro. Après trois échecs consécutifs, un GET
+   sur l'adresse du poste diagnostique la cause (réseau coupé, proxy sans poste,
+   refus 403) et le message s'affiche à la place de « connexion impossible ».
 4. Toutes les 15 s, et au retour au premier plan, la PWA envoie `ping`. Sans
    aucune trame en retour (6 s, 3 s au premier plan), elle tient la connexion
    pour morte et reconnecte : sur mobile, une socket peut rester ouverte sans

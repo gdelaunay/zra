@@ -86,7 +86,9 @@ async function boot() {
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') store.refreshAll()
   })
-  window.addEventListener('online', () => store.refreshAll())
+  // Réseau revenu : la pile vient de changer (route, tunnel), les tentatives
+  // immédiates échouent en quelques ms — on laisse le chemin s'établir.
+  window.addEventListener('online', () => setTimeout(() => store.refreshAll(), 1000))
 
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
     navigator.serviceWorker.register('./sw.js').catch((err) => console.warn('[sw]', err))

@@ -56,6 +56,10 @@ export class DaemonLink {
     this.token = token
     this.status = 'idle' // idle | connecting | online | offline
     this.lastError = null
+    /** Explication posée par `diagnose()` : prime sur les messages génériques. */
+    this.diag = null
+    /** Échecs consécutifs : à partir de trois, `diagnose()` dit pourquoi. */
+    this.failStreak = 0
     this.attempt = 0
     this.ws = null
     this.closedByUs = false
@@ -77,6 +81,10 @@ export class DaemonLink {
     this.closedByUs = false
     if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) return
     this.setStatus('connecting')
+    // Diagnostic rafales de retries (ISSUES.md) : chaque tentative est datée,
+    // pour corréler avec le journal daemon ce qui n'arrive jamais jusqu'à lui.
+    console.debug(`[link] ${this.id} : connexion → ${this.url} (tentative ${this.attempt + 1})`)
+    const t0 = Date.now()
     let ws
     try {
       ws = new WebSocket(wsUrl(this.url))
@@ -91,8 +99,11 @@ export class DaemonLink {
     this.connectTimer = setTimeout(() => this.lost(ws, tr`délai de connexion dépassé`), CONNECT_TIMEOUT_MS)
 
     ws.onopen = () => {
+      console.debug(`[link] ${this.id} : socket ouverte en ${Date.now() - t0} ms`)
       clearTimeout(this.connectTimer)
       this.attempt = 0
+      this.failStreak = 0
+      this.diag = null
       this.lastError = null
       this.lastRx = Date.now()
       this.probing = false
@@ -119,10 +130,13 @@ export class DaemonLink {
       this.emit('message', msg)
     }
 
-    ws.onerror = () => { this.lastError = tr`connexion impossible` }
+    ws.onerror = () => {
+      console.debug(`[link] ${this.id} : erreur socket après ${Date.now() - t0} ms (état=${ws.readyState})`)
+      this.lastError = this.diag || tr`connexion impossible`
+    }
 
     ws.onclose = (ev) => {
-      console.debug(`[link] ${this.id} : socket fermée (code=${ev?.code ?? '?'} raison=${ev?.reason || '—'})`)
+      console.debug(`[link] ${this.id} : socket fermée après ${Date.now() - t0} ms (code=${ev?.code ?? '?'} raison=${ev?.reason || '—'})`)
       this.lost(ws)
     }
   }
@@ -141,7 +155,8 @@ export class DaemonLink {
     try { ws.close() } catch { /* déjà fermée */ }
     this.ws = null
     if (this.closedByUs) { this.setStatus('idle'); return }
-    if (reason) this.lastError = reason
+    this.failStreak++
+    if (reason) this.lastError = this.diag || reason
     console.debug(`[link] ${this.id} : connexion perdue (${reason || 'fermée'})`)
     this.setStatus('offline')
     this.scheduleRetry()
@@ -194,12 +209,40 @@ export class DaemonLink {
     const delay = this.attempt < BACKOFF.length ? BACKOFF[this.attempt] : LONG_BACKOFF_MS
     this.attempt++
     clearTimeout(this.retryTimer)
+    console.debug(`[link] ${this.id} : retry dans ${delay} ms (tentative ${this.attempt})`)
     this.retryTimer = setTimeout(() => this.connect(), delay + Math.random() * 300)
     this.emit('retry', { in: delay, attempt: this.attempt })
+    // Le WebSocket ne dit pas pourquoi il échoue (`onerror` est opaque) : après
+    // trois échecs, un GET sur la même adresse tranche (réseau, proxy, refus).
+    if (this.failStreak >= 3 && (this.failStreak - 3) % 5 === 0) this.diagnose()
+  }
+
+  /**
+   * Diagnostic des échecs répétés : un GET sur l'adresse du poste distingue le
+   * réseau coupé du proxy qui répond mais d'un poste éteint, et du refus de
+   * configuration. Le message remplace le « connexion impossible » aveugle
+   * jusqu'à la reconnexion (`diag` prime sur les messages génériques).
+   */
+  async diagnose() {
+    let msg
+    try {
+      const res = await fetch(this.url, { cache: 'no-store', signal: AbortSignal.timeout(5000) })
+      if (res.status === 403) msg = tr`accès refusé (403) — origine ou IP non autorisée (proxy, allowedOrigins)`
+      else if (res.status === 502 || res.status === 503 || res.status === 504) msg = tr`le proxy répond mais pas le poste — machine éteinte ou daemon arrêté ?`
+      else if (!res.ok) msg = tr`le serveur répond ${res.status} — configuration à vérifier`
+      else msg = tr`le poste répond, mais le WebSocket échoue — réessai en cours`
+    } catch {
+      msg = tr`poste injoignable — réseau ou VPN coupé ?`
+    }
+    if (this.status === 'online') return
+    this.diag = msg
+    this.lastError = msg
+    if (this.status === 'offline') this.emit('status', 'offline')
   }
 
   fail(err) {
     this.lastError = String(err?.message || err)
+    this.failStreak++
     this.setStatus('offline')
     this.scheduleRetry()
   }
@@ -207,12 +250,15 @@ export class DaemonLink {
   /**
    * Retour au premier plan, réseau revenu, bouton « réessayer ». En ligne, on
    * vérifie que la connexion vit encore ; sinon, reconnexion immédiate.
+   * `reset` (bouton explicite seul) remet le backoff à zéro ; les événements
+   * automatiques le préservent — sinon chaque refocus relance une rafale.
    */
-  wake() {
+  wake(reset = false) {
+    console.debug(`[link] ${this.id} : wake (état=${this.status})`)
     if (this.status === 'online') return this.probe()
     if (this.status === 'connecting') return
     clearTimeout(this.retryTimer)
-    this.attempt = 0
+    if (reset) this.attempt = 0
     this.connect()
   }
 

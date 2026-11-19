@@ -54,7 +54,12 @@ modules do not load: `.js → text/javascript`, `.css → text/css`,
    plateau, jitter), and a WS handshake that drags on is abandoned after 15 s. On
    reconnection it sends `hello` again, then `list_threads`, then a `subscribe`
    and a `load_history` for each thread it had open: what
-   happened during the drop is not replayed any other way.
+   happened during the drop is not replayed any other way. Network recovery
+   (`online`) waits 1 s before retrying — the network stack has just changed.
+   Automatic wakes (refocus, network) preserve the backoff; only the "retry"
+   button resets it. After three consecutive failures, a GET to the machine's
+   address diagnoses the cause (network down, proxy without machine, 403
+   refusal) and the message is shown instead of "connection impossible".
 4. Every 15 s, and on return to the foreground, the PWA sends `ping`. Without
    any frame in return (6 s, 3 s in the foreground), it holds the connection
    as dead and reconnects: on mobile, a socket can stay open without

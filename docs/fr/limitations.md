@@ -118,3 +118,16 @@ identifiant (`zed://agent` n'ouvre que le panneau, `parse_agent_url`).
 des threads (un titre unique par thread lève l'ambiguïté du filtre), si cette
 voie est possible. La bascule du focus, elle, est corrigée (`FocusCenterPane`,
 recette `openThread`).
+
+## Gel de l'onglet mobile en arrière-plan (OS)
+
+**Décision : accepté, structurel.** Sur mobile, l'OS gèle l'onglet en
+arrière-plan : le navigateur ferme la socket (code 1001 « going away ») ou
+throttle les timers — le daemon voit alors une coupure TCP sans code, ou un
+pair muet coupé à 75 s. La PWA se reconnecte au retour au premier plan. Les
+transitions réseau (Wi-Fi ↔ cellulaire, tunnel VPN qui monte) produisent
+quelques échecs rapides avant que le chemin soit praticable ; le backoff les
+absorbe et le diagnostic HTTP (protocole §1) dit ce qui coince.
+→ Rien à corriger côté ZRA : le comportement vient de l'OS et du réseau. Si la
+gêne persiste : mesurer sur appareil réel avec les logs `[link]` (console du
+navigateur, niveau debug).

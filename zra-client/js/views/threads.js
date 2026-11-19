@@ -101,7 +101,7 @@ export function ThreadsView({ navigate }) {
         section.append(h('div.empty', { style: { padding: '12px' } },
           h('span', { text: m.status === 'connecting' ? tr`connexion…` : (m.error || tr`poste injoignable`) }),
           m.status === 'offline'
-            ? button('btn.btn--sm', { onclick: () => m.link.wake?.() }, icon('refresh', 'icon--sm'), tr`Réessayer`)
+            ? button('btn.btn--sm', { onclick: () => m.link.wake?.(true) }, icon('refresh', 'icon--sm'), tr`Réessayer`)
             : null))
         continue
       }

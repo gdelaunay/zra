@@ -432,7 +432,7 @@ export function ThreadView({ key, navigate }) {
     if (st.state === 'live') endReopen()
     let msg = null, level = ''
     if (m.status === 'locked') { msg = tr`${m.label} : appairage requis — depuis la liste des threads`; level = 'banner--error' }
-    else if (m.status !== 'online') { msg = tr`${m.label} hors ligne — reconnexion automatique`; level = 'banner--error' }
+    else if (m.status !== 'online') { msg = tr`${m.label} hors ligne — ${m.error || tr`reconnexion automatique`}`; level = 'banner--error' }
     else if (reopening !== null) msg = tr`Zed rouvre le thread…`
     else if (store.foreignAgent(key)) msg = tr`lecture seule : thread créé hors ZRA — répondre dans Zed`
     else if (st.state === 'closed') msg = tr`thread fermé — ta réponse le rouvrira dans Zed`
