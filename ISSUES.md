@@ -11,7 +11,6 @@ Fait → effet → à faire. Une issue acceptée (on ne fera rien) part dans
 | Section | Statut |
 | --- | --- |
 | Connexion/retry mobile aléatoire (surtout via WireGuard) | `à faire` |
-| Réouverture : le filtre du sidebar est flou | `à faire` |
 
 ## Connexion/retry mobile aléatoire (surtout via WireGuard) — `à faire`
 
@@ -44,32 +43,6 @@ reconnecte aussitôt, `probe` 3 s / heartbeat 15 s + pong 6 s, backoff
  (1001) ou d'un handshake qui échoue. Piste selon le verdict : adoucir
  `wake()`/`probe` au retour au premier plan, ou temporiser la reconnexion
  quand le réseau vient de changer.
-
-## Réouverture : le filtre du sidebar est flou — `à faire`
-
-La recette `openThread` tape le titre dans le filtre du sidebar et ouvre le
-premier résultat. Le filtre est flou (`fuzzy_match_positions`), et un projet
-dont le nom correspond fait apparaître tous ses threads
-(`crates/sidebar/src/sidebar.rs`, `rebuild_contents`). `enter` ouvre le
-premier **thread** (`select_first_entry`), dans l'ordre des groupes de la
-fenêtre, qui peuvent être d'autres projets. Un autre thread peut donc s'ouvrir :
-ZRA attend la session visée et échoue proprement après 30 s, mais un agent a
-été lancé pour rien. De plus, `FocusWorkspaceSidebar` bascule : si le sidebar a
-déjà le focus, il le rend (`crates/workspace/src/multi_workspace.rs`,
-`focus_sidebar`) et le titre est tapé ailleurs.
-Zed 1.28.1 n'offre aucune voie plus précise : ni action ni URL d'ouverture
-d'un thread par identifiant (`zed://agent` n'ouvre que le panneau :
-`crates/zed/src/zed/open_listener.rs`, `parse_agent_url`).
-→ Deux volets. (1) La bascule du focus est corrigée : `workspace: focus center
-pane` (`FocusCenterPane`, `crates/workspace/src/workspace.rs`, Zed 1.28.1) rend
-le focus à l'éditeur déterminiquement, donc le `FocusWorkspaceSidebar` suivant
-tombe toujours dans le sidebar. Validé en réel (Galaxy S22 + Zed 1.28.1),
-promu dans la recette `openThread` par défaut (`zra-daemon/zed/driver.js`).
-Sans effet si aucun éditeur n'est actif.
-(2) Le filtre flou lui-même reste sans voie précise dans Zed 1.28.1 : le premier
-résultat peut être un autre thread, ZRA échoue proprement après 30 s. À
-constater en fréquence ; si gênant, accepter en limitation ou mitiger (retry de
-la recette quand la session ouverte n'est pas la bonne).
 
 ## À tester
 

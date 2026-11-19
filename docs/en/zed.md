@@ -51,7 +51,7 @@ What ZRA depends on in Zed, and where to check it in its sources. Used for the c
 | `openThread` recipe: `workspace: focus center pane` then `multi workspace: focus workspace sidebar` | `zra-daemon/zed/driver.js` | `crates/workspace/src/workspace.rs`: `FocusCenterPane` (editor focus, avoids the toggle); `crates/workspace/src/multi_workspace.rs`: `FocusWorkspaceSidebar`, `focus_sidebar` (toggles); label: `crates/command_palette/src/command_palette.rs` (`humanize_action_name`) | verified |
 | `newThread` recipe (fallback): palette `agent: new thread` | `zra-daemon/zed/driver.js` | `crates/agent_ui/src/agent_ui.rs`: `NewThread` | verified |
 | Default keys cited by the driver (`ctrl-shift-p`, `ctrl-n`, `ctrl-f`…) | `zra-daemon/zed/driver.js` | `assets/keymaps/default-windows.json`, `default-linux.json` | verified |
-| Sidebar filter: typing then `enter` opens the first thread | `zra-daemon/zed/driver.js` | `crates/sidebar/src/sidebar.rs`: `rebuild_contents` (fuzzy filter), `select_first_entry`, `confirm` | gap |
+| Sidebar filter: typing then `enter` opens the first thread | `zra-daemon/zed/driver.js` | `crates/sidebar/src/sidebar.rs`: `rebuild_contents` (fuzzy filter), `select_first_entry`, `confirm` | limitation |
 | Window recognized by its title ("project — file") | `zra-daemon/zed/keyboard.ps1`, `driver.js` (`projectWindow`) | `crates/workspace/src/workspace.rs`: `apply_window_title`, `project_window_title`; default format in `assets/settings/default.json` (`window_title_format`) | verified (custom format: `limitations.md`) |
 
 ### ACP

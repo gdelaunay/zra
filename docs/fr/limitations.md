@@ -101,3 +101,20 @@ capacité et reçoit bien son `session/close`.
 `session/load` et le daemon le suit. Le corriger (déduire la décharge d'un
 `session/load` inattendu) serait du bidouillage pour un gain faible ; accepté
 en l'état.
+
+## Réouverture d'un thread au titre non unique
+
+La recette `openThread` filtre le sidebar de Zed par le titre du thread puis
+ouvre le premier résultat. Le filtre est flou (`fuzzy_match_positions`) et
+`enter` ouvre le premier thread dans l'ordre des groupes de la fenêtre
+(`crates/sidebar/src/sidebar.rs`, `rebuild_contents`, `select_first_entry`).
+Quand plusieurs threads partagent le même titre — cas des agents qui ne
+nomment pas leurs threads, tous au titre par défaut « New Agent Thread » — le
+bon thread n'est pas distinguable : un autre peut s'ouvrir. ZRA attend la
+session visée et échoue proprement après 30 s, mais un agent a été lancé pour
+rien. Zed 1.28.1 n'offre ni action ni URL d'ouverture d'un thread par
+identifiant (`zed://agent` n'ouvre que le panneau, `parse_agent_url`).
+→ Pas de contournement fiable dans Zed 1.28.1. Sera traité avec le renommage
+des threads (un titre unique par thread lève l'ambiguïté du filtre), si cette
+voie est possible. La bascule du focus, elle, est corrigée (`FocusCenterPane`,
+recette `openThread`).

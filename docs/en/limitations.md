@@ -99,3 +99,20 @@ does receive its `session/close`.
 emits `session/load` and the daemon follows it. Fixing it (inferring the unload
 from an unexpected `session/load`) would be hacky for little gain; accepted as
 is.
+
+## Reopening a thread with a non-unique title
+
+The `openThread` recipe filters Zed's sidebar by the thread title then opens
+the first result. The filter is fuzzy (`fuzzy_match_positions`) and `enter`
+opens the first thread in the window's group order
+(`crates/sidebar/src/sidebar.rs`, `rebuild_contents`, `select_first_entry`).
+When several threads share the same title — the case of agents that do not
+name their threads, all at the default title "New Agent Thread" — the right
+thread cannot be distinguished: another one may open. ZRA waits for the target
+session and fails cleanly after 30 s, but an agent was launched for nothing.
+Zed 1.28.1 offers no action or URL to open a thread by identifier
+(`zed://agent` only opens the panel, `parse_agent_url`).
+→ No reliable workaround in Zed 1.28.1. Will be addressed with thread renaming
+(a unique title per thread lifts the filter ambiguity), if that path is
+possible. The focus toggle, however, is fixed (`FocusCenterPane`, `openThread`
+recipe).

@@ -51,7 +51,7 @@ Ce dont ZRA dépend dans Zed, et où le vérifier dans ses sources. Sert à l'au
 | Recette `openThread` : `workspace: focus center pane` puis `multi workspace: focus workspace sidebar` | `zra-daemon/zed/driver.js` | `crates/workspace/src/workspace.rs` : `FocusCenterPane` (focus éditeur, évite la bascule) ; `crates/workspace/src/multi_workspace.rs` : `FocusWorkspaceSidebar`, `focus_sidebar` (bascule) ; libellé : `crates/command_palette/src/command_palette.rs` (`humanize_action_name`) | vérifié |
 | Recette `newThread` (repli) : palette `agent: new thread` | `zra-daemon/zed/driver.js` | `crates/agent_ui/src/agent_ui.rs` : `NewThread` | vérifié |
 | Touches par défaut citées par le pilote (`ctrl-shift-p`, `ctrl-n`, `ctrl-f`…) | `zra-daemon/zed/driver.js` | `assets/keymaps/default-windows.json`, `default-linux.json` | vérifié |
-| Filtre du sidebar : taper puis `enter` ouvre le premier thread | `zra-daemon/zed/driver.js` | `crates/sidebar/src/sidebar.rs` : `rebuild_contents` (filtre flou), `select_first_entry`, `confirm` | écart |
+| Filtre du sidebar : taper puis `enter` ouvre le premier thread | `zra-daemon/zed/driver.js` | `crates/sidebar/src/sidebar.rs` : `rebuild_contents` (filtre flou), `select_first_entry`, `confirm` | limitation |
 | Fenêtre reconnue à son titre (« projet — fichier ») | `zra-daemon/zed/keyboard.ps1`, `driver.js` (`projectWindow`) | `crates/workspace/src/workspace.rs` : `apply_window_title`, `project_window_title` ; format par défaut dans `assets/settings/default.json` (`window_title_format`) | vérifié (format personnalisé : `limitations.md`) |
 
 ### ACP
