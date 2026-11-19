@@ -34,6 +34,7 @@ import { pipeFrames } from './proxy.js'
 import { createRecorder } from './record.js'
 import { parseJsonc } from '../zra-daemon/jsonc.js'
 import { resolveAgentCommand } from '../zra-daemon/agent-commands.js'
+import { PATHS } from '../zra-daemon/platform.js'
 import { tr } from '../zra-daemon/i18n.js'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -235,7 +236,9 @@ export async function resolveAgent(argv, config) {
     )
   }
   const resolved = await resolveAgentCommand(agentId, {
-    settingsFile: config.zedSettings ?? null,
+    // Le shim ne passe pas par loadConfig : sans ce défaut, l'env des entrées
+    // `agent_servers` du settings.json de Zed n'est jamais lu.
+    settingsFile: process.env.ZRA_ZED_SETTINGS || config.zedSettings || PATHS.settings,
     overrides: config.agentCommands ?? {},
   })
   return { ...resolved, agentId }
