@@ -43,8 +43,16 @@ if (missing.length) console.warn('icônes absentes de Zed :', missing.join(', ')
 const icons = {}
 for (const name of [...used].filter(exists).sort()) {
   const file = `${name}.svg`
-  const svg = readFileSync(join(iconDir, file), 'utf8')
-    .replace(/<\?xml[^>]*>/, '')
+  let raw = readFileSync(join(iconDir, file), 'utf8').replace(/<\?xml[^>]*>/, '')
+  // Certains SVG Zed n'ont pas de viewBox (width/height seuls) : GPUI les met à l'échelle
+  // de l'icône, mais en CSS sans viewBox les unités utilisateur restent en px → tracé
+  // clipé et décentré (rotation asymétrique). On rétablit le viewBox depuis width/height.
+  if (!/viewBox=/.test(raw)) {
+    const w = /width="([^"]+)"/.exec(raw)?.[1]
+    const h = /height="([^"]+)"/.exec(raw)?.[1]
+    if (w && h) raw = raw.replace('<svg', `<svg viewBox="0 0 ${w} ${h}"`)
+  }
+  const svg = raw
     .replace(/\s(width|height)="[^"]*"/g, '')
     // GPUI ne garde que l'alpha : toute couleur devient celle de l'icône (sauf le blanc des masques/clips)
     .replace(/(fill|stroke)="(?!none|white|url)[^"]*"/g, '$1="currentColor"')
