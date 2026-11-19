@@ -1,0 +1,291 @@
+/* Reproduction de la sidebar des threads de Zed v1.28.1 (crates/sidebar, crates/ui,
+   crates/agent_ui/src/threads_archive_view.rs). Valeurs pour les réglages par défaut :
+   ui_font_size 16 (1rem = 16px), densité UI par défaut, thème One Dark, sidebar à gauche,
+   agent.threads_sidebar.default_width 300 (bornes 200-800), raccourcis Windows.
+   Chaque règle cite sa source ; les éléments de index.html portent data-src. */
+
+/* Polices embarquées par Zed (.ZedSans = IBM Plex Sans, .ZedMono = Lilex), lues dans _upstream. */
+@font-face { font-family: "Zed Sans"; src: url("../../_upstream/zed/assets/fonts/ibm-plex-sans/IBMPlexSans-Regular.ttf"); font-weight: 400; }
+@font-face { font-family: "Zed Sans"; src: url("../../_upstream/zed/assets/fonts/ibm-plex-sans/IBMPlexSans-Italic.ttf"); font-weight: 400; font-style: italic; }
+@font-face { font-family: "Zed Sans"; src: url("../../_upstream/zed/assets/fonts/ibm-plex-sans/IBMPlexSans-SemiBold.ttf"); font-weight: 600 700; }
+@font-face { font-family: "Zed Mono"; src: url("../../_upstream/zed/assets/fonts/lilex/Lilex-Regular.ttf"); font-weight: 400; }
+@font-face { font-family: "Zed Mono"; src: url("../../_upstream/zed/assets/fonts/lilex/Lilex-Bold.ttf"); font-weight: 700; }
+
+:root {
+  --font-ui: "Zed Sans", "IBM Plex Sans", system-ui, sans-serif;
+  --font-mono: "Zed Mono", "Lilex", ui-monospace, Consolas, monospace;
+
+  /* gpui : line_height par défaut = phi (style.rs) */
+  --lh: 1.618;
+
+  /* ui/styles/elevation.rs ElevatedSurface (menus, infobulles) */
+  --shadow-elevated: 0 2px 3px rgba(0, 0, 0, .12), 0 1px 0 rgba(0, 0, 0, .06);
+  /* gpui shadow_sm (en-tête collant) */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, .1), 0 1px 2px -1px rgba(0, 0, 0, .1);
+}
+
+/* ---------- Page de référence (hors Zed) ---------- */
+* { box-sizing: border-box; }
+body {
+  margin: 0; padding: 24px 32px 80px;
+  background: #1b1d22; color: var(--text);
+  font: 14px/1.5 var(--font-ui);
+}
+.ref-head { max-width: 1100px; margin-bottom: 24px; }
+.ref-head h1 { font-size: 22px; font-weight: 600; margin: 0 0 4px; }
+.ref-head p { margin: 4px 0; color: var(--text-muted); }
+.ref-toolbar { display: flex; gap: 8px; align-items: center; margin-top: 12px; color: var(--text-muted); font-size: 12px; }
+.ref-toolbar button { font: inherit; color: var(--text); background: var(--element-background); border: 1px solid var(--border-variant); border-radius: 4px; padding: 2px 8px; cursor: pointer; }
+.ref-toolbar button[aria-pressed="true"] { border-color: var(--border-focused); }
+.ref-nav { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; margin-top: 8px; }
+.ref-nav a { color: var(--text-accent); text-decoration: none; }
+.ref-section { margin-top: 40px; }
+.ref-section > h2 { font-size: 17px; font-weight: 600; margin: 0 0 4px; border-bottom: 1px solid var(--border-variant); padding-bottom: 4px; }
+.ref-section > p { color: var(--text-muted); margin: 4px 0 12px; max-width: 900px; }
+.ref-grid { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; }
+.ref-specimen { display: flex; flex-direction: column; gap: 6px; }
+.ref-specimen > .ref-label { font-size: 12px; color: var(--text-muted); font-family: var(--font-mono); }
+.ref-specimen > .ref-label b { color: var(--text); font-family: var(--font-ui); font-weight: 600; }
+.ref-frame { width: var(--frame-w, 300px); background: var(--panel-background); border: 1px dashed #555; }
+.ref-frame--auto { width: auto; padding: 16px; }
+/* Mise en évidence des sources au survol (bouton « Sources ») */
+body.show-src [data-src] { outline: 1px dotted rgba(116, 173, 232, .35); }
+body.show-src [data-src]:hover { outline: 1px solid var(--text-accent); }
+
+/* ---------- Primitives (crates/ui), identiques à zed-agent-panel ---------- */
+
+/* Icon — ui/components/icon.rs : Small 14, XSmall 12, Medium 16 */
+.icon { display: inline-flex; flex: none; width: 16px; height: 16px; color: var(--icon); }
+.icon > svg { width: 100%; height: 100%; display: block; }
+.icon.xs { width: 12px; height: 12px; }
+.icon.sm { width: 14px; height: 14px; }
+.icon.muted { color: var(--icon-muted); }
+.icon.accent { color: var(--icon-accent); }
+.icon.warning { color: var(--warning); }
+.icon.error { color: var(--error); }
+.icon.disabled { color: var(--icon-disabled); }
+/* with_rotate_animation(2) — thread_item.rs (Running), sidebar.rs (groupe replié) */
+.icon.spin { animation: z-spin 2s linear infinite; }
+@keyframes z-spin { to { transform: rotate(360deg); } }
+
+/* Label — ui/components/label : Default 14, Small 12, XSmall 10 ; interligne phi */
+.lbl { font-size: 14px; line-height: var(--lh); color: var(--text); white-space: nowrap; }
+.lbl.sm { font-size: 12px; }
+.lbl.xs { font-size: 10px; }
+.lbl.muted { color: var(--text-muted); }
+.lbl.placeholder { color: var(--text-placeholder); }
+.lbl.trunc { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+
+/* ButtonLike — ui/components/button/button_like.rs : Default 22px, px 4, gap 4, rayon 4, Subtle */
+.btn {
+  display: inline-flex; align-items: center; gap: 4px; flex: none;
+  height: 22px; padding: 0 4px; border-radius: 4px; border: 1px solid transparent;
+  background: var(--ghost-element-background); color: var(--text);
+  font: inherit; cursor: pointer;
+}
+.btn:hover { background: var(--ghost-element-hover); }
+.btn:active { background: var(--ghost-element-active); }
+.btn.outlined { border-color: var(--border-variant); background: var(--element-background); }
+.btn.tinted-error { background: var(--error-background); border-color: var(--error-border); }
+.btn[disabled] { cursor: default; background: var(--ghost-element-disabled); }
+.btn.full { width: 100%; }
+.btn > .btn-body { display: inline-flex; align-items: center; gap: 6px; justify-content: space-between; }
+/* IconButton des survols d'entrée : hover element_background, active element_active (sidebar.rs render_thread) */
+.btn.hover-el:hover { background: var(--element-background); }
+.btn.hover-el:active { background: var(--element-active); }
+
+/* IconButton carré — icon.rs square_components : icône + 2 × 2px */
+.ibtn { width: 20px; height: 20px; padding: 0; justify-content: center; }
+.ibtn.sm { width: 18px; height: 18px; }
+.ibtn.toggled { background: var(--ghost-element-selected); }
+
+/* KeyBinding — ui/components/keybinding.rs */
+.kbd { font-size: 12px; line-height: 1; color: var(--text-muted); white-space: nowrap; padding: 1px 0; }
+
+/* Divider — ui/components/divider.rs */
+.divider-h { height: 1px; width: 100%; background: var(--border-variant); flex: none; }
+
+/* DiffStat — ui/components/diff_stat.rs : LabelSize::Small par défaut, « + 12 » / « ‒ 3 » (espace fine) */
+.diffstat { display: inline-flex; gap: 4px; align-items: center; }
+.diffstat .add { color: var(--version-control-added); }
+.diffstat .del { color: var(--version-control-deleted); }
+
+/* Surfaces élevées — ui/traits/styled_ext.rs elevation_2 : rayon 8, bordure border_variant */
+.elevated {
+  background: var(--elevated-surface-background);
+  border: 1px solid var(--border-variant); border-radius: 8px;
+  box-shadow: var(--shadow-elevated);
+}
+
+/* Tooltip — ui/components/tooltip.rs : elevation_2, py 4 px 8, texte 14px */
+.tooltip { display: inline-flex; flex-direction: column; padding: 4px 8px; font-size: 14px; line-height: var(--lh); max-width: 320px; }
+.tooltip-row { display: flex; gap: 16px; align-items: center; justify-content: space-between; }
+.tooltip .sep { border-top: 1px solid var(--border-variant); padding-top: 4px; margin-top: 4px; display: flex; gap: 8px; justify-content: space-between; align-items: center; }
+
+/* ContextMenu — ui/components/context_menu.rs : elevation_2, py 4, min 200,
+   items ListItem inset (marge x 4, padding x 6, rayon 4), gap 6 */
+.menu { display: inline-flex; flex-direction: column; min-width: 200px; padding: 4px 0; font-size: 14px; line-height: var(--lh); }
+.menu-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  margin: 0 4px; padding: 0 6px; border-radius: 4px; color: var(--text); cursor: pointer;
+}
+.menu-item:hover, .menu-item.hover { background: var(--ghost-element-hover); }
+.menu-item.disabled { color: var(--text-disabled); cursor: default; }
+.menu-item.disabled:hover { background: none; }
+.menu-item .start { display: flex; align-items: center; gap: 6px; min-width: 0; }
+/* Croix « Close Worktree » visible au survol de la ligne (sidebar.rs render_project_header_ellipsis_menu) */
+.menu-item > .ibtn { visibility: hidden; }
+.menu-item:hover > .ibtn, .menu-item.hover > .ibtn { visibility: visible; }
+.menu-header { height: 20px; padding: 0 10px; margin-bottom: 4px; display: flex; align-items: center; font-size: 12px; color: var(--text-muted); }
+.menu-sep { height: 1px; background: var(--border-variant); margin: 6px 0; }
+
+/* pulsating_between — thread_item.rs title_generating : 0,4 ↔ 0,8 sur 2 s */
+.ti-title.generating { animation: z-pulse 2s ease-in-out infinite alternate; --lo: .4; --hi: .8; }
+@keyframes z-pulse { from { opacity: var(--lo); } to { opacity: var(--hi); } }
+
+/* ---------- Sidebar (sidebar.rs render) ---------- */
+
+/* Conteneur : fond background ⊕ panel_background (opaque → panel), bordure du côté opposé au dock,
+   largeur agent.threads_sidebar.default_width (300 par défaut) */
+.sidebar {
+  display: flex; flex-direction: column; position: relative; overflow: hidden;
+  width: var(--frame-w, 300px); height: var(--frame-h, 640px);
+  background: var(--panel-background); border-right: 1px solid var(--border);
+  font: 14px/var(--lh) var(--font-ui); color: var(--text);
+}
+
+/* Barre du haut — render_sidebar_header : hauteur platform_title_bar_height (32 sous Windows),
+   pl/pr 6, gap 4, filet bas border ; loupe ml 4 */
+.sb-header {
+  flex: none; display: flex; align-items: center; gap: 4px;
+  height: 32px; padding: 0 6px; border-bottom: 1px solid var(--border);
+}
+.sb-header .mag { margin-left: 4px; display: flex; }
+/* render_filter_input : éditeur une ligne, flex 1, placeholder « Search threads… » */
+.sb-filter { flex: 1; min-width: 0; font: 14px/var(--lh) var(--font-ui); color: var(--text); white-space: nowrap; overflow: hidden; }
+.placeholder { color: var(--text-placeholder); }
+.caret { display: inline-block; width: 2px; height: 1.2em; vertical-align: text-bottom; background: var(--player-local-cursor, #74ade8); margin-left: 1px; }
+
+/* Liste — list(list_state) : défilement vertical, en-tête collant en absolu par-dessus */
+.sb-list { flex: 1; min-height: 0; overflow-y: auto; position: relative; }
+/* render_list_entry : filet border entre groupes (en-tête de projet après le premier) */
+.group + .group { border-top: 1px solid var(--border); }
+
+/* En-tête de projet — render_project_header : hauteur Tab::content_height = 31, pl 8 pr 6,
+   bordure transparente 1px + 2px à droite (focus clavier), survol ghost_element_hover */
+.proj-header {
+  --ph-bg: var(--panel-background);
+  display: flex; align-items: center; justify-content: space-between; position: relative;
+  height: 31px; padding-left: 8px; padding-right: 6px; cursor: pointer;
+  border: 1px solid transparent; border-right-width: 2px;
+}
+.proj-header:hover, .proj-header.hover { background: var(--ghost-element-hover); --ph-bg: color-mix(in srgb, var(--ghost-element-hover), var(--panel-background)); }
+.proj-header:active { background: var(--ghost-element-active); --ph-bg: color-mix(in srgb, var(--ghost-element-active), var(--panel-background)); }
+.proj-header.focused { border-color: var(--panel-focused-border); }
+/* Pendant une recherche : pas de repliement, pas de survol (has_filter) */
+.proj-header.no-filter-toggle { cursor: default; }
+.proj-header.no-filter-toggle:hover { background: none; }
+.ph-left { display: flex; align-items: center; gap: 4px; flex: 1; min-width: 0; position: relative; overflow: hidden; }
+/* Libellé 14px : muted si le groupe n'est pas actif */
+.ph-label { font-size: 14px; line-height: var(--lh); color: var(--text); white-space: nowrap; }
+.ph-label.muted { color: var(--text-muted); }
+/* Chevron de repliement : visible au survol du groupe (visible_on_hover) */
+.ph-disclosure { display: none; align-items: center; }
+.proj-header:hover .ph-disclosure, .proj-header.hover .ph-disclosure { display: flex; }
+/* GradientFade : 92 px, right -2, stop 0,7 (render_project_header) */
+.ph-fade { position: absolute; top: 0; right: -2px; width: 92px; height: 100%; pointer-events: none; background: linear-gradient(90deg, transparent 0%, var(--ph-bg) 70%); }
+/* « + » et « ⋯ » : IconButton 18, gap 1px, pr 6, visibles au survol du groupe */
+.ph-actions { display: none; align-items: center; gap: 1px; padding-right: 6px; position: relative; }
+.proj-header:hover .ph-actions, .proj-header.hover .ph-actions { display: flex; }
+
+/* Projet déplié sans thread — render_project_header : px 8, pt 4 pb 8, gap 7,
+   circle 14 à 10 % de icon_placeholder, libellé 12px placeholder */
+.empty-row { display: flex; align-items: center; gap: 7px; padding: 4px 8px 8px; }
+.empty-row .ghost { color: color-mix(in srgb, var(--icon-placeholder) 10%, transparent); }
+
+/* En-tête collant — render_sticky_header : absolu, fond panel_background_for_overlay
+   (opaque → panel_background), filet bas border à 50 %, ombre sm */
+.sticky {
+  position: absolute; top: 0; left: 0; width: 100%; z-index: 2;
+  background: var(--panel-background);
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ---------- Entrée de thread / terminal (crates/ui/src/components/ai/thread_item.rs render) ----------
+   py 4 px 6, bordure transparente 1px + 2px à droite (focus), survol/actif ghost_element_*,
+   sélection (thread actif) ghost_element_selected. --row-bg = fond apparent pour les dégradés. */
+.ti {
+  --row-bg: var(--panel-background);
+  position: relative; cursor: pointer; padding: 4px 6px; overflow: hidden;
+  border: 1px solid transparent; border-right-width: 2px;
+}
+.ti:hover, .ti.hover { background: var(--ghost-element-hover); --row-bg: color-mix(in srgb, var(--ghost-element-hover), var(--panel-background)); }
+.ti:active { background: var(--ghost-element-active); --row-bg: color-mix(in srgb, var(--ghost-element-active), var(--panel-background)); }
+.ti.selected { background: var(--ghost-element-selected); --row-bg: color-mix(in srgb, var(--ghost-element-selected), var(--panel-background)); }
+.ti.focused { border-color: var(--panel-focused-border); }
+/* Ligne principale : h 24, gap 8, justify-between ; contenu gap 6 */
+.ti-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; height: 24px; min-width: 0; }
+.ti-content { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; position: relative; }
+/* Boîte d'icône 16px centrée ; icône 14 muted (ou 12 pour warning, SVG externe 14) */
+.ti-icon { width: 16px; height: 16px; flex: none; display: flex; align-items: center; justify-content: center; }
+/* Titre 14px ; le dégradé remplace la troncature ellipsis en fenêtre opaque */
+.ti-title { font-size: 14px; line-height: var(--lh); color: var(--text); white-space: nowrap; overflow: hidden; }
+.ti-title.muted { color: var(--text-muted); }
+/* Surbrillance de recherche — highlighted_label.rs : text_accent */
+.hl { color: var(--text-accent); }
+/* GradientFade du titre : 64 px, right -10, stop 0,7 */
+.ti-fade { position: absolute; top: 0; right: -10px; width: 64px; height: 100%; pointer-events: none; background: linear-gradient(90deg, transparent 0%, var(--row-bg) 70%); }
+/* Actions au survol : gap 2, pr 6, dégradé 120 px right 8 stop 0,90 derrière */
+.ti-actions { display: none; align-items: center; gap: 2px; padding-right: 6px; position: relative; }
+.ti:hover .ti-actions, .ti.hover .ti-actions { display: flex; }
+.ti-actions .btn { position: relative; }
+.ti-fade-actions { position: absolute; top: 0; right: 8px; width: 120px; height: 100%; pointer-events: none; background: linear-gradient(90deg, transparent 0%, var(--row-bg) 90%); }
+/* Seconde ligne (métadonnées) : gap 6, boîte vide de 16px pour aligner sous le titre */
+.ti-meta { display: flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden; }
+.ti-meta .spacer { width: 16px; flex: none; }
+/* Séparateur « • » : Label Small, text_muted à 40 % */
+.dotsep { font-size: 12px; line-height: var(--lh); color: color-mix(in srgb, var(--text-muted) 40%, transparent); flex: none; }
+/* Puce worktree : gap 2, icône 12 muted (git_worktree, ou git_branch si branche seule), noms 12 muted */
+.chip { display: flex; align-items: center; gap: 2px; min-width: 0; overflow: hidden; }
+/* Brouillon : icône Circle à 20 % de icon_muted (sidebar.rs render_thread) */
+.draft-icon { color: color-mix(in srgb, var(--icon-muted) 20%, transparent); }
+/* Archivé (vue archive) : icône d'agent à 60 %, icône archive des métadonnées à 50 % */
+.archived-icon { color: color-mix(in srgb, var(--icon-muted) 60%, transparent); }
+.archived-meta { color: color-mix(in srgb, var(--icon-muted) 50%, transparent); }
+/* Renommage — render_rename_title_editor : éditeur une ligne à la place du titre */
+.ti-rename {
+  flex: 1; min-width: 0; height: 100%; display: flex; align-items: center; padding: 0 2px;
+  background: var(--editor-background); font: 14px/var(--lh) var(--font-ui); color: var(--text); white-space: nowrap; overflow: hidden;
+}
+
+/* ---------- Barre du bas (render_sidebar_bottom_bar) ----------
+   p 4, gap 4, filet haut border ; côté droit : flex_row_reverse */
+.sb-bottom { flex: none; display: flex; align-items: center; gap: 4px; padding: 4px; border-top: 1px solid var(--border); }
+.sb-bottom .spacer { flex: 1; }
+.sb-bottom.right { flex-direction: row-reverse; }
+
+/* ---------- Historique (crates/agent_ui/src/threads_archive_view.rs) ---------- */
+
+/* Barre d'outils — render_toolbar : mt 1, pl 10 pr 6, hauteur Tab::content_height = 31,
+   filet bas border ; compte 12px muted ; boutons gap 4 */
+.ar-toolbar {
+  flex: none; display: flex; align-items: center; justify-content: space-between;
+  height: 31px; margin-top: 1px; padding: 0 6px 0 10px; border-bottom: 1px solid var(--border);
+}
+.ar-toolbar .grp { display: flex; align-items: center; gap: 4px; }
+/* Séparateur de bucket — render_list_entry : px 10, pt 12 pb 4, libellé 12px muted */
+.bucket { padding: 12px 10px 4px; font-size: 12px; line-height: var(--lh); color: var(--text-muted); }
+
+/* ---------- États vides ---------- */
+
+/* render_no_results / archive render : p 16, centré, libellé 12px muted */
+.no-results { flex: 1; display: flex; align-items: center; justify-content: center; padding: 16px; font-size: 12px; color: var(--text-muted); }
+/* ProjectEmptyState — crates/ui/src/components/project_empty_state.rs : p 16 centré,
+   colonne w 192 gap 4, libellé 12px muted centré mb 8, boutons pleine largeur, « or » 10px entre filets */
+.empty-state { flex: 1; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.es-col { width: 192px; max-width: 100%; display: flex; flex-direction: column; gap: 4px; }
+.es-label { font-size: 12px; line-height: var(--lh); color: var(--text-muted); text-align: center; margin-bottom: 8px; white-space: normal; }
+.es-col .btn .btn-body { flex: 1; }
+.es-or { display: flex; align-items: center; gap: 8px; }
+.es-or .divider-h { flex: 1; width: auto; }

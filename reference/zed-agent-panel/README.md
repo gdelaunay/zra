@@ -4,7 +4,7 @@ Reproduction statique du panel agent de Zed, base de comparaison pour `zra-clien
 
 - **Version** : Zed v1.28.1 (`_upstream/zed`, voir [docs/fr/zed.md](../../docs/fr/zed.md)).
 - **Réglages** : valeurs par défaut (`ui_font_size` 16, `agent_buffer_font_size` 12, `buffer_line_height` comfortable, densité par défaut, `max_content_width` 850, largeur du panel 640), thème One Dark, raccourcis Windows.
-- **Périmètre** : barre du haut, fil (messages, outils, permissions), barre d'activité, zone de saisie, callouts, états de connexion. Exclus : assistant inline, assistant du terminal, configuration des agents et MCP, onboarding et upsells, historique et barre latérale des fils.
+- **Périmètre** : barre du haut, fil (messages, outils, permissions), barre d'activité, zone de saisie, callouts, états de connexion. Exclus : assistant inline, assistant du terminal, configuration des agents et MCP, onboarding et upsells, historique et barre latérale des fils (ces deux derniers : [`reference/zed-threads-sidebar/`](../zed-threads-sidebar/)).
 
 ## Fichiers
 

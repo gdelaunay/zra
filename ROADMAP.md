@@ -21,13 +21,13 @@ datés, avec le hash du commit de référence ; ROADMAP à jour ; puis commit
 
 Pour coller au plus près du panneau agent de Zed :
 
+Références visuelles : `reference/zed-agent-panel/` (panel) et
+`reference/zed-threads-sidebar/` (liste des threads et historique).
+
 - **tool calls** : dépliement / repliement et affichage (en-tête, corps,
   entrées et sorties brutes) ;
 - forme et couleurs des commandes, des messages, etc. ;
 - mise en page des réflexions ;
-- **indicateur de génération dans la liste des threads** : un thread dont une
-  réponse est en cours de génération doit se voir différemment du simple
-  « live » (la pastille actuelle ne dit pas si l'agent tourne) ;
 - l'icône définitive de l'indicateur de tour (`loader` en attendant).
 
 

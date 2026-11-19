@@ -1,0 +1,838 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Référence — liste des threads de Zed v1.28.1</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="sidebar.css">
+</head>
+<body>
+
+<header class="ref-head">
+  <h1>Liste des threads de Zed — référence visuelle</h1>
+  <p>Zed v1.28.1, réglages par défaut, thème One Dark, sidebar à gauche (300 px). Instantanés statiques ; comportements et conditions dans <code>README.md</code>.</p>
+  <p><code>data-src</code> sur chaque élément : fichier et fonction d'origine (chemins relatifs à <code>crates/sidebar/src</code> sauf mention).</p>
+  <div class="ref-toolbar">
+    Largeur de la sidebar :
+    <button data-w="300" aria-pressed="true">300 px (défaut Zed)</button>
+    <button data-w="200" aria-pressed="false">200 px (minimum)</button>
+    <span style="width:16px"></span>
+    <button id="toggle-src" aria-pressed="false">Sources</button>
+  </div>
+  <nav class="ref-nav">
+    <a href="#sidebar">1. Sidebar complète</a>
+    <a href="#header">2. Barre du haut et filtre</a>
+    <a href="#project">3. En-tête de projet</a>
+    <a href="#thread">4. Entrée de thread</a>
+    <a href="#meta">5. Métadonnées d'entrée</a>
+    <a href="#terminal">6. Entrée de terminal</a>
+    <a href="#bottom">7. Barre du bas</a>
+    <a href="#menus">8. Menus</a>
+    <a href="#archive">9. Historique (archive)</a>
+    <a href="#empty">10. États vides</a>
+  </nav>
+</header>
+
+<!-- ============================================================ -->
+<section class="ref-section" id="sidebar">
+  <h2>1. Sidebar complète</h2>
+  <p>Structure : barre du haut (32 px sous Windows) · liste (en-têtes de projet, threads, terminaux) · barre du bas. Fond <code>panel.background</code>, bordure du côté opposé au dock. Groupes séparés par un filet <code>border</code>.</p>
+  <div class="ref-grid">
+
+    <!-- 1a. Liste de threads -->
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Liste de threads</b> — statuts, worktree, brouillon, terminal, groupe replié</div>
+      <div class="ref-frame" style="--frame-h:600px">
+        <div class="sidebar" data-src="sidebar.rs render">
+          <div class="sb-header" data-src="sidebar.rs render_sidebar_header">
+            <span class="mag"><i class="icon sm muted" data-i="magnifying_glass"></i></span>
+            <div class="sb-filter"><span class="placeholder">Search threads…</span></div>
+          </div>
+          <div class="sb-list">
+            <div class="group">
+              <div class="proj-header active" data-src="sidebar.rs render_project_header">
+                <div class="ph-left"><span class="ph-label">zra</span><span class="ph-fade"></span></div>
+                <div class="ph-actions"><button class="btn ibtn sm"><i class="icon sm" data-i="plus"></i></button><button class="btn ibtn sm"><i class="icon sm" data-i="ellipsis"></i></button></div>
+              </div>
+              <div class="ti" data-src="sidebar.rs render_thread ; crates/ui/src/components/ai/thread_item.rs render (Running)">
+                <div class="ti-row">
+                  <div class="ti-content"><span class="ti-icon"><i class="icon sm muted spin" data-i="load_circle"></i></span><span class="ti-title">Migrer la config vers TOML</span><span class="ti-fade"></span></div>
+                </div>
+                <div class="ti-meta"><span class="spacer"></span><span class="chip"><i class="icon xs muted" data-i="git_worktree"></i><span class="lbl sm muted trunc">toml-migration</span></span><span class="dotsep">•</span><span class="lbl sm muted">2m</span></div>
+              </div>
+              <div class="ti" data-src="crates/ui/src/components/ai/thread_item.rs render (WaitingForConfirmation)">
+                <div class="ti-row">
+                  <div class="ti-content"><span class="ti-icon"><i class="icon xs warning" data-i="warning"></i></span><span class="ti-title">Nettoyer les fichiers temporaires</span><span class="ti-fade"></span></div>
+                </div>
+                <div class="ti-meta"><span class="spacer"></span><span class="lbl sm muted">5m</span></div>
+              </div>
+              <div class="ti selected" data-src="sidebar.rs render_thread (is_active)">
+                <div class="ti-row">
+                  <div class="ti-content"><span class="ti-icon"><i class="icon sm muted" data-i="ai_claude"></i></span><span class="ti-title">Corriger le parsing des dates ISO</span><span class="ti-fade"></span></div>
+                </div>
+                <div class="ti-meta"><span class="spacer"></span><span class="chip"><i class="icon xs muted" data-i="git_worktree"></i><span class="lbl sm muted trunc">dates-fix</span><span class="lbl sm dotsep">/</span><span class="lbl sm muted trunc">fix-sign</span></span><span class="dotsep">•</span><span class="diffstat lbl sm"><span class="add">+&thinsp;1</span><span class="del">&#8210;&thinsp;1</span></span><span class="dotsep">•</span><span class="lbl sm muted">12m</span></div>
+              </div>
+              <div class="ti" data-src="crates/ui/src/components/ai/thread_item.rs render (notified)">
+                <div class="ti-row">
+                  <div class="ti-content"><span class="ti-icon"><i class="icon sm accent" data-i="circle"></i></span><span class="ti-title">Générer le changelog</span><span class="ti-fade"></span></div>
+                </div>
+                <div class="ti-meta"><span class="spacer"></span><span class="lbl sm muted">1h</span></div>
+              </div>
+              <div class="ti">
+                <div class="ti-row">
+                  <div class="ti-content"><span class="ti-icon"><i class="icon sm muted" data-i="ai_claude"></i></span><span class="ti-title">Ajouter la lecture TOML dans config.rs</span><span class="ti-fade"></span></div>
+                </div>
+                <div class="ti-meta"><span class="spacer"></span><span class="diffstat lbl sm"><span class="add">+&thinsp;24</span><span class="del">&#8210;&thinsp;7</span></span><span class="dotsep">•</span><span class="lbl sm muted">3h</span></div>
+              </div>
+              <div class="ti" data-src="sidebar.rs render_thread (draft)">
+                <div class="ti-row">
+                  <div class="ti-content"><span class="ti-icon"><i class="icon sm draft-icon" data-i="circle"></i></span><span class="ti-title">New Claude Code Thread</span><span class="ti-fade"></span></div>
+                </div>
+              </div>
+              <div class="ti" data-src="sidebar.rs render_terminal">
+                <div class="ti-row">
+                  <div class="ti-content"><span class="ti-icon"><i class="icon sm muted" data-i="terminal"></i></span><span class="ti-title">npm run daemon</span><span class="ti-fade"></span></div>
+                </div>
+                <div class="ti-meta"><span class="spacer"></span><span class="lbl sm muted">1h</span></div>
+              </div>
+            </div>
+            <div class="group">
+              <div class="proj-header" data-src="sidebar.rs render_project_header (collapsed, has_running_threads)">
+                <div class="ph-left"><span class="ph-label muted">zed</span><i class="icon xs muted spin" data-i="load_circle"></i><span class="ph-disclosure"><i class="icon sm muted" data-i="chevron_right"></i></span><span class="ph-fade"></span></div>
+                <div class="ph-actions"><button class="btn ibtn sm"><i class="icon sm" data-i="plus"></i></button><button class="btn ibtn sm"><i class="icon sm" data-i="ellipsis"></i></button></div>
+              </div>
+            </div>
+            <div class="group">
+              <div class="proj-header" data-src="sidebar.rs render_project_header (collapsed, waiting_thread_count)">
+                <div class="ph-left"><span class="ph-label muted">docs</span><i class="icon xs warning" data-i="warning"></i><span class="ph-disclosure"><i class="icon sm muted" data-i="chevron_right"></i></span><span class="ph-fade"></span></div>
+                <div class="ph-actions"><button class="btn ibtn sm"><i class="icon sm" data-i="plus"></i></button><button class="btn ibtn sm"><i class="icon sm" data-i="ellipsis"></i></button></div>
+              </div>
+            </div>
+          </div>
+          <div class="sb-bottom" data-src="sidebar.rs render_sidebar_bottom_bar">
+            <button class="btn ibtn sm"><i class="icon sm" data-i="threads_sidebar_left_open"></i></button>
+            <button class="btn ibtn sm"><i class="icon sm" data-i="clock"></i></button>
+            <span class="spacer"></span>
+            <button class="btn ibtn sm"><i class="icon sm" data-i="folder_add"></i></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 1b. En-tête collant -->
+    <div class="ref-specimen">
+      <div class="ref-label"><b>En-tête collant</b> — liste défilée : l'en-tête du groupe suit, ombre et filet bas</div>
+      <div class="ref-frame" style="--frame-h:380px">
+        <div class="sidebar">
+          <div class="sb-header">
+            <span class="mag"><i class="icon sm muted" data-i="magnifying_glass"></i></span>
+            <div class="sb-filter"><span class="placeholder">Search threads…</span></div>
+          </div>
+          <div class="sb-list">
+            <div class="ti">
+              <div class="ti-row"><div class="ti-content"><span class="ti-icon"><i class="icon sm muted" data-i="ai_claude"></i></span><span class="ti-title">Refondre la barre d'activité</span><span class="ti-fade"></span></div></div>
+              <div class="ti-meta"><span class="spacer"></span><span class="lbl sm muted">2d</span></div>
+            </div>
+            <div class="ti">
+              <div class="ti-row"><div class="ti-content"><span class="ti-icon"><i class="icon sm muted" data-i="ai_claude"></i></span><span class="ti-title">Corriger le suivi du défilement</span><span class="ti-fade"></span></div></div>
+              <div class="ti-meta"><span class="spacer"></span><span class="lbl sm muted">3d</span></div>
+            </div>
+            <div class="ti">
+              <div class="ti-row"><div class="ti-content"><span class="ti-icon"><i class="icon sm muted" data-i="zed_agent"></i></span><span class="ti-title">Expliquer le choix du relais HTTPS</span><span class="ti-fade"></span></div></div>
+              <div class="ti-meta"><span class="spacer"></span><span class="lbl sm muted">3w</span></div>
+            </div>
+            <div class="sticky" data-src="sidebar.rs render_sticky_header">
+              <div class="proj-header active">
+                <div class="ph-left"><span class="ph-label">zra</span><span class="ph-fade"></span></div>
+                <div class="ph-actions"><button class="btn ibtn sm"><i class="icon sm" data-i="plus"></i></button><button class="btn ibtn sm"><i class="icon sm" data-i="ellipsis"></i></button></div>
+              </div>
+            </div>
+          </div>
+          <div class="sb-bottom">
+            <button class="btn ibtn sm"><i class="icon sm" data-i="threads_sidebar_left_open"></i></button>
+            <button class="btn ibtn sm"><i class="icon sm" data-i="clock"></i></button>
+            <span class="spacer"></span>
+            <button class="btn ibtn sm"><i class="icon sm" data-i="folder_add"></i></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 1c. Recherche -->
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Recherche</b> — correspondances surlignées, groupes non repliables</div>
+      <div class="ref-frame" style="--frame-h:380px">
+        <div class="sidebar">
+          <div class="sb-header">
+            <span class="mag"><i class="icon sm muted" data-i="magnifying_glass"></i></span>
+            <div class="sb-filter">dates<span class="caret"></span></div>
+            <button class="btn ibtn sm"><i class="icon sm" data-i="close"></i></button>
+          </div>
+          <div class="sb-list" data-src="sidebar.rs render_project_header (has_filter)">
+            <div class="group">
+              <div class="proj-header active no-filter-toggle">
+                <div class="ph-left"><span class="ph-label">zra</span><span class="ph-fade"></span></div>
+                <div class="ph-actions"><button class="btn ibtn sm"><i class="icon sm" data-i="plus"></i></button><button class="btn ibtn sm"><i class="icon sm" data-i="ellipsis"></i></button></div>
+              </div>
+              <div class="ti" data-src="crates/ui/src/components/label/highlighted_label.rs render">
+                <div class="ti-row"><div class="ti-content"><span class="ti-icon"><i class="icon sm muted" data-i="ai_claude"></i></span><span class="ti-title">Corriger le parsing des <span class="hl">dates</span> ISO</span><span class="ti-fade"></span></div></div>
+                <div class="ti-meta"><span class="spacer"></span><span class="chip"><i class="icon xs muted" data-i="git_worktree"></i><span class="lbl sm muted trunc"><span class="hl">dates</span>-fix</span></span><span class="dotsep">•</span><span class="lbl sm muted">12m</span></div>
+              </div>
+              <div class="ti">
+                <div class="ti-row"><div class="ti-content"><span class="ti-icon"><i class="icon sm muted" data-i="ai_claude"></i></span><span class="ti-title">Test des fuseaux <span class="hl">dates</span> négatifs</span><span class="ti-fade"></span></div></div>
+                <div class="ti-meta"><span class="spacer"></span><span class="lbl sm muted">2d</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="sb-bottom">
+            <button class="btn ibtn sm"><i class="icon sm" data-i="threads_sidebar_left_open"></i></button>
+            <button class="btn ibtn sm"><i class="icon sm" data-i="clock"></i></button>
+            <span class="spacer"></span>
+            <button class="btn ibtn sm"><i class="icon sm" data-i="folder_add"></i></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="ref-section" id="header">
+  <h2>2. Barre du haut et filtre</h2>
+  <p>Hauteur = barre de titre de la plateforme (32 px sous Windows), filet bas <code>border</code>. Loupe 14 px muted, éditeur une ligne « Search threads… ». Le raccourci de focus n'apparaît que si la sélection clavier existe et que le filtre n'a pas le focus ; la croix n'apparaît qu'avec une requête.</p>
+  <div class="ref-grid">
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Filtre</b> — vide · sélection clavier (Ctrl-F) · requête (croix)</div>
+      <div class="ref-frame">
+        <div class="sb-header" data-src="sidebar.rs render_sidebar_header">
+          <span class="mag"><i class="icon sm muted" data-i="magnifying_glass"></i></span>
+          <div class="sb-filter"><span class="placeholder">Search threads…</span></div>
+        </div>
+      </div>
+      <div class="ref-frame">
+        <div class="sb-header">
+          <span class="mag"><i class="icon sm muted" data-i="magnifying_glass"></i></span>
+          <div class="sb-filter"><span class="placeholder">Search threads…</span></div>
+          <span class="kbd">Ctrl-F</span>
+        </div>
+      </div>
+      <div class="ref-frame">
+        <div class="sb-header">
+          <span class="mag"><i class="icon sm muted" data-i="magnifying_glass"></i></span>
+          <div class="sb-filter">toml<span class="caret"></span></div>
+          <button class="btn ibtn sm"><i class="icon sm" data-i="close"></i></button>
+        </div>
+      </div>
+    </div>
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Tooltip</b> de la croix</div>
+      <div class="tooltip elevated"><span>Clear Search</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="ref-section" id="project">
+  <h2>3. En-tête de projet</h2>
+  <p>Hauteur 31 px (<code>Tab::content_height</code> = 32 − 1), pl 8 pr 6. Libellé 14 px : muted si le projet n'est pas actif, normal sinon. Au survol : chevron de repliement, « + » et « ⋯ » (18 px, fond <code>element.background</code> au survol du bouton). Replié : indicateurs d'activité du groupe. Clic = replie/déplie ; Ctrl-clic = ouvre/focus le projet.</p>
+  <div class="ref-grid">
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Actif · inactif · survol</b></div>
+      <div class="ref-frame">
+        <div class="proj-header active" data-src="sidebar.rs render_project_header">
+          <div class="ph-left"><span class="ph-label">zra</span><span class="ph-fade"></span></div>
+          <div class="ph-actions"><button class="btn ibtn sm"><i class="icon sm" data-i="plus"></i></button><button class="btn ibtn sm"><i class="icon sm" data-i="ellipsis"></i></button></div>
+        </div>
+      </div>
+      <div class="ref-frame">
+        <div class="proj-header">
+          <div class="ph-left"><span class="ph-label muted">zed</span><span class="ph-fade"></span></div>
+          <div class="ph-actions"><button class="btn ibtn sm"><i class="icon sm" data-i="plus"></i></button><button class="btn ibtn sm"><i class="icon sm" data-i="ellipsis"></i></button></div>
+        </div>
+      </div>
+      <div class="ref-frame">
+        <div class="proj-header hover">
+          <div class="ph-left"><span class="ph-label muted">zed</span><span class="ph-disclosure"><i class="icon sm muted" data-i="chevron_down"></i></span><span class="ph-fade"></span></div>
+          <div class="ph-actions"><button class="btn ibtn sm"><i class="icon sm" data-i="plus"></i></button><button class="btn ibtn sm"><i class="icon sm" data-i="ellipsis"></i></button></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Replié — indicateurs</b> — génération · attente de confirmation · notification</div>
+      <div class="ref-frame">
+        <div class="proj-header" data-src="sidebar.rs render_project_header (is_collapsed)">
+          <div class="ph-left"><span class="ph-label muted">zed</span><i class="icon xs muted spin" data-i="load_circle"></i><span class="ph-fade"></span></div>
+          <div class="ph-actions"><button class="btn ibtn sm"><i class="icon sm" data-i="plus"></i></button><button class="btn ibtn sm"><i class="icon sm" data-i="ellipsis"></i></button></div>
+        </div>
+      </div>
+      <div class="ref-frame">
+        <div class="proj-header">
+          <div class="ph-left"><span class="ph-label muted">docs</span><i class="icon xs warning" data-i="warning"></i><span class="ph-fade"></span></div>
+          <div class="ph-actions"><button class="btn ibtn sm"><i class="icon sm" data-i="plus"></i></button><button class="btn ibtn sm"><i class="icon sm" data-i="ellipsis"></i></button></div>
+        </div>
+      </div>
+      <div class="ref-frame">
+        <div class="proj-header hover">
+          <div class="ph-left"><span class="ph-label muted">notes</span><i class="icon sm accent" data-i="circle"></i><span class="ph-disclosure"><i class="icon sm muted" data-i="chevron_right"></i></span><span class="ph-fade"></span></div>
+          <div class="ph-actions"><button class="btn ibtn sm"><i class="icon sm" data-i="plus"></i></button><button class="btn ibtn sm"><i class="icon sm" data-i="ellipsis"></i></button></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Projet distant</b> — SSH · WSL · Docker (icône 12 px muted)</div>
+      <div class="ref-frame">
+        <div class="proj-header" data-src="sidebar.rs render_remote_project_icon">
+          <div class="ph-left"><span class="ph-label muted">serveur</span><i class="icon xs muted" data-i="server"></i><span class="ph-fade"></span></div>
+          <div class="ph-actions"><button class="btn ibtn sm"><i class="icon sm" data-i="plus"></i></button><button class="btn ibtn sm"><i class="icon sm" data-i="ellipsis"></i></button></div>
+        </div>
+      </div>
+      <div class="ref-frame">
+        <div class="proj-header">
+          <div class="ph-left"><span class="ph-label muted">ubuntu</span><i class="icon xs muted" data-i="linux"></i><span class="ph-fade"></span></div>
+          <div class="ph-actions"><button class="btn ibtn sm"><i class="icon sm" data-i="plus"></i></button><button class="btn ibtn sm"><i class="icon sm" data-i="ellipsis"></i></button></div>
+        </div>
+      </div>
+      <div class="ref-frame">
+        <div class="proj-header">
+          <div class="ph-left"><span class="ph-label muted">container</span><i class="icon xs muted" data-i="box"></i><span class="ph-fade"></span></div>
+          <div class="ph-actions"><button class="btn ibtn sm"><i class="icon sm" data-i="plus"></i></button><button class="btn ibtn sm"><i class="icon sm" data-i="ellipsis"></i></button></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Projet vide</b> — déplié sans thread : ligne « No threads yet »</div>
+      <div class="ref-frame">
+        <div class="proj-header active" data-src="sidebar.rs render_project_header (!has_threads)">
+          <div class="ph-left"><span class="ph-label">nouveau-projet</span><span class="ph-fade"></span></div>
+          <div class="ph-actions"><button class="btn ibtn sm"><i class="icon sm" data-i="plus"></i></button><button class="btn ibtn sm"><i class="icon sm" data-i="ellipsis"></i></button></div>
+        </div>
+        <div class="empty-row"><i class="icon sm ghost" data-i="circle"></i><span class="lbl sm placeholder">No threads yet</span></div>
+      </div>
+    </div>
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Collant</b> — fond overlay, filet bas à 50 %, ombre sm ; poussé vers le haut par l'en-tête suivant</div>
+      <div class="ref-frame" style="position:relative;padding-top:32px">
+        <div class="sticky" data-src="sidebar.rs render_sticky_header">
+          <div class="proj-header active">
+            <div class="ph-left"><span class="ph-label">zra</span><span class="ph-fade"></span></div>
+            <div class="ph-actions"><button class="btn ibtn sm"><i class="icon sm" data-i="plus"></i></button><button class="btn ibtn sm"><i class="icon sm" data-i="ellipsis"></i></button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Tooltip</b> de l'indicateur d'attente (groupe replié)</div>
+      <div class="tooltip elevated"><span>2 threads are waiting for confirmation</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="ref-section" id="thread">
+  <h2>4. Entrée de thread</h2>
+  <p><code>ThreadItem</code> (crates/ui) : py 4 px 6, ligne principale 24 px, icône dans un boîte de 16 px, titre 14 px, dégradé de troncature 64 px. L'icône porte le statut : génération = <code>load_circle</code> tournant (2 s), attente = warning 12 px, erreur = close 14 px, non confirmé = info 14 px muted, notification = circle 14 px accent ; sinon l'icône de l'agent (14 px muted, ou SVG du registre ACP).</p>
+  <div class="ref-grid">
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Statuts</b> — repos · génération · attente · non confirmé · erreur · notification · titre en génération · brouillons</div>
+      <div class="ref-frame" style="padding:4px 0">
+        <div class="ti" data-src="crates/ui/src/components/ai/thread_item.rs render">
+          <div class="ti-row"><div class="ti-content"><span class="ti-icon"><i class="icon sm muted" data-i="ai_claude"></i></span><span class="ti-title">Corriger le parsing des dates ISO</span><span class="ti-fade"></span></div></div>
+          <div class="ti-meta"><span class="spacer"></span><span class="lbl sm muted">12m</span></div>
+        </div>
+        <div class="ti">
+          <div class="ti-row"><div class="ti-content"><span class="ti-icon"><i class="icon sm muted spin" data-i="load_circle"></i></span><span class="ti-title">Migrer la config vers TOML</span><span class="ti-fade"></span></div></div>
+          <div class="ti-meta"><span class="spacer"></span><span class="lbl sm muted">2m</span></div>
+        </div>
+        <div class="ti">
+          <div class="ti-row"><div class="ti-content"><span class="ti-icon"><i class="icon xs warning" data-i="warning"></i></span><span class="ti-title">Nettoyer les fichiers temporaires</span><span class="ti-fade"></span></div></div>
+          <div class="ti-meta"><span class="spacer"></span><span class="lbl sm muted">5m</span></div>
+        </div>
+        <div class="ti" data-src="sidebar.rs render_thread (AgentThreadStatus::Unconfirmed)">
+          <div class="ti-row"><div class="ti-content"><span class="ti-icon"><i class="icon sm muted" data-i="info"></i></span><span class="ti-title">Session reprise sans activité confirmée</span><span class="ti-fade"></span></div></div>
+          <div class="ti-meta"><span class="spacer"></span><span class="lbl sm muted">1h</span></div>
+        </div>
+        <div class="ti">
+          <div class="ti-row"><div class="ti-content"><span class="ti-icon"><i class="icon sm error" data-i="close"></i></span><span class="ti-title">Générer le changelog</span><span class="ti-fade"></span></div></div>
+          <div class="ti-meta"><span class="spacer"></span><span class="lbl sm muted">1h</span></div>
+        </div>
+        <div class="ti">
+          <div class="ti-row"><div class="ti-content"><span class="ti-icon"><i class="icon sm accent" data-i="circle"></i></span><span class="ti-title">Réponse arrivée sur un thread inactif</span><span class="ti-fade"></span></div></div>
+          <div class="ti-meta"><span class="spacer"></span><span class="lbl sm muted">1h</span></div>
+        </div>
+        <div class="ti" data-src="crates/ui/src/components/ai/thread_item.rs render (title_generating)">
+          <div class="ti-row"><div class="ti-content"><span class="ti-icon"><i class="icon sm muted" data-i="ai_claude"></i></span><span class="ti-title generating">New Agent Thread</span><span class="ti-fade"></span></div></div>
+          <div class="ti-meta"><span class="spacer"></span><span class="lbl sm muted">1m</span></div>
+        </div>
+        <div class="ti" data-src="sidebar.rs render_thread (DraftKind::Empty)">
+          <div class="ti-row"><div class="ti-content"><span class="ti-icon"><i class="icon sm draft-icon" data-i="circle"></i></span><span class="ti-title">New Claude Code Thread</span><span class="ti-fade"></span></div></div>
+        </div>
+        <div class="ti" data-src="sidebar.rs render_thread (DraftKind::WithContent)">
+          <div class="ti-row"><div class="ti-content"><span class="ti-icon"><i class="icon sm draft-icon" data-i="circle"></i></span><span class="ti-title">Passe la config de JSON à TOML, garde la compat…</span><span class="ti-fade"></span></div></div>
+          <div class="ti-meta"><span class="spacer"></span><span class="lbl sm muted">3m</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Sélection et survol</b> — thread actif · focus clavier · actions au survol (renommer + archiver / stop / jeter)</div>
+      <div class="ref-frame" style="padding:4px 0">
+        <div class="ti selected" data-src="sidebar.rs render_thread (is_active)">
+          <div class="ti-row"><div class="ti-content"><span class="ti-icon"><i class="icon sm muted" data-i="ai_claude"></i></span><span class="ti-title">Corriger le parsing des dates ISO</span><span class="ti-fade"></span></div></div>
+          <div class="ti-meta"><span class="spacer"></span><span class="lbl sm muted">12m</span></div>
+        </div>
+        <div class="ti focused" data-src="crates/ui/src/components/ai/thread_item.rs render (focused)">
+          <div class="ti-row"><div class="ti-content"><span class="ti-icon"><i class="icon sm muted" data-i="ai_claude"></i></span><span class="ti-title">Sélection clavier (bordure droite 2 px)</span><span class="ti-fade"></span></div></div>
+          <div class="ti-meta"><span class="spacer"></span><span class="lbl sm muted">1h</span></div>
+        </div>
+        <div class="ti hover" data-src="sidebar.rs render_thread (action_slot)">
+          <div class="ti-row">
+            <div class="ti-content"><span class="ti-icon"><i class="icon sm muted" data-i="ai_claude"></i></span><span class="ti-title">Ajouter la lecture TOML dans config.rs</span><span class="ti-fade"></span></div>
+            <div class="ti-actions"><span class="ti-fade-actions"></span><button class="btn ibtn sm hover-el"><i class="icon sm" data-i="pencil"></i></button><button class="btn ibtn sm hover-el"><i class="icon sm" data-i="archive"></i></button></div>
+          </div>
+          <div class="ti-meta"><span class="spacer"></span><span class="lbl sm muted">3h</span></div>
+        </div>
+        <div class="ti hover" data-src="sidebar.rs render_thread (can_request_stop)">
+          <div class="ti-row">
+            <div class="ti-content"><span class="ti-icon"><i class="icon sm muted spin" data-i="load_circle"></i></span><span class="ti-title">Migrer la config vers TOML</span><span class="ti-fade"></span></div>
+            <div class="ti-actions"><span class="ti-fade-actions"></span><button class="btn ibtn sm hover-el"><i class="icon sm" data-i="pencil"></i></button><button class="btn ibtn sm tinted-error"><i class="icon sm error" data-i="stop"></i></button></div>
+          </div>
+          <div class="ti-meta"><span class="spacer"></span><span class="lbl sm muted">2m</span></div>
+        </div>
+        <div class="ti hover" data-src="sidebar.rs render_thread (DraftKind::WithContent, hover)">
+          <div class="ti-row">
+            <div class="ti-content"><span class="ti-icon"><i class="icon sm draft-icon" data-i="circle"></i></span><span class="ti-title">Passe la config de JSON à TOML</span><span class="ti-fade"></span></div>
+            <div class="ti-actions"><span class="ti-fade-actions"></span><button class="btn ibtn sm hover-el"><i class="icon sm" data-i="pencil"></i></button><button class="btn ibtn sm hover-el"><i class="icon sm" data-i="close"></i></button></div>
+          </div>
+          <div class="ti-meta"><span class="spacer"></span><span class="lbl sm muted">3m</span></div>
+        </div>
+        <div class="ti hover" data-src="sidebar.rs render_thread (DraftKind::Empty, hover)">
+          <div class="ti-row">
+            <div class="ti-content"><span class="ti-icon"><i class="icon sm draft-icon" data-i="circle"></i></span><span class="ti-title">New Claude Code Thread</span><span class="ti-fade"></span></div>
+            <div class="ti-actions"><span class="ti-fade-actions"></span><button class="btn ibtn sm hover-el"><i class="icon sm" data-i="pencil"></i></button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Renommage</b> — éditeur une ligne à la place du titre (Entrée valide, Échap annule)</div>
+      <div class="ref-frame" style="padding:4px 0">
+        <div class="ti" data-src="sidebar.rs render_rename_title_editor">
+          <div class="ti-row"><div class="ti-content"><span class="ti-icon"><i class="icon sm muted" data-i="ai_claude"></i></span><span class="ti-rename">Corriger le parsing des dates<span class="caret"></span></span></div></div>
+          <div class="ti-meta"><span class="spacer"></span><span class="lbl sm muted">12m</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Tooltips de statut</b> — erreur · attente de confirmation</div>
+      <div class="ref-frame ref-frame--auto" style="display:flex;flex-direction:column;gap:12px;align-items:flex-start">
+        <div class="tooltip elevated" data-src="crates/ui/src/components/ai/thread_item.rs render (show_tooltip)"><div class="tooltip-row" style="gap:4px"><i class="icon sm error" data-i="close"></i><span>Thread has an Error</span></div></div>
+        <div class="tooltip elevated"><div class="tooltip-row" style="gap:4px"><i class="icon sm warning" data-i="warning"></i><span>Waiting for Confirmation</span></div></div>
+        <div class="tooltip elevated"><div class="tooltip-row"><span>Rename Thread</span><span class="kbd">Shift-R</span></div></div>
+        <div class="tooltip elevated"><div class="tooltip-row"><span>Archive Thread</span><span class="kbd">Shift-Backspace</span></div></div>
+        <div class="tooltip elevated"><span>Stop Generation</span></div>
+        <div class="tooltip elevated"><span>Discard Draft</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="ref-section" id="meta">
+  <h2>5. Métadonnées d'entrée</h2>
+  <p>Seconde ligne, alignée sous le titre (boîte vide de 16 px), gap 6 : worktrees liés (icône <code>git_worktree</code> 12 px, ou <code>git_branch</code> si seule la branche est connue), nom 12 px muted, « / » puis branche ; statistiques de diff (12 px) ; horodatage 12 px muted. Séparateurs « • » 12 px à 40 % de <code>text.muted</code>. Le worktree principal n'est pas affiché.</p>
+  <div class="ref-grid">
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Variantes</b> — worktree · branche seule · worktree + branche · plusieurs worktrees · diff · tout · troncature</div>
+      <div class="ref-frame" style="padding:4px 0">
+        <div class="ti" data-src="crates/ui/src/components/ai/thread_item.rs render (worktrees)">
+          <div class="ti-row"><div class="ti-content"><span class="ti-icon"><i class="icon sm muted" data-i="ai_claude"></i></span><span class="ti-title">Add line numbers option to FileEditBlock</span><span class="ti-fade"></span></div></div>
+          <div class="ti-meta"><span class="spacer"></span><span class="chip"><i class="icon xs muted" data-i="git_worktree"></i><span class="lbl sm muted trunc">link-agent-panel</span></span><span class="dotsep">•</span><span class="lbl sm muted">2w</span></div>
+        </div>
+        <div class="ti">
+          <div class="ti-row"><div class="ti-content"><span class="ti-icon"><i class="icon sm muted" data-i="ai_claude"></i></span><span class="ti-title">Branche seule connue</span><span class="ti-fade"></span></div></div>
+          <div class="ti-meta"><span class="spacer"></span><span class="chip"><i class="icon xs muted" data-i="git_branch"></i><span class="lbl sm muted trunc">fix-sign</span></span><span class="dotsep">•</span><span class="lbl sm muted">1d</span></div>
+        </div>
+        <div class="ti">
+          <div class="ti-row"><div class="ti-content"><span class="ti-icon"><i class="icon sm muted" data-i="ai_claude"></i></span><span class="ti-title">Full metadata with branch</span><span class="ti-fade"></span></div></div>
+          <div class="ti-meta"><span class="spacer"></span><span class="chip"><i class="icon xs muted" data-i="git_worktree"></i><span class="lbl sm muted trunc">my-project</span><span class="lbl sm dotsep">/</span><span class="lbl sm muted trunc">feature-branch</span></span><span class="dotsep">•</span><span class="diffstat lbl sm"><span class="add">+&thinsp;42</span><span class="del">&#8210;&thinsp;17</span></span><span class="dotsep">•</span><span class="lbl sm muted">3w</span></div>
+        </div>
+        <div class="ti">
+          <div class="ti-row"><div class="ti-content"><span class="ti-icon"><i class="icon sm muted" data-i="zed_agent"></i></span><span class="ti-title">Multi-root with per-worktree branches</span><span class="ti-fade"></span></div></div>
+          <div class="ti-meta"><span class="spacer"></span><span class="chip"><i class="icon xs muted" data-i="git_worktree"></i><span class="lbl sm muted trunc">jade-glen</span><span class="lbl sm dotsep">/</span><span class="lbl sm muted trunc">fix</span></span><span class="chip"><i class="icon xs muted" data-i="git_worktree"></i><span class="lbl sm muted trunc">fawn-otter</span><span class="lbl sm dotsep">/</span><span class="lbl sm muted trunc">main</span></span><span class="dotsep">•</span><span class="lbl sm muted">15m</span></div>
+        </div>
+        <div class="ti">
+          <div class="ti-row"><div class="ti-content"><span class="ti-icon"><i class="icon sm muted" data-i="ai_claude"></i></span><span class="ti-title">Managing user and project settings interactions</span><span class="ti-fade"></span></div></div>
+          <div class="ti-meta"><span class="spacer"></span><span class="diffstat lbl sm"><span class="add">+&thinsp;10</span><span class="del">&#8210;&thinsp;3</span></span><span class="dotsep">•</span><span class="lbl sm muted">1mo</span></div>
+        </div>
+        <div class="ti">
+          <div class="ti-row"><div class="ti-content"><span class="ti-icon"><i class="icon sm muted" data-i="ai_claude"></i></span><span class="ti-title">Metadata overflow with long branch name</span><span class="ti-fade"></span></div></div>
+          <div class="ti-meta"><span class="spacer"></span><span class="chip"><i class="icon xs muted" data-i="git_worktree"></i><span class="lbl sm muted trunc">my-project</span><span class="lbl sm dotsep">/</span><span class="lbl sm muted trunc">fix-very-long-branch-name-here</span></span><span class="dotsep">•</span><span class="diffstat lbl sm"><span class="add">+&thinsp;108</span><span class="del">&#8210;&thinsp;53</span></span><span class="dotsep">•</span><span class="lbl sm muted">2d</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Vue archive</b> — chemins de projet (noms de dossiers), thread archivé (icône et titre muted)</div>
+      <div class="ref-frame" style="padding:4px 0">
+        <div class="ti" data-src="crates/agent_ui/src/threads_archive_view.rs render_list_entry (project_paths)">
+          <div class="ti-row"><div class="ti-content"><span class="ti-icon"><i class="icon sm muted" data-i="ai_claude"></i></span><span class="ti-title">Archived thread with folder paths</span><span class="ti-fade"></span></div></div>
+          <div class="ti-meta"><span class="spacer"></span><span class="lbl sm muted trunc">zed, zed-slides</span><span class="dotsep">•</span><span class="chip"><i class="icon xs muted" data-i="git_worktree"></i><span class="lbl sm muted trunc">jade-glen</span><span class="lbl sm dotsep">/</span><span class="lbl sm muted trunc">feature</span></span><span class="dotsep">•</span><span class="lbl sm muted">2mo</span></div>
+        </div>
+        <div class="ti" data-src="crates/agent_ui/src/threads_archive_view.rs render_list_entry (is_archived)">
+          <div class="ti-row"><div class="ti-content"><span class="ti-icon"><i class="icon sm archived-icon" data-i="ai_claude"></i></span><span class="ti-title muted">Thread archivé</span><span class="ti-fade"></span></div></div>
+          <div class="ti-meta"><span class="spacer"></span><i class="icon xs archived-meta" data-i="archive"></i><span class="lbl sm muted trunc">zra</span><span class="dotsep">•</span><span class="lbl sm muted">3w</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Horodatage</b> — format_history_entry_timestamp (crates/agent_ui/src/threads_archive_view.rs)</div>
+      <div class="ref-frame ref-frame--auto" style="display:flex;gap:12px;align-items:center">
+        <span class="lbl sm muted">1m</span><span class="lbl sm muted">42m</span><span class="lbl sm muted">5h</span><span class="lbl sm muted">3d</span><span class="lbl sm muted">2w</span><span class="lbl sm muted">1mo</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="ref-section" id="terminal">
+  <h2>6. Entrée de terminal</h2>
+  <p>Même <code>ThreadItem</code>, icône <code>terminal</code> 14 px muted. Un préfixe décoratif en tête du titre (emoji, glyphe, symbole entre crochets) est détaché et affiché à la place de l'icône (12 px). Au survol : croix muted « Close Terminal ». Pas de statut de génération.</p>
+  <div class="ref-grid">
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Entrées terminal</b> — normale · préfixe emoji · survol · notification</div>
+      <div class="ref-frame" style="padding:4px 0">
+        <div class="ti" data-src="sidebar.rs render_terminal">
+          <div class="ti-row"><div class="ti-content"><span class="ti-icon"><i class="icon sm muted" data-i="terminal"></i></span><span class="ti-title">npm run daemon</span><span class="ti-fade"></span></div></div>
+          <div class="ti-meta"><span class="spacer"></span><span class="lbl sm muted">1h</span></div>
+        </div>
+        <div class="ti" data-src="sidebar.rs split_leading_icon_char">
+          <div class="ti-row"><div class="ti-content"><span class="ti-icon"><span class="lbl sm muted">🦀</span></span><span class="ti-title">cargo test --workspace</span><span class="ti-fade"></span></div></div>
+          <div class="ti-meta"><span class="spacer"></span><span class="lbl sm muted">2h</span></div>
+        </div>
+        <div class="ti hover">
+          <div class="ti-row">
+            <div class="ti-content"><span class="ti-icon"><i class="icon sm muted" data-i="terminal"></i></span><span class="ti-title">git status --short</span><span class="ti-fade"></span></div>
+            <div class="ti-actions"><span class="ti-fade-actions"></span><button class="btn ibtn sm hover-el"><i class="icon sm muted" data-i="close"></i></button></div>
+          </div>
+          <div class="ti-meta"><span class="spacer"></span><span class="lbl sm muted">3h</span></div>
+        </div>
+        <div class="ti">
+          <div class="ti-row"><div class="ti-content"><span class="ti-icon"><i class="icon sm accent" data-i="circle"></i></span><span class="ti-title">npm test (terminé en arrière-plan)</span><span class="ti-fade"></span></div></div>
+          <div class="ti-meta"><span class="spacer"></span><span class="lbl sm muted">1d</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Tooltip</b> de la croix</div>
+      <div class="tooltip elevated"><div class="tooltip-row"><span>Close Terminal</span><span class="kbd">Shift-Backspace</span></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="ref-section" id="bottom">
+  <h2>7. Barre du bas</h2>
+  <p>p 4, gap 4, filet haut <code>border</code>. À gauche : fermeture de la sidebar (icône selon le côté), historique (horloge, basculée en vue archive) ; à droite après un espace flexible : projets récents (« + » dossier). Sidebar à droite : ordre inversé.</p>
+  <div class="ref-grid">
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Barre</b> — vue liste · vue archive (horloge basculée) · côté droit</div>
+      <div class="ref-frame">
+        <div class="sb-bottom" data-src="sidebar.rs render_sidebar_bottom_bar">
+          <button class="btn ibtn sm"><i class="icon sm" data-i="threads_sidebar_left_open"></i></button>
+          <button class="btn ibtn sm"><i class="icon sm" data-i="clock"></i></button>
+          <span class="spacer"></span>
+          <button class="btn ibtn sm"><i class="icon sm" data-i="folder_add"></i></button>
+        </div>
+      </div>
+      <div class="ref-frame">
+        <div class="sb-bottom">
+          <button class="btn ibtn sm"><i class="icon sm" data-i="threads_sidebar_left_open"></i></button>
+          <button class="btn ibtn sm toggled"><i class="icon sm" data-i="clock"></i></button>
+          <span class="spacer"></span>
+          <button class="btn ibtn sm"><i class="icon sm" data-i="folder_add"></i></button>
+        </div>
+      </div>
+      <div class="ref-frame">
+        <div class="sb-bottom right" data-src="sidebar.rs render_sidebar_bottom_bar (on_right)">
+          <button class="btn ibtn sm"><i class="icon sm" data-i="threads_sidebar_right_open"></i></button>
+          <button class="btn ibtn sm"><i class="icon sm" data-i="clock"></i></button>
+          <span class="spacer"></span>
+          <button class="btn ibtn sm"><i class="icon sm" data-i="folder_add"></i></button>
+        </div>
+      </div>
+    </div>
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Tooltips</b> — fermeture · historique · projets récents</div>
+      <div class="ref-frame ref-frame--auto" style="display:flex;flex-direction:column;gap:12px;align-items:flex-start">
+        <div class="tooltip elevated" data-src="sidebar.rs render_sidebar_toggle_button">
+          <div class="tooltip-row"><span>Toggle Sidebar</span><span class="kbd">Ctrl-Alt-J</span></div>
+          <div class="sep"><span>Focus Sidebar</span><span class="kbd">Ctrl-Alt-;</span></div>
+        </div>
+        <div class="tooltip elevated"><div class="tooltip-row"><span>Show Thread History</span><span class="kbd">Ctrl-G</span></div></div>
+        <div class="tooltip elevated"><div class="tooltip-row"><span>Add Project</span><span class="kbd">Ctrl-R</span></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="ref-section" id="menus">
+  <h2>8. Menus</h2>
+  <p>Menus ancrés sous les boutons des en-têtes de projet (TopRight, décalage y +1) ; clic droit sur un en-tête ouvre le menu « ⋯ », clic droit sur une entrée ouvre son menu contextuel.</p>
+  <div class="ref-grid">
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Menu « + »</b> — nouveau fil dans un worktree ouvert, création de worktree</div>
+      <div style="display:flex;gap:4px;align-items:flex-start">
+        <div class="menu elevated" data-src="sidebar.rs render_new_thread_button (menu)">
+          <div class="menu-header">New Thread In…</div>
+          <div class="menu-item"><span class="start"><i class="icon sm muted" data-i="git_worktree"></i>zra</span><i class="icon sm accent" data-i="check"></i></div>
+          <div class="menu-item"><span class="start"><i class="icon sm muted" data-i="git_worktree"></i>zra <span class="lbl sm dotsep">•</span> <i class="icon sm muted" data-i="git_worktree"></i>dates-fix</span><i class="icon sm" style="visibility:hidden" data-i="check"></i></div>
+          <div class="menu-sep"></div>
+          <div class="menu-item"><span>Create New Worktree…</span><i class="icon sm muted" data-i="chevron_right"></i></div>
+        </div>
+        <div class="menu elevated">
+          <div class="menu-item">Based on main</div>
+          <div class="menu-item">Based on fix-sign</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Menu « ⋯ »</b> — projet actif, deux worktrees ouverts, deux groupes</div>
+      <div class="menu elevated" data-src="sidebar.rs render_project_header_ellipsis_menu">
+        <div class="menu-item">Open Project in New Window</div>
+        <div class="menu-item disabled"><span>Focus Last Project</span><span class="kbd">Ctrl-click</span></div>
+        <div class="menu-sep"></div>
+        <div class="menu-header">Open Worktrees</div>
+        <div class="menu-item"><span class="start"><i class="icon sm muted" data-i="git_worktree"></i>zra</span><i class="icon sm accent" data-i="check"></i></div>
+        <div class="menu-item hover"><span class="start"><i class="icon sm muted" data-i="git_worktree"></i>dates-fix</span><button class="btn ibtn sm"><i class="icon sm" data-i="close"></i></button></div>
+        <div class="menu-sep"></div>
+        <div class="menu-item">Move Up</div>
+        <div class="menu-item disabled">Move Down</div>
+        <div class="menu-sep"></div>
+        <div class="menu-item">Remove</div>
+      </div>
+    </div>
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Clic droit sur un thread</b> — agent natif Zed, fil live</div>
+      <div class="menu elevated" data-src="sidebar.rs render_thread (right_click_menu)">
+        <div class="menu-item">Rename Title</div>
+        <div class="menu-item">Regenerate Thread Title</div>
+        <div class="menu-item">Open Thread as Markdown</div>
+        <div class="menu-sep"></div>
+        <div class="menu-item">Archive Thread</div>
+      </div>
+    </div>
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Clic droit sur un terminal</b></div>
+      <div class="menu elevated" data-src="sidebar.rs render_terminal (right_click_menu)">
+        <div class="menu-item">Rename Title</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="ref-section" id="archive">
+  <h2>9. Historique (archive)</h2>
+  <p>Vue « Thread History » (horloge ou Ctrl-G) : barre du haut avec « Search all threads… », barre d'outils (compte, nouveau fil, import, filtre archivés) masquée pendant une recherche, liste groupée par buckets de date. Entrées = <code>ThreadItem</code> avec chemins de projet ; clic = restaure (désarchive) et ouvre.</p>
+  <div class="ref-grid">
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Vue complète</b> — buckets Today → Older, entrée en restauration, thread archivé</div>
+      <div class="ref-frame" style="--frame-h:640px">
+        <div class="sidebar" data-src="crates/agent_ui/src/threads_archive_view.rs render">
+          <div class="sb-header" data-src="crates/agent_ui/src/threads_archive_view.rs render_header">
+            <span class="mag"><i class="icon sm muted" data-i="magnifying_glass"></i></span>
+            <div class="sb-filter"><span class="placeholder">Search all threads…</span></div>
+          </div>
+          <div class="ar-toolbar" data-src="crates/agent_ui/src/threads_archive_view.rs render_toolbar">
+            <span class="lbl sm muted">6 threads</span>
+            <span class="grp"><button class="btn ibtn sm"><i class="icon sm" data-i="plus"></i></button><button class="btn ibtn sm"><i class="icon sm" data-i="download"></i></button><button class="btn ibtn sm"><i class="icon sm" data-i="archive"></i></button></span>
+          </div>
+          <div class="sb-list">
+            <div class="bucket" data-src="crates/agent_ui/src/threads_archive_view.rs TimeBucket">Today</div>
+            <div class="ti">
+              <div class="ti-row"><div class="ti-content"><span class="ti-icon"><i class="icon sm muted" data-i="ai_claude"></i></span><span class="ti-title">Corriger le parsing des dates ISO</span><span class="ti-fade"></span></div></div>
+              <div class="ti-meta"><span class="spacer"></span><span class="lbl sm muted trunc">zra</span><span class="dotsep">•</span><span class="lbl sm muted">12m</span></div>
+            </div>
+            <div class="ti hover" data-src="crates/agent_ui/src/threads_archive_view.rs render_list_entry (is_restoring)">
+              <div class="ti-row">
+                <div class="ti-content"><span class="ti-icon"><i class="icon sm muted spin" data-i="load_circle"></i></span><span class="ti-title">Migrer la config vers TOML</span><span class="ti-fade"></span></div>
+                <div class="ti-actions"><span class="ti-fade-actions"></span><button class="btn ibtn sm hover-el"><i class="icon sm muted" data-i="close"></i></button></div>
+              </div>
+              <div class="ti-meta"><span class="spacer"></span><span class="lbl sm muted trunc">zra</span><span class="dotsep">•</span><span class="lbl sm muted">2m</span></div>
+            </div>
+            <div class="bucket">Yesterday</div>
+            <div class="ti" data-src="crates/agent_ui/src/threads_archive_view.rs render_list_entry (is_archived)">
+              <div class="ti-row"><div class="ti-content"><span class="ti-icon"><i class="icon sm archived-icon" data-i="ai_claude"></i></span><span class="ti-title muted">Nettoyer les fichiers temporaires</span><span class="ti-fade"></span></div></div>
+              <div class="ti-meta"><span class="spacer"></span><i class="icon xs archived-meta" data-i="archive"></i><span class="lbl sm muted trunc">zra</span><span class="dotsep">•</span><span class="lbl sm muted">1d</span></div>
+            </div>
+            <div class="bucket">This Week</div>
+            <div class="ti">
+              <div class="ti-row"><div class="ti-content"><span class="ti-icon"><i class="icon sm muted" data-i="zed_agent"></i></span><span class="ti-title">Expliquer le choix du relais HTTPS</span><span class="ti-fade"></span></div></div>
+              <div class="ti-meta"><span class="spacer"></span><span class="lbl sm muted trunc">zra</span><span class="dotsep">•</span><span class="lbl sm muted">3d</span></div>
+            </div>
+            <div class="bucket">Past Week</div>
+            <div class="ti">
+              <div class="ti-row"><div class="ti-content"><span class="ti-icon"><i class="icon sm archived-icon" data-i="sparkle"></i></span><span class="ti-title muted">Agent externe sans icône au registre</span><span class="ti-fade"></span></div></div>
+              <div class="ti-meta"><span class="spacer"></span><i class="icon xs archived-meta" data-i="archive"></i><span class="lbl sm muted trunc">docs</span><span class="dotsep">•</span><span class="lbl sm muted">2w</span></div>
+            </div>
+            <div class="bucket">Older</div>
+            <div class="ti">
+              <div class="ti-row"><div class="ti-content"><span class="ti-icon"><i class="icon sm muted" data-i="ai_claude"></i></span><span class="ti-title">Premier fil de test du shim</span><span class="ti-fade"></span></div></div>
+              <div class="ti-meta"><span class="spacer"></span><span class="lbl sm muted trunc">zra</span><span class="dotsep">•</span><span class="lbl sm muted">1mo</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Barre d'outils</b> — normale · filtre « archivés seuls » basculé · sans threads archivés (désactivé)</div>
+      <div class="ref-frame">
+        <div class="ar-toolbar">
+          <span class="lbl sm muted">6 threads</span>
+          <span class="grp"><button class="btn ibtn sm"><i class="icon sm" data-i="plus"></i></button><button class="btn ibtn sm"><i class="icon sm" data-i="download"></i></button><button class="btn ibtn sm"><i class="icon sm" data-i="archive"></i></button></span>
+        </div>
+      </div>
+      <div class="ref-frame">
+        <div class="ar-toolbar">
+          <span class="lbl sm muted">2 threads</span>
+          <span class="grp"><button class="btn ibtn sm"><i class="icon sm" data-i="plus"></i></button><button class="btn ibtn sm"><i class="icon sm" data-i="download"></i></button><button class="btn ibtn sm toggled"><i class="icon sm" data-i="archive"></i></button></span>
+        </div>
+      </div>
+      <div class="ref-frame">
+        <div class="ar-toolbar">
+          <span class="lbl sm muted">1 thread</span>
+          <span class="grp"><button class="btn ibtn sm"><i class="icon sm" data-i="plus"></i></button><button class="btn ibtn sm"><i class="icon sm" data-i="download"></i></button><button class="btn ibtn sm" disabled><i class="icon sm disabled" data-i="archive"></i></button></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Actions au survol</b> — archiver · supprimer (archivé) · annuler la restauration</div>
+      <div class="ref-frame" style="padding:4px 0">
+        <div class="ti hover">
+          <div class="ti-row">
+            <div class="ti-content"><span class="ti-icon"><i class="icon sm muted" data-i="ai_claude"></i></span><span class="ti-title">Corriger le parsing des dates ISO</span><span class="ti-fade"></span></div>
+            <div class="ti-actions"><span class="ti-fade-actions"></span><button class="btn ibtn sm hover-el"><i class="icon sm muted" data-i="archive"></i></button></div>
+          </div>
+          <div class="ti-meta"><span class="spacer"></span><span class="lbl sm muted trunc">zra</span><span class="dotsep">•</span><span class="lbl sm muted">12m</span></div>
+        </div>
+        <div class="ti hover">
+          <div class="ti-row">
+            <div class="ti-content"><span class="ti-icon"><i class="icon sm archived-icon" data-i="ai_claude"></i></span><span class="ti-title muted">Nettoyer les fichiers temporaires</span><span class="ti-fade"></span></div>
+            <div class="ti-actions"><span class="ti-fade-actions"></span><button class="btn ibtn sm hover-el"><i class="icon sm muted" data-i="trash"></i></button></div>
+          </div>
+          <div class="ti-meta"><span class="spacer"></span><i class="icon xs archived-meta" data-i="archive"></i><span class="lbl sm muted trunc">zra</span><span class="dotsep">•</span><span class="lbl sm muted">1d</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Vide</b> — sans requête · avec requête</div>
+      <div class="ref-frame" style="--frame-h:200px">
+        <div class="sidebar">
+          <div class="sb-header"><span class="mag"><i class="icon sm muted" data-i="magnifying_glass"></i></span><div class="sb-filter"><span class="placeholder">Search all threads…</span></div></div>
+          <div class="no-results">No threads yet.</div>
+        </div>
+      </div>
+      <div class="ref-frame" style="--frame-h:200px">
+        <div class="sidebar">
+          <div class="sb-header"><span class="mag"><i class="icon sm muted" data-i="magnifying_glass"></i></span><div class="sb-filter">introuvable<span class="caret"></span></div><button class="btn ibtn sm"><i class="icon sm" data-i="close"></i></button></div>
+          <div class="no-results">No threads match your search.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Tooltips</b> — barre d'outils</div>
+      <div class="ref-frame ref-frame--auto" style="display:flex;flex-direction:column;gap:12px;align-items:flex-start">
+        <div class="tooltip elevated"><span>Start New Agent Thread</span></div>
+        <div class="tooltip elevated"><span>Import Threads</span></div>
+        <div class="tooltip elevated"><span>Show Only Archived Threads</span></div>
+        <div class="tooltip elevated"><span>Show All Threads</span></div>
+        <div class="tooltip elevated"><div class="tooltip-row"><span>Delete Thread</span><span class="kbd">Ctrl-Backspace</span></div></div>
+        <div class="tooltip elevated"><span>Cancel Restore</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="ref-section" id="empty">
+  <h2>10. États vides</h2>
+  <p>Sans projet ouvert : <code>ProjectEmptyState</code> (crates/ui) centré, colonne de 192 px. Sans résultat de recherche : message 12 px muted centré (« No threads match your search. » dans la sidebar, « No threads yet. » / « No threads match your search. » dans l'archive).</p>
+  <div class="ref-grid">
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Aucun projet ouvert</b> — Open Project (Ctrl-O) · or · Clone Repository</div>
+      <div class="ref-frame" style="--frame-h:300px">
+        <div class="sidebar">
+          <div class="sb-header" style="border-bottom:0"></div>
+          <div class="empty-state" data-src="crates/ui/src/components/project_empty_state.rs render">
+            <div class="es-col">
+              <div class="es-label">Choose one of the options below to use the Threads Sidebar</div>
+              <button class="btn full outlined"><span class="btn-body"><span class="lbl sm">Open Project</span><span class="kbd">Ctrl-O</span></span></button>
+              <div class="es-or"><span class="divider-h"></span><span class="lbl xs muted">or</span><span class="divider-h"></span></div>
+              <button class="btn full outlined"><span class="lbl sm">Clone Repository</span></button>
+            </div>
+          </div>
+          <div class="sb-bottom">
+            <button class="btn ibtn sm"><i class="icon sm" data-i="threads_sidebar_left_open"></i></button>
+            <button class="btn ibtn sm"><i class="icon sm" data-i="clock"></i></button>
+            <span class="spacer"></span>
+            <button class="btn ibtn sm"><i class="icon sm" data-i="folder_add"></i></button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Aucun résultat</b> — sidebar</div>
+      <div class="ref-frame" style="--frame-h:200px">
+        <div class="sidebar">
+          <div class="sb-header"><span class="mag"><i class="icon sm muted" data-i="magnifying_glass"></i></span><div class="sb-filter">introuvable<span class="caret"></span></div><button class="btn ibtn sm"><i class="icon sm" data-i="close"></i></button></div>
+          <div class="no-results" data-src="sidebar.rs render_no_results">No threads match your search.</div>
+          <div class="sb-bottom">
+            <button class="btn ibtn sm"><i class="icon sm" data-i="threads_sidebar_left_open"></i></button>
+            <button class="btn ibtn sm"><i class="icon sm" data-i="clock"></i></button>
+            <span class="spacer"></span>
+            <button class="btn ibtn sm"><i class="icon sm" data-i="folder_add"></i></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script src="icons.js"></script>
+<script>
+// Largeur de la sidebar
+for (const b of document.querySelectorAll('[data-w]')) {
+  b.addEventListener('click', () => {
+    document.documentElement.style.setProperty('--frame-w', b.dataset.w + 'px')
+    for (const o of document.querySelectorAll('[data-w]')) o.setAttribute('aria-pressed', o === b)
+  })
+}
+// Mise en évidence des sources
+document.getElementById('toggle-src').addEventListener('click', (e) => {
+  const on = document.body.classList.toggle('show-src')
+  e.currentTarget.setAttribute('aria-pressed', on)
+})
+// Survol : affiche data-src en infobulle native
+for (const el of document.querySelectorAll('[data-src]')) el.title = el.dataset.src
+</script>
+</body>
+</html>
