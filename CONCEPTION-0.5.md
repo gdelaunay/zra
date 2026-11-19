@@ -1,9 +1,10 @@
 # Conception — 0.5 « coller au panneau agent de Zed »
 
 Fiche de travail (français, comme `ROADMAP.md` et `ISSUES.md`).
-Références visuelles : `reference/zed-agent-panel/` (panel) et
-`reference/zed-threads-sidebar/` (liste et historique) — Zed v1.28.1, réglages
-par défaut, One Dark.
+Références visuelles : `reference/zed-agent-panel/` (panel),
+`reference/zed-threads-sidebar/` (liste et historique) et
+`reference/zed-bottom-bar/` (barre du bas) — Zed v1.28.1, réglages par défaut,
+One Dark.
 
 **Règle générale** : tout élément conservé de ZRA (propre à l'app, sans
 équivalent Zed) prend l'apparence de Zed — tokens, formes, états. Pas besoin
@@ -60,10 +61,13 @@ Périmètre : tout ce qui est entre la barre de titre et le composer — message
 tool calls, réflexions, permissions, callouts… **Apparence et comportement :
 copie à l'identique de Zed** (référence `reference/zed-agent-panel/`).
 
-Seule différence : le bouton de défilement. Zed a un « scroll to top » ; ZRA
-garde son bouton « scroll to bottom », à sa place actuelle (flottant en bas à
-droite, au-dessus du contenu), mais avec l'apparence du bouton natif de Zed :
-icône seule, dans un carré.
+Seule différence structurelle : le bouton de défilement. Zed a un « scroll to
+top » ; ZRA garde son bouton « scroll to bottom », à sa place actuelle
+(flottant en bas à droite, au-dessus du contenu), mais avec l'apparence du
+bouton natif de Zed : icône seule, dans un carré.
+
+L'indicateur de tour est celui de Zed (le loader actuel est remplacé), couvert
+par la copie intégrale.
 
 Adaptations actées (le but est d'adapter l'existant, pas d'ajouter des
 features) :
@@ -92,8 +96,8 @@ Divergences :
 
 - **Pas de bouton « follow agent »** (Zed ne peut pas nous montrer le fichier
   que l'agent modifie).
-- **Bouton « + » présent mais désactivé** : pas d'envoi de fichier depuis ZRA
-  pour l'instant.
+- **Bouton « + » (ajout de contexte) présent mais désactivé** : pas d'envoi de
+  fichier depuis ZRA pour l'instant.
 - **Sélecteurs (mode, modèle, effort…) en icon-only sans label selon la taille
   d'écran** : on garde notre implémentation existante de réduction mobile.
   Icônes Zed (déjà le cas a priori, à vérifier) et style de menus / boutons de
@@ -119,12 +123,14 @@ ouverte jamais (pas de `lastThread`) : bouton agent désactivé.
 
 ## Barre du haut — écran thread (décidé)
 
-On garde l'esprit et l'ordre actuels, gauche à droite : icône agent, pastille
-statut, nom du thread, chemin projet (discret), time (dernière modification),
-espace vide, puis à droite bouton « + » (nouvelle session) et bouton settings.
+On garde l'esprit et l'ordre actuels, gauche à droite : icône agent, nom du
+thread, chemin projet (discret), time (dernière modification), espace vide,
+puis à droite : pastille statut, filet vertical, bouton « + » (nouvelle
+session), bouton settings.
 
-- **Pastille live** : gardée à sa place actuelle (à côté de l'icône agent),
-  apparence adaptée à Zed (règle générale).
+- **Pastille live** : déplacée tout à droite, juste avant le bouton « + »,
+  avec un filet vertical entre les deux (même séparateur que la barre du bas :
+  1 × 16 px, couleur `border`). Apparence adaptée à Zed (règle générale).
 - **Pas de titre pulsé** pendant la génération (testé dans Zed : absent).
 - **Chemin projet : un seul niveau** — « ../pp-runtimes », plus
   « ../développement/pp-runtimes ».
@@ -135,3 +141,47 @@ espace vide, puis à droite bouton « + » (nouvelle session) et bouton settings
   pilotables, et pas l'entrée « Add More Agents » de Zed.
 - **Bouton settings** : apparence Zed, mais contenu = nos settings custom
   actuels ; aucun réglage de Zed importé.
+- **Barre de notification custom** (bandeau) : gardée, style callout de Zed
+  (référence panel, section 11).
+
+## Écran liste des threads (décidé)
+
+- **Liste groupée poste → projet : gardée telle quelle** — fonctionnement,
+  indentation, couleurs de statut des postes / projets, tout est conservé
+  (apparence adaptée : tokens, tailles, bordures Zed — règle générale).
+- **Ligne de thread, comme Zed** : gauche à droite, icône de l'agent qui se
+  transforme en icône d'état (load_circle, message reçu, permission en
+  attente… voir référence sidebar), puis nom du thread ; collée tout à droite,
+  la pastille de statut ZRA (même que sur l'écran agent).
+- **Sous-titre : le time seulement**, pas le chemin projet (connu par le
+  groupe).
+- **Worktree : comme Zed** — le worktree principal n'est pas affiché ; un
+  worktree lié seulement, en puce sur la ligne de métadonnées avant le time :
+  icône `git_worktree` 12 px (ou `git_branch` si seule la branche est connue),
+  nom 12 px muted, « / » + branche si connue ; séparateur « • » à 40 % de
+  `text.muted`.
+- **Barre de recherche : déplacée en haut**, juste sous la top bar (comme Zed,
+  plus dans la barre du bas). Style Zed ; on garde notre bouton de sélection
+  de filtre custom.
+- **Barre du bas : la même que sur l'écran agent** (section Barre du bas).
+- **Top bar : gardée en l'état** — infos à gauche, boutons à droite, styles et
+  icônes Zed (règle générale). Seul le logo change : l'éclair actuel ne va pas,
+  icône placeholder en attendant (choix non décidé).
+
+## Panneau de réglages (décidé)
+
+Gardé tel quel, adapté à la charte graphique Zed (règle générale). Deux
+mentions supprimées :
+
+- « Official Zed themes, color tokens taken as is. »
+- « Otherwise, like Zed: thinking expanded while being written; diffs,
+  terminals and authorization requests expanded. »
+
+Sélecteur de thème : en mode auto (aucun choix manuel), le thème résolu
+(One Dark / One Light selon le navigateur) est marqué actif.
+
+Deux réglages ajoutés :
+
+- **Langue** : auto (suivi du navigateur, défaut) / français / anglais.
+- **Taille du texte** : confort mobile, échelle appliquée aux tailles de
+  police (défaut = tailles actuelles).
