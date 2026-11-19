@@ -60,9 +60,16 @@ déjà le focus, il le rend (`crates/workspace/src/multi_workspace.rs`,
 Zed 1.28.1 n'offre aucune voie plus précise : ni action ni URL d'ouverture
 d'un thread par identifiant (`zed://agent` n'ouvre que le panneau :
 `crates/zed/src/zed/open_listener.rs`, `parse_agent_url`).
-→ À constater : la bascule du focus, et la fréquence des mauvais threads sur
-des titres proches. Piste si c'est gênant : un pas de recette qui rend le
-focus à l'éditeur avant d'ouvrir le sidebar.
+→ Deux volets. (1) La bascule du focus est corrigée : `workspace: focus center
+pane` (`FocusCenterPane`, `crates/workspace/src/workspace.rs`, Zed 1.28.1) rend
+le focus à l'éditeur déterminiquement, donc le `FocusWorkspaceSidebar` suivant
+tombe toujours dans le sidebar. Validé en réel (Galaxy S22 + Zed 1.28.1),
+promu dans la recette `openThread` par défaut (`zra-daemon/zed/driver.js`).
+Sans effet si aucun éditeur n'est actif.
+(2) Le filtre flou lui-même reste sans voie précise dans Zed 1.28.1 : le premier
+résultat peut être un autre thread, ZRA échoue proprement après 30 s. À
+constater en fréquence ; si gênant, accepter en limitation ou mitiger (retry de
+la recette quand la session ouverte n'est pas la bonne).
 
 ## À tester
 

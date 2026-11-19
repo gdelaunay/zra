@@ -48,7 +48,7 @@ What ZRA depends on in Zed, and where to check it in its sources. Used for the c
 | ZRA | ZRA side | Zed side | Status |
 |---|---|---|---|
 | "New thread" key per agent: `agent::NewExternalAgentThread`, argument `{ "custom": { "name": id } }` (legacy form, accepted); keys `ctrl-alt-shift-f1`… unbound by default | `zra-daemon/zed-keymap.js` | `crates/agent_ui/src/agent_ui.rs`: `NewExternalAgentThread`, `deserialize_external_agent_id`; registered on the workspace (`crates/agent_ui/src/agent_panel.rs`) | verified |
-| `openThread` recipe: palette `multi workspace: focus workspace sidebar` | `zra-daemon/zed/driver.js` | `crates/workspace/src/multi_workspace.rs`: action `FocusWorkspaceSidebar`, `focus_sidebar` (toggles); label: `crates/command_palette/src/command_palette.rs` (`humanize_action_name`) | gap |
+| `openThread` recipe: `workspace: focus center pane` then `multi workspace: focus workspace sidebar` | `zra-daemon/zed/driver.js` | `crates/workspace/src/workspace.rs`: `FocusCenterPane` (editor focus, avoids the toggle); `crates/workspace/src/multi_workspace.rs`: `FocusWorkspaceSidebar`, `focus_sidebar` (toggles); label: `crates/command_palette/src/command_palette.rs` (`humanize_action_name`) | verified |
 | `newThread` recipe (fallback): palette `agent: new thread` | `zra-daemon/zed/driver.js` | `crates/agent_ui/src/agent_ui.rs`: `NewThread` | verified |
 | Default keys cited by the driver (`ctrl-shift-p`, `ctrl-n`, `ctrl-f`…) | `zra-daemon/zed/driver.js` | `assets/keymaps/default-windows.json`, `default-linux.json` | verified |
 | Sidebar filter: typing then `enter` opens the first thread | `zra-daemon/zed/driver.js` | `crates/sidebar/src/sidebar.rs`: `rebuild_contents` (fuzzy filter), `select_first_entry`, `confirm` | gap |

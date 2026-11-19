@@ -45,10 +45,13 @@ export class ZedControlError extends Error {
  * **dernier agent choisi** dans le panneau ; si ce n'est pas l'agent ZRA, aucun
  * shim ne s'annonce et l'ouverture échoue proprement au bout du délai.
  *
- * `openThread` passe par `multi workspace: focus workspace sidebar` (éprouvé) :
- * le focus arrive dans le sidebar des threads, ouvert ou non ; taper filtre la
- * liste, `enter` ouvre le premier résultat. Le filtre garde la recherche
- * précédente (éprouvé) : `ctrl+a` + `backspace` le vident avant de taper.
+ * `openThread` rend d'abord le focus à l'éditeur (`workspace: focus center
+ * pane`, `FocusCenterPane`), puis `multi workspace: focus workspace sidebar`
+ * (éprouvé) : `FocusWorkspaceSidebar` bascule — sans le pas précédent, un
+ * sidebar déjà focus fait taper le titre ailleurs. Le focus arrive dans le
+ * sidebar des threads, ouvert ou non ; taper filtre la liste, `enter` ouvre le
+ * premier résultat. Le filtre garde la recherche précédente (éprouvé) :
+ * `ctrl+a` + `backspace` le vident avant de taper.
  *
  * Variables : `{agent}` (id Zed), `{agentName}`, `{title}` (titre du thread),
  * `{text}` (message), `{project}` (dossier du projet visé par `newThread`),
@@ -70,6 +73,9 @@ export const DEFAULT_RECIPES = {
     { keys: 'enter' }, { wait: 800 },
   ],
   openThread: [
+    { keys: 'ctrl+shift+p' }, { wait: 400 },
+    { text: 'workspace: focus center pane' }, { wait: 400 },
+    { keys: 'enter' }, { wait: 400 },
     { keys: 'ctrl+shift+p' }, { wait: 400 },
     { text: 'multi workspace: focus workspace sidebar' }, { wait: 400 },
     { keys: 'enter' }, { wait: 400 },
