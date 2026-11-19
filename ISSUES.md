@@ -13,21 +13,6 @@ Fait → effet → à faire. Une issue acceptée (on ne fera rien) part dans
 | Performance sur téléphone non mesurée | `à faire` |
 | Réouverture : le filtre du sidebar est flou | `à faire` |
 | Brouillons : libellé « sans titre » et projets fermés | `à faire` |
-| Threads déchargés par Zed sans `session/close` : la PWA les croit live | `à faire` |
-
-## Threads déchargés par Zed sans `session/close` : la PWA les croit live — `à faire`
-
-Zed n'envoie `session/close` qu'aux agents qui déclarent
-`session_capabilities.close` (`agent_servers/src/acp/v1.rs`,
-`release_session`). Les autres sont déchargés en silence : le shim ne reçoit
-rien, le daemon garde le thread `live`, pastille verte sur la PWA alors que
-Zed a libéré la session.
-→ Relevé en réel (Zed 1.28.1, `max_idle_retained_threads: 0`) : pi-acp 0.0.34
-et qwen-code 0.28.0 ne reçoivent jamais `session/close` ; des `session/load`
-arrivent au retour sur le thread, preuve de la décharge. opencode reçoit bien
-la capacité et son `session/close`.
-→ Mesurer ce que ça donne en usage (pastilles fausses) ; piste : déduire la
-décharge d'un `session/load` inattendu, ou accepter l'écart comme limitation.
 
 ## Performance sur téléphone non mesurée — `à faire`
 

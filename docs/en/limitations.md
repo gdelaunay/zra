@@ -86,3 +86,16 @@ Stop, queue). Experimental and fragile (focus, fuzzy sidebar filter; requires
 `zedControl.enabled`).
 → Clean fix: ACP v2, where the agent reports its activity — behind a beta flag
 in Zed 1.28.1, not the default.
+
+## Threads unloaded by Zed without `session/close`
+
+Zed only sends `session/close` to agents that declare
+`session_capabilities.close` (`agent_servers/src/acp/v1.rs`, `release_session`).
+The others (pi-acp, qwen-code) are unloaded silently to free memory: the shim
+receives nothing, the daemon keeps the thread `live`, a green dot on the PWA
+even though Zed released the session. opencode declares the capability and
+does receive its `session/close`.
+→ A gap with no notable consequence in use: when returning to the thread, Zed
+emits `session/load` and the daemon follows it. Fixing it (inferring the unload
+from an unexpected `session/load`) would be hacky for little gain; accepted as
+is.

@@ -88,3 +88,16 @@ du mobile au clavier dans Zed, qui soumet alors le prompt et suit le tour
 sidebar ; exige `zedControl.enabled`).
 → Fix propre : ACP v2, où l'agent rapporte son activité — derrière un drapeau
 bêta dans Zed 1.28.1, pas le défaut.
+
+## Threads déchargés par Zed sans `session/close`
+
+Zed n'envoie `session/close` qu'aux agents qui déclarent
+`session_capabilities.close` (`agent_servers/src/acp/v1.rs`, `release_session`).
+Les autres (pi-acp, qwen-code) sont déchargés en silence pour libérer la
+mémoire : le shim ne reçoit rien, le daemon garde le thread `live`, pastille
+verte sur la PWA alors que Zed a libéré la session. opencode déclare la
+capacité et reçoit bien son `session/close`.
+→ Écart sans conséquence notable à l'usage : au retour sur le thread, Zed émet
+`session/load` et le daemon le suit. Le corriger (déduire la décharge d'un
+`session/load` inattendu) serait du bidouillage pour un gain faible ; accepté
+en l'état.
