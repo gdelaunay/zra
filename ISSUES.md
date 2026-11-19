@@ -16,6 +16,7 @@ Fait → effet → à faire. Une issue acceptée (on ne fera rien) part dans
 | Changement de profil réseau (Public/Privé) non détecté | `à faire` |
 | Brouillons : libellé « sans titre » et projets fermés | `à faire` |
 | Relecture (`session/load`) : tout le replay est ignoré | `priorité` |
+| Threads déchargés par Zed sans `session/close` : la PWA les croit live | `à faire` |
 
 ## Tour lancé depuis le mobile : Zed le croit au repos — `à faire`
 
@@ -35,10 +36,26 @@ garde-fou du daemon (`zra-daemon/shim-link.js`, `handle`) exige une session
 déjà revendiquée pour `session_replay` et `acp_update`.
 → Relevé en réel (Windows, pi-acp) : chaque rechargement d'un thread produit
 `session_replay ignoré … non revendiquée` puis des centaines de
-`acp_update ignoré` (~9400 warns dans `.zra/logs/daemon.log`) ; l'historique
-rechargé n'arrive pas au mobile.
+`acp_update ignoré` (~9400 warns dans `.zra/logs/daemon.log`). L'historique
+s'affiche quand même sur le mobile (servi par les records du daemon), mais le
+replay est jeté : pas de remise à zéro (`whole`, `parked`), risque de doublons
+et couverture du ring buffer fausse.
 → Revendiquer la session dès la requête `session/load` (ou accepter
 `session_replay` comme revendication), puis vérifier la relecture sur mobile.
+
+## Threads déchargés par Zed sans `session/close` : la PWA les croit live — `à faire`
+
+Zed n'envoie `session/close` qu'aux agents qui déclarent
+`session_capabilities.close` (`agent_servers/src/acp/v1.rs`,
+`release_session`). Les autres sont déchargés en silence : le shim ne reçoit
+rien, le daemon garde le thread `live`, pastille verte sur la PWA alors que
+Zed a libéré la session.
+→ Relevé en réel (Zed 1.28.1, `max_idle_retained_threads: 0`) : pi-acp 0.0.34
+et qwen-code 0.28.0 ne reçoivent jamais `session/close` ; des `session/load`
+arrivent au retour sur le thread, preuve de la décharge. opencode reçoit bien
+la capacité et son `session/close`.
+→ Mesurer ce que ça donne en usage (pastilles fausses) ; piste : déduire la
+décharge d'un `session/load` inattendu, ou accepter l'écart comme limitation.
 
 ## Performance sur téléphone non mesurée — `à faire`
 
