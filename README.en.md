@@ -7,7 +7,7 @@ threads from your phone: list, live streaming, sending, permissions, new session
 ZRA relays what passes between Zed and the agent as is, and adds what comes from the phone.
 To open or reopen a thread, it types on the keyboard in Zed (see [Security](#security)).
 
-**Status**: version 0.3. Checked on Windows 11 and on three Linux machines
+**Status**: version 0.4. Checked on Windows 11 and on three Linux machines
 (Ubuntu/GNOME/Wayland, Debian/KDE/X11, MX Linux/Xfce/X11), with an Android phone.
 
 **Language**: French or English. The PWA follows the browser language; the daemon,

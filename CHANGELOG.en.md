@@ -2,15 +2,15 @@
 
 [Français](https://forgejo.gdelaunay.fr/gdelaunay/zra/src/branch/main/CHANGELOG.md)
 
-## v0.4 — in progress — Audit, security, Zed conformance
+## v0.4 — 2026-11-19 — Audit, security, Zed conformance (`bd6ca86`)
 
-- Security: markdown XSS fixed, loopback channels, unpaired connections capped, lockable pairing, public networks excluded
+- Security: markdown XSS fixed, loopback channels, unpaired connections capped, lockable pairing, public networks excluded (network profiles reread each turn)
 - Hardening: log rotation, offline queue, shim safety net, explicit Wayland, CI
 - Mobile connection: readable diagnosis during retries (machine unreachable, proxy without machine, 403 refusal), delayed reconnection on network recovery, backoff preserved across automatic wakes
-- Aligned with Zed 1.28.1: thread index, agent launch, stable/preview/nightly/dev channels; closed threads replayed as Zed launches them (capabilities, project environment), terminal output included
+- Aligned with Zed 1.28.1: thread index, agent launch (focus returned to the editor), stable/preview/nightly/dev channels; closed threads replayed as Zed launches them (capabilities, project environment), terminal output included
 - Shim: resumed and closed sessions tracked, mode and options synced with Zed, permission settled on mobile withdrawn from Zed; agent questions (elicitation) answered from the mobile, as in Zed
 - Thread view as in Zed: `session/update`, terminal output, default expansion; permission in its tool call's card, plan above the composer; Stop pauses the queue, "send now"
-- Thread list as in Zed's sidebar: turn in progress, pending permission, unread end, sorting, dates and names; sidebar projects and order, the others under "Recent projects"
+- Thread list as in Zed's sidebar: turn in progress, pending permission, unread end, sorting, dates and names, empty title as in Zed; sidebar projects and order, the others under "Recent projects"
 - French and English: daemon, shim, script and PWA messages; bilingual docs grouped in `docs/`
 - Setup: entries named after Zed's registry; licence and `THIRD_PARTY_NOTICES.md`
 

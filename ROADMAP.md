@@ -1,10 +1,15 @@
 # ZRA — roadmap
 
-Version actuelle : **0.3**. Un numéro mineur par jalon (0.4, 0.5…) ; entre deux
+Version actuelle : **0.4**. Un numéro mineur par jalon (0.4, 0.5…) ; entre deux
 jalons, un numéro de correctif (0.3.1…) quand un lot de corrections est fini.
 L'historique est dans `CHANGELOG.md`.
 
-- **0.4 — audit, sécurité, conformité à Zed** (comparaison au code de Zed, constats en réel ; en cours, voir `ISSUES.md`) ;
+Release d'un jalon : `npm test` vert ; version bumpée (`package.json`,
+`package-lock.json`, README bilingues) ; `CHANGELOG.md` et `CHANGELOG.en.md`
+datés, avec le hash du commit de référence ; ROADMAP à jour ; puis commit
+`chore(release)` et tag `v0.x.0` poussé.
+
+- **0.4 — audit, sécurité, conformité à Zed** (fait — comparaison au code de Zed, constats en réel ; voir `CHANGELOG.md`) ;
 - **0.5 — coller au panneau agent de Zed** (retouches d'interface) ;
 - **0.6 — `zra-tray`** : le tray natif Rust et la distribution binaire.
 
