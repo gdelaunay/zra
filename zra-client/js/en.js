@@ -195,7 +195,7 @@ export default {
   "en attente de confirmation": "awaiting confirmation",
   "en cours": "running",
   "Nouveau thread dans {0}": "New thread in {0}",
-  "sans titre": "untitled",
+  "Nouveau Thread d'Agent": "New Agent Thread",
   "archivé": "archived",
   "attend une confirmation": "awaiting confirmation",
   "tour terminé, pas encore lu": "turn finished, not read yet"

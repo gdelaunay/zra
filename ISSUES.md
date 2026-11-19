@@ -12,7 +12,6 @@ Fait → effet → à faire. Une issue acceptée (on ne fera rien) part dans
 | --- | --- |
 | Performance sur téléphone non mesurée | `à faire` |
 | Réouverture : le filtre du sidebar est flou | `à faire` |
-| Brouillons : libellé « sans titre » et projets fermés | `à faire` |
 
 ## Performance sur téléphone non mesurée — `à faire`
 
@@ -23,19 +22,6 @@ relit toute la table `sidebar_threads` toutes les 2 s ; le diff alloue jusqu'à
 (`zra-daemon/ws.js`) ne s'est jamais déclenchée sous Windows, même avec 12 Mo en
 attente.
 → Mesurer sur un long thread, sur un vrai réseau.
-
-## Brouillons : libellé « sans titre » et projets fermés — `à faire`
-
-Constaté en réel (v1.28.1), deux cas selon l'agent :
-- Agent muet à `session/new` (qwen-code) : vrai brouillon. Projet fermé →
-  `session_id` écrit en base, Zed le masque du sidebar, la PWA l'affiche
-  « sans titre » sous « Projets récents ».
-- Agent qui parle dès `session/new` (pi : message de contexte) : une
-  entrée existe, le thread n'est pas un brouillon — l'afficher est
-  conforme. Mais son titre vide s'affiche « sans titre » là où Zed dit
-  « New Agent Thread » (`DEFAULT_THREAD_TITLE`).
-→ Masquer les brouillons des projets fermés ; aligner les titres vides sur
-Zed.
 
 ## Réouverture : le filtre du sidebar est flou — `à faire`
 

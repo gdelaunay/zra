@@ -300,7 +300,7 @@ function threadRow(m, t, navigate) {
       ? h('span.lock-dot.thread-row__lock', { title: tr`lecture seule : créé hors ZRA, répondre dans Zed` }, icon('lock', 'icon--sm'))
       : h(`span.dot.dot--${t.state}.thread-row__dot`),
     h('span.thread-row__body', {},
-      h('span.thread-row__title.truncate', { text: t.title || tr`sans titre` }),
+      h('span.thread-row__title.truncate', { text: t.title || tr`Nouveau Thread d'Agent` }),
       h('span.thread-row__meta', {},
         h('span.thread-row__path.truncate', { text: shortPath(t.folderPaths?.[0], 2) }),
         t.folderPaths?.length > 1 ? h('span', { text: `+${t.folderPaths.length - 1}` }) : null,
