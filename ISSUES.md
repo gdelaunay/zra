@@ -13,7 +13,6 @@ Fait → effet → à faire. Une issue acceptée (on ne fera rien) part dans
 | Tour lancé depuis le mobile : Zed le croit au repos | `à faire` |
 | Performance sur téléphone non mesurée | `à faire` |
 | Réouverture : le filtre du sidebar est flou | `à faire` |
-| Changement de profil réseau (Public/Privé) non détecté | `à faire` |
 | Brouillons : libellé « sans titre » et projets fermés | `à faire` |
 | Threads déchargés par Zed sans `session/close` : la PWA les croit live | `à faire` |
 
@@ -48,20 +47,6 @@ relit toute la table `sidebar_threads` toutes les 2 s ; le diff alloue jusqu'à
 (`zra-daemon/ws.js`) ne s'est jamais déclenchée sous Windows, même avec 12 Mo en
 attente.
 → Mesurer sur un long thread, sur un vrai réseau.
-
-## Changement de profil réseau (Public/Privé) non détecté — `à faire`
-
-`refreshPublic()` (`zra-daemon/daemon.js`) ne relit les profils Windows que
-si la liste des interfaces (nom=adresse) change. Une catégorie changée seule
-ne l'est donc jamais : Public → Privé, le daemon n'écoute pas le réseau tant
-qu'il n'est pas redémarré (constaté en réel : box passée en Privé, aucune
-écoute sur l'IP LAN après plusieurs tours de 10 s) ; Privé → Public, il
-continue d'écouter sur un réseau marqué Public — le commentaire de
-`netTimer` promet l'inverse (« relus avant chaque tour… jamais écouté, même
-un instant »).
-→ Relire les profils à chaque tour, ou détecter le changement de catégorie
-autrement ; le coût PowerShell (quelques centaines de ms tous les 10 s) est
-à mettre en balance.
 
 ## Brouillons : libellé « sans titre » et projets fermés — `à faire`
 

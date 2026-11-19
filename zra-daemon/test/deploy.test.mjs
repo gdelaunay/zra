@@ -139,6 +139,27 @@ test('réseau local : écouté sans tunnel, suivi quand le Wi-Fi change d’adre
   assert.deepEqual(daemon.machine.urls, [`http://127.0.0.4:${PORT}`])
 })
 
+test('profil réseau : Public ↔ Privé suivi sans mouvement des interfaces', async (t) => {
+  // Même interface, même adresse : seule la catégorie Windows change. Un cache
+  // sur les interfaces (nom=adresse) raterait ce changement.
+  const ifaces = [{ name: 'Wi-Fi', address: '127.0.0.3' }]
+  let publicNames = new Set() // Privé
+  const daemon = await boot(t, {
+    bindLan: true, lanCidrs: ['127.0.0.0/8'], tunnelPollMs: 30,
+    interfaces: () => ifaces.map((i) => ({ ...i, ...(publicNames.has(i.name) ? { public: true } : {}) })),
+    publicNetworks: async () => ({ names: new Set(publicNames) }),
+  })
+  assert.deepEqual(daemon.servers.addresses, ['127.0.0.1', '127.0.0.3'])
+
+  publicNames = new Set(['Wi-Fi']) // Public
+  await until(() => !daemon.servers.addresses.includes('127.0.0.3'), { label: 'Public : écoute retirée' })
+  assert.equal(await reachable('127.0.0.3'), false)
+
+  publicNames = new Set() // retour en Privé
+  await until(() => daemon.servers.addresses.includes('127.0.0.3'), { label: 'Privé : écoute reprise' })
+  assert.equal(await reachable('127.0.0.3'), true)
+})
+
 test('réseau local et tunnel ensemble : chacun son écoute', async (t) => {
   const daemon = await boot(t, {
     bindLan: true, lanCidrs: ['127.0.0.0/8'], bindInterface: 'ZRA',

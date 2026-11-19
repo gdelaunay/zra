@@ -69,22 +69,22 @@ class Machine {
 
 /** @param {object} config résultat de `loadConfig()` */
 export async function startDaemon(config) {
-  // Réseaux « Public » (Windows) : relus quand les interfaces changent, pas à
-  // chaque tour — PowerShell coûte plusieurs centaines de ms.
+  // Réseaux « Public » (Windows) : relus à chaque tour. Une catégorie peut
+  // changer sans que les interfaces (nom=adresse) bougent : un cache sur les
+  // interfaces raterait le passage Public → Privé (et inversement). Le coût
+  // PowerShell (quelques centaines de ms tous les 10 s) est le prix de la
+  // détection ; `config.publicNetworks` l'injecte pour les tests.
   let publicNames = new Set()
-  let interfacesSeen = null
+  const readPublic = config.publicNetworks ?? publicNetworks
   const refreshPublic = async () => {
-    const key = listInterfaces().map((i) => `${i.name}=${i.address}`).sort().join(',')
-    if (key === interfacesSeen) return
-    interfacesSeen = key
-    const res = await publicNetworks()
+    const res = await readPublic()
     if (res.error) log.warn(tr`profils réseau illisibles (${res.error}) : réseaux publics non filtrés`)
     publicNames = res.names
   }
   // `config.interfaces` : interfaces factices, pour les tests du suivi du réseau.
   const interfaces = config.interfaces ?? (() => listInterfaces(undefined, publicNames))
   const loopbackOnly = config.bindLan === false && config.bindTunnel === false
-  if (!loopbackOnly && !config.interfaces) await refreshPublic()
+  if (!loopbackOnly) await refreshPublic()
   const { addresses, tunnel, lan, skipped } = resolveBinds(config, interfaces())
 
   const shims = new ShimRegistry()
@@ -296,12 +296,12 @@ export async function startDaemon(config) {
       hub.broadcast({ type: 'machine', ...machine.describe() })
     })
   })
-  // En loopback seule (`--loopback-only`, dev et tests), rien à suivre ; et lire
-  // les interfaces n'est pas gratuit sous Windows (25 à 60 ms, synchrone).
+  // En loopback seule (`--loopback-only`, dev et tests), rien à suivre.
   // Les profils réseau sont relus avant chaque tour, pour qu'un réseau public
-  // qui apparaît ne soit jamais écouté, même un instant.
+  // qui apparaît ne soit jamais écouté, même un instant — y compris quand seule
+  // la catégorie change (Public ↔ Privé), sans mouvement des interfaces.
   const netTimer = loopbackOnly ? null : setInterval(async () => {
-    if (!config.interfaces) await refreshPublic().catch(() => {})
+    await refreshPublic().catch(() => {})
     watch.check()
   }, config.tunnelPollMs)
   netTimer?.unref?.()
