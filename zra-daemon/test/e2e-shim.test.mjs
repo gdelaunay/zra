@@ -95,7 +95,7 @@ async function boot(t, overrides = {}) {
 }
 
 /** Lance un shim comme Zed le ferait, et lui branche un faux Zed sur stdio. */
-async function startShim(t, { sessionId = SESSION_VIVANT, zed = {}, env = {} } = {}) {
+async function startShim(t, { sessionId = SESSION_VIVANT, zed = {}, env = {}, autoBoot = true } = {}) {
   const child = spawn(process.execPath, [SHIM, '--', process.execPath, FAKE_AGENT], {
     stdio: ['pipe', 'pipe', 'pipe'],
     env: {
@@ -110,7 +110,7 @@ async function startShim(t, { sessionId = SESSION_VIVANT, zed = {}, env = {} } =
   t.after(() => child.kill())
 
   const fakeZed = new FakeZed({ toShim: child.stdin, fromShim: child.stdout, ...zed })
-  await fakeZed.boot({ cwd: CWD })
+  if (autoBoot) await fakeZed.boot({ cwd: CWD })
   return { child, zed: fakeZed }
 }
 
@@ -738,6 +738,22 @@ test('Zed recharge la session : les abonnés repartent d’un historique vide, l
   assert.deepEqual(reset.updates, [])
   await client.until((m) => m.type === 'acp_event' && m.update.content?.text === 'réponse archivée', { label: 'replay' })
 
+  const ring = daemon.rings.read(VIVANT).map((e) => e.update.content?.text).filter(Boolean)
+  assert.deepEqual(ring, ['question archivée', 'réponse archivée'])
+})
+
+test('Zed recharge une session jamais revendiquée (shim neuf) : le replay passe quand même', async (t) => {
+  const daemon = await boot(t)
+  // Pas de `session/new` avant : `session/load` est la première revendication,
+  // comme au retour sur un thread après un redémarrage du daemon.
+  const { zed } = await startShim(t, { autoBoot: false })
+  const client = await (await Client.open(t)).hello()
+  await subscribe(client, VIVANT)
+  client.clear()
+  await zed.resume(SESSION_VIVANT, { cwd: CWD })
+  const reset = await client.until((m) => m.type === 'history', { label: 'historique remis à zéro' })
+  assert.deepEqual(reset.updates, [])
+  await client.until((m) => m.type === 'acp_event' && m.update.content?.text === 'réponse archivée', { label: 'replay' })
   const ring = daemon.rings.read(VIVANT).map((e) => e.update.content?.text).filter(Boolean)
   assert.deepEqual(ring, ['question archivée', 'réponse archivée'])
 })

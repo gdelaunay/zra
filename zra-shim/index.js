@@ -142,7 +142,7 @@ export function createShim({
     push({ type: 'shim_hello', shimId, ...describe() })
   })
   // Journal de diagnostic : ce qu'on lit en premier au test réel.
-  bridge.on('session', (s) => log.info(s.source === 'load' ? tr`session rechargée : ${s.sessionId} (${s.cwd ?? 'cwd ?'})` : tr`session ouverte : ${s.sessionId} (${s.cwd ?? 'cwd ?'})`))
+  bridge.on('session', (s) => { if (!s.quiet) log.info(s.source === 'load' ? tr`session rechargée : ${s.sessionId} (${s.cwd ?? 'cwd ?'})` : tr`session ouverte : ${s.sessionId} (${s.cwd ?? 'cwd ?'})`) })
   bridge.on('prompt_failed', ({ sessionId, message }) => log.warn(tr`prompt injecté refusé sur ${sessionId} : ${message}`))
   bridge.on('prompt_failed', ({ sessionId, message }) => push({
     type: 'notice', sessionId, code: 'inject_failed', text: tr`l'agent a refusé le message : ${message}`, level: 'warn',

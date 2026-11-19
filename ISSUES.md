@@ -15,7 +15,6 @@ Fait → effet → à faire. Une issue acceptée (on ne fera rien) part dans
 | Réouverture : le filtre du sidebar est flou | `à faire` |
 | Changement de profil réseau (Public/Privé) non détecté | `à faire` |
 | Brouillons : libellé « sans titre » et projets fermés | `à faire` |
-| Relecture (`session/load`) : tout le replay est ignoré | `priorité` |
 | Threads déchargés par Zed sans `session/close` : la PWA les croit live | `à faire` |
 
 ## Tour lancé depuis le mobile : Zed le croit au repos — `à faire`
@@ -25,23 +24,6 @@ En ACP v1, Zed déduit l'activité de ses propres `session/prompt`
 un : la réponse s'affiche dans Zed, mais sans indicateur de génération ni
 bouton Stop, et rien n'empêche d'y envoyer un prompt en parallèle.
 → Constater en vrai. Piste : ACP v2, où l'agent rapporte son activité.
-
-## Relecture (`session/load`) : tout le replay est ignoré — `priorité`
-
-Le shim émet `session_replay` dès la requête `session/load` de Zed
-(`zra-shim/acp.js`, `observeFromZed`), mais ne revendique la session
-(`session`, via `openSession`) qu'à la **réponse** de l'agent. Or l'agent
-rejoue l'historique en notifications `acp_update` avant cette réponse, et le
-garde-fou du daemon (`zra-daemon/shim-link.js`, `handle`) exige une session
-déjà revendiquée pour `session_replay` et `acp_update`.
-→ Relevé en réel (Windows, pi-acp) : chaque rechargement d'un thread produit
-`session_replay ignoré … non revendiquée` puis des centaines de
-`acp_update ignoré` (~9400 warns dans `.zra/logs/daemon.log`). L'historique
-s'affiche quand même sur le mobile (servi par les records du daemon), mais le
-replay est jeté : pas de remise à zéro (`whole`, `parked`), risque de doublons
-et couverture du ring buffer fausse.
-→ Revendiquer la session dès la requête `session/load` (ou accepter
-`session_replay` comme revendication), puis vérifier la relecture sur mobile.
 
 ## Threads déchargés par Zed sans `session/close` : la PWA les croit live — `à faire`
 

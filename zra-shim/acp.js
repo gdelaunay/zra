@@ -210,7 +210,11 @@ export class AcpBridge extends EventEmitter {
       }
       // Rechargement d'une session : l'agent va rejouer toute la conversation.
       // Ce qui a été publié avant pour elle est redit, le daemon repart de zéro.
+      // Revendiquer dès la requête : l'agent rejoue l'historique avant sa
+      // réponse, et le daemon exige une session tenue pour accepter le replay
+      // et les `acp_update` (sans ça, tout est jeté — `shim-link.js`, `handle`).
       if (msg.method === M.sessionLoad && msg.params?.sessionId) {
+        this.openSession(msg.params.sessionId, { cwd: msg.params.cwd ?? null, source: 'load', result: null, quiet: true })
         this.emit('replay', { sessionId: msg.params.sessionId })
       }
       return
@@ -400,11 +404,11 @@ export class AcpBridge extends EventEmitter {
     }
   }
 
-  openSession(sessionId, { cwd, source, result }) {
+  openSession(sessionId, { cwd, source, result, quiet = false }) {
     const st = this.sessions.get(sessionId)
     if (cwd) st.cwd = cwd
     assignOptions(st, projectOptions(result ?? {}))
-    this.emit('session', { sessionId, cwd: st.cwd, source, ...this.sessions.snapshot(sessionId) })
+    this.emit('session', { sessionId, cwd: st.cwd, source, quiet, ...this.sessions.snapshot(sessionId) })
     this.sessions.changed(sessionId)
   }
 
