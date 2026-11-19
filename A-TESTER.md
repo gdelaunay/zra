@@ -6,11 +6,6 @@ Zed et un téléphone. Un point vérifié est retiré ; un écart constaté part
 
 ## En attente
 
-- **`npm run setup -- install`** : `default_mode` et
-  `favorite_config_option_values` de l'entrée d'origine recopiés sur l'entrée
-  ZRA ; un thread ZRA démarre avec les mêmes mode et favoris. À ne pas lancer
-  à la légère : le setup renomme les shims et avertit que les discussions
-  précédentes ne pourront plus être ouvertes.
 - **Reprise** (agent sans `loadSession`) : thread rouvert dans Zed → `live`
   dans la PWA ✓ (opencode). Écrire depuis le mobile ✗ : « invalid param,
   session not found » — probable thread jamais initialisé (aucun message
