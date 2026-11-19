@@ -28,7 +28,7 @@ What ZRA depends on in Zed, and where to check it in its sources. Used for the c
 
 ## Mapping
 
-**Status** of the rows: **verified** (read in the sources of the reference version), **observed** (seen on a machine, not yet reread in the sources), **to check** (source located, not yet reread), **gap** (checked, differs from Zed: see `ISSUES.md`), **to audit** (the PWA imitates Zed, the gap remains to be measured).
+**Status** of the rows: **verified** (read in the sources of the reference version), **observed** (seen on a machine, not yet reread in the sources), **to check** (source located, not yet reread), **gap** (checked, differs from Zed: see `ISSUES.md`), **to audit** (the PWA imitates Zed, the gap remains to be measured), **limitation** (accepted gap, documented: see `docs/en/limitations.md`).
 
 ### Zed data and files
 
@@ -64,7 +64,7 @@ What ZRA depends on in Zed, and where to check it in its sources. Used for the c
 | Permissions: the shim answers instead of Zed, then removes Zed's prompt (`$/cancel_request`) | `zra-shim/acp.js` | `crates/agent_servers/src/acp/v1.rs` (`handle_request_permission`); `crates/acp_thread/src/acp_thread.rs` (`apply_reported_status`, `cancel_permission_request`) | verified |
 | Agent questions (form elicitation, Claude Agent's `AskUserQuestion`): published as `zra/elicitation` in the thread of their session or of the Zed request they cite, the shim answers instead of Zed then removes its form (`$/cancel_request`); a link to open (`url` mode) is shown, but opens on the machine | `zra-shim/acp.js` (`noteElicitation`, `respondElicitation`) | `crates/agent_servers/src/acp.rs` (`handle_v2_create_elicitation`: `cancel_elicitation` on cancellation); `crates/acp_thread/src/acp_thread.rs` (`request_elicitation_with_id`, `has_pending_turn_action`) | verified |
 | Mobile message shown in Zed (synthetic `user_message_chunk`) | `zra-shim/acp.js` | `crates/acp_thread/src/acp_thread.rs`: `handle_session_update`, `push_user_content_block_with_protocol_id` | verified |
-| Turn started from the mobile, as seen by Zed | `zra-shim/acp.js` | `crates/acp_thread/src/acp_thread.rs`: `uses_reported_activity`, `status` | gap |
+| Turn started from the mobile, as seen by Zed | `zra-shim/acp.js` | `crates/acp_thread/src/acp_thread.rs`: `uses_reported_activity`, `status` | limitation |
 | Mode, model, options: projection and changes | `zra-shim/acp.js` (`projectOptions`, `applyOption`) | `crates/agent_servers/src/acp/v1.rs`: `config_state`, `ConfigOptions::set_config_option`, `AcpSessionModes`; `crates/acp_thread/src/config_options.rs` | verified |
 | Terminal output: replies to `terminal/*`, or tool calls' `_meta` | `zra-shim/acp.js` (`publishTerminal`), `zra-client/js/acp.js` (`terminalMeta`) | `crates/agent_servers/src/acp/v1.rs`: `handle_terminal_output`; `_meta.terminal_info`, `terminal_output`, `terminal_exit` in `handle_session_notification` | verified |
 | Replaying a closed thread: throwaway ACP client, `session/load`, Zed's capabilities (including `_meta.terminal_output`), project environment (login shell and direnv on Linux and macOS; on Windows, the session's, as Zed does). No MCP servers, by choice (`docs/en/limitations.md`) | `zra-daemon/session-loader.js`, `acp-client.js`, `shell-env.js` | `crates/agent_servers/src/acp/v1.rs`: `load_session`, `session_directories_from_work_dirs`, `client_capabilities_for_agent`; `crates/project/src/environment.rs`: `local_directory_environment`, `load_direnv_environment`; `crates/util/src/shell_env.rs`: `capture` | verified |

@@ -10,19 +10,10 @@ Fait → effet → à faire. Une issue acceptée (on ne fera rien) part dans
 
 | Section | Statut |
 | --- | --- |
-| Tour lancé depuis le mobile : Zed le croit au repos | `à faire` |
 | Performance sur téléphone non mesurée | `à faire` |
 | Réouverture : le filtre du sidebar est flou | `à faire` |
 | Brouillons : libellé « sans titre » et projets fermés | `à faire` |
 | Threads déchargés par Zed sans `session/close` : la PWA les croit live | `à faire` |
-
-## Tour lancé depuis le mobile : Zed le croit au repos — `à faire`
-
-En ACP v1, Zed déduit l'activité de ses propres `session/prompt`
-(`AcpThread::uses_reported_activity`). Un tour lancé par le shim n'en est pas
-un : la réponse s'affiche dans Zed, mais sans indicateur de génération ni
-bouton Stop, et rien n'empêche d'y envoyer un prompt en parallèle.
-→ Constater en vrai. Piste : ACP v2, où l'agent rapporte son activité.
 
 ## Threads déchargés par Zed sans `session/close` : la PWA les croit live — `à faire`
 

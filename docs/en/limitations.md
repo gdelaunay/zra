@@ -70,3 +70,19 @@ each time an old thread is opened would cost several seconds, and a requested
 OAuth sign-in would go unanswered. Parity would be partial anyway: Zed adds
 the servers of its extensions, which the daemon does not see.
 → To revisit only if an agent cannot replay without its MCP servers.
+
+## Turn started from mobile: Zed thinks it is idle
+
+With the `acp` injection backend (default), the mobile prompt is injected
+straight into the agent by the shim: Zed did not submit it itself. Yet its
+activity indicator (`AcpThread::status`) only tracks its own `session/prompt`
+(`running_turn`); in ACP v1 the agent does not report its activity. As far as
+Zed is concerned the thread stays idle: no generation indicator nor Stop
+button, and nothing prevents sending a prompt in parallel. The response still
+shows normally.
+→ Workaround: the `uia` backend (or `auto`, `config.injection`) types the mobile
+text into Zed, which then submits the prompt and tracks the turn (indicator,
+Stop, queue). Experimental and fragile (focus, fuzzy sidebar filter; requires
+`zedControl.enabled`).
+→ Clean fix: ACP v2, where the agent reports its activity — behind a beta flag
+in Zed 1.28.1, not the default.

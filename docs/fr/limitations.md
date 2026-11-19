@@ -72,3 +72,19 @@ et une connexion OAuth demandée resterait sans réponse. La parité serait de
 toute façon partielle : Zed y ajoute les serveurs de ses extensions, que le
 daemon ne voit pas.
 → À revoir seulement si un agent ne sait pas rejouer sans ses serveurs MCP.
+
+## Tour lancé depuis le mobile : Zed le croit au repos
+
+Avec le backend d'injection `acp` (défaut), le prompt du mobile est injecté
+directement dans l'agent par le shim : Zed ne l'a pas soumis lui-même. Or son
+indicateur d'activité (`AcpThread::status`) ne suit que ses propres
+`session/prompt` (`running_turn`) ; en ACP v1 l'agent ne rapporte pas son
+activité. Vu de Zed, le thread reste au repos : pas d'indicateur de génération
+ni de bouton Stop, et rien n'empêche d'y envoyer un prompt en parallèle. La
+réponse s'affiche normalement.
+→ Contournement : le backend `uia` (ou `auto`, `config.injection`) tape le texte
+du mobile au clavier dans Zed, qui soumet alors le prompt et suit le tour
+(indicateur, Stop, file). Expérimental et fragile (focus, filtre flou du
+sidebar ; exige `zedControl.enabled`).
+→ Fix propre : ACP v2, où l'agent rapporte son activité — derrière un drapeau
+bêta dans Zed 1.28.1, pas le défaut.
