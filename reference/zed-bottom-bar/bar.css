@@ -1,0 +1,160 @@
+/* Reproduction de la barre du bas de Zed v1.28.1 (status bar + boutons de panels).
+   Sources : crates/workspace/src/status_bar.rs, dock.rs, multi_workspace.rs ;
+   crates/ui/src/components (icon, divider, count_badge, indicator, tooltip, context_menu).
+   Valeurs par défaut : ui_font_size 16, densité par défaut, thème One Dark, raccourcis Windows. */
+
+/* Polices embarquées par Zed (.ZedSans = IBM Plex Sans, .ZedMono = Lilex), lues dans _upstream. */
+@font-face { font-family: "Zed Sans"; src: url("../../_upstream/zed/assets/fonts/ibm-plex-sans/IBMPlexSans-Regular.ttf"); font-weight: 400; }
+@font-face { font-family: "Zed Sans"; src: url("../../_upstream/zed/assets/fonts/ibm-plex-sans/IBMPlexSans-Italic.ttf"); font-weight: 400; font-style: italic; }
+@font-face { font-family: "Zed Sans"; src: url("../../_upstream/zed/assets/fonts/ibm-plex-sans/IBMPlexSans-SemiBold.ttf"); font-weight: 600 700; }
+@font-face { font-family: "Zed Mono"; src: url("../../_upstream/zed/assets/fonts/lilex/Lilex-Regular.ttf"); font-weight: 400; }
+@font-face { font-family: "Zed Mono"; src: url("../../_upstream/zed/assets/fonts/lilex/Lilex-Bold.ttf"); font-weight: 700; }
+
+:root {
+  --font-ui: "Zed Sans", "IBM Plex Sans", system-ui, sans-serif;
+  --font-mono: "Zed Mono", "Lilex", ui-monospace, Consolas, monospace;
+  /* gpui : line_height par défaut = phi (style.rs) */
+  --lh: 1.618;
+
+  /* CountBadge (count_badge.rs) : editor_background ⊕ error.opacity(0.4) */
+  --badge-bg: color-mix(in srgb, var(--editor-background) 60%, var(--error) 40%);
+
+  /* ui/styles/elevation.rs ElevatedSurface ; gpui shadow_sm */
+  --shadow-elevated: 0 2px 3px rgba(0, 0, 0, .12), 0 1px 0 rgba(0, 0, 0, .06);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, .1), 0 1px 2px -1px rgba(0, 0, 0, .1);
+}
+
+/* ---------- Page de référence (hors Zed) ---------- */
+
+body {
+  margin: 0; padding: 24px; background: var(--background); color: var(--text);
+  font: 14px/1.5 var(--font-ui);
+}
+.ref-head { max-width: 1100px; margin-bottom: 24px; }
+.ref-head h1 { font-size: 22px; font-weight: 600; margin: 0 0 4px; }
+.ref-head p { margin: 4px 0; color: var(--text-muted); }
+.ref-toolbar { display: flex; gap: 8px; align-items: center; margin-top: 12px; color: var(--text-muted); font-size: 12px; }
+.ref-toolbar button { font: inherit; color: var(--text); background: var(--element-background); border: 1px solid var(--border-variant); border-radius: 4px; padding: 2px 8px; cursor: pointer; }
+.ref-toolbar button[aria-pressed="true"] { border-color: var(--border-focused); }
+.ref-nav { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; margin-top: 8px; }
+.ref-nav a { color: var(--text-accent); text-decoration: none; }
+.ref-section { margin-top: 40px; }
+.ref-section > h2 { font-size: 17px; font-weight: 600; margin: 0 0 4px; border-bottom: 1px solid var(--border-variant); padding-bottom: 4px; }
+.ref-section > p { color: var(--text-muted); margin: 4px 0 12px; max-width: 900px; }
+.ref-grid { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; }
+.ref-specimen { display: flex; flex-direction: column; gap: 6px; }
+.ref-specimen > .ref-label { font-size: 12px; color: var(--text-muted); font-family: var(--font-mono); }
+.ref-specimen > .ref-label b { color: var(--text); font-family: var(--font-ui); font-weight: 600; }
+.ref-frame { width: var(--frame-w, 900px); background: var(--panel-background); border: 1px dashed #555; }
+.ref-frame--auto { width: auto; padding: 16px; }
+body.show-src [data-src] { outline: 1px dotted rgba(116, 173, 232, .35); }
+body.show-src [data-src]:hover { outline: 1px solid var(--text-accent); }
+
+/* ---------- Primitives (crates/ui) ---------- */
+
+/* Icon — ui/components/icon.rs : Small 14, XSmall 12, Medium 16 */
+.icon { display: inline-flex; flex: none; width: 16px; height: 16px; color: var(--icon); }
+.icon > svg { width: 100%; height: 100%; display: block; }
+.icon.xs { width: 12px; height: 12px; }
+.icon.sm { width: 14px; height: 14px; }
+.icon.muted { color: var(--icon-muted); }
+.icon.accent { color: var(--icon-accent); }
+.icon.disabled { color: var(--icon-disabled); }
+
+/* Label — ui/components/label : Default 14, Small 12, XSmall 10 ; interligne phi */
+.lbl { font-size: 14px; line-height: var(--lh); color: var(--text); white-space: nowrap; }
+.lbl.sm { font-size: 12px; }
+.lbl.xs { font-size: 10px; }
+.lbl.muted { color: var(--text-muted); }
+
+/* ButtonLike — ui/components/button/button_like.rs : fantôme par défaut */
+.btn {
+  display: inline-flex; align-items: center; gap: 4px; padding: 2px 4px;
+  background: none; border: 1px solid transparent; border-radius: 4px;
+  color: var(--text); font: inherit; cursor: pointer;
+}
+.btn:hover, .btn.hover { background: var(--ghost-element-hover); }
+.btn:active, .btn.pressed { background: var(--ghost-element-active); }
+
+/* IconButton carré — taille = icône + 2 × 2px (icon.rs square_components) */
+.ibtn { width: 20px; height: 20px; padding: 0; justify-content: center; }
+.ibtn.sm { width: 18px; height: 18px; }
+/* toggle_state — icon_button.rs render : icône Color::Selected = text_accent,
+   pas de changement de fond (pas de selected_style sur les boutons de panel). */
+.ibtn.toggled .icon { color: var(--text-accent); }
+
+/* KeyBinding — ui/components/keybinding.rs : texte « Ctrl-Alt-Shift-Touche » sous Windows/Linux */
+.kbd { font-size: 12px; line-height: 1; color: var(--text-muted); white-space: nowrap; padding: 1px 0; }
+
+/* Divider — ui/components/divider.rs : vertical 1 × 16 px (h_4), couleur passée = border */
+.divider-v { width: 1px; height: 16px; background: var(--border); flex: none; }
+
+/* Surfaces élevées — ui/traits/styled_ext.rs elevation_2 : rayon 8, bordure border_variant */
+.elevated {
+  background: var(--elevated-surface-background);
+  border: 1px solid var(--border-variant); border-radius: 8px;
+  box-shadow: var(--shadow-elevated);
+}
+
+/* Tooltip — ui/components/tooltip.rs : elevation_2, py 4 px 8, texte 14px */
+.tooltip { display: inline-flex; flex-direction: column; padding: 4px 8px; font-size: 14px; line-height: var(--lh); max-width: 320px; }
+.tooltip-row { display: flex; gap: 16px; align-items: center; justify-content: space-between; }
+
+/* ContextMenu — ui/components/context_menu.rs : elevation_2, py 4, largeur min 200,
+   items ListItem inset (marge x 4, padding x 6, rayon 4), gap 6 */
+.menu { display: inline-flex; flex-direction: column; min-width: 200px; padding: 4px 0; font-size: 14px; line-height: var(--lh); }
+.menu-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  margin: 0 4px; padding: 0 6px; border-radius: 4px; color: var(--text); cursor: pointer;
+}
+.menu-item:hover, .menu-item.selected { background: var(--ghost-element-hover); }
+.menu-item .start { display: flex; align-items: center; gap: 6px; }
+.menu-sep { height: 1px; background: var(--border-variant); margin: 6px 0; }
+
+/* ---------- Barre du bas ---------- */
+
+/* StatusBar — status_bar.rs render : pleine largeur, fond status_bar.background,
+   padding Base04 (4 px), justify-between, gap Base08 (8 px) entre les deux groupes.
+   Hauteur = bouton 18 + 2 × 4 = 26 px. */
+.status-bar {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  width: 100%; padding: 4px; background: var(--status-bar-background);
+}
+/* render_left_tools : gap_1 (4 px), min_w_0, overflow_x_hidden */
+.sb-left { display: flex; align-items: center; gap: 4px; min-width: 0; overflow: hidden; }
+/* render_right_tools : flex_shrink_0, gap_1, items en ordre inverse */
+.sb-right { display: flex; align-items: center; gap: 4px; flex: none; }
+
+/* PanelButtons — dock.rs render : h_flex gap_1 (4 px).
+   Dock gauche : boutons puis filet ; docks bas/droit : filet puis boutons.
+   Pas de boutons → pas de filet. */
+.panel-buttons { display: flex; align-items: center; gap: 4px; }
+
+/* Bouton de panel — dock.rs render : IconButton icône Small (14), 18 × 18,
+   toggle_state quand le panel est actif et le dock ouvert → icône accent. */
+.panel-btn { position: relative; }
+
+/* CountBadge — count_badge.rs : absolu top 0 right 0, pilule 14 px (h_3p5, min_w_3p5),
+   padding 1 px, bordure 1 px border, fond editor_background ⊕ error 40 %, ombre sm,
+   label 9 px medium ; plafond « 99+ ». Masqué quand le bouton est actif. */
+.count-badge {
+  position: absolute; top: 0; right: 0; display: flex; align-items: center; justify-content: center;
+  height: 14px; min-width: 14px; padding: 1px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--badge-bg); box-shadow: var(--shadow-sm);
+  font-size: 9px; font-weight: 500; line-height: 1; color: var(--text);
+}
+
+/* Bouton d'ouverture de la sidebar — status_bar.rs render_sidebar_toggle :
+   wrapper h_flex gap_0p5 (2 px), filet du côté du centre de la barre.
+   Icône threads_sidebar_{left,right}_closed, Small. */
+.sidebar-toggle { display: flex; align-items: center; gap: 2px; }
+
+/* Indicator — indicator.rs + icon.rs IconWithIndicator : conteneur 10 px (size_2p5),
+   bordure 2 px couleur status_bar_background, rond, absolu bottom -2 right -2 ;
+   pastille 6 px (w_1p5) accent. */
+.indicator-wrap {
+  position: absolute; bottom: -2px; right: -2px; width: 10px; height: 10px;
+  border: 2px solid var(--status-bar-background); border-radius: 999px;
+  display: flex; align-items: center; justify-content: center;
+}
+.indicator-dot { width: 6px; height: 6px; border-radius: 999px; background: var(--text-accent); }

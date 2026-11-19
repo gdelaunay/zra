@@ -1,0 +1,350 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Référence — barre du bas de Zed v1.28.1</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="bar.css">
+</head>
+<body>
+
+<header class="ref-head">
+  <h1>Barre du bas de Zed — référence visuelle</h1>
+  <p>Zed v1.28.1, réglages par défaut, thème One Dark, raccourcis Windows. Instantanés statiques ; comportements et conditions dans <code>README.md</code>.</p>
+  <p><code>data-src</code> sur chaque élément : fichier et fonction d'origine (chemins relatifs à <code>crates/workspace/src</code> sauf mention).</p>
+  <div class="ref-toolbar">
+    Largeur de la barre :
+    <button data-w="900" aria-pressed="true">900 px</button>
+    <button data-w="400" aria-pressed="false">400 px</button>
+    <span style="width:16px"></span>
+    <button id="toggle-src" aria-pressed="false">Sources</button>
+  </div>
+  <nav class="ref-nav">
+    <a href="#bar">1. Barre complète</a>
+    <a href="#states">2. États des boutons</a>
+    <a href="#sidebar">3. Bouton de la sidebar</a>
+    <a href="#badge">4. Badge du git panel</a>
+    <a href="#tooltips">5. Infobulles</a>
+    <a href="#menus">6. Menus clic droit</a>
+    <a href="#kit">7. Primitives</a>
+  </nav>
+</header>
+
+<!-- ============================================================ -->
+<section class="ref-section" id="bar">
+  <h2>1. Barre complète</h2>
+  <p>Fond <code>status_bar.background</code>, padding 4 px, hauteur 26 px. À gauche : bouton d'ouverture de la sidebar (si elle est à gauche et fermée), puis boutons du dock gauche (projet, git, outline). À droite : boutons du dock bas (terminal, debug), puis du dock droit (agent), puis le bouton de la sidebar si elle est à droite. Filets verticaux 1 × 16 px, couleur <code>border</code>.</p>
+  <div class="ref-grid">
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Défaut</b> — sidebar à gauche, fermée ; tous les panels fermés</div>
+      <div class="ref-frame">
+        <div class="status-bar" data-src="status_bar.rs render">
+          <div class="sb-left" data-src="status_bar.rs render_left_tools">
+            <div class="sidebar-toggle" data-src="status_bar.rs render_sidebar_toggle">
+              <button class="btn ibtn sm" aria-label="Open threads sidebar"><i class="icon sm" data-i="threads_sidebar_left_closed"></i></button>
+              <span class="divider-v"></span>
+            </div>
+            <div class="panel-buttons" data-src="dock.rs PanelButtons render (dock gauche)">
+              <span class="panel-btn"><button class="btn ibtn sm" aria-label="Project Panel"><i class="icon sm" data-i="file_tree"></i></button></span>
+              <span class="panel-btn"><button class="btn ibtn sm" aria-label="Git Panel"><i class="icon sm" data-i="git_branch"></i></button></span>
+              <span class="panel-btn"><button class="btn ibtn sm" aria-label="Outline Panel"><i class="icon sm" data-i="list_tree"></i></button></span>
+              <span class="divider-v"></span>
+            </div>
+          </div>
+          <div class="sb-right" data-src="status_bar.rs render_right_tools">
+            <div class="panel-buttons" data-src="dock.rs PanelButtons render (dock bas)">
+              <span class="divider-v"></span>
+              <span class="panel-btn"><button class="btn ibtn sm" aria-label="Terminal Panel"><i class="icon sm" data-i="terminal_alt"></i></button></span>
+              <span class="panel-btn"><button class="btn ibtn sm" aria-label="Debug Panel"><i class="icon sm" data-i="debug"></i></button></span>
+            </div>
+            <div class="panel-buttons" data-src="dock.rs PanelButtons render (dock droit)">
+              <span class="divider-v"></span>
+              <span class="panel-btn"><button class="btn ibtn sm" aria-label="Agent Panel"><i class="icon sm" data-i="zed_assistant"></i></button></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Sidebar à droite</b> — son bouton passe à droite, filet inversé</div>
+      <div class="ref-frame">
+        <div class="status-bar" data-src="status_bar.rs render">
+          <div class="sb-left" data-src="status_bar.rs render_left_tools">
+            <div class="panel-buttons" data-src="dock.rs PanelButtons render (dock gauche)">
+              <span class="panel-btn"><button class="btn ibtn sm"><i class="icon sm" data-i="file_tree"></i></button></span>
+              <span class="panel-btn"><button class="btn ibtn sm"><i class="icon sm" data-i="git_branch"></i></button></span>
+              <span class="panel-btn"><button class="btn ibtn sm"><i class="icon sm" data-i="list_tree"></i></button></span>
+              <span class="divider-v"></span>
+            </div>
+          </div>
+          <div class="sb-right" data-src="status_bar.rs render_right_tools">
+            <div class="panel-buttons" data-src="dock.rs PanelButtons render (dock bas)">
+              <span class="divider-v"></span>
+              <span class="panel-btn"><button class="btn ibtn sm"><i class="icon sm" data-i="terminal_alt"></i></button></span>
+              <span class="panel-btn"><button class="btn ibtn sm"><i class="icon sm" data-i="debug"></i></button></span>
+            </div>
+            <div class="panel-buttons" data-src="dock.rs PanelButtons render (dock droit)">
+              <span class="divider-v"></span>
+              <span class="panel-btn"><button class="btn ibtn sm"><i class="icon sm" data-i="zed_assistant"></i></button></span>
+            </div>
+            <div class="sidebar-toggle" data-src="status_bar.rs render_sidebar_toggle">
+              <span class="divider-v"></span>
+              <button class="btn ibtn sm" aria-label="Open threads sidebar"><i class="icon sm" data-i="threads_sidebar_right_closed"></i></button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="ref-section" id="states">
+  <h2>2. États des boutons</h2>
+  <p>Panel actif + dock ouvert = icône en <code>text_accent</code> (bleu), sans changement de fond ; le clic ferme le dock (infobulle « Close … Dock »). Icône au repos : couleur <code>text</code>. Survol = <code>ghost_element.hover</code>, appui = <code>ghost_element.active</code> (style <code>Subtle</code> par défaut).</p>
+  <div class="ref-grid">
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Agent actif</b> · <b>terminal actif</b> · <b>projet actif</b> · <b>survol git</b></div>
+      <div class="ref-frame">
+        <div class="status-bar" data-src="status_bar.rs render">
+          <div class="sb-left">
+            <div class="sidebar-toggle"><button class="btn ibtn sm"><i class="icon sm" data-i="threads_sidebar_left_closed"></i></button><span class="divider-v"></span></div>
+            <div class="panel-buttons" data-src="dock.rs PanelButtons render">
+              <span class="panel-btn"><button class="btn ibtn sm toggled" data-src="dock.rs render (is_active_button)"><i class="icon sm accent" data-i="file_tree"></i></button></span>
+              <span class="panel-btn"><button class="btn ibtn sm hover"><i class="icon sm" data-i="git_branch"></i></button></span>
+              <span class="panel-btn"><button class="btn ibtn sm"><i class="icon sm" data-i="list_tree"></i></button></span>
+              <span class="divider-v"></span>
+            </div>
+          </div>
+          <div class="sb-right">
+            <div class="panel-buttons">
+              <span class="divider-v"></span>
+              <span class="panel-btn"><button class="btn ibtn sm toggled"><i class="icon sm accent" data-i="terminal_alt"></i></button></span>
+              <span class="panel-btn"><button class="btn ibtn sm"><i class="icon sm" data-i="debug"></i></button></span>
+            </div>
+            <div class="panel-buttons">
+              <span class="divider-v"></span>
+              <span class="panel-btn"><button class="btn ibtn sm toggled"><i class="icon sm accent" data-i="zed_assistant"></i></button></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Dock vide</b> — aucun bouton (tous masqués par réglage) : pas de filet</div>
+      <div class="ref-frame">
+        <div class="status-bar" data-src="dock.rs PanelButtons render (has_buttons)">
+          <div class="sb-left">
+            <div class="sidebar-toggle"><button class="btn ibtn sm"><i class="icon sm" data-i="threads_sidebar_left_closed"></i></button><span class="divider-v"></span></div>
+          </div>
+          <div class="sb-right"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="ref-section" id="sidebar">
+  <h2>3. Bouton de la sidebar</h2>
+  <p>Présent seulement quand la sidebar est <b>fermée</b> (ouverte, elle a son propre bouton de fermeture dans son en-tête). Notification en attente = pastille accent 6 px, cerne 2 px couleur <code>status_bar.background</code>, en bas à droite de l'icône (déborde de 2 px).</p>
+  <div class="ref-grid">
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Notification</b> — pastille accent · <b>survol</b></div>
+      <div class="ref-frame ref-frame--auto" style="display:flex;gap:16px;align-items:center">
+        <span class="panel-btn" data-src="status_bar.rs render_sidebar_toggle (has_notifications)">
+          <button class="btn ibtn sm"><i class="icon sm" data-i="threads_sidebar_left_closed"></i></button>
+          <span class="indicator-wrap" data-src="icon.rs IconWithIndicator render"><span class="indicator-dot" data-src="indicator.rs Indicator dot"></span></span>
+        </span>
+        <span class="panel-btn">
+          <button class="btn ibtn sm hover"><i class="icon sm" data-i="threads_sidebar_left_closed"></i></button>
+        </span>
+      </div>
+    </div>
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Sidebar ouverte</b> — plus de bouton dans la barre (gauche ou droite)</div>
+      <div class="ref-frame">
+        <div class="status-bar" data-src="status_bar.rs render_left_tools / render_right_tools (sidebar.open)">
+          <div class="sb-left">
+            <div class="panel-buttons">
+              <span class="panel-btn"><button class="btn ibtn sm"><i class="icon sm" data-i="file_tree"></i></button></span>
+              <span class="panel-btn"><button class="btn ibtn sm"><i class="icon sm" data-i="git_branch"></i></button></span>
+              <span class="panel-btn"><button class="btn ibtn sm"><i class="icon sm" data-i="list_tree"></i></button></span>
+              <span class="divider-v"></span>
+            </div>
+          </div>
+          <div class="sb-right">
+            <div class="panel-buttons">
+              <span class="divider-v"></span>
+              <span class="panel-btn"><button class="btn ibtn sm"><i class="icon sm" data-i="terminal_alt"></i></button></span>
+              <span class="panel-btn"><button class="btn ibtn sm"><i class="icon sm" data-i="debug"></i></button></span>
+            </div>
+            <div class="panel-buttons">
+              <span class="divider-v"></span>
+              <span class="panel-btn"><button class="btn ibtn sm"><i class="icon sm" data-i="zed_assistant"></i></button></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="ref-section" id="badge">
+  <h2>4. Badge du git panel</h2>
+  <p>Réglage <code>git_panel.show_count_badge</code> (faux par défaut) : nombre de fichiers modifiés, pilule 14 px en haut à droite du bouton, fond <code>editor.background</code> ⊕ <code>error</code> 40 %, bordure <code>border</code>, label 9 px medium, plafond « 99+ ». Masqué quand le git panel est actif.</p>
+  <div class="ref-grid">
+    <div class="ref-specimen">
+      <div class="ref-label"><b>3 fichiers</b> · <b>99+</b> · <b>actif (badge masqué)</b></div>
+      <div class="ref-frame ref-frame--auto" style="display:flex;gap:16px;align-items:center">
+        <span class="panel-btn" data-src="dock.rs PanelButtons render (icon_label → CountBadge)">
+          <button class="btn ibtn sm"><i class="icon sm" data-i="git_branch"></i></button>
+          <span class="count-badge" data-src="ui/components/count_badge.rs render">3</span>
+        </span>
+        <span class="panel-btn">
+          <button class="btn ibtn sm"><i class="icon sm" data-i="git_branch"></i></button>
+          <span class="count-badge">99+</span>
+        </span>
+        <span class="panel-btn">
+          <button class="btn ibtn sm toggled"><i class="icon sm accent" data-i="git_branch"></i></button>
+        </span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="ref-section" id="tooltips">
+  <h2>5. Infobulles</h2>
+  <p><code>Tooltip::for_action</code> : libellé + raccourci de l'action. Bouton actif : « Close {Left|Right|Bottom} Dock » avec le raccourci du dock, pas du panel.</p>
+  <div class="ref-grid">
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Panels fermés</b> — une infobulle par bouton</div>
+      <div class="ref-frame ref-frame--auto" style="display:flex;flex-direction:column;gap:8px;align-items:flex-start">
+        <div class="tooltip elevated"><div class="tooltip-row"><span>Project Panel</span><span class="kbd">Ctrl-Shift-E</span></div></div>
+        <div class="tooltip elevated"><div class="tooltip-row"><span>Git Panel</span><span class="kbd">Ctrl-Shift-G</span></div></div>
+        <div class="tooltip elevated"><div class="tooltip-row"><span>Outline Panel</span><span class="kbd">Ctrl-Shift-B</span></div></div>
+        <div class="tooltip elevated"><div class="tooltip-row"><span>Terminal Panel</span><span class="kbd">Ctrl-`</span></div></div>
+        <div class="tooltip elevated"><div class="tooltip-row"><span>Debug Panel</span><span class="kbd">Ctrl-Shift-D</span></div></div>
+        <div class="tooltip elevated"><div class="tooltip-row"><span>Agent Panel</span><span class="kbd">Ctrl-Shift-/</span></div></div>
+        <div class="tooltip elevated"><div class="tooltip-row"><span>Open Threads Sidebar</span><span class="kbd">Ctrl-Alt-J</span></div></div>
+      </div>
+    </div>
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Panel actif</b> — l'action devient la fermeture du dock</div>
+      <div class="ref-frame ref-frame--auto" style="display:flex;flex-direction:column;gap:8px;align-items:flex-start">
+        <div class="tooltip elevated" data-src="dock.rs PanelButtons render (is_active_button)"><div class="tooltip-row"><span>Close Left Dock</span><span class="kbd">Ctrl-B</span></div></div>
+        <div class="tooltip elevated"><div class="tooltip-row"><span>Close Bottom Dock</span><span class="kbd">Ctrl-J</span></div></div>
+        <div class="tooltip elevated"><div class="tooltip-row"><span>Close Right Dock</span><span class="kbd">Ctrl-Alt-B</span></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="ref-section" id="menus">
+  <h2>6. Menus clic droit</h2>
+  <p>Positions valides seulement : projet / git / outline / agent = gauche ou droite ; terminal / debug = les trois. « Flex Width » / « Fixed Width » pour les panels à taille flexible (terminal, agent). « Hide Button » masque le bouton (réglage <code>*.button</code>). Ancrage : bas-gauche pour le dock gauche, bas-droite pour bas/droite.</p>
+  <div class="ref-grid">
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Agent panel</b> (dock droit) — pas de « Dock Bottom »</div>
+      <div class="menu elevated" data-src="dock.rs PanelButtons render (right_click_menu)">
+        <div class="menu-item"><span class="start"><i class="icon sm" style="visibility:hidden" data-i="check"></i>Dock Left</span></div>
+        <div class="menu-item"><span class="start"><i class="icon sm" data-i="check"></i>Dock Right</span></div>
+        <div class="menu-sep"></div>
+        <div class="menu-item"><span class="start"><i class="icon sm" style="visibility:hidden" data-i="check"></i>Flex Width</span></div>
+        <div class="menu-item"><span class="start"><i class="icon sm" data-i="check"></i>Fixed Width</span></div>
+        <div class="menu-sep"></div>
+        <div class="menu-item" data-src="status_bar.rs add_hide_button_entry"><span class="start"><i class="icon sm" style="visibility:hidden" data-i="check"></i>Hide Button</span></div>
+      </div>
+    </div>
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Terminal panel</b> (dock bas) — les trois positions</div>
+      <div class="menu elevated" data-src="dock.rs PanelButtons render (right_click_menu)">
+        <div class="menu-item"><span class="start"><i class="icon sm" style="visibility:hidden" data-i="check"></i>Dock Left</span></div>
+        <div class="menu-item"><span class="start"><i class="icon sm" style="visibility:hidden" data-i="check"></i>Dock Right</span></div>
+        <div class="menu-item"><span class="start"><i class="icon sm" data-i="check"></i>Dock Bottom</span></div>
+        <div class="menu-sep"></div>
+        <div class="menu-item"><span class="start"><i class="icon sm" style="visibility:hidden" data-i="check"></i>Flex Width</span></div>
+        <div class="menu-item"><span class="start"><i class="icon sm" data-i="check"></i>Fixed Width</span></div>
+        <div class="menu-sep"></div>
+        <div class="menu-item"><span class="start"><i class="icon sm" style="visibility:hidden" data-i="check"></i>Hide Button</span></div>
+      </div>
+    </div>
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Projet</b> (dock gauche) — pas de flex · <b>sidebar</b> — Left / Right</div>
+      <div style="display:flex;gap:12px;align-items:flex-start">
+        <div class="menu elevated" data-src="dock.rs PanelButtons render (right_click_menu)">
+          <div class="menu-item"><span class="start"><i class="icon sm" data-i="check"></i>Dock Left</span></div>
+          <div class="menu-item"><span class="start"><i class="icon sm" style="visibility:hidden" data-i="check"></i>Dock Right</span></div>
+          <div class="menu-sep"></div>
+          <div class="menu-item"><span class="start"><i class="icon sm" style="visibility:hidden" data-i="check"></i>Hide Button</span></div>
+        </div>
+        <div class="menu elevated" data-src="multi_workspace.rs sidebar_side_context_menu">
+          <div class="menu-item"><span class="start"><i class="icon sm" data-i="check"></i>Left</span></div>
+          <div class="menu-item"><span class="start"><i class="icon sm" style="visibility:hidden" data-i="check"></i>Right</span></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="ref-section" id="kit">
+  <h2>7. Primitives</h2>
+  <div class="ref-grid">
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Boutons</b> — 18 × 18 (icône 14 + 2 × 2 px) · normal · survol · appui · actif</div>
+      <div class="ref-frame ref-frame--auto" style="display:flex;gap:8px;align-items:center">
+        <button class="btn ibtn sm"><i class="icon sm" data-i="zed_assistant"></i></button>
+        <button class="btn ibtn sm hover"><i class="icon sm" data-i="zed_assistant"></i></button>
+        <button class="btn ibtn sm pressed"><i class="icon sm" data-i="zed_assistant"></i></button>
+        <button class="btn ibtn sm toggled"><i class="icon sm accent" data-i="zed_assistant"></i></button>
+        <span class="divider-v"></span>
+        <span class="lbl sm muted">filet 1 × 16 px, couleur border</span>
+      </div>
+    </div>
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Couleurs utiles</b> (One Dark)</div>
+      <div class="ref-frame ref-frame--auto" id="swatches" style="display:grid;grid-template-columns:repeat(2,auto);gap:4px 16px;font:11px var(--font-mono)"></div>
+    </div>
+  </div>
+</section>
+
+<script src="icons.js"></script>
+<script>
+// Largeur de la barre
+for (const b of document.querySelectorAll('[data-w]')) {
+  b.addEventListener('click', () => {
+    document.documentElement.style.setProperty('--frame-w', b.dataset.w + 'px')
+    for (const o of document.querySelectorAll('[data-w]')) o.setAttribute('aria-pressed', o === b)
+  })
+}
+// Mise en évidence des sources
+document.getElementById('toggle-src').addEventListener('click', (e) => {
+  const on = document.body.classList.toggle('show-src')
+  e.currentTarget.setAttribute('aria-pressed', on)
+})
+// Survol : affiche data-src en infobulle native
+for (const el of document.querySelectorAll('[data-src]')) el.title = el.dataset.src
+// Nuancier
+const sw = ['status-bar-background', 'panel-background', 'editor-background', 'elevated-surface-background', 'ghost-element-hover', 'ghost-element-selected', 'border', 'border-variant', 'text', 'text-muted', 'icon', 'icon-muted', 'text-accent', 'error']
+document.getElementById('swatches').innerHTML = sw.map((n) => `<span style="display:flex;gap:6px;align-items:center"><span style="width:14px;height:14px;border:1px solid #0006;background:var(--${n})"></span>${n}</span>`).join('')
+</script>
+</body>
+</html>
