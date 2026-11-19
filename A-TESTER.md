@@ -11,8 +11,6 @@ Zed et un téléphone. Un point vérifié est retiré ; un écart constaté part
   session not found » — probable thread jamais initialisé (aucun message
   envoyé, pas de crédits opencode). À retester : un message depuis Zed
   d'abord, puis depuis le mobile.
-- **Relecture sous Linux** : un agent installé via nvm (ou une clé dans
-  `.bashrc`) se relit. (Poste Windows ici.)
 - **Relecture d'un projet à plusieurs dossiers** : thread fermé, historique
   chargé depuis la PWA. (Voir l'issue `session/load` : le replay est ignoré.)
 - **Lien de connexion** (serveur MCP à authentifier) : la carte montre la

@@ -112,3 +112,11 @@ d'un thread par identifiant (`zed://agent` n'ouvre que le panneau :
 → À constater : la bascule du focus, et la fréquence des mauvais threads sur
 des titres proches. Piste si c'est gênant : un pas de recette qui rend le
 focus à l'éditeur avant d'ouvrir le sidebar.
+
+## À tester
+
+Items reportés, à vérifier dès que possible (pas des issues : des tests en
+attente d'un poste ou d'une condition).
+
+- **Relecture sous Linux** : un agent installé via nvm (ou une clé dans
+  `.bashrc`) se relit. (Poste Windows ici.)
