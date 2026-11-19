@@ -585,7 +585,7 @@ fields, lengths, `pattern`, `email`, `uri`, `date`, `date-time` formats,
 number bounds, number of choices. The thread is waiting (`waiting`) until
 answered.
 
-`url` mode (with Claude Agent, an MCP server's OAuth sign-in): the card shows
+`url` mode (sent by an MCP server, relayed by Claude Agent, e.g. a sign-in): the card shows
 the destination and the address, as Zed does, but "Open" stays greyed out.
 The sign-in returns to the machine's `localhost` and would not complete from
 the phone; the mobile can only decline or cancel (the shim refuses an

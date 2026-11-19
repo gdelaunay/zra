@@ -122,8 +122,8 @@ et le shim, jamais committé (propre à chaque poste).
 | `docs/fr/limitations.md` | ce qui n'est pas supporté, et pourquoi |
 | `docs/fr/zed.md` | correspondance avec Zed : dépendances, sources à vérifier, audit de l'interface |
 
-Fichiers de travail, à la racine : `ROADMAP.md` (versions à venir, idées),
-`ISSUES.md` (issues ouvertes) et `A-TESTER.md` (vérifications en réel). Contenus tiers et leurs licences :
+Fichiers de travail, à la racine : `ROADMAP.md` (versions à venir, idées)
+et `ISSUES.md` (issues ouvertes). Contenus tiers et leurs licences :
 `THIRD_PARTY_NOTICES.md`.
 
 ---

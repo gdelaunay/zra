@@ -586,7 +586,7 @@ requis, longueurs, `pattern`, formats `email`, `uri`, `date`, `date-time`,
 bornes des nombres, nombre de choix. Le thread passe en attente (`waiting`)
 jusqu'à la réponse.
 
-Mode `url` (chez Claude Agent, la connexion OAuth d'un serveur MCP) : la carte
+Mode `url` (émis par un serveur MCP, relayé par Claude Agent, ex. une connexion) : la carte
 montre la destination et l'adresse, comme Zed, mais « Ouvrir » reste grisé.
 La connexion revient au `localhost` du poste et n'aboutirait pas depuis le
 téléphone ; on peut seulement refuser ou annuler du mobile (le shim refuse un

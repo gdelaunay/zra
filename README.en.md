@@ -121,8 +121,8 @@ at the root — read by the daemon and the shim, never committed (specific to ea
 | `docs/en/limitations.md` | what is not supported, and why |
 | `docs/en/zed.md` | mapping to Zed: dependencies, sources to check, interface audit |
 
-Working files, at the root, in French: `ROADMAP.md` (upcoming versions, ideas),
-`ISSUES.md` (open issues) and `A-TESTER.md` (checks on a real setup). Third-party content and its licenses:
+Working files, at the root, in French: `ROADMAP.md` (upcoming versions, ideas)
+and `ISSUES.md` (open issues). Third-party content and its licenses:
 `THIRD_PARTY_NOTICES.md`.
 
 ---
