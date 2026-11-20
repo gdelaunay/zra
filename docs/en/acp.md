@@ -63,9 +63,6 @@ On the Zed side (1.28.1, sources read):
   start of the message → blocking error (empty list included, "none");
   "An Error Happened" callout above the composer. A space before the `/`
   escapes the rule.
-- **1.28.1 discrepancy**: `try_parse` checks `args.is_empty()` before
-  `trim_end()` (a lone space ⇒ argument `Some("")` in the code), its tests
-  expect `None`. ZRA follows the tests — `ISSUES.md` `slash-espace-final`.
 
 What ZRA does with it (0.5.2, 5a):
 

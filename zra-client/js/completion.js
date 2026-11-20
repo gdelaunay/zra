@@ -19,11 +19,8 @@ const WS = /\s/
  * caret. Déclencheur = `/` le plus à droite en frontière de mot (début de
  * ligne ou après un blanc), pas de blanc juste après.
  *
- * Sémantique des **tests** de Zed : un reste uniquement blanc = pas d'argument
- * (`"/help "` → argument nul). Le code v1.28.1 teste `is_empty` avant
- * `trim_end` et produirait `Some("")` — écart documenté (`ISSUES.md`,
- * `docs/fr/zed.md`) ; ZRA suit les tests, seule sémantique qui rende le hint
- * et le garde-fou d'envoi fonctionnels.
+ * Un reste uniquement blanc = pas d'argument (`"/help "` → argument nul) :
+ * sémantique des tests de Zed, pas de son code v1.28.1 (voir `docs/fr/zed.md`).
  *
  * @param {string} line
  * @returns {{start:number, end:number, command:string|null, argument:string|null}|null}

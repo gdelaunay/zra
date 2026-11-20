@@ -63,9 +63,6 @@ Côté Zed (1.28.1, sources lues) :
   début de message → erreur bloquante (liste vide comprise, « none ») ;
   callout « An Error Happened » au-dessus du composer. Un espace devant le `/`
   échappe à la règle.
-- **Écart v1.28.1** : `try_parse` teste `args.is_empty()` avant `trim_end()`
-  (espace seul ⇒ argument `Some("")` dans le code), ses tests attendent
-  `None`. ZRA suit les tests — `ISSUES.md` `slash-espace-final`.
 
 Ce que ZRA en fait (0.5.2, 5a) :
 
