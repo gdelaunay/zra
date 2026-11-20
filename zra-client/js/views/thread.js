@@ -742,7 +742,7 @@ function Composer({ key, agentName, selectors, onSend, onStop }) {
     placeholder: tr`Message ${agentName()}…`,
     enterkeyhint: 'send',
     autocapitalize: 'sentences',
-    oninput: () => { autoGrow(); store.setDraft(key, input.value) },
+    oninput: () => { autoGrow(); store.setDraft(key, input.value); syncSend() },
     // Entrée envoie ; Maj+Entrée et Ctrl+Entrée sautent une ligne.
     // Pendant une composition (IME, accents morts), Entrée appartient à la saisie.
     onkeydown: (ev) => {
@@ -760,6 +760,7 @@ function Composer({ key, agentName, selectors, onSend, onStop }) {
   }, icon('plus', 'icon--sm'))
 
   // Envoyer ne change jamais : pendant un tour, le message part en file d'attente.
+  // Désactivé quand il n'y a rien à envoyer, comme Zed.
   const sendBtn = button('send-btn', { onclick: () => send('queue'), title: tr`Envoyer (Entrée — Maj+Entrée pour aller à la ligne)`, 'aria-label': tr`envoyer` },
     icon('send'))
   // Stop n'apparaît que pendant un tour, à gauche d'Envoyer.
@@ -784,6 +785,7 @@ function Composer({ key, agentName, selectors, onSend, onStop }) {
 
   // Le brouillon de ce thread, s'il y en a un.
   input.value = store.getDraft(key)
+  syncSend()
   if (input.value) queueMicrotask(autoGrow)
 
   /** Ctrl+Entrée n'insère rien de lui-même dans un textarea : on le fait. */
@@ -793,6 +795,13 @@ function Composer({ key, agentName, selectors, onSend, onStop }) {
     input.selectionStart = input.selectionEnd = a + 1
     autoGrow()
     store.setDraft(key, input.value)
+    syncSend()
+  }
+
+  /** Rien à envoyer tant que le champ ne contient que du blanc, ou sur un
+   * thread en lecture seule : le bouton est désactivé (`send` refuse déjà). */
+  function syncSend() {
+    sendBtn.disabled = !input.value.trim() || Boolean(store.foreignAgent(key))
   }
 
   function autoGrow() {
@@ -807,6 +816,7 @@ function Composer({ key, agentName, selectors, onSend, onStop }) {
     input.value = ''
     store.setDraft(key, '')
     autoGrow()
+    syncSend()
   }
 
   // Stop ne touche pas au champ de saisie : ce qui y est écrit y reste.
@@ -820,7 +830,7 @@ function Composer({ key, agentName, selectors, onSend, onStop }) {
     // Thread d'un agent que ZRA n'enveloppe pas : Zed le rouvrirait sans shim.
     const foreign = store.foreignAgent(key)
     input.disabled = Boolean(foreign)
-    sendBtn.disabled = Boolean(foreign)
+    syncSend()
     // Le bandeau et le cadenas disent déjà pourquoi : champ grisé, sans texte.
     input.placeholder = foreign ? '' : tr`Message ${agentName()}…`
   }
@@ -853,6 +863,6 @@ function Composer({ key, agentName, selectors, onSend, onStop }) {
 
   return { el, sync, setUsage, focus: () => input.focus(), refreshDraft() {
     const d = store.getDraft(key)
-    if (input.value !== d) { input.value = d; autoGrow() }
+    if (input.value !== d) { input.value = d; autoGrow(); syncSend() }
   } }
 }

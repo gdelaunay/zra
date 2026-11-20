@@ -15,6 +15,11 @@ let dom, win, doc, ZRA
 const $ = (sel) => doc.querySelector(sel)
 const $$ = (sel) => [...doc.querySelectorAll(sel)]
 const click = (el) => el.dispatchEvent(new win.MouseEvent('click', { bubbles: true }))
+/** Saisie réelle : `input` doit partir, la PWA suit le champ sur cet événement. */
+const type = (el, v) => {
+  el.value = v
+  el.dispatchEvent(new win.Event('input', { bubbles: true }))
+}
 
 async function until(pred, ms = 6000, label = '') {
   const t0 = Date.now()
@@ -220,6 +225,20 @@ test('pendant un tour, Stop apparaît à gauche d’Envoyer, sans le remplacer',
   assert.ok(kids.indexOf($('.composer .send-btn--stop')) < kids.indexOf(sendBtn()))
 })
 
+test('envoi désactivé champ vide, actif dès qu’il y a du texte', async () => {
+  const input = $('.composer__input')
+  const sendBtn = () => $('.composer .send-btn:not(.send-btn--stop)')
+
+  // Le blanc seul ne s’envoie pas non plus : `send` le refuse.
+  type(input, '')
+  assert.ok(sendBtn().disabled, 'vide : désactivé')
+  type(input, '   ')
+  assert.ok(sendBtn().disabled, 'que du blanc : désactivé')
+  type(input, ' du texte')
+  assert.ok(!sendBtn().disabled, 'non vide : actif')
+  type(input, '')
+})
+
 test('Stop seul interrompt sans rien envoyer', async () => {
   const key = 'mock-desk/a1f39c0b'
   const tl = ZRA.store.ensureTimeline(key)
@@ -261,7 +280,7 @@ test('Stop met la file en pause ; « envoyer maintenant » envoie le message en 
   })
   await until(() => ZRA.store.ensureState(key).turn === 'busy', 3000)
 
-  $('.composer__input').value = 'passe aux tests'
+  type($('.composer__input'), 'passe aux tests')
   click($('.composer .send-btn:not(.send-btn--stop)'))
   await until(() => ZRA.store.ensureState(key).queue.length === 1, 3000, 'mis en file')
 
@@ -284,7 +303,7 @@ test('envoi depuis le mobile : écho local immédiat puis mise en file', async (
   })
   await until(() => ZRA.store.ensureState(key).turn === 'busy', 3000, 'tour occupé')
   const input = $('.composer__input')
-  input.value = 'ajoute un test de non-régression'
+  type(input, 'ajoute un test de non-régression')
   click($('.composer .send-btn:not(.send-btn--stop)'))
   await until(() => /non-régression/.test($$('.user-msg').pop()?.textContent || ''), 2000, 'écho local')
   assert.equal(input.value, '', 'le champ est vidé')
@@ -302,7 +321,7 @@ test('« envoyer maintenant » pendant un tour : le tour est coupé puis le mess
   await until(() => ZRA.store.ensureState(key).turn === 'busy', 3000)
 
   const input = $('.composer__input')
-  input.value = 'stop, fais autre chose'
+  type(input, 'stop, fais autre chose')
   click($('.composer .send-btn:not(.send-btn--stop)'))
   await until(() => ZRA.store.ensureState(key).queue.length === 1, 3000, 'mis en file')
 

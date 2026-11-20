@@ -765,8 +765,8 @@ button { cursor: pointer; }
 .switch--on .switch__knob { transform: translateX(10px); background: var(--text); }
 .menu__switch { margin-left: auto; }
 
-/* Bouton d'envoi — IconButton Filled, icône 16 accent ; désactivé : muted.
- * Stop — IconButton tinted-error. */
+/* Bouton d'envoi — IconButton Filled, icône 16 accent ; désactivé (champ vide,
+ * thread en lecture seule) : muted. Stop — IconButton tinted-error. */
 .send-btn {
   display: inline-flex; align-items: center; justify-content: center;
   width: 20px; height: 20px; padding: 0; border-radius: var(--radius);
