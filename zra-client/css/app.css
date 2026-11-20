@@ -868,6 +868,43 @@ button { cursor: pointer; }
 .menu__item:hover { background: var(--ghost-element-hover); }
 .menu__item--on { background: var(--ghost-element-selected); }
 .menu__item .icon { color: var(--icon-muted); }
+
+/* Menu de complétion slash — code_context_menus.rs CompletionsMenu::render :
+   police buffer 12, largeur 280–540 (COMPLETION_MENU_MIN/MAX_WIDTH), hauteur
+   max 12 lignes (message_editor.rs ContextMenuOptions), correspondances fuzzy
+   en gras. Au-dessus du composer ; aparté de description à droite si ≥ 260 px
+   (MENU_ASIDE_MIN_WIDTH), sinon au-dessus (element.rs layout_context_menu_aside). */
+.completion-wrap { position: fixed; inset: 0; pointer-events: none; z-index: 60; }
+.completion-wrap > * { pointer-events: auto; position: fixed; }
+.menu.completion {
+  min-width: 280px; max-width: min(92vw, 540px);
+  max-height: calc(12 * var(--fs-buffer) * var(--lh) + 2 * var(--sp-2));
+  font: var(--fs-buffer)/var(--lh) var(--font-mono);
+}
+.menu.completion .menu__item { height: calc(var(--fs-buffer) * var(--lh)); padding: 0 var(--sp-3); gap: var(--sp-3); font: inherit; }
+.menu.completion .match { font-weight: 700; }
+.completion-aside {
+  min-width: 260px; max-width: 500px; padding: var(--sp-2) 0;
+  background: var(--elevated-surface-background);
+  border: 1px solid var(--border-variant); border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-elevated);
+  font: var(--fs-buffer)/var(--lh) var(--font-mono); color: var(--text);
+}
+.completion-aside__body { padding: 0 var(--sp-4); max-height: calc(12 * var(--fs-buffer) * var(--lh)); overflow-y: auto; white-space: pre-wrap; }
+
+/* Callout d'erreur — callout.rs / render_any_thread_error : filet haut, fond
+   teinté par sévérité, p 8 gap 8, icône 14, titre 12, description 12 muted. */
+.composer-block { display: contents; }
+.callout {
+  display: flex; align-items: flex-start; gap: var(--sp-4); flex: none;
+  padding: var(--sp-4); border-top: 1px solid var(--border);
+  background: color-mix(in srgb, var(--error) 8%, transparent);
+  font-size: var(--fs-sm);
+}
+.callout > .icon { color: var(--error); margin-top: var(--sp-1); flex: none; }
+.callout__body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
+.callout__desc { color: var(--text-muted); white-space: pre-wrap; word-break: break-word; }
+.callout__actions { display: flex; gap: var(--sp-1); flex: none; }
 .menu__item--on .icon { color: var(--icon); }
 .menu__sep { height: 1px; background: var(--border-variant); margin: var(--sp-3) 0; }
 

@@ -4,7 +4,7 @@ Reproduction statique du panel agent de Zed, base de comparaison pour `zra-clien
 
 - **Version** : Zed v1.28.1 (`_upstream/zed`, voir [docs/fr/zed.md](../../docs/fr/zed.md)).
 - **Réglages** : valeurs par défaut (`ui_font_size` 16, `agent_buffer_font_size` 12, `buffer_line_height` comfortable, densité par défaut, `max_content_width` 850, largeur du panel 640), thème One Dark, raccourcis Windows.
-- **Périmètre** : barre du haut, fil (messages, outils, permissions), barre d'activité, zone de saisie, callouts, états de connexion. Exclus : assistant inline, assistant du terminal, configuration des agents et MCP, onboarding et upsells, historique et barre latérale des fils (ces deux derniers : [`reference/zed-threads-sidebar/`](../zed-threads-sidebar/)).
+- **Périmètre** : barre du haut, fil (messages, outils, permissions), barre d'activité, zone de saisie, complétion (commandes `/`), callouts, états de connexion. Exclus : assistant inline, assistant du terminal, configuration des agents et MCP, onboarding et upsells, historique et barre latérale des fils (ces deux derniers : [`reference/zed-threads-sidebar/`](../zed-threads-sidebar/)).
 
 ## Fichiers
 
@@ -56,7 +56,8 @@ Les polices (IBM Plex Sans pour `.ZedSans`, Lilex pour `.ZedMono`) sont lues dan
 - **Bouton stop** : visible quand l'agent génère et que la saisie est vide ; sinon bouton de mise en file.
 - **Titre** : généré par l'agent natif après le premier échange (pulsé pendant la génération) ; éditable au clic.
 - **Permissions** : raccourcis actifs sur la première demande en attente (Alt-Shift-A / Q / X). Si la carte en attente sort de l'écran, elle est recopiée dans la barre d'activité avec un bouton « Scroll ».
-- **Saisie** : `@` ouvre la complétion de mentions (fichiers, symboles, fils, skills), `/` les commandes de l'agent ; les mentions deviennent des puces (`mention_crease.rs`). Glisser-déposer de fichiers sur le panel.
+- **Saisie** : `@` ouvre la complétion de mentions (fichiers, symboles, fils, skills), `/` les commandes de l'agent ; les mentions deviennent des puces (`mention_crease.rs`). Glisser-déposer de fichiers sur le panel. Le menu de complétion des commandes `/` est dessiné (section 14) ; celui des mentions `@` ne l'est pas encore.
+- **Complétion `/`** (`message_editor.rs`, `completion_provider.rs`, `crates/editor/src/code_context_menus.rs`, `element.rs`) : déclencheur = `/` en frontière de mot (début ou après un blanc), pas de blanc juste après ; menu au-dessus du caret, 12 lignes max, largeur dynamique 280–540 px ; premier item sélectionné, frappe = filtre fuzzy (caractères matchés en gras) ; en-tête « Commands » masqué quand un argument est saisi. Description de l'item sélectionné dans un aparté : à droite si ≥ 260 px (260–500 px), sinon au-dessus/en dessous, même côté que le menu de préférence ; ne tient nulle part → pas d'aparté. Confirmer un item **envoie le message** (`confirm_command → send`), sauf si la commande attend un argument (`input.hint`) non saisi : insertion « /name » + espace et hint en inlay (`command_hint`, couleur `syntax.hint`, sans fond). Placeholder : « Message {agent} — @ to include context, / for commands », sans « / for commands » si l'agent ne publie pas de commandes (`conversation_view.rs placeholder_text`).
 - **Barre d'activité** : plan, fichiers modifiés et file d'attente repliables ; les fichiers modifiés viennent de l'`ActionLog` de Zed (édition des buffers ouverts).
 - **Jauge de tokens** : affichée si l'agent rapporte son usage ; orange à partir de 85 %. Infobulle survolable : pourcentage, utilisés / max, entrée / sortie, coût, règles chargées.
 - **Taille de police** : Ctrl-+ / Ctrl-- changent `agent_ui_font_size` et `agent_buffer_font_size` ; tout le panel est en `rem`, donc suit.

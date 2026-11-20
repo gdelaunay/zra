@@ -476,7 +476,12 @@ export class AcpBridge extends EventEmitter {
         }
         break
       case 'available_commands_update':
-        st.commands = (update.availableCommands ?? []).map((c) => ({ name: c.name, description: c.description ?? null }))
+        // `input.hint` conservé : le hint d'argument de Zed (command_hint).
+        st.commands = (update.availableCommands ?? []).map((c) => ({
+          name: c.name,
+          description: c.description ?? null,
+          ...(c.input?.hint != null ? { input: { hint: c.input.hint } } : {}),
+        }))
         this.sessions.changed(sessionId)
         break
       default:

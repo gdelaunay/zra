@@ -164,6 +164,43 @@ body.show-src [data-src]:hover { outline: 1px solid var(--text-accent); }
 .menu-sep { height: 1px; background: var(--border-variant); margin: 6px 0; }
 .menu-aside { padding: 8px; max-width: 192px; font-size: 14px; }
 
+/* Menu de complétion — editor/code_context_menus.rs CompletionsMenu::render :
+   Popover elevation_2 py 4 ; largeur dynamique sur l'item le plus large, bornes
+   COMPLETION_MENU_MIN_WIDTH 280 / MAX_WIDTH 540 ; hauteur max 12 lignes
+   (message_editor.rs ContextMenuOptions min/max_entries_visible 12) ; items
+   ListItem inset (primitives .menu ci-dessus), police buffer 12 ; correspondances
+   fuzzy en gras (FontWeight::BOLD) ; pas d'icône sauf compact (IconName::Compact).
+   En-tête « Commands » : ListSubHeader, groupe des commandes ACP
+   (completion_provider.rs command.group) ; masqué quand un argument est saisi. */
+.completion { min-width: 280px; max-width: 540px; font: 12px/var(--lh) var(--font-mono); }
+.completion .items { max-height: calc(12 * 12px * var(--lh)); overflow-y: auto; }
+.completion .menu-item { height: calc(12px * var(--lh)); justify-content: flex-start; gap: 6px; }
+.completion .menu-item.hover { background: var(--ghost-element-hover); }
+.completion .match { font-weight: 700; }
+/* Aparté de documentation — code_context_menus.rs render_aside : Popover
+   elevation_2 (py 4), corps px 8 (MENU_ASIDE_X_PADDING 16 / 2), texte brut
+   (MultiLinePlainText) police buffer 12, bornes MENU_ASIDE_MIN_WIDTH 260 /
+   MAX_WIDTH 500, défilement vertical. Placement (editor/element.rs
+   layout_context_menu_aside) : à droite du menu si ≥ 260 px dispo, aligné en
+   haut ; sinon au-dessus/en dessous, même côté que le menu de préférence. */
+.completion-aside { min-width: 260px; max-width: 500px; padding: 4px 0; font: 12px/var(--lh) var(--font-mono); color: var(--text); }
+.completion-aside .body { padding: 0 8px; max-height: calc(12 * 12px * var(--lh)); overflow-y: auto; white-space: pre-wrap; }
+/* Hint d'argument — message_editor.rs command_hint : inlay InlayHintKind::Parameter
+   après « /name », couleur syntax.hint (One Dark #788ca6), sans fond
+   (inlay_hints.show_background false, assets/settings/default.json). */
+.cmd-hint { color: var(--hint); }
+/* Scène de présentation : menu au-dessus du caret (composer en bas), marge
+   gauche = position du caret ; aside à droite, ou au-dessus en étroit. */
+.completion-stage { display: flex; flex-direction: column; justify-content: flex-end; gap: 4px; height: 100%; container-type: inline-size; }
+.completion-row { display: flex; gap: 4px; align-items: flex-start; margin-left: 16px; }
+.completion-row.above { flex-direction: column; }
+/* Bascule étroite de la galerie (bouton 400 px) : comme Zed, pas de place à
+   droite (≥ 260 px après le menu) → aside au-dessus, même côté que le menu. */
+@container (max-width: 575px) {
+  .completion-row:not(.above) { flex-direction: column; }
+  .completion-row:not(.above) .completion-aside { order: -1; }
+}
+
 /* Disclosure — ui/components/disclosure.rs : IconButton chevron 14 muted (droite/bas par défaut) */
 .disclosure { color: var(--icon-muted); }
 

@@ -15,3 +15,14 @@ attente d'un poste ou d'une condition).
 
 - **Relecture sous Linux** : un agent installé via nvm (ou une clé dans
   `.bashrc`) se relit. (Poste Windows ici.)
+
+## À faire
+
+- **slash-espace-final** (`à faire`) : le `SlashCommandCompletion::try_parse`
+  de Zed 1.28.1 teste `args.is_empty()` **avant** `trim_end()` : `« /cmd »`
+  suivi d'un espace produit argument `Some("")` dans le code, alors que les
+  tests de Zed attendent `None` — la seule sémantique qui rende le hint
+  d'argument et le garde-fou d'envoi fonctionnels. ZRA suit les tests
+  (`zra-client/js/completion.js`, écart signalé dans `docs/fr/zed.md`). À la
+  prochaine mise à jour de la référence : revérifier upstream, retirer cette
+  note si le code s'aligne sur les tests.

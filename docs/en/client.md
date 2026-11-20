@@ -56,7 +56,7 @@ moves from one screen to the other:
 top bar      identity / thread title (+ agent, path, date) · actions
 search       thread filter (list screen, under the top bar; choice persisted)
 content      thread list  |  event stream
-composer     input + selectors (mode, model…) + gauge (thread screen)
+composer     input + `/` completion + selectors (mode, model…) + gauge (thread screen)
 bottom bar   Zed status bar: agent button, thread list button
 ```
 
@@ -68,6 +68,12 @@ Thread actions: on hover on desktop (like Zed), on long press on mobile —
 rename (single-line editor in place of the title), stop generation, delete
 (confirmation). The agent page title is itself an editable input. Rename and
 delete go through ACP, gated by the agent's capabilities (`docs/en/acp.md`).
+
+The composer offers the agent's commands: typing `/` opens the completion
+(fuzzy filter, selected item's description in an aside); confirming sends,
+unless the command expects an argument that has not been typed. An unknown
+command at the start of the message is refused with a callout, like Zed
+(`docs/en/acp.md`).
 
 ## Contract with the daemon
 

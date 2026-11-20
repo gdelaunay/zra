@@ -34,6 +34,7 @@
     <a href="#callouts">11. Callouts et états</a>
     <a href="#subagent">12. Sous-agents et divers</a>
     <a href="#kit">13. Primitives</a>
+    <a href="#completion">14. Complétion</a>
   </nav>
 </header>
 
@@ -1115,6 +1116,119 @@ npm ERR! could not determine executable to run</div></div></div>
     <div class="ref-specimen">
       <div class="ref-label"><b>Couleurs utiles</b> (One Dark + dérivées)</div>
       <div class="ref-frame ref-frame--auto" id="swatches" style="display:grid;grid-template-columns:repeat(2,auto);gap:4px 16px;font:11px var(--font-mono)"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="ref-section" id="completion">
+  <h2>14. Complétion</h2>
+  <p>Menu de complétion des commandes <code>/</code> (<code>crates/editor/src/code_context_menus.rs</code>, déclencheur et filtre <code>completion_provider.rs</code>). Au-dessus du caret ; premier item sélectionné ; frappe = filtre fuzzy, caractères matchés en gras ; en-tête « Commands » masqué dès qu'un argument est saisi. Description de l'item sélectionné dans l'aparté : à droite si ≥ 260 px, sinon au-dessus/en dessous (<code>element.rs layout_context_menu_aside</code>). Confirmer un item <b>envoie le message</b> (<code>message_editor.rs confirm_command → send</code>), sauf si la commande attend un argument (<code>input.hint</code>) non saisi : elle est alors insérée « /name » + espace, avec le hint en inlay. Le menu de mentions <code>@</code> n'est pas encore dessiné.</p>
+  <div class="ref-grid">
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Commandes</b> — « / » : liste complète, premier item sélectionné · « /comp » : filtre fuzzy (gras), aside à droite</div>
+      <div class="ref-frame" style="--frame-h:290px">
+        <div class="completion-stage">
+          <div class="completion-row" data-src="crates/editor/src/element.rs layout_context_menu_aside">
+            <div class="menu elevated completion" style="width:300px" data-src="crates/editor/src/code_context_menus.rs CompletionsMenu::render">
+              <div class="menu-header" data-src="crates/ui/src/components/list/list_sub_header.rs">Commands</div>
+              <div class="items">
+                <div class="menu-item selected"><i class="icon xs muted" data-i="compact"></i><span>compact</span></div>
+                <div class="menu-item"><span>init</span></div>
+                <div class="menu-item"><span>review</span></div>
+                <div class="menu-item"><span>pr-comments</span></div>
+                <div class="menu-item"><span>security-review</span></div>
+              </div>
+            </div>
+            <div class="completion-aside elevated" style="width:280px" data-src="crates/editor/src/code_context_menus.rs render_aside"><div class="body">Clear conversation history but keep a summary in context</div></div>
+          </div>
+          <div class="composer with-messages"><div class="inner"><div class="editor-box"><div class="editor">/<span class="caret"></span></div><button class="btn ibtn sm expand"><i class="icon sm muted" data-i="maximize"></i></button></div>
+            <div class="bar"><div class="left"><button class="btn ibtn sm"><i class="icon sm muted" data-i="plus"></i></button><button class="btn ibtn sm"><i class="icon sm muted" data-i="crosshair"></i></button></div><div class="right"><button class="btn selector"><span class="lbl sm">Default</span><i class="icon xs muted" data-i="chevron_down"></i></button><button class="btn selector"><span class="lbl sm">Opus</span><i class="icon xs muted" data-i="chevron_down"></i></button><button class="btn filled ibtn send"><i class="icon accent" data-i="send"></i></button></div></div></div></div>
+        </div>
+      </div>
+      <div class="ref-frame" style="--frame-h:230px">
+        <div class="completion-stage">
+          <div class="completion-row">
+            <div class="menu elevated completion" style="width:300px">
+              <div class="menu-header">Commands</div>
+              <div class="items">
+                <div class="menu-item selected"><i class="icon xs muted" data-i="compact"></i><span><span class="match">comp</span>act</span></div>
+              </div>
+            </div>
+            <div class="completion-aside elevated" style="width:280px"><div class="body">Clear conversation history but keep a summary in context</div></div>
+          </div>
+          <div class="composer with-messages"><div class="inner"><div class="editor-box"><div class="editor">/comp<span class="caret"></span></div><button class="btn ibtn sm expand"><i class="icon sm muted" data-i="maximize"></i></button></div>
+            <div class="bar"><div class="left"><button class="btn ibtn sm"><i class="icon sm muted" data-i="plus"></i></button><button class="btn ibtn sm"><i class="icon sm muted" data-i="crosshair"></i></button></div><div class="right"><button class="btn selector"><span class="lbl sm">Default</span><i class="icon xs muted" data-i="chevron_down"></i></button><button class="btn selector"><span class="lbl sm">Opus</span><i class="icon xs muted" data-i="chevron_down"></i></button><button class="btn filled ibtn send"><i class="icon accent" data-i="send"></i></button></div></div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Argument et hint</b> — « /review » sélectionné sans argument : inséré, hint en inlay, pas d'envoi · argument saisi : plus d'en-tête, la sélection envoie</div>
+      <div class="ref-frame" style="--frame-h:220px">
+        <div class="completion-stage">
+          <div class="completion-row">
+            <div class="menu elevated completion" style="width:300px">
+              <div class="menu-header">Commands</div>
+              <div class="items">
+                <div class="menu-item selected"><span>review</span></div>
+              </div>
+            </div>
+            <div class="completion-aside elevated" style="width:280px"><div class="body">Review a pull request</div></div>
+          </div>
+          <div class="composer with-messages"><div class="inner"><div class="editor-box"><div class="editor">/review <span class="caret"></span><span class="cmd-hint" data-src="message_editor.rs command_hint">PR number or branch</span></div><button class="btn ibtn sm expand"><i class="icon sm muted" data-i="maximize"></i></button></div>
+            <div class="bar"><div class="left"><button class="btn ibtn sm"><i class="icon sm muted" data-i="plus"></i></button><button class="btn ibtn sm"><i class="icon sm muted" data-i="crosshair"></i></button></div><div class="right"><button class="btn selector"><span class="lbl sm">Default</span><i class="icon xs muted" data-i="chevron_down"></i></button><button class="btn selector"><span class="lbl sm">Opus</span><i class="icon xs muted" data-i="chevron_down"></i></button><button class="btn filled ibtn send"><i class="icon accent" data-i="send"></i></button></div></div></div></div>
+        </div>
+      </div>
+      <div class="ref-frame" style="--frame-h:200px">
+        <div class="completion-stage">
+          <div class="completion-row">
+            <div class="menu elevated completion" style="width:300px">
+              <div class="items">
+                <div class="menu-item selected"><span>review</span></div>
+              </div>
+            </div>
+            <div class="completion-aside elevated" style="width:280px"><div class="body">Review a pull request</div></div>
+          </div>
+          <div class="composer with-messages"><div class="inner"><div class="editor-box"><div class="editor">/review 123<span class="caret"></span></div><button class="btn ibtn sm expand"><i class="icon sm muted" data-i="maximize"></i></button></div>
+            <div class="bar"><div class="left"><button class="btn ibtn sm"><i class="icon sm muted" data-i="plus"></i></button><button class="btn ibtn sm"><i class="icon sm muted" data-i="crosshair"></i></button></div><div class="right"><button class="btn selector"><span class="lbl sm">Default</span><i class="icon xs muted" data-i="chevron_down"></i></button><button class="btn selector"><span class="lbl sm">Opus</span><i class="icon xs muted" data-i="chevron_down"></i></button><button class="btn filled ibtn send"><i class="icon accent" data-i="send"></i></button></div></div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Survol</b> — ghost_element_hover (sélection : ghost_element_selected)</div>
+      <div class="ref-frame ref-frame--auto" style="padding:8px">
+        <div class="menu elevated completion" style="width:300px">
+          <div class="menu-header">Commands</div>
+          <div class="items">
+            <div class="menu-item selected"><i class="icon xs muted" data-i="compact"></i><span>compact</span></div>
+            <div class="menu-item hover"><span>init</span></div>
+            <div class="menu-item"><span>review</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Étroit (400 px)</b> — pas de place à droite : aside au-dessus du menu, même côté que lui</div>
+      <div class="ref-frame" style="--frame-h:330px">
+        <div class="completion-stage">
+          <div class="completion-row above">
+            <div class="completion-aside elevated" style="width:300px"><div class="body">Clear conversation history but keep a summary in context</div></div>
+            <div class="menu elevated completion" style="width:300px">
+              <div class="menu-header">Commands</div>
+              <div class="items">
+                <div class="menu-item selected"><i class="icon xs muted" data-i="compact"></i><span>compact</span></div>
+                <div class="menu-item"><span>init</span></div>
+                <div class="menu-item"><span>review</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="composer with-messages"><div class="inner"><div class="editor-box"><div class="editor">/<span class="caret"></span></div><button class="btn ibtn sm expand"><i class="icon sm muted" data-i="maximize"></i></button></div>
+            <div class="bar"><div class="left"><button class="btn ibtn sm"><i class="icon sm muted" data-i="plus"></i></button><button class="btn ibtn sm"><i class="icon sm muted" data-i="crosshair"></i></button></div><div class="right"><button class="btn selector"><span class="lbl sm">Default</span><i class="icon xs muted" data-i="chevron_down"></i></button><button class="btn filled ibtn send"><i class="icon accent" data-i="send"></i></button></div></div></div></div>
+        </div>
+      </div>
     </div>
   </div>
 </section>

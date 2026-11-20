@@ -18,6 +18,7 @@ const P = {
   'settings': 'M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M2 14h4M10 8h4M18 16h4',
   'stop': 'M7 7h10v10H7z',
   'x': 'M18 6 6 18M6 6l12 12',
+  'x-circle': 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM15 9l-6 6M9 9l6 6',
   'check': 'M20 6 9 17l-5-5',
   'plus': 'M12 5v14M5 12h14',
   'lock': 'M7 11V7a5 5 0 0 1 10 0v4M5 11h14a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2Z',
@@ -58,6 +59,7 @@ const P = {
 // Icônes Zed exactes (grille 16, trait 1.2), extraites de assets/icons via reference/.
 // Utilisées là où la fiche 0.5 les nomme : barre du bas, worktree, spinner, coche double.
 const ZED = {
+  "compact": "<path d=\"M10 10L14 14M13.2 10H10V13.2\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/> <path d=\"M2.8 10H6V13.2M6 10L2 14\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/> <path d=\"M13.2 6H10V2.8M10 6L14 2\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/> <path d=\"M2.8 6H6V2.8M6 6L2 2\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>",
   "threads_sidebar_right_open": "<rect opacity=\"0.8\" width=\"5\" height=\"12\" rx=\"2\" transform=\"matrix(-1 0 0 1 14 2)\" fill=\"currentColor\"/> <path d=\"M9 2V14\" stroke=\"currentColor\" stroke-width=\"1.2\"/> <rect x=\"2\" y=\"2\" width=\"12\" height=\"12\" rx=\"1.5\" stroke=\"currentColor\" stroke-width=\"1.2\"/>",
   "threads_sidebar_right_closed": "<rect opacity=\"0.1\" width=\"5\" height=\"12\" rx=\"2\" transform=\"matrix(-1 0 0 1 14 2)\" fill=\"currentColor\"/> <path d=\"M9 2V14\" stroke=\"currentColor\" stroke-width=\"1.2\"/> <rect x=\"2\" y=\"2\" width=\"12\" height=\"12\" rx=\"1.5\" stroke=\"currentColor\" stroke-width=\"1.2\"/>",
 "zed_assistant": "<path d=\"M8 2.93652L6.9243 6.20697C6.86924 6.37435 6.77565 6.52646 6.65105 6.65105C6.52646 6.77565 6.37435 6.86924 6.20697 6.9243L2.93652 8L6.20697 9.0757C6.37435 9.13076 6.52646 9.22435 6.65105 9.34895C6.77565 9.47354 6.86924 9.62565 6.9243 9.79306L8 13.0635L9.0757 9.79306C9.13076 9.62565 9.22435 9.47354 9.34895 9.34895C9.47354 9.22435 9.62565 9.13076 9.79306 9.0757L13.0635 8L9.79306 6.9243C9.62565 6.86924 9.47354 6.77565 9.34895 6.65105C9.22435 6.52646 9.13076 6.37435 9.0757 6.20697L8 2.93652Z\" fill=\"currentColor\" fill-opacity=\"0.15\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/> <path opacity=\"0.6\" d=\"M3.33334 2V4.66666M2 3.33334H4.66666\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/> <path opacity=\"0.6\" d=\"M12.6665 11.3333V14M11.3333 12.6666H13.9999\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>",

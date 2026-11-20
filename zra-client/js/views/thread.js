@@ -11,6 +11,7 @@ import { newSessionButton } from './new-session.js'
 import { BottomBar } from './bottombar.js'
 import { settings, update as updateSettings } from '../settings.js'
 import { tr, locale } from '../i18n.js'
+import { slashCompletion, validateSlash } from '../completion.js'
 
 /**
  * Au-delà de ce nombre de réglages hors mode/modèle, ils passent tous dans le
@@ -116,6 +117,12 @@ export function ThreadView({ key, navigate }) {
     key,
     agentName: () => agentLabel(st.summary?.agentId),
     selectors: [modeBtn, modelBtn, optionsSlot],
+    // Commandes de l'agent : `thread_state` (shim live), ou le rejeu
+    // `available_commands_update` de l'historique (thread fermé, claude-acp).
+    getCommands: () => {
+      const cmds = st.commands
+      return cmds?.length ? cmds : store.ensureTimeline(key).availableCommands
+    },
     onSend: (text, mode) => {
       // Répondre à un thread fermé : Zed le rouvre au clavier, ce qui prend
       // quelques secondes. Le bandeau le dit jusqu'au retour du thread (ou l'échec).
@@ -709,6 +716,7 @@ export function ThreadView({ key, navigate }) {
       clearInterval(turnTimer)
       clearTimeout(reopenTimer)
       bottombar.destroy()
+      composer.destroy()
       store.closeThread(key)
     },
   }
@@ -772,23 +780,56 @@ export function dictate(input, { onChange, onActive } = {}) {
  * jauge de tokens, sélecteurs, stop et envoi. Pas de « follow agent » (Zed ne
  * peut pas nous montrer le fichier que l'agent modifie).
  */
-function Composer({ key, agentName, selectors, onSend, onStop }) {
+function Composer({ key, agentName, selectors, onSend, onStop, getCommands = () => [] }) {
   const input = h('textarea.composer__input', {
     rows: 1,
     placeholder: tr`Message ${agentName()}…`,
     enterkeyhint: 'send',
     autocapitalize: 'sentences',
-    oninput: () => { autoGrow(); store.setDraft(key, input.value); syncSend() },
+    oninput: () => { autoGrow(); store.setDraft(key, input.value); syncSend(); hideError(); completion.update() },
     // Entrée envoie ; Maj+Entrée et Ctrl+Entrée sautent une ligne.
     // Pendant une composition (IME, accents morts), Entrée appartient à la saisie.
+    // Le menu de complétion, s'il est ouvert, consomme Entrée/Tab/↑↓/Échap.
     onkeydown: (ev) => {
+      if (completion.keydown(ev)) return
       if (ev.key !== 'Enter' || ev.isComposing) return
       if (ev.shiftKey) return
       ev.preventDefault()
       if (ev.ctrlKey || ev.metaKey) newline()
       else send('queue')
     },
+    // Déplacement du caret (flèches, clic) : le déclencheur suit la position.
+    onkeyup: () => completion.update(),
+    onclick: () => completion.update(),
   })
+
+  const editorBox = h('div.composer__editor', {}, input)
+  const completion = slashCompletion({ input, anchor: editorBox, getCommands, onSend: () => send('queue') })
+  let lastCmds = null
+
+  // Callout d'erreur de validation des commandes — render_any_thread_error :
+  // severity Error, titre, description markdown muted, copier + fermer.
+  const errDesc = h('div.callout__desc')
+  const errCopy = button('icon-btn icon-btn--sm', { title: tr`Copier`, 'aria-label': tr`copier` }, icon('copy', 'icon--sm'))
+  const errCallout = h('div.callout.callout--error.hidden', { role: 'alert' },
+    icon('x-circle', 'icon--sm'),
+    h('div.callout__body', {}, h('div.callout__title', { text: tr`Une erreur est survenue` }), errDesc),
+    h('div.callout__actions', {}, errCopy,
+      button('icon-btn icon-btn--sm', { title: tr`Fermer`, 'aria-label': tr`fermer`, onclick: hideError }, icon('x', 'icon--sm'))),
+  )
+  function hideError() { errCallout.classList.add('hidden') }
+  function showError(err) {
+    const agent = agentName()
+    const list = err.available.length ? err.available.join(', ') : tr`aucune`
+    const msg = [
+      tr`/${err.command} n'est pas une commande reconnue de ${agent}. Les messages commençant par / sont interprétés comme des commandes.`,
+      tr`Pour envoyer un message et non lancer une commande, précédez le / d'un espace.`,
+      tr`Commandes disponibles pour ${agent} : ${list}`,
+    ].join('\n\n')
+    errDesc.textContent = msg
+    errCopy.onclick = () => copy(msg)
+    errCallout.classList.remove('hidden')
+  }
 
   // Ajout de contexte : présent mais désactivé, pas d'envoi de fichier pour l'instant.
   const plusBtn = button('icon-btn icon-btn--sm', {
@@ -811,7 +852,7 @@ function Composer({ key, agentName, selectors, onSend, onStop }) {
 
   const el = h('div.composer', {},
     h('div.composer__inner', {},
-      h('div.composer__editor', {}, input),
+      editorBox,
       h('div.composer__bar', {},
         h('div.composer__left', {}, plusBtn),
         h('div.composer__right', {}, tokens, usageText, ...selectors, stopBtn, sendBtn),
@@ -848,6 +889,11 @@ function Composer({ key, agentName, selectors, onSend, onStop }) {
   function send(mode) {
     const text = input.value.trim()
     if (!text) return
+    // Validation Zed (validate_slash_commands) : « /commande » inconnue en
+    // début de message → refus, callout au-dessus du composer. Le texte brut
+    // est validé : un espace devant le / échappe à la règle, comme Zed.
+    const err = validateSlash(input.value, getCommands())
+    if (err) { showError(err); return }
     onSend(text, mode)
     input.value = ''
     store.setDraft(key, '')
@@ -868,7 +914,13 @@ function Composer({ key, agentName, selectors, onSend, onStop }) {
     input.disabled = Boolean(foreign)
     syncSend()
     // Le bandeau et le cadenas disent déjà pourquoi : champ grisé, sans texte.
-    input.placeholder = foreign ? '' : tr`Message ${agentName()}…`
+    // Placeholder de Zed (placeholder_text) : « / for commands » seulement si
+    // l'agent publie des commandes ; la partie « @ » arrive avec les mentions.
+    const cmds = getCommands()
+    input.placeholder = foreign ? ''
+      : cmds.length ? tr`Message ${agentName()} — / pour les commandes`
+        : tr`Message ${agentName()}…`
+    if (cmds !== lastCmds) { lastCmds = cmds; completion.update() }
   }
 
   /** @param {{ used:number, size:number|null, cost:object|null } | null} u */
@@ -897,8 +949,8 @@ function Composer({ key, agentName, selectors, onSend, onStop }) {
     }
   }
 
-  return { el, sync, setUsage, focus: () => input.focus(), refreshDraft() {
+  return { el: h('div.composer-block', {}, errCallout, el), sync, setUsage, focus: () => input.focus(), destroy: () => completion.close(), refreshDraft() {
     const d = store.getDraft(key)
-    if (input.value !== d) { input.value = d; autoGrow(); syncSend() }
+    if (input.value !== d) { input.value = d; autoGrow(); syncSend(); completion.update() }
   } }
 }

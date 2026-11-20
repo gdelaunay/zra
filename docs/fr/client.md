@@ -56,7 +56,7 @@ bouge d'un écran à l'autre :
 top bar      identité / titre du thread (+ agent, chemin, date) · actions
 recherche    filtre des threads (écran liste, sous la top bar ; choix persisté)
 contenu      liste des threads  |  flux d'événements
-composer     saisie + sélecteurs (mode, modèle…) + jauge (écran thread)
+composer     saisie + complétion `/` + sélecteurs (mode, modèle…) + jauge (écran thread)
 bottom bar   status bar de Zed : bouton agent, bouton liste des threads
 ```
 
@@ -69,6 +69,11 @@ mobile — renommer (éditeur une ligne à la place du titre), stopper la
 génération, supprimer (confirmation). Le titre de la page agent est lui-même
 un input éditable. Renommage et suppression passent par ACP, gatés par les
 capacités de l'agent (`docs/fr/acp.md`).
+
+Le composer propose les commandes de l'agent : taper `/` ouvre la complétion
+(filtre fuzzy, description de l'item sélectionné en aparté) ; confirmer envoie,
+sauf si la commande attend un argument non saisi. Une commande inconnue en
+début de message est refusée avec un callout, comme Zed (`docs/fr/acp.md`).
 
 ## Contrat avec le daemon
 

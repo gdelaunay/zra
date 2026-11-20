@@ -202,6 +202,7 @@ function handle(machine, msg) {
         modes: msg.modes ?? st.modes,
         models: msg.models ?? st.models,
         options: msg.options ?? st.options,
+        commands: msg.commands ?? st.commands,
         currentModeId: msg.currentModeId ?? st.currentModeId,
         currentModelId: msg.currentModelId ?? st.currentModelId,
       })

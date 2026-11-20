@@ -412,7 +412,7 @@ l'ouvre dans Zed à la demande, dans une nouvelle fenêtre.
     | { id: string, name: string, description?: string, category: string | null,
         type: 'boolean', currentValue: boolean }
   >,
-  commands?: Array<{ name: string, description?: string }>,
+  commands?: Array<{ name: string, description?: string, input?: { hint: string } }>,
   currentModeId?: string | null,
   currentModelId?: string | null,
 }
@@ -423,8 +423,10 @@ L'état vivant d'un thread. À envoyer : au bootstrap, sur `subscribe`, et à
 C'est ce message qui pilote l'UI : bouton Stop, entrées en file annulables,
 sélecteurs de mode/modèle. `modes`/`models` absents ou vides ⇒ pas de sélecteur, ce n'est
 pas une erreur : tant qu'aucun shim n'a lu l'`initialize` de l'agent, le daemon
-ne connaît pas les options de la session. `commands` est mémorisé par la PWA sans
-être affiché en v1.
+ne connaît pas les options de la session. `commands` alimente le menu `/` du
+composer (complétion ; `input.hint` = hint d'argument de la commande) ; absent
+ou vide ⇒ pas de menu, ce n'est pas une erreur. Thread fermé : claude-acp
+rejoue ses commandes au `session/load`, la PWA les reçoit par `history`.
 
 `options` porte **tous les autres** sélecteurs de l'agent (`configOptions` ACP :
 effort, mode rapide…). Le mode et le modèle — les réglages de base — n'y figurent
@@ -471,7 +473,7 @@ La PWA sait rendre :
 | `compaction_update` / `compaction_summary_chunk` | ligne de compaction, résumé repliable |
 | `current_mode_update` | mode courant, lu dans la command bar — pas dans le fil |
 | `config_option_update` | ignoré : les options (mode compris) arrivent déjà par `thread_state` — pas dans le fil |
-| `available_commands_update` | mémorisé, pas affiché en v1 |
+| `available_commands_update` | commandes de l'agent : menu `/` du composer (aussi par `thread_state`) — pas dans le fil |
 | `usage_update` | consommation du contexte : jauge anneau dans la barre du composer (texte si pas de maximum connu), coût en infobulle — pas dans le fil |
 | `session_info_update` | titre de la top bar (sauf thread renommé dans Zed, `titleOverridden`) et date — pas dans le fil |
 | *(autre)* | **bloc brut repliable** — jamais une erreur |

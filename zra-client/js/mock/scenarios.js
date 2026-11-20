@@ -128,6 +128,7 @@ export const OPTIONS = [
 export const COMMANDS = [
   { name: 'test', description: 'lancer npm test' },
   { name: 'review', description: 'relire le diff courant' },
+  { name: 'web', description: 'rechercher sur le web', input: { hint: 'requête à rechercher' } },
 ]
 
 // ---- fabriques d'updates ACP ----

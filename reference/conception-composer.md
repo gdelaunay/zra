@@ -46,6 +46,10 @@ de Zed 1.28.1 (`_upstream/zed`, `reference/zed-agent-panel/`), spec ACP v1.15.1
   `contents()`) : message commençant par `/` (position 0) et commande inconnue
   → erreur bloquante, liste des commandes disponibles (ou « none » si aucune).
   Un espace devant le `/` échappe à la validation. Pas de garde « liste vide ».
+- **Écart v1.28.1** : `try_parse` teste `args.is_empty()` avant `trim_end()` —
+  `« /cmd »` + espace produit argument `Some("")` dans le code, ses tests
+  attendent `None` (seule sémantique qui rende le hint et le garde-fou d'envoi
+  fonctionnels). ZRA suit les tests ; `ISSUES.md` `slash-espace-final`.
 - Erreur rendue en **callout au-dessus du composer** : `render_any_thread_error`
   (`conversation_view/thread_view.rs`) — severity Error, icône XCircle, titre
   « An Error Happened », description markdown muted, actions retry (si

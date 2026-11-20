@@ -37,3 +37,50 @@ Compatibilité relevée dans les sources des agents (2026-11) :
 | gemini | non | non |
 
 La matrice du registry ACP (`agentclientprotocol/registry`, `.protocol-matrix/latest.md`, 42 agents sondés) couvre `session/list`, `fork`, `resume`, `stop`, `set_model` — pas ces deux méthodes. La source fiable reste la réponse `initialize` de chaque agent.
+
+## Commandes slash
+
+Spec : `_upstream/acp/docs/protocol/v1/slash-commands.mdx` (v1.15.1).
+
+- **Annonce** : notification `session/update` `available_commands_update`,
+  liste complète à chaque fois (l'agent peut ajouter/retirer en cours de
+  session). `AvailableCommand` : `name` et `description` requis, `input.hint`
+  optionnel (hint d'argument, texte non structuré).
+- **Exécution** : aucune méthode dédiée — la commande part en texte
+  (`/name args`) dans un `session/prompt` ordinaire ; l'agent reconnaît le
+  préfixe. Une commande peut accompagner d'autres blocs du même prompt.
+
+Côté Zed (1.28.1, sources lues) :
+
+- Déclencheur : `/` le plus à droite en frontière de mot, pas de blanc juste
+  après (`completion_provider.rs` `SlashCommandCompletion::try_parse`) ;
+  filtre fuzzy sur le nom ; confirmation insère `/name ` en gardant l'argument
+  tapé, et **envoie** (`message_editor.rs` `confirm_command → send`), sauf si
+  la commande a un `input` et qu'aucun argument n'est saisi.
+- `input.hint` → inlay après la commande tant qu'il n'y a pas d'argument
+  (`command_hint`) ; en-tête « Commands » masqué quand un argument est saisi.
+- Validation à l'envoi (`validate_slash_commands`) : `/commande` inconnue en
+  début de message → erreur bloquante (liste vide comprise, « none ») ;
+  callout « An Error Happened » au-dessus du composer. Un espace devant le `/`
+  échappe à la règle.
+- **Écart v1.28.1** : `try_parse` teste `args.is_empty()` avant `trim_end()`
+  (espace seul ⇒ argument `Some("")` dans le code), ses tests attendent
+  `None`. ZRA suit les tests — `ISSUES.md` `slash-espace-final`.
+
+Ce que ZRA en fait (0.5.2, 5a) :
+
+- Le shim garde `name`, `description` et `input.hint`
+  (`zra-shim/acp.js`, `available_commands_update`) → `thread_state.commands`
+  (`docs/fr/protocol.md` §4) → menu `/` du composer
+  (`zra-client/js/completion.js`) : parsing et validation portés de Zed, fuzzy
+  approché (`docs/fr/limitations.md`), description de l'item sélectionné en
+  aparté, callout d'erreur identique. Le hint d'argument s'affichera avec le
+  composer contenteditable (5b-1) — impossible dans un textarea.
+- Thread fermé : pas de shim, mais claude-acp rejoue
+  `available_commands_update` au `session/load` → la PWA le mémorise via
+  `history` (`zra-client/js/acp.js`), le menu est disponible.
+- Agents (sources lues) : claude-acp publie ses commandes built-in, MCP
+  (`mcp:serveur:commande`) et skills ; pi-acp publie ses skills en commandes
+  `skill:nom` ; gemini-cli ne publie que `name`/`description` (pas d'`input`).
+  Les autres agents : la liste vient de leur `available_commands_update`,
+  ZRA ne présume rien.

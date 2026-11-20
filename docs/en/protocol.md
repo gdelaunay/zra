@@ -411,7 +411,7 @@ on demand, in a new window.
     | { id: string, name: string, description?: string, category: string | null,
         type: 'boolean', currentValue: boolean }
   >,
-  commands?: Array<{ name: string, description?: string }>,
+  commands?: Array<{ name: string, description?: string, input?: { hint: string } }>,
   currentModeId?: string | null,
   currentModelId?: string | null,
 }
@@ -422,8 +422,10 @@ The live state of a thread. To send: at bootstrap, on `subscribe`, and on
 This is the message that drives the UI: Stop button, cancellable queued entries,
 mode/model selectors. `modes`/`models` absent or empty ⇒ no selector, it is not
 an error: as long as no shim has read the agent's `initialize`, the daemon
-does not know the session options. `commands` is stored by the PWA without
-being displayed in v1.
+does not know the session options. `commands` feeds the composer's `/` menu
+(completion; `input.hint` = the command's argument hint); absent or empty ⇒ no
+menu, it is not an error. Closed thread: claude-acp replays its commands on
+`session/load`, the PWA receives them through `history`.
 
 `options` carries **all the other** agent selectors (ACP `configOptions`:
 effort, fast mode…). Mode and model — the basic settings — never appear
@@ -470,7 +472,7 @@ The PWA can render:
 | `compaction_update` / `compaction_summary_chunk` | compaction line, collapsible summary |
 | `current_mode_update` | current mode, read in the command bar — not in the thread |
 | `config_option_update` | ignored: the options (mode included) already arrive through `thread_state` — not in the thread |
-| `available_commands_update` | stored, not displayed in v1 |
+| `available_commands_update` | agent commands: the composer's `/` menu (also via `thread_state`) — not in the thread |
 | `usage_update` | context usage: ring gauge in the composer bar (text if no known maximum), cost in a tooltip — not in the thread |
 | `session_info_update` | top bar title (except a thread renamed in Zed, `titleOverridden`) and date — not in the thread |
 | *(other)* | **collapsible raw block** — never an error |
