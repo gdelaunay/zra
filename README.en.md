@@ -117,6 +117,7 @@ at the root — read by the daemon and the shim, never committed (specific to ea
 | `docs/en/architecture.md` | the map: components, exchanges, flows, weak spots, decisions |
 | `docs/en/deploy.md` | setting up the phone: local network, tunnel, HTTPS, service |
 | `docs/en/protocol.md` | PWA ↔ daemon protocol |
+| `docs/en/acp.md` | ACP sheets: methods, capabilities, agent compatibility |
 | `docs/en/daemon.md`, `docs/en/shim.md`, `docs/en/client.md` | one component each: role, files, tests |
 | `docs/en/limitations.md` | what is not supported, and why |
 | `docs/en/zed.md` | mapping to Zed: dependencies, sources to check, interface audit |

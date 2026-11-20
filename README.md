@@ -118,6 +118,7 @@ et le shim, jamais committé (propre à chaque poste).
 | `docs/fr/architecture.md` | la carte : composants, échanges, flux, fragilités, décisions |
 | `docs/fr/deploy.md` | mise en service sur le téléphone : réseau local, tunnel, HTTPS, service |
 | `docs/fr/protocol.md` | protocole PWA ↔ daemon |
+| `docs/fr/acp.md` | fiches ACP : méthodes, capacités, compatibilité des agents |
 | `docs/fr/daemon.md`, `docs/fr/shim.md`, `docs/fr/client.md` | un composant chacun : rôle, fichiers, tests |
 | `docs/fr/limitations.md` | ce qui n'est pas supporté, et pourquoi |
 | `docs/fr/zed.md` | correspondance avec Zed : dépendances, sources à vérifier, audit de l'interface |

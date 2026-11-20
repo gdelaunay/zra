@@ -11,7 +11,7 @@ datés, avec le hash du commit de référence ; ROADMAP à jour ; puis commit
 
 - **0.4 — audit, sécurité, conformité à Zed** (fait — comparaison au code de Zed, constats en réel ; voir `CHANGELOG.md`) ;
 - **0.5 — coller au panneau agent de Zed** (fait — retouches d'interface, recopie du panel ; voir `CHANGELOG.md`) ;
-- **0.5.1 — threads** : appui long, titre éditable, notifications push ;
+- **0.5.1 — threads** : renommer / supprimer, titre éditable, notifications push ;
 - **0.5.2 — composer** : commandes `/`, mentions `@` ;
 - **0.5.3 — tous les threads par le shim** : l'entrée d'origine passe par le shim, les threads anciens compris ;
 - **0.5.4 — relais HTTPS** : la PWA servie avec un relais, plus de proxy par poste ;
@@ -27,10 +27,11 @@ Références visuelles de l'interface Zed : `reference/zed-agent-panel/` (panel)
 
 ### 0.5.1 — threads 🎯
 
-- **appui long sur un thread** (liste des threads) : fait apparaître les boutons
-  renommer le thread, et stopper la génération (thread en cours) ou archiver le
-  thread ; en vue filtrée « archivés », on affiche le bouton de suppression
-  définitive ;
+- **actions sur un thread** (liste des threads) : renommer, stopper la
+  génération (thread en cours), supprimer. Au survol sur desktop (comme Zed),
+  à l'appui long sur mobile. Renommage et suppression passent par ACP
+  (`session/set_title`, `session/delete`, capacités unstable de l'agent —
+  `docs/fr/acp.md`) ; pas d'archivage, concept local à Zed sans équivalent ACP ;
 - **titre du thread** (page agent) : le titre est lui-même un input subtil qui
   permet de le renommer ;
 - **notifications push** quand une réponse arrive sur un thread (Web Push).

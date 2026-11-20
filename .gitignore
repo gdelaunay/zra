@@ -31,3 +31,6 @@ zra-daemon/test/fixtures/registry-linux/
 
 # sources de Zed, en lecture seule (référence pour l'UI et le comportement)
 /_upstream/
+
+# notes privées de debug, non versionnées
+/_private/
