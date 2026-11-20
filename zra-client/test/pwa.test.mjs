@@ -94,7 +94,9 @@ test('écran 2 : ouverture du thread live, flux ACP rendu', async () => {
   const diffLines = $$('.diff .ln.add').length + $$('.diff .ln.del').length
   assert.ok(diffLines > 0, 'le diff est rendu ligne à ligne')
   await until(() => /pass 3/.test($('.term-body').textContent), 9000, 'fin du terminal')
-  assert.match($('.term-head').textContent, /term-/)
+  // Le cwd affiché est le projet du thread (le mock ne donne pas de cwd d'agent),
+  // plus l'identifiant du terminal.
+  assert.match($('.term-head .cwd').textContent, /Développement\/zra/)
 })
 
 test('consommation et titre annoncés par l’agent : à leur place, pas dans le fil', async () => {

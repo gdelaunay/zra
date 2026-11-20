@@ -429,7 +429,7 @@ The PWA can render:
 | `user_message_chunk` | user bubble, streamed markdown; a different `messageId` opens a new message |
 | `agent_message_chunk` | agent answer, streamed markdown; same for `messageId` |
 | `agent_thought_chunk` | "thinking" block, collapsible with a click; by default, like Zed, expanded while being written then collapsed |
-| `tool_call` / `tool_call_update` | collapsible card (expanded by default for a diff, a terminal or a pending authorization, like Zed), icon per `kind`, color per `status`; a `tool_call` with a known id updates the card, a `tool_call_update` with an unknown id gives a failed call (like Zed); `_meta.terminal_*`: output of a terminal held by the agent |
+| `tool_call` / `tool_call_update` | collapsible card (expanded by default for a diff, a terminal or a pending authorization, like Zed), icon per `kind`, color per `status`; a `tool_call` with a known id updates the card, a `tool_call_update` with an unknown id gives a failed call (like Zed); `_meta.terminal_*`: output of a terminal held by the agent (`terminal_info.cwd` when the agent provides it; the card's duration is computed from the events' `at` dates) |
 | `plan` | plan card, updated in place |
 | `notice` | notice line (`title` — `description`) |
 | `compaction_update` / `compaction_summary_chunk` | compaction line, collapsible summary |

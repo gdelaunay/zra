@@ -10,6 +10,7 @@
 // Ossature commune aux deux écrans : .header (haut) · .scroll · .bottombar (bas).
 
 import { h, button, clear, debounce } from '../dom.js'
+import { settings, update } from '../settings.js'
 import { icon, agentIcon } from '../icons.js'
 import { zedAge, absTime, baseName, agentLabel, toMs, projectOf, projectNames, displayTime } from '../format.js'
 import * as store from '../store.js'
@@ -35,7 +36,8 @@ const FILTERS = [
 
 export function ThreadsView({ navigate }) {
   let query = ''
-  let filter = 'all'
+  // Le filtre est une préférence persistée, pas un état de vue : il survit au rechargement.
+  let filter = settings.threadFilter
 
   const list = h('div.scroll')
   const search = h('input.searchbar__input', {
@@ -49,7 +51,7 @@ export function ThreadsView({ navigate }) {
       label: tr`Afficher`,
       items: FILTERS.map((f) => ({
         label: f.label, on: filter === f.id,
-        onSelect: () => { filter = f.id; syncFilterLabel(); paint() },
+        onSelect: () => { filter = f.id; update({ threadFilter: f.id }); syncFilterLabel(); paint() },
       })),
     }),
   }, icon('filter', 'icon--sm'), h('span', { text: tr`Tous` }), icon('chevron-down', 'icon--sm'))
@@ -57,6 +59,7 @@ export function ThreadsView({ navigate }) {
   const syncFilterLabel = () => {
     filterBtn.querySelector('span').textContent = FILTERS.find((f) => f.id === filter).label
   }
+  syncFilterLabel()
 
   const bottombar = BottomBar({ navigate, active: 'threads' })
 

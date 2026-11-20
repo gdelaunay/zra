@@ -12,7 +12,7 @@ import { h, button, escapeHtml } from '../dom.js'
 import { icon, toolIcon } from '../icons.js'
 import { markdownBlocks } from '../markdown.js'
 import { lineDiff, collapse } from '../diff.js'
-import { shortPath, relTime } from '../format.js'
+import { shortPath, relTime, toMs, terminalElapsed } from '../format.js'
 import { settings } from '../settings.js'
 import { tr } from '../i18n.js'
 import * as elicit from '../elicitation.js'
@@ -336,26 +336,43 @@ function diffBlock(c) {
 // ---- terminal ----
 
 /**
- * Carte terminal (`render_terminal_tool_call`) : en-tête dossier de travail +
- * commande, corps = terminal. ZRA n'a pas le cwd : l'identifiant du terminal
- * le remplace. Un terminal qui coule reste collé en bas, comme dans Zed.
+ * Carte terminal (`render_terminal_tool_call`, `terminal_tool_header.rs`) :
+ * en-tête dossier de travail + commande, corps = terminal. Le cwd vient de
+ * l'agent (`terminal_info.cwd`, pi-acp) ou du projet du thread ; la durée
+ * s'affiche au-delà de 10 s, live pendant l'exécution (ticker du tour) ;
+ * l'échec est une croix rouge, le code en infobulle — pas de texte « exit 0 ».
+ * Un terminal qui coule reste collé en bas, comme dans Zed.
  */
 function terminalCard(entry, c, ctx, { open, failed }) {
   const term = ctx.timeline?.terminals?.get(c.terminalId) || { output: '', exitStatus: null }
-  const code = term.exitStatus?.exitCode
+  const code = term.exitStatus?.exitCode ?? null
+  const signal = term.exitStatus?.signal ?? null
+  const finished = Boolean(term.exitStatus)
+  const cmdFailed = finished && ((code !== null && code !== 0) || Boolean(signal))
+  const cwd = term.cwd || ctx.folderPaths?.[0] || tr`répertoire courant`
+  const startedAt = toMs(term.startedAt)
+  const elapsed = startedAt !== null ? (toMs(term.endedAt) ?? Date.now()) - startedAt : null
   const root = h(`div.tool.term${failed ? '.failed' : ''}.tool--${entry.status}`, { class: open ? 'is-open' : '' })
   const toggle = () => {
     entry.open = !root.classList.contains('is-open')
     root.classList.toggle('is-open')
   }
+  const elapsedEl = h('span.term__elapsed', { text: terminalElapsed(elapsed) })
+  // En cours, la durée vit via le ticker du tour ; finie, elle est figée.
+  if (!finished && startedAt !== null) elapsedEl.setAttribute('data-started', String(startedAt))
+  let statusEl = null
+  if (!finished) statusEl = icon('load_circle', 'icon--sm spin')
+  else if (cmdFailed) {
+    statusEl = icon('x', 'icon--sm term__failed')
+    statusEl.setAttribute('title', code !== null ? tr`code de sortie ${code}` : tr`interrompu par un signal`)
+  }
   const head = h('div.term-head', {},
     h('div.term-row', {},
-      h('span.cwd', { text: c.terminalId }),
+      h('span.cwd', { text: cwd }),
       button('icon-btn icon-btn--sm disclosure', { onclick: toggle },
         icon('chevron-right', 'tool__chevron icon--sm')),
-      code === undefined || code === null
-        ? icon('load_circle', 'icon--sm spin')
-        : h(`span.term__exit.term__exit--${code === 0 ? 'ok' : 'ko'}`, { text: `exit ${code}` }),
+      elapsedEl,
+      statusEl,
     ),
     h('div.cmd', {}, h('pre', { text: plainTitle(entry.title) })),
   )

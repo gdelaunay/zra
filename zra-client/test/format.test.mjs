@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { baseName, projectOf, projectNames, zedAge, displayTime, formatTokens, formatCost, formatDuration } from '../js/format.js'
+import { baseName, projectOf, projectNames, zedAge, displayTime, formatTokens, formatCost, formatDuration, formatDurationAlt, terminalElapsed } from '../js/format.js'
 
 test('projet : nommé d’après le dernier segment du dossier', () => {
   assert.equal(baseName('C:\\Users\\gd\\Documents\\Développement\\zra\\'), 'zra')
@@ -40,6 +40,20 @@ test('coût : devise, deux décimales, jamais « 0 » pour un coût réel', () =
 test('durée du tour : secondes, puis minutes, puis heures', () => {
   assert.deepEqual([0, 8_400, 59_999, 65_000, 3_599_000, 3_720_000, -5].map(formatDuration),
     ['0 s', '8 s', '59 s', '1 min 05 s', '59 min 59 s', '1 h 02 min', '0 s'])
+})
+
+test('formatDurationAlt : le format de Zed (duration_alt_display)', () => {
+  assert.deepEqual([0, 59_000, 60_000, 71_000, 600_000, 3_600_000, (3 * 3600 + 2 * 60 + 1) * 1000, -5].map(formatDurationAlt),
+    ['0s', '59s', '1m 0s', '1m 11s', '10m 0s', '1h 0m 0s', '3h 2m 1s', '0s'])
+})
+
+test('terminalElapsed : « (1m 11s) » au-delà de 10 s, rien en dessous (seuil de Zed)', () => {
+  assert.equal(terminalElapsed(null), '')
+  assert.equal(terminalElapsed(undefined), '')
+  assert.equal(terminalElapsed(5_000), '')
+  assert.equal(terminalElapsed(10_000), '', 'le seuil est strict')
+  assert.equal(terminalElapsed(10_001), '(10s)')
+  assert.equal(terminalElapsed(71_000), '(1m 11s)')
 })
 
 test('projectNames : comme display_name de Zed (ordre, `, `, .git, dossier parent si homonyme)', () => {

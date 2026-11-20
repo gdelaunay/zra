@@ -430,7 +430,7 @@ La PWA sait rendre :
 | `user_message_chunk` | bulle utilisateur, markdown streamé ; un `messageId` différent ouvre un nouveau message |
 | `agent_message_chunk` | réponse de l'agent, markdown streamé ; idem pour `messageId` |
 | `agent_thought_chunk` | bloc « réflexion », repliable d'un clic ; par défaut, comme Zed, déplié pendant son écriture puis replié |
-| `tool_call` / `tool_call_update` | carte repliable (dépliée d'office pour un diff, un terminal ou une autorisation en attente, comme Zed), icône par `kind`, couleur par `status` ; un `tool_call` d'id connu met la carte à jour, un `tool_call_update` d'id inconnu donne un appel en échec (comme Zed) ; `_meta.terminal_*` : sortie du terminal tenu par l'agent |
+| `tool_call` / `tool_call_update` | carte repliable (dépliée d'office pour un diff, un terminal ou une autorisation en attente, comme Zed), icône par `kind`, couleur par `status` ; un `tool_call` d'id connu met la carte à jour, un `tool_call_update` d'id inconnu donne un appel en échec (comme Zed) ; `_meta.terminal_*` : sortie du terminal tenu par l'agent (`terminal_info.cwd` quand l'agent le donne ; durée de la carte calculée sur les dates `at` des événements) |
 | `plan` | carte de plan, mise à jour en place |
 | `notice` | ligne d'avis (`title` — `description`) |
 | `compaction_update` / `compaction_summary_chunk` | ligne de compaction, résumé repliable |

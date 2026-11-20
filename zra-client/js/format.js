@@ -60,6 +60,25 @@ export function formatDuration(ms) {
   return `${Math.floor(s / 3600)} h ${pad(Math.floor((s % 3600) / 60))} min`
 }
 
+/** Durée style Zed (`duration_alt_display`, `util/time.rs`) : « 1m 11s », « 1h 2m 3s ». */
+export function formatDurationAlt(ms) {
+  const s = Math.max(0, Math.floor(ms / 1000))
+  const h = Math.floor(s / 3600)
+  const m = Math.floor((s % 3600) / 60)
+  if (h > 0) return `${h}h ${m}m ${s % 60}s`
+  if (m > 0) return `${m}m ${s % 60}s`
+  return `${s}s`
+}
+
+/**
+ * Étiquette de durée d'un terminal, comme Zed (`terminal_tool_header.rs`) :
+ * « (1m 11s) », et rien sous le seuil de 10 s (`ELAPSED_DISPLAY_THRESHOLD`).
+ */
+export function terminalElapsed(ms) {
+  if (ms === null || ms === undefined || ms <= 10_000) return ''
+  return `(${formatDurationAlt(ms)})`
+}
+
 export function toMs(value) {
   if (value === null || value === undefined || value === '') return null
   if (typeof value === 'number') return value

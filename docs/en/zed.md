@@ -80,7 +80,7 @@ Behavior only: the appearance is audited separately. Zed side, unless stated: `c
 | User and agent messages (`views/entry.js`: `userMsg`, `agentMsg`) | `render_entry`, `render_message_content` | to audit |
 | Thoughts (`thoughtMsg`) | `render_thinking_block`; `crates/agent_ui/src/entry_view_state.rs`: `auto_expand_streaming_thought` | verified |
 | Tool calls: two layouts (simple line / card), header, failure cross, expanding (`toolCall`) | `render_tool_call`, `render_tool_call_label`, `render_tool_call_content`; settings `expand_edit_card`, `expand_terminal_card` | verified (0.5) |
-| Terminal (`terminalCard`) | `render_terminal_tool_call`; `crates/agent_ui/src/ui/terminal_tool_header.rs` | verified (0.5) |
+| Terminal (`terminalCard`): cwd (agent `terminal_info.cwd`, else the thread's project), duration `(1m 11s)` past 10 s (live then frozen), failure as a red cross, code in tooltip | `render_terminal_tool_call`; `crates/agent_ui/src/ui/terminal_tool_header.rs`; `util/time.rs` (`duration_alt_display`) | verified (0.5) |
 | Diff (`diffBlock`, `diff.js`): no gutter, lines filled at 12% | `render_diff_editor` | verified (0.5) |
 | Plan, above the composer (`views/entry.js`: `planPanel`; `views/thread.js`: `syncActivity`) | `render_activity_bar`, `render_plan_entries`, `render_plan_summary` | verified |
 | Permission in its tool call's card (`permissionButtons`), recalled above the composer when the card is out of view; tool call created by the request (`acp.js`: `permission`) | `render_permission_buttons` and variants, `render_main_agent_awaiting_permission`; `crates/acp_thread/src/acp_thread.rs`: `request_tool_call_authorization` (`upsert_tool_call`) | verified |

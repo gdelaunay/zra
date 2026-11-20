@@ -80,7 +80,7 @@ Comportement seulement : l'apparence est auditée à part. Côté Zed, sauf ment
 | Message de l'utilisateur, de l'agent (`views/entry.js` : `userMsg`, `agentMsg`) | `render_entry`, `render_message_content` | à auditer |
 | Réflexions (`thoughtMsg`) | `render_thinking_block` ; `crates/agent_ui/src/entry_view_state.rs` : `auto_expand_streaming_thought` | vérifié |
 | Tool calls : deux dispositions (ligne simple / carte), en-tête, échec en croix, dépliement (`toolCall`) | `render_tool_call`, `render_tool_call_label`, `render_tool_call_content` ; réglages `expand_edit_card`, `expand_terminal_card` | vérifié (0.5) |
-| Terminal (`terminalCard`) | `render_terminal_tool_call` ; `crates/agent_ui/src/ui/terminal_tool_header.rs` | vérifié (0.5) |
+| Terminal (`terminalCard`) : cwd (agent `terminal_info.cwd`, sinon projet du thread), durée `(1m 11s)` au-delà de 10 s (live puis figée), échec en croix rouge, code en infobulle | `render_terminal_tool_call` ; `crates/agent_ui/src/ui/terminal_tool_header.rs` ; `util/time.rs` (`duration_alt_display`) | vérifié (0.5) |
 | Diff (`diffBlock`, `diff.js`) : sans gouttière, lignes remplies à 12 % | `render_diff_editor` | vérifié (0.5) |
 | Plan, au-dessus du composer (`views/entry.js` : `planPanel` ; `views/thread.js` : `syncActivity`) | `render_activity_bar`, `render_plan_entries`, `render_plan_summary` | vérifié |
 | Permission dans la carte de son tool call (`permissionButtons`), rappelée au-dessus du composer quand la carte est hors de vue ; tool call créé par la demande (`acp.js` : `permission`) | `render_permission_buttons` et variantes, `render_main_agent_awaiting_permission` ; `crates/acp_thread/src/acp_thread.rs` : `request_tool_call_authorization` (`upsert_tool_call`) | vérifié |

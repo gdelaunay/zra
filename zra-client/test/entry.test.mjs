@@ -360,27 +360,66 @@ test('tool call : un long diff non modifié est replié en lignes sautées', () 
   assert.ok(qa(node, '.diff .ln').length < 45, 'tout le contexte n’est pas rendu')
 })
 
-test('tool call : terminal en cours, réussi, en échec, et inconnu', () => {
+test('tool call : terminal en cours, réussi, en échec, interrompu, et inconnu', () => {
   const timeline = { terminals: new Map() }
   const block = [{ type: 'terminal', terminalId: 'term-1' }]
 
   const running = render(tool({ content: block }), { timeline }).node
-  assert.ok(q(running, '.term-row svg.spin'), 'un terminal sans code de sortie tourne encore')
+  assert.ok(q(running, '.term-row svg.spin'), 'un terminal sans statut de sortie tourne encore')
   assert.equal(q(running, '.term-body').textContent, '')
 
   timeline.terminals.set('term-1', { output: 'bonjour\n', exitStatus: { exitCode: 0 } })
   const ok = render(tool({ content: block }), { timeline }).node
-  assert.equal(q(ok, '.term__exit').textContent, 'exit 0')
-  assert.equal(q(ok, '.term__exit').className.includes('term__exit--ok'), true)
+  assert.equal(q(ok, '.term-row svg.spin'), null, 'fini : plus de spinner')
+  assert.equal(q(ok, '.term__failed'), null, 'succès : pas de croix, pas de texte « exit 0 »')
   assert.equal(q(ok, '.term-body').textContent, 'bonjour\n')
 
   timeline.terminals.set('term-1', { output: 'raté', exitStatus: { exitCode: 2 } })
   const ko = render(tool({ content: block }), { timeline }).node
-  assert.equal(q(ko, '.term__exit').textContent, 'exit 2')
-  assert.equal(q(ko, '.term__exit').className.includes('term__exit--ko'), true)
+  assert.ok(q(ko, '.term__failed'), 'échec : croix rouge')
+  assert.equal(q(ko, '.term__failed').getAttribute('title'), 'code de sortie 2', 'le code en infobulle, comme Zed')
+
+  timeline.terminals.set('term-1', { output: '', exitStatus: { exitCode: null, signal: 'SIGINT' } })
+  const sig = render(tool({ content: block }), { timeline }).node
+  assert.ok(q(sig, '.term__failed'), 'un signal est un échec, même sans code')
+  assert.equal(q(sig, '.term__failed').getAttribute('title'), 'interrompu par un signal')
 
   const orphan = render(tool({ content: [{ type: 'terminal', terminalId: 'autre' }] }), { timeline }).node
   assert.ok(q(orphan, '.term-row svg.spin'), 'terminal jamais vu : toujours en cours')
+})
+
+test('tool call : terminal — cwd de l’agent, sinon le projet, sinon générique', () => {
+  const block = [{ type: 'terminal', terminalId: 't' }]
+  const timeline = { terminals: new Map([['t', { output: '', exitStatus: null, cwd: '/home/user/projet' }]]) }
+  const withCwd = render(tool({ content: block }), { timeline, folderPaths: ['/autre'] }).node
+  assert.equal(q(withCwd, '.cwd').textContent, '/home/user/projet', 'le cwd de l’agent prime (pi-acp)')
+
+  timeline.terminals.set('t', { output: '', exitStatus: null, cwd: null })
+  const withProject = render(tool({ content: block }), { timeline, folderPaths: ['C:\\Users\\Goulwen\\Documents\\Dev\\zra'] }).node
+  assert.equal(q(withProject, '.cwd').textContent, 'C:\\Users\\Goulwen\\Documents\\Dev\\zra', 'claude-agent-acp : le projet du thread')
+
+  const generic = render(tool({ content: block }), { timeline }).node
+  assert.equal(q(generic, '.cwd').textContent, 'répertoire courant', 'le repli de Zed')
+})
+
+test('tool call : terminal — durée figée à la fin, live en cours, rien sous 10 s', () => {
+  const block = [{ type: 'terminal', terminalId: 't' }]
+  const timeline = { terminals: new Map([['t', {
+    output: '', exitStatus: { exitCode: 0 },
+    startedAt: '2026-01-01T00:00:00.000Z', endedAt: '2026-01-01T00:01:11.000Z',
+  }]]) }
+  const done = render(tool({ content: block }), { timeline }).node
+  assert.equal(q(done, '.term__elapsed').textContent, '(1m 11s)')
+  assert.equal(q(done, '.term__elapsed').hasAttribute('data-started'), false, 'finie : figée')
+
+  timeline.terminals.set('t', { output: '', exitStatus: { exitCode: 0 }, startedAt: '2026-01-01T00:00:00.000Z', endedAt: '2026-01-01T00:00:05.000Z' })
+  const short = render(tool({ content: block }), { timeline }).node
+  assert.equal(q(short, '.term__elapsed').textContent, '', 'sous 10 s : rien, comme Zed')
+
+  timeline.terminals.set('t', { output: '', exitStatus: null, startedAt: new Date(Date.now() - 71_000).toISOString(), endedAt: null })
+  const running = render(tool({ content: block }), { timeline }).node
+  assert.ok(q(running, '.term__elapsed').hasAttribute('data-started'), 'en cours : vit via le ticker du tour')
+  assert.match(q(running, '.term__elapsed').textContent, /^\(1m \d+s\)$/)
 })
 
 test('tool call : la sortie du terminal est échappée', () => {

@@ -54,7 +54,7 @@ bouge d'un écran à l'autre :
 
 ```
 top bar      identité / titre du thread (+ agent, chemin, date) · actions
-recherche    filtre des threads (écran liste, sous la top bar)
+recherche    filtre des threads (écran liste, sous la top bar ; choix persisté)
 contenu      liste des threads  |  flux d'événements
 composer     saisie + sélecteurs (mode, modèle…) + jauge (écran thread)
 bottom bar   status bar de Zed : bouton agent, bouton liste des threads

@@ -586,9 +586,8 @@ button { cursor: pointer; }
 .term .term-head { background: var(--tool-card-header-bg); font-size: var(--fs-sm); }
 .term .term-row { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); padding: var(--sp-2) var(--sp-2) 0 var(--sp-3); }
 .term .term-row .cwd { flex: 1; min-width: 0; overflow: hidden; direction: rtl; text-align: left; white-space: nowrap; text-overflow: ellipsis; font-family: var(--font-mono); font-size: var(--fs-xs); line-height: var(--lh); color: var(--text-muted); }
-.term .term-row .term__exit { font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--text-muted); flex: none; }
-.term .term-row .term__exit--ok { color: var(--created); }
-.term .term-row .term__exit--ko { color: var(--error); }
+.term .term-row .term__elapsed { font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--text-muted); flex: none; }
+.term .term-row .term__failed { color: var(--error); flex: none; }
 .term .term-body {
   border-top: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
   background: var(--terminal-background); color: var(--terminal-foreground);

@@ -50,9 +50,9 @@ export class Timeline {
         return [this.chunk('thought', update.content, meta, update.messageId)]
 
       case 'tool_call':
-        return [this.toolCall(update, meta), ...this.terminalMeta(update)]
+        return [this.toolCall(update, meta), ...this.terminalMeta(update, meta)]
       case 'tool_call_update':
-        return [this.toolCallUpdate(update, meta), ...this.terminalMeta(update)]
+        return [this.toolCallUpdate(update, meta), ...this.terminalMeta(update, meta)]
 
       case 'plan':
         return [this.plan(update, meta)]
@@ -100,7 +100,7 @@ export class Timeline {
       // Extensions ZRA : le daemon ne réécrit pas l'ACP, il ajoute ses propres
       // événements sous un préfixe explicite.
       case 'zra/terminal_output':
-        return this.terminalOutput(update)
+        return this.terminalOutput(update, meta)
       case 'zra/notice':
         return [this.push({ type: 'notice', text: update.text, level: update.level || 'info', at: meta.at })]
       case 'zra/elicitation':
@@ -350,40 +350,60 @@ export class Timeline {
    * Terminal tenu par l'agent lui-même (Zed annonce `_meta.terminal_output`) :
    * création, sortie et fin arrivent dans le `_meta` des tool calls, sans
    * requête `terminal/*` (`handle_session_notification`, `acp/v1.rs`).
+   * `terminal_info.cwd` quand l'agent le donne (pi-acp ; claude-agent-acp non) ;
+   * dates des événements (`meta.at`) pour la durée — justes aussi au rejeu.
    */
-  terminalMeta(u) {
+  terminalMeta(u, meta = {}) {
     const m = u._meta
     if (!m || typeof m !== 'object') return []
     const ops = []
-    const created = m.terminal_info?.terminal_id
-    if (typeof created === 'string' && !this.terminals.has(created)) {
-      this.terminals.set(created, { output: '', exitStatus: null, truncated: false })
+    const info = m.terminal_info
+    if (typeof info?.terminal_id === 'string') {
+      let term = this.terminals.get(info.terminal_id)
+      if (!term) {
+        term = { output: '', exitStatus: null, truncated: false, cwd: null, startedAt: meta.at ?? new Date().toISOString(), endedAt: null }
+        this.terminals.set(info.terminal_id, term)
+      }
+      if (!term.cwd && typeof info.cwd === 'string' && info.cwd) {
+        term.cwd = info.cwd
+        ops.push(...this.touchTerminal(info.terminal_id))
+      }
     }
     const out = m.terminal_output
     if (typeof out?.terminal_id === 'string' && typeof out.data === 'string') {
-      ops.push(...this.terminalOutput({ terminalId: out.terminal_id, output: out.data, append: true }))
+      ops.push(...this.terminalOutput({ terminalId: out.terminal_id, output: out.data, append: true }, meta))
     }
     const exit = m.terminal_exit
     if (typeof exit?.terminal_id === 'string') {
       ops.push(...this.terminalOutput({
         terminalId: exit.terminal_id,
         exitStatus: { exitCode: Number.isInteger(exit.exit_code) ? exit.exit_code : null, signal: typeof exit.signal === 'string' ? exit.signal : null },
-      }))
+        endedAt: meta.at ?? new Date().toISOString(),
+      }, meta))
     }
     return ops
   }
 
-  terminalOutput(u) {
+  terminalOutput(u, meta = {}) {
     const id = u.terminalId
     if (!id) return []
-    const prev = this.terminals.get(id) || { output: '', exitStatus: null, truncated: false }
+    const prev = this.terminals.get(id) || { output: '', exitStatus: null, truncated: false, cwd: null, startedAt: null, endedAt: null }
+    const exitStatus = u.exitStatus !== undefined ? u.exitStatus : prev.exitStatus
     const next = {
       output: u.append ? prev.output + (u.output ?? '') : (u.output ?? prev.output),
-      exitStatus: u.exitStatus !== undefined ? u.exitStatus : prev.exitStatus,
+      exitStatus,
       truncated: u.truncated ?? prev.truncated,
+      cwd: prev.cwd ?? null,
+      startedAt: prev.startedAt ?? null,
+      // Fin : date de l'événement (juste au rejeu), sinon maintenant.
+      endedAt: u.endedAt ?? prev.endedAt ?? (exitStatus != null ? (meta.at ?? new Date().toISOString()) : null),
     }
     this.terminals.set(id, next)
-    // Repeindre les tool calls qui embarquent ce terminal.
+    return this.touchTerminal(id)
+  }
+
+  /** Repeindre les tool calls qui embarquent ce terminal. */
+  touchTerminal(id) {
     const touched = []
     for (const entry of this.byToolCall.values()) {
       if ((entry.content || []).some((c) => c?.type === 'terminal' && c.terminalId === id)) {

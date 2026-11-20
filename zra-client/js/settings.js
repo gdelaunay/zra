@@ -27,6 +27,8 @@ function load() {
     alwaysShowThoughts: s.alwaysShowThoughts === true,
     /** Faux (défaut) : comme Zed, diffs, terminaux et autorisations en attente dépliés. */
     expandTools: s.expandTools === true,
+    /** Filtre de la liste des threads : tous, live ou archivés. */
+    threadFilter: ['all', 'live', 'archived'].includes(s.threadFilter) ? s.threadFilter : 'all',
     mock: s.mock === true,
     lastThread: s.lastThread || null,
     /** Jetons d'appairage, par adresse de poste. */
@@ -37,10 +39,10 @@ function load() {
 export const settings = load()
 
 function persist() {
-  const { machines, theme, lang, textScale, clientId, defaultSendMode, alwaysShowThoughts, expandTools, mock, lastThread, tokens } = settings
+  const { machines, theme, lang, textScale, clientId, defaultSendMode, alwaysShowThoughts, expandTools, threadFilter, mock, lastThread, tokens } = settings
   try {
     localStorage.setItem(KEY, JSON.stringify({
-      machines, theme, lang, textScale, clientId, defaultSendMode, alwaysShowThoughts, expandTools, mock, lastThread, tokens,
+      machines, theme, lang, textScale, clientId, defaultSendMode, alwaysShowThoughts, expandTools, threadFilter, mock, lastThread, tokens,
     }))
   } catch { /* mode privé : on tourne en mémoire */ }
 }

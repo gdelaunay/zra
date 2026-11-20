@@ -54,7 +54,7 @@ moves from one screen to the other:
 
 ```
 top bar      identity / thread title (+ agent, path, date) · actions
-search       thread filter (list screen, under the top bar)
+search       thread filter (list screen, under the top bar; choice persisted)
 content      thread list  |  event stream
 composer     input + selectors (mode, model…) + gauge (thread screen)
 bottom bar   Zed status bar: agent button, thread list button

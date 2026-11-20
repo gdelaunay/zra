@@ -173,13 +173,29 @@ test('terminal tenu par l’agent : sortie et fin lues dans le `_meta` des tool 
     sessionUpdate: 'tool_call', toolCallId: 't1', title: 'ls', kind: 'execute', status: 'in_progress',
     content: [{ type: 'terminal', terminalId: 'term-9' }],
     _meta: { terminal_info: { terminal_id: 'term-9', cwd: '/tmp' } },
-  })
+  }, { at: '2026-01-01T00:00:00.000Z' })
   assert.equal(tl.terminals.get('term-9').output, '')
+  assert.equal(tl.terminals.get('term-9').cwd, '/tmp', 'cwd de pi-acp capté')
+  assert.equal(tl.terminals.get('term-9').startedAt, '2026-01-01T00:00:00.000Z', 'date de l’événement, pas de la réception')
   tl.apply({ sessionUpdate: 'tool_call_update', toolCallId: 't1', _meta: { terminal_output: { terminal_id: 'term-9', data: 'a\n' } } })
   tl.apply({ sessionUpdate: 'tool_call_update', toolCallId: 't1', _meta: { terminal_output: { terminal_id: 'term-9', data: 'b\n' } } })
-  tl.apply({ sessionUpdate: 'tool_call_update', toolCallId: 't1', status: 'completed', _meta: { terminal_exit: { terminal_id: 'term-9', exit_code: 2 } } })
+  tl.apply({ sessionUpdate: 'tool_call_update', toolCallId: 't1', status: 'completed', _meta: { terminal_exit: { terminal_id: 'term-9', exit_code: 2 } } }, { at: '2026-01-01T00:01:11.000Z' })
   assert.equal(tl.terminals.get('term-9').output, 'a\nb\n')
   assert.deepEqual(tl.terminals.get('term-9').exitStatus, { exitCode: 2, signal: null })
+  assert.equal(tl.terminals.get('term-9').endedAt, '2026-01-01T00:01:11.000Z', 'durée juste aussi au rejeu')
+})
+
+test('terminal : cwd absent (claude-agent-acp) → null ; arrivé plus tard, il repeint', () => {
+  const tl = new Timeline()
+  tl.apply({
+    sessionUpdate: 'tool_call', toolCallId: 't1', title: 'ls', kind: 'execute', status: 'in_progress',
+    content: [{ type: 'terminal', terminalId: 'call_x' }],
+    _meta: { terminal_info: { terminal_id: 'call_x' } },
+  })
+  assert.equal(tl.terminals.get('call_x').cwd, null)
+  const changes = tl.apply({ sessionUpdate: 'tool_call_update', toolCallId: 't1', _meta: { terminal_info: { terminal_id: 'call_x', cwd: '/projet' } } })
+  assert.equal(tl.terminals.get('call_x').cwd, '/projet')
+  assert.equal(changes.length, 2, 'mise à jour du tool call + repeinture du terminal')
 })
 
 test('mode courant suivi, sans ligne dans le fil', () => {

@@ -3,7 +3,7 @@
 
 import { h, button, clear, rafBatch, patchHtml } from '../dom.js'
 import { icon, agentIcon } from '../icons.js'
-import { relTime, absTime, baseName, agentLabel, projectOf, toMs, formatTokens, formatCost, formatDuration } from '../format.js'
+import { relTime, absTime, baseName, agentLabel, projectOf, toMs, formatTokens, formatCost, formatDuration, terminalElapsed } from '../format.js'
 import * as store from '../store.js'
 import { renderEntry, blocksPieces, revealBlocks, textLength, messageBody, planPanel, permissionButtons, inlineTitle } from './entry.js'
 import { openMenu, toast, switchEl } from '../ui.js'
@@ -223,6 +223,9 @@ export function ThreadView({ key, navigate }) {
       onPermission: (entry, option) => store.respondPermission(key, entry.requestId, option),
       onElicitation: (entry, action, content) => store.respondElicitation(key, entry.requestId, action, content),
       agentName: agentLabel(st.summary?.agentId),
+      // Répertoire du projet : cwd de repli des cartes terminal (claude-agent-acp
+      // ne donne pas le sien ; pi-acp si, `terminal_info.cwd`).
+      folderPaths: st.summary?.folderPaths || [],
     }
   }
 
@@ -264,6 +267,10 @@ export function ThreadView({ key, navigate }) {
         const { f, ms } = BRAILLE[spinMode]
         spinEl.textContent = f[Math.floor(((performance.now() - spinT0) % ms) / ms * f.length)]
         turnTime.textContent = formatDuration(Date.now() - st.turnSince)
+        // Durée des terminaux en cours : mise à jour sans repeindre la carte.
+        for (const el of feed.querySelectorAll('.term__elapsed[data-started]')) {
+          el.textContent = terminalElapsed(Date.now() - Number(el.dataset.started))
+        }
       }, 50)
     }
   }
