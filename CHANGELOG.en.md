@@ -2,6 +2,18 @@
 
 [Français](https://forgejo.gdelaunay.fr/gdelaunay/zra/src/branch/main/CHANGELOG.md)
 
+## v0.5 — 2026-11-20 — Matching Zed's agent panel (`3903bd9`)
+
+- Thread transcript copied from Zed 1.28.1's panel: plain text without bubbles, tool calls as a line or a card, diff without gutter, terminal card (directory, duration, failure), permission inside its own tool call card, plan above the composer, callouts, Zed's braille spinner for the running turn
+- Composer and bars: context gauge as a ring, mode and model selectors, “+” present but disabled, bottom bar shared by both screens with Zed's exact icons, thread list as indented rows with worktree bullet
+- Free heights as in Zed: reflections (default “auto”), terminal output and raw inputs/outputs with no ceiling
+- Themes: eight themes, tokens widened (135), default One dark/light following the browser, first manual choice frozen; language (auto/fr/en) and text size settings
+- Zed's fonts embedded: IBM Plex Sans and Lilex (OFL 1.1)
+- ACP registry agent icons: the daemon reads Zed's cache
+- Behaviours: transcript follow cut at the first gesture and resumed at the bottom, no streaming cursor in the transcript, send disabled on an empty field, thread filter persisted, user messages not editable (ACP agents cannot truncate the transcript)
+- MIT licence: `LICENSE` file, mention in both READMEs
+- Docs: visual references of Zed's UI (`reference/zed-agent-panel`, `reference/zed-threads-sidebar`, `reference/zed-bottom-bar`), ACP v1 specification read-only (`_upstream/acp`), design sheets (`reference/`)
+
 ## v0.4 — 2026-11-19 — Audit, security, Zed conformance (`bd6ca86`)
 
 - Security: markdown XSS fixed, loopback channels, unpaired connections capped, lockable pairing, public networks excluded (network profiles reread each turn)

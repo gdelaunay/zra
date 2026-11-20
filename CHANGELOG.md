@@ -2,6 +2,18 @@
 
 [English](https://forgejo.gdelaunay.fr/gdelaunay/zra/src/branch/main/CHANGELOG.en.md)
 
+## v0.5 — 2026-11-20 — Coller au panneau agent de Zed (`3903bd9`)
+
+- Fil du thread recopié sur le panel de Zed 1.28.1 : texte brut sans bulles, tool calls en ligne ou en carte, diff sans gouttière, carte terminal (dossier, durée, échec), permission dans la carte de son tool call, plan au-dessus du composer, callouts, spinner braille de Zed pour le tour en cours
+- Composer et barres : jauge de contexte en anneau, sélecteurs de mode et de modèle, « + » présent mais désactivé, barre du bas commune aux deux écrans avec les icônes exactes de Zed, liste des threads en lignes indentées avec puce de worktree
+- Hauteurs libres comme Zed : réflexions (défaut « auto »), sorties de terminal et entrées/sorties brutes sans plafond
+- Thèmes : huit thèmes, tokens élargis (135), défaut One dark/light selon le navigateur, premier choix manuel figé ; réglages de langue (auto/fr/en) et de taille du texte
+- Polices de Zed embarquées : IBM Plex Sans et Lilex (OFL 1.1)
+- Icônes des agents du registre ACP : le daemon lit le cache de Zed
+- Comportements : suivi du fil coupé au premier geste et repris en bas, pas de curseur de streaming dans le fil, envoi désactivé champ vide, filtre des threads persisté, messages de l'utilisateur non éditables (les agents ACP ne savent pas tronquer le fil)
+- Licence MIT : fichier `LICENSE`, mention dans les deux README
+- Doc : références visuelles de l'UI de Zed (`reference/zed-agent-panel`, `reference/zed-threads-sidebar`, `reference/zed-bottom-bar`), spécification ACP v1 en lecture seule (`_upstream/acp`), fiches de conception (`reference/`)
+
 ## v0.4 — 2026-11-19 — Audit, sécurité, conformité à Zed (`bd6ca86`)
 
 - Sécurité : XSS markdown corrigée, canaux loopback, connexions non appairées plafonnées, appairage verrouillable, réseaux publics écartés (profils réseau relus à chaque tour)

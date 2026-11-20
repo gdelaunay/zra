@@ -1,6 +1,6 @@
 # ZRA — roadmap
 
-Version actuelle : **0.4**. Un numéro mineur par jalon (0.4, 0.5…) ; entre deux
+Version actuelle : **0.5**. Un numéro mineur par jalon (0.4, 0.5…) ; entre deux
 jalons, un numéro de correctif (0.5.1…) pour un lot retenu — corrections comme
 petites fonctions — quand ce lot est fini. L'historique est dans `CHANGELOG.md`.
 
@@ -10,7 +10,7 @@ datés, avec le hash du commit de référence ; ROADMAP à jour ; puis commit
 `chore(release)` et tag `v0.x.0` poussé.
 
 - **0.4 — audit, sécurité, conformité à Zed** (fait — comparaison au code de Zed, constats en réel ; voir `CHANGELOG.md`) ;
-- **0.5 — coller au panneau agent de Zed** (fait — reste à tagger `v0.5.0`) ;
+- **0.5 — coller au panneau agent de Zed** (fait — retouches d'interface, recopie du panel ; voir `CHANGELOG.md`) ;
 - **0.5.1 — threads** : appui long, titre éditable, notifications push ;
 - **0.5.2 — composer** : commandes `/`, mentions `@` ;
 - **0.5.3 — tous les threads par le shim** : l'entrée d'origine passe par le shim, les threads anciens compris ;
