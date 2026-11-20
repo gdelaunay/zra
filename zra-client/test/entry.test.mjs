@@ -117,7 +117,7 @@ test('réflexion : dépliée pendant son écriture, repliée ensuite (Zed), le c
   assert.equal(render(e).inner.className.includes('is-open'), false, 'écrite : repliée')
   const open = render(e, { busy: true, isLast: true }).inner
   assert.equal(open.className.includes('is-open'), true, 'en cours d’écriture : dépliée')
-  assert.ok(q(open, '.thought__body').classList.contains('streaming'), 'hauteur bornée pendant l’écriture')
+  assert.ok(!q(open, '.thought__body').classList.contains('streaming'), 'hauteur libre pendant l’écriture (défaut Zed « auto »)')
   assert.equal(q(open, '.thought__head').getAttribute('aria-expanded'), 'true')
 
   click(q(open, '.thought__head'))

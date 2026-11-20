@@ -74,7 +74,8 @@ function agentMsg(entry, ctx) {
  * Par défaut, comme Zed (`auto_expand_streaming_thought`) : dépliée pendant son
  * écriture, repliée ensuite ; `alwaysShowThoughts` la laisse dépliée. Le choix
  * de l'utilisateur vit sur l'entrée, et survit donc aux re-rendus du streaming.
- * Pendant l'écriture : hauteur bornée à 256 px, défilement collé en bas.
+ * Hauteur libre pendant l'écriture (défaut Zed « auto » : pas de max-height) ;
+ * c'est le fil qui suit le bas.
  */
 function thoughtMsg(entry, ctx = {}) {
   const streaming = Boolean(ctx.busy && ctx.isLast)
@@ -93,9 +94,8 @@ function thoughtMsg(entry, ctx = {}) {
       h('span.thought__name', { text: tr`réflexion` })),
     icon('chevron-right', 'thought__chevron thought__disclosure icon--sm'),
   )
-  const body = h('div.thought__body', { class: streaming ? 'streaming' : '' },
+  const body = h('div.thought__body', {},
     h('div.md', { html: blocksHtml(entry.blocks) }))
-  if (streaming) queueMicrotask(() => { body.scrollTop = body.scrollHeight })
   root.append(head, body)
   return root
 }

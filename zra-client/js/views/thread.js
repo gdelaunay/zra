@@ -333,9 +333,6 @@ export function ThreadView({ key, navigate }) {
         r.shown = Math.min(full, r.shown + step)
         patchHtml(messageBody(node), blocksPieces(revealBlocks(r.entry.blocks, r.shown)))
         node._zraLen = r.shown
-        // Réflexion en cours : hauteur bornée, défilement collé en bas (Zed).
-        const th = node.querySelector('.thought__body.streaming')
-        if (th) th.scrollTop = th.scrollHeight
       }
       if (r.shown < full) more = true
       else r.at = undefined

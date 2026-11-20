@@ -411,7 +411,8 @@ button { cursor: pointer; }
 .assistant-msg.last { padding-bottom: var(--sp-6); }
 
 /* Réflexion — render_thinking_block : en-tête 13px muted, corps ml 6 pl 14
- * bordure gauche tool_card_border ; streaming borné à 256 px, collé en bas. */
+ * bordure gauche tool_card_border. Hauteur libre (défaut Zed « auto » : pas de
+ * max-height) ; c'est le fil qui suit le bas pendant l'écriture. */
 .thought { display: flex; flex-direction: column; gap: var(--sp-2); }
 .thought__head {
   display: flex; align-items: center; justify-content: space-between;
@@ -426,11 +427,6 @@ button { cursor: pointer; }
 .thought.is-open .thought__chevron { transform: rotate(90deg); }
 .thought__body { margin-left: var(--sp-3); padding-left: calc(var(--sp-5) + var(--sp-1)); border-left: 1px solid var(--tool-card-border); position: relative; }
 .thought:not(.is-open) > .thought__body { display: none; }
-.thought__body.streaming { max-height: 256px; overflow-y: auto; }
-.thought__body.streaming::after {
-  content: ""; position: absolute; inset: 0; pointer-events: none;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--panel-background) 80%, transparent) 0%, transparent 10%);
-}
 
 /* ---------- markdown de l'agent (markdown.rs, MarkdownFont::Agent) ----------
  * corps : 14 px — divergence ZRA assumée (Zed : ui_font_size 16), unifié avec le
