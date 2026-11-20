@@ -23,21 +23,3 @@ attente d'un poste ou d'une condition).
 
 ## À faire
 
-- **fenetres-dupliquees** (`à faire`) : depuis la PWA, créer un nouveau thread
-  dans un projet **déjà ouvert** dans Zed ouvre systématiquement une nouvelle
-  fenêtre ; chaque répétition en ajoute une (deux, trois…). Attendu : la
-  fenêtre existante est ramenée au premier plan, la recette y est jouée.
-  Depuis un moment — régression à dater (côté ZRA ou côté Zed). Deux suspects :
-  1. le calcul de `newWindow` (`newThread`, `zra-daemon/hub.js`) se fie à
-     l'état « ouvert » des projets lu dans la base de Zed
-     (`threads-index.js`, `openKeys` / `projectOpen`) : s'il lit le projet
-     fermé alors que sa fenêtre est là, `zed --classic` force une fenêtre
-     neuve à chaque appel ;
-  2. sans `--classic`, `zed <dossiers>` est censé ramener la fenêtre qui a
-     déjà ces dossiers (`ZedCli.open`, `zra-daemon/zed/driver.js`) : une
-     version récente de Zed a pu changer ce défaut.
-  À faire : reproduire en relevant la valeur de `newWindow` et la commande
-  CLI réellement lancée (journal du daemon), l'état du projet dans la base au
-  même moment, et le comportement de la CLI de la version de référence ;
-  corriger la détection ou l'appel, consigner dans `docs/fr/zed.md` si le
-  comportement de Zed a changé.

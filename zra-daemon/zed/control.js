@@ -97,7 +97,7 @@ export class ZedControl {
    * @returns {Promise<{ thread:object, cwd:string|null }>} le thread, tel que
    *          l'index le décrit, et le dossier où l'agent l'a réellement ouvert
    */
-  newThread(agentId, { folderPaths = null, newWindow = false } = {}) {
+  newThread(agentId, { folderPaths = null } = {}) {
     return this.serial(async () => {
       const agent = this.agents().find((a) => a.id === agentId)
       if (!agent) throw new ZedControlError('new_thread_failed', tr`agent « ${agentId} » absent du registry agent_servers de ce poste`)
@@ -166,7 +166,7 @@ export class ZedControl {
       })
 
       try {
-        played = await this.driver.newThread(agent, { folderPaths, newWindow })
+        played = await this.driver.newThread(agent, { folderPaths })
       } catch (err) {
         wait.cancel()
         throw new ZedControlError('new_thread_failed', err.message)

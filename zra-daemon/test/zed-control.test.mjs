@@ -124,7 +124,7 @@ test('new_thread : la recette part, puis on attend la preuve du shim et de l’i
   const found = await job
   assert.deepEqual(found.thread, thread)
   assert.equal(found.cwd, 'C:/proj/zra')
-  assert.deepEqual(ctx.driver.calls, [['newThread', 'claude-zra', { folderPaths: ['C:/proj/zra'], newWindow: false }]])
+  assert.deepEqual(ctx.driver.calls, [['newThread', 'claude-zra', { folderPaths: ['C:/proj/zra'] }]])
   assert.equal(ctx.control.focused, 't-neuf', 'le thread ouvert est celui qu’on amènera au premier plan')
 })
 
@@ -136,7 +136,7 @@ test('new_thread sans projet : la fenêtre active de Zed', async () => {
   announce(ctx, { shimId: 's1', sessionId: 'sess-1', source: 'new', cwd: null })
   ctx.threads.add({ threadId: 't1', sessionId: 'sess-1', agentId: 'claude-zra' })
   const found = await job
-  assert.deepEqual(ctx.driver.calls[0][2], { folderPaths: null, newWindow: false })
+  assert.deepEqual(ctx.driver.calls[0][2], { folderPaths: null })
   assert.equal(found.cwd, null)
 })
 

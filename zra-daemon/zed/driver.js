@@ -190,27 +190,22 @@ export function defaultZedCli() {
 }
 
 /**
- * `zed <dossiers>` : Zed amène au premier plan la fenêtre qui a déjà ces
- * dossiers, ou en ouvre une. Les chemins passent en arguments, jamais par un
- * shell : aucune interprétation possible.
+ * `zed --classic <dossiers>` : amène au premier plan la fenêtre qui a déjà ces
+ * dossiers, ou lui ouvre une fenêtre dédiée. Les chemins passent en arguments,
+ * jamais par un shell : aucune interprétation possible.
  *
- * Projet fermé, `newWindow` : Zed 1.21 range par défaut un dossier ouvert en
- * ligne de commande comme espace de travail de plus dans la fenêtre existante.
- * `--classic` (option cachée de sa CLI : « new window for directories ») lui
- * donne sa propre fenêtre. Refusée par une autre version : relancé sans.
+ * Pourquoi toujours `--classic` (vérifié dans les sources de 1.28.1,
+ * `open_listener.rs` `open_options_for_behavior`, `workspace.rs`
+ * `find_existing_workspace`) : sans option, le défaut suit le réglage
+ * `cli_default_open_behavior` de l'utilisateur — avec `new_window`, la
+ * recherche exclut la racine des worktrees ouverts (`MatchSubpaths`), donc
+ * une fenêtre neuve à chaque appel pour un projet déjà ouvert.
+ * `--classic` fait `MatchExact` : la fenêtre qui a ces dossiers est retrouvée
+ * (racine comprise), sinon une fenêtre neuve lui est ouverte — ce que ZRA veut,
+ * projet ouvert ou fermé, sans avoir à le deviner.
  *
- * Vérifié sous Linux, Zed 1.23.2 : `--classic` n'apparaît PAS dans `zed --help`
- * (options listées : -w/--wait, -a/--add, -n/--new, -e/--existing,
- * --user-data-dir, --diff, --completions, --uninstall, --zed, --foreground,
- * --dev-server-token, --dev-container), mais il est toujours accepté :
- *
- *   $ zed --classic --version
- *   Zed 1.23.2 c0199504… – ~/.local/zed.app/libexec/zed-editor
- *   $ zed --option-inexistante --version
- *   error: unexpected argument '--option-inexistante' found
- *
- * Donc l'option cachée survit au portage et le repli sans `--classic` reste ce
- * qu'il était : une assurance, pas le chemin courant.
+ * Option cachée (`hide = true` dans `crates/cli/src/main.rs`), refusée par une
+ * autre version : relancé sans, le défaut de cette version-là s'applique.
  */
 export class ZedCli {
   constructor({ command = defaultZedCli(), timeoutMs = 15_000 } = {}) {
@@ -218,13 +213,11 @@ export class ZedCli {
     this.timeoutMs = timeoutMs
   }
 
-  async open(folderPaths, { newWindow = false } = {}) {
+  async open(folderPaths) {
     if (UNDER_TEST) return refuseUnderTest(tr`CLI de Zed réelle`)
-    if (newWindow) {
-      try {
-        return await this.exec(['--classic', ...folderPaths])
-      } catch { /* option inconnue de cette version : ouverture par défaut */ }
-    }
+    try {
+      return await this.exec(['--classic', ...folderPaths])
+    } catch { /* option inconnue de cette version : ouverture par défaut */ }
     return this.exec(folderPaths)
   }
 
@@ -309,19 +302,19 @@ export class ZedDriver {
   }
 
   /** Amène au premier plan la fenêtre des dossiers donnés, ou en ouvre une. */
-  async openWorkspace(folderPaths, { newWindow = false } = {}) {
+  async openWorkspace(folderPaths) {
     this.assertEnabled()
     this.log?.info(this.dryRun ? tr`projet ${folderPaths.join(', ')} (simulation, CLI non lancée)` : tr`projet ${folderPaths.join(', ')}`)
-    if (!this.dryRun) await this.cli.open(folderPaths, { newWindow })
+    if (!this.dryRun) await this.cli.open(folderPaths)
   }
 
   /**
    * Nouvelle session. Avec `folderPaths`, dans ce projet : sa fenêtre est
    * ouverte ou ramenée au premier plan, puis la recette y est jouée.
    */
-  async newThread(agent, { folderPaths = null, newWindow = false } = {}) {
+  async newThread(agent, { folderPaths = null } = {}) {
     const project = projectWindow(folderPaths)
-    if (project) await this.openWorkspace(folderPaths, { newWindow })
+    if (project) await this.openWorkspace(folderPaths)
     const vars = { agent: agent.id, agentName: agent.name ?? agent.id, project: project ?? '' }
     // Relu à chaque fois : `npm run setup` peut l'avoir posée daemon lancé.
     const key = this.has('newThreadKey') ? await readAgentKey(this.keymapFile, agent.id) : null
@@ -337,8 +330,7 @@ export class ZedDriver {
    */
   async openThread(thread) {
     const project = projectWindow(thread.folderPaths)
-    // Projet fermé dans Zed : sa propre fenêtre, pas un espace de travail de plus.
-    if (project) await this.openWorkspace(thread.folderPaths, { newWindow: thread.projectOpen === false })
+    if (project) await this.openWorkspace(thread.folderPaths)
     // Sans titre, le sidebar affiche celui par défaut de Zed : c'est lui qu'on filtre.
     return this.play('openThread', { title: thread.title || DEFAULT_THREAD_TITLE, agent: thread.agentId ?? '' }, { project })
   }

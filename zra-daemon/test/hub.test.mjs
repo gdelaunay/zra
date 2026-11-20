@@ -1071,7 +1071,7 @@ test('new_thread : threads d’abord, thread_created ensuite', async () => {
 
   assert.deepEqual(conn.types(), ['threads', 'thread_created'])
   assert.deepEqual(conn.last(), { type: 'thread_created', threadId: 'thread-neuf', agentId: 'claude-zra' })
-  assert.deepEqual(zed.calls, [['newThread', 'claude-zra', { folderPaths: null, newWindow: false }]])
+  assert.deepEqual(zed.calls, [['newThread', 'claude-zra', { folderPaths: null }]])
 })
 
 test('new_thread avec un projet connu : les dossiers de l’index, pas un chemin libre', async () => {
@@ -1091,17 +1091,17 @@ test('new_thread avec un projet connu : les dossiers de l’index, pas un chemin
   assert.equal(conn.types().includes('thread_created'), true)
 })
 
-test('new_thread sur un projet fermé dans Zed : demandé dans une nouvelle fenêtre', async () => {
+test('new_thread sur un projet fermé dans Zed : mêmes dossiers, la CLI décide de la fenêtre', async () => {
   const zed = fakeZedControl()
   const ctx = boot({ zed })
   ctx.threads.threads.push({ threadId: 'thread-fermé', sessionId: 'sess-c', agentId: 'gemini-zra', state: 'closed', folderPaths: ['C:/proj/ferme'], projectOpen: false })
   const conn = pairedClient(ctx)
   conn.emit('message', { type: 'new_thread', agentId: 'gemini-zra', folderPaths: ['C:/proj/ferme'] })
   await tick()
-  assert.equal(zed.calls[0][2].newWindow, true)
+  assert.deepEqual(zed.calls[0][2], { folderPaths: ['C:/proj/ferme'] })
 })
 
-test('new_thread sur un projet du sidebar de Zed sans thread : accepté, fenêtre selon son état', async () => {
+test('new_thread sur un projet du sidebar de Zed sans thread : accepté, ouvert ou fermé', async () => {
   const zed = fakeZedControl()
   const ctx = boot({ zed })
   ctx.threads.projects = [{ folderPaths: ['C:/proj/vide'], open: true }, { folderPaths: ['C:/proj/décharge'], open: false }]
@@ -1111,7 +1111,7 @@ test('new_thread sur un projet du sidebar de Zed sans thread : accepté, fenêtr
   conn.emit('message', { type: 'new_thread', agentId: 'claude-zra', folderPaths: ['C:/proj/décharge'] })
   await tick()
   assert.deepEqual(conn.only('error'), [])
-  assert.deepEqual(zed.calls.map((c) => [c[2].folderPaths, c[2].newWindow]), [[['C:/proj/vide'], false], [['C:/proj/décharge'], true]])
+  assert.deepEqual(zed.calls.map((c) => c[2].folderPaths), [['C:/proj/vide'], ['C:/proj/décharge']])
 })
 
 test('new_thread : projet inconnu du poste → refus, Zed n’est pas piloté', async () => {

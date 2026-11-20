@@ -548,12 +548,9 @@ export class Hub {
       if (!project) return this.error(conn, 'new_thread_failed', tr`projet inconnu de ce poste : aucun thread ne porte ces dossiers`)
     }
     try {
-      // Projet fermé dans Zed : il s'ouvre dans sa propre fenêtre.
-      const key = project ? projectKey(project) : null
-      const listed = this.threads.projects?.find((p) => projectKey(p.folderPaths) === key)
-      const newWindow = Boolean(key) && (listed ? !listed.open
-        : this.threads.threads.some((t) => t.projectOpen === false && t.folderPaths?.length && projectKey(t.folderPaths) === key))
-      const { thread, cwd } = await this.zed.newThread(agentId, { folderPaths: project, newWindow })
+      // La CLI (`--classic`) retrouve la fenêtre du projet ou lui en ouvre une :
+      // l'état « ouvert » de la base n'a pas à être deviné ici.
+      const { thread, cwd } = await this.zed.newThread(agentId, { folderPaths: project })
       conn.send(this.threadsMessage())
       conn.send({ type: 'thread_created', threadId: thread.threadId, agentId: thread.agentId ?? agentId })
       // Zed a pu ouvrir la session ailleurs (fenêtre du projet introuvable,
