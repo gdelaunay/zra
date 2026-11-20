@@ -304,7 +304,7 @@ function rawInputBlock(label, value) {
 function ioBlock(label, value) {
   return h('div', {},
     h('span.io-header', { text: label }),
-    h('pre', { style: { margin: 0, overflow: 'auto', maxHeight: '40vh', fontSize: 'var(--fs-xs)', fontFamily: 'var(--font-mono)' } },
+    h('pre', { style: { margin: 0, fontSize: 'var(--fs-xs)', fontFamily: 'var(--font-mono)', whiteSpace: 'pre-wrap', wordBreak: 'break-word' } },
       h('code', { text: jsonString(value) })))
 }
 
@@ -341,7 +341,8 @@ function diffBlock(c) {
  * l'agent (`terminal_info.cwd`, pi-acp) ou du projet du thread ; la durée
  * s'affiche au-delà de 10 s, live pendant l'exécution (ticker du tour) ;
  * l'échec est une croix rouge, le code en infobulle — pas de texte « exit 0 ».
- * Un terminal qui coule reste collé en bas, comme dans Zed.
+ * Hauteur libre pendant l'exécution (comme les réflexions) ; c'est le fil qui
+ * suit le bas.
  */
 function terminalCard(entry, c, ctx, { open, failed }) {
   const term = ctx.timeline?.terminals?.get(c.terminalId) || { output: '', exitStatus: null }
@@ -379,7 +380,6 @@ function terminalCard(entry, c, ctx, { open, failed }) {
   head.addEventListener('click', (ev) => { if (!ev.target.closest('.disclosure')) toggle() })
   const body = h('pre.term-body', { text: term.output || '' })
   root.append(head, body)
-  queueMicrotask(() => { body.scrollTop = body.scrollHeight })
   return root
 }
 

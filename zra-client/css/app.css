@@ -557,7 +557,7 @@ button { cursor: pointer; }
 .raw-input .ri-toggle { display: flex; justify-content: space-between; align-items: center; gap: var(--sp-2); padding-left: var(--sp-1); border-radius: var(--sp-1); cursor: pointer; width: 100%; text-align: left; }
 .raw-input .ri-toggle:hover { background: var(--element-hover); }
 .raw-input:not(.is-open) pre { display: none; }
-.raw-input pre { margin: 0; overflow: auto; max-height: 40vh; font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--text-muted); }
+.raw-input pre { margin: 0; font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--text-muted); white-space: pre-wrap; word-break: break-word; }
 
 /* Diff — render_diff_editor : police buffer 12, pas de gouttière, pas de
  * retour à la ligne, lignes ajoutées/supprimées à 12 %. */
@@ -577,7 +577,8 @@ button { cursor: pointer; }
 .cmd pre { margin: 0; font-family: var(--font-mono); font-size: var(--fs-buffer); line-height: calc(17px * var(--text-scale)); color: var(--text); white-space: pre-wrap; word-break: break-all; }
 
 /* Carte terminal — render_terminal_tool_call : bordure border 60 %, en-tête
- * tool_card_header_bg, corps terminal. */
+ * tool_card_header_bg, corps terminal. Hauteur libre (comme les réflexions) :
+ * pas de max-height, c'est le fil qui suit le bas pendant l'exécution. */
 .term { border: 1px solid color-mix(in srgb, var(--border) 60%, transparent); border-radius: var(--radius-lg); overflow: hidden; background: var(--editor-background); }
 .tool.term { margin: var(--sp-3) calc(var(--sp-5) + var(--sp-4)); }
 .tool.term:not(.is-open) .term-body { display: none; }
@@ -593,7 +594,7 @@ button { cursor: pointer; }
   background: var(--terminal-background); color: var(--terminal-foreground);
   font-family: var(--font-mono); font-size: var(--fs-buffer); line-height: var(--lh);
   padding: var(--sp-2) var(--sp-4); white-space: pre-wrap; word-break: break-word;
-  max-height: 40vh; overflow: auto; margin: 0;
+  margin: 0;
 }
 .term .cmd { background: none; }
 
