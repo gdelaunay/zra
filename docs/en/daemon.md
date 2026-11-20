@@ -120,6 +120,7 @@ phone is warned by an explicit `zra/notice`.
 | `shell-env.js` | project environment captured as Zed does (login shell, direnv), for that replay |
 | `agent-commands.js` | how to launch an agent: config, `settings.json`, Zed registry |
 | `agents.js` | `agent_servers` registry, Zed presence |
+| `agent-icons.js` | agent icons: Zed's ACP registry cache, sent in `machine`; ZRA entries inherit the wrapped agent's icon |
 | `jsonc.js` | tolerant parser for Zed's `settings.json` |
 | `inject/` | injection interface + `acp`, `uia`, `auto`, `mock` backends |
 | `zed/` | Zed keyboard control: `keyboard.ps1`, recipes, `new_thread`, reopening |

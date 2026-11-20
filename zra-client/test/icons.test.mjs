@@ -15,7 +15,7 @@ for (const k of ['window', 'document', 'Node', 'HTMLElement']) {
 }
 after(() => { dom.window.close() })
 
-const { icon, toolIcon, agentIcon, agentGlyphId, TOOL_KIND_ICON } = await import('../js/icons.js')
+const { icon, toolIcon, agentIcon, agentGlyphId, noteRegistryIcons, TOOL_KIND_ICON } = await import('../js/icons.js')
 const { AGENT_GLYPHS } = await import('../js/agent-icons.js')
 
 const paths = (svg) => [...svg.querySelectorAll('path')].map((p) => p.getAttribute('d'))
@@ -168,4 +168,52 @@ test('chaque glyphe du fichier généré se dessine sans erreur', () => {
     assert.equal(svg.tagName, 'svg', id)
     assert.ok(svg.children.length > 0, id)
   }
+})
+
+// ---------------------------------------------------------------------------
+// noteRegistryIcons() + agentIcon() : le registre ACP (cache de Zed, via le daemon)
+// ---------------------------------------------------------------------------
+
+const PI_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16"><path d="M1 1H15V15H1Z" fill="currentColor"/></svg>'
+
+test('agentIcon() : id du registre → SVG inline, dimensionné par le CSS, décoratif', () => {
+  noteRegistryIcons({ 'pi-acp': PI_SVG })
+  const svg = agentIcon('pi-acp', 'icon--sm')
+  assert.equal(svg.tagName, 'svg')
+  assert.equal(svg.getAttribute('viewBox'), '0 0 16 16')
+  assert.equal(svg.getAttribute('class'), 'icon icon--sm')
+  assert.equal(svg.getAttribute('aria-hidden'), 'true')
+  assert.equal(svg.getAttribute('width'), null, 'la taille vient du CSS, pas du fichier')
+  assert.ok(svg.querySelector('path'))
+})
+
+test('agentIcon() : le registre prime sur les glyphes embarqués (l\'icône exacte de Zed)', () => {
+  noteRegistryIcons({ 'claude-acp': '<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="currentColor"/></svg>' })
+  const svg = agentIcon('claude-acp')
+  assert.ok(svg.querySelector('circle'), 'le SVG du registre, pas le glyphe claude')
+  assert.equal(svg.querySelector('path'), null)
+})
+
+test('agentIcon() : cercles et transformations du registre conservés (pas de parsing en formes)', () => {
+  noteRegistryIcons({ 'round-agent': '<svg viewBox="0 0 16 16"><g transform="translate(2 2)"><circle cx="6" cy="6" r="5" fill="currentColor"/></g></svg>' })
+  const svg = agentIcon('round-agent')
+  assert.ok(svg.querySelector('g[transform]'))
+  assert.ok(svg.querySelector('circle'))
+})
+
+test('agentIcon() : SVG du registre nettoyé (scripts, foreignObject, gestionnaires)', () => {
+  noteRegistryIcons({ 'evil-agent': '<svg viewBox="0 0 16 16"><script>alert(1)</script><foreignObject></foreignObject><path onclick="alert(1)" d="M0 0h16v16H0z"/></svg>' })
+  const svg = agentIcon('evil-agent')
+  assert.equal(svg.querySelector('script'), null)
+  assert.equal(svg.querySelector('foreignObject'), null)
+  assert.equal(svg.querySelector('path').getAttribute('onclick'), null)
+  assert.ok(svg.querySelector('path'), 'le dessin, lui, est gardé')
+})
+
+test('noteRegistryIcons() : entrée invalide → sans effet, repli générique', () => {
+  noteRegistryIcons(null)
+  noteRegistryIcons(undefined)
+  noteRegistryIcons({ 'x-agent': 42, 'y-agent': '' })
+  assert.deepEqual(paths(agentIcon('x-agent')), paths(icon('sparkles')))
+  assert.deepEqual(paths(agentIcon('y-agent')), paths(icon('sparkles')))
 })

@@ -120,6 +120,7 @@ mobile en est averti par un `zra/notice` explicite.
 | `shell-env.js` | environnement du projet relevé comme Zed (shell de connexion, direnv), pour cette relecture |
 | `agent-commands.js` | comment lancer un agent : config, `settings.json`, registry de Zed |
 | `agents.js` | registry `agent_servers`, présence de Zed |
+| `agent-icons.js` | icônes d'agents : cache du registre ACP de Zed, transmis dans `machine` ; les entrées ZRA héritent de l'agent enveloppé |
 | `jsonc.js` | parseur tolérant pour le `settings.json` de Zed |
 | `inject/` | interface d'injection + backends `acp`, `uia`, `auto`, `mock` |
 | `zed/` | pilotage clavier de Zed : `keyboard.ps1`, recettes, `new_thread`, réouverture |

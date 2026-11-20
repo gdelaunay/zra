@@ -90,7 +90,7 @@ Comportement seulement : l'apparence est auditée à part. Côté Zed, sauf ment
 | Mode, modèle, options (`views/thread.js`) : sélecteurs dans la barre du composer ; réduction icon-only mobile = implémentation ZRA | `crates/agent_ui/src/mode_selector.rs`, `model_selector.rs`, `config_options.rs` | vérifié (0.5) |
 | File d'attente, Stop (`views/thread.js` : `stopTurn`) | `conversation_view/message_queue.rs` (`MessageQueue`), `cancel_generation`, `render_message_queue_entries` | vérifié |
 | Thèmes (`css/themes.css`, généré par `scripts/gen-themes.mjs`) | `assets/themes/` (MIT) ; jetons : `crates/theme/` | vérifié |
-| Icônes (`icons.js`), icônes d'agents (`agent-icons.js`, `scripts/gen-agent-icons.mjs`) | `assets/icons/` (Lucide, ISC ; icônes de marques à part) | à auditer |
+| Icônes (`icons.js`), icônes d'agents (`agent-icons.js`, `scripts/gen-agent-icons.mjs` ; registre ACP via le cache de Zed, `zra-daemon/agent-icons.js`) | `assets/icons/` (Lucide, ISC ; icônes de marques à part) ; `crates/project/src/agent_registry_store.rs` (registre ACP) | à auditer |
 | Espacements, tailles de texte, rayons (`css/app.css`) | `crates/ui/src/styles/` (`spacing.rs`, `typography.rs`, `elevation.rs`) ; composants : `crates/ui/src/components/` | à auditer |
 
 Les styles GPUI s'écrivent comme des classes utilitaires (`.px_2()`, `.gap_1()`, `.rounded_md()`, `.text_color(colors.text_muted)`) : chacun se traduit en une déclaration CSS. Les valeurs de base de `crates/ui/src/styles/` deviennent des variables CSS dans `app.css`, comme les couleurs dans `themes.css`.

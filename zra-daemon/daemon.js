@@ -20,6 +20,7 @@ import { createServers } from './server.js'
 import { NetWatch, listInterfaces, resolveBinds } from './net.js'
 import { publicNetworks } from './platform.js'
 import { ZedPresence, machineName, osLabel, readAgents } from './agents.js'
+import { readAgentIconsFor } from './agent-icons.js'
 import { injectionLog, logger } from './log.js'
 import { Pairing } from './auth.js'
 import { tr } from './i18n.js'
@@ -47,6 +48,8 @@ class Machine {
     this.os = os
     this.version = version
     this.agents = agents
+    /** SVG du registre ACP par id d'agent, lus dans le cache de Zed (`agent-icons.js`). */
+    this.agentIcons = {}
     this.zedRunning = false
     /** Backend clavier résolu (`xdotool`, `powershell`, `none`…) — null tant que non résolu. */
     this.keyboard = null
@@ -62,6 +65,7 @@ class Machine {
       zedRunning: this.zedRunning,
       keyboard: this.keyboard,
       agents: this.agents,
+      agentIcons: this.agentIcons,
       urls: this.urls,
     }
   }
@@ -100,6 +104,11 @@ export async function startDaemon(config) {
     version: await version(),
     agents: await readAgents(config.zedSettings),
   })
+
+  // Icônes d'agents : le cache du registre ACP de Zed, pour les agents configurés
+  // et ceux des threads ; les entrées ZRA héritent de l'agent enveloppé.
+  const iconsFor = (agents) => readAgentIconsFor(agents, threads.threads.map((t) => t.agentId))
+  machine.agentIcons = await iconsFor(machine.agents)
 
   // Les shims sont la source de tout ce qui est vivant : flux ACP
   // verbatim, tour, file d'attente, permissions.
@@ -201,11 +210,15 @@ export async function startDaemon(config) {
   await presence.probe()
   presence.start()
 
-  // Le registry d'agents peut changer sans redémarrage (édition de settings.json).
+  // Le registry d'agents peut changer sans redémarrage (édition de settings.json) ;
+  // Zed peut aussi télécharger de nouvelles icônes du registre ACP en cours de route.
   const agentsTimer = setInterval(async () => {
     const next = await readAgents(config.zedSettings)
-    if (JSON.stringify(next) === JSON.stringify(machine.agents)) return
+    const nextIcons = await iconsFor(next)
+    if (JSON.stringify(next) === JSON.stringify(machine.agents) &&
+        JSON.stringify(nextIcons) === JSON.stringify(machine.agentIcons)) return
     machine.agents = next
+    machine.agentIcons = nextIcons
     hub.broadcast({ type: 'machine', ...machine.describe() })
   }, Math.max(config.zedProbeMs * 4, 10_000))
   agentsTimer.unref?.()

@@ -294,12 +294,17 @@ Révoqué, un appareil voit sa connexion fermée (code 4401).
   zedRunning?: boolean,    // false => bandeau « Zed fermé »
   version?: string,        // suffixe `-mock` => la PWA active sa barre de dev
   agents?: Array<{ id: string, name?: string }>,  // registry agent_servers
+  agentIcons?: Record<string, string>,  // SVG bruts du registre ACP (cache de Zed), par id d'agent
   urls?: string[],         // adresses du poste hors loopback (IP locales, ou noms du certificat)
 }
 ```
 Envoyé au bootstrap, et à chaque changement notable (Zed lancé/fermé).
 `agents` alimente le menu du bouton **+**. Absent ⇒ la PWA déduit les agents des
 threads existants.
+`agentIcons` : les icônes que Zed a téléchargées du registre ACP
+(`external_agents/registry/icons/`), pour les agents configurés et ceux des
+threads. La PWA les affiche telles quelles (monochrome `currentColor`) ; un id
+sans icône retombe sur les glyphes embarqués, puis sur l'icône générique.
 
 ### `threads`
 ```ts

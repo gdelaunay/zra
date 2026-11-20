@@ -294,12 +294,17 @@ Once revoked, a device has its connection closed (code 4401).
   zedRunning?: boolean,    // false => "Zed closed" banner
   version?: string,        // `-mock` suffix => the PWA enables its dev bar
   agents?: Array<{ id: string, name?: string }>,  // agent_servers registry
+  agentIcons?: Record<string, string>,  // raw ACP registry SVGs (Zed's cache), by agent id
   urls?: string[],         // the machine's addresses outside loopback (local IPs, or certificate names)
 }
 ```
 Sent at bootstrap, and on every notable change (Zed started/closed).
 `agents` feeds the **+** button menu. Absent ⇒ the PWA infers the agents from
 existing threads.
+`agentIcons`: the icons Zed downloaded from the ACP registry
+(`external_agents/registry/icons/`), for configured agents and thread agents.
+The PWA shows them as-is (monochrome `currentColor`); an id without an icon
+falls back to the bundled glyphs, then to the generic icon.
 
 ### `threads`
 ```ts

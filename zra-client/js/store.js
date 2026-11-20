@@ -6,6 +6,7 @@
 import { emitter } from './dom.js'
 import { DaemonLink } from './link.js'
 import { Timeline, blocksText } from './acp.js'
+import { noteRegistryIcons } from './icons.js'
 import { settings, originMachine, tokenFor, setToken } from './settings.js'
 import { tr } from './i18n.js'
 
@@ -168,6 +169,7 @@ function handle(machine, msg) {
 
     case 'machine':
       machine.info = msg
+      noteRegistryIcons(msg.agentIcons)
       if (msg.name) machine.label = machine.implicit || !machine.label ? msg.name : machine.label
       emit('machines')
       break

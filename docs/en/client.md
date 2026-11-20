@@ -90,15 +90,24 @@ The shim emits them; the PWA only uses them if they arrive.
 
 ## Agent icons
 
-`js/agent-icons.js` is **generated** from Zed's icons
-(`assets/icons/ai_*.svg`), rendered monochrome through `currentColor`:
+Two sources, as in Zed. The **ACP registry** first: Zed downloads the agents'
+icons (Pi, Qwen, Goose…) into its cache
+(`external_agents/registry/icons/<id>.svg`); the daemon reads them back
+(`zra-daemon/agent-icons.js`) and sends them in the `machine` message
+(`agentIcons`). The PWA shows them as-is, monochrome (`currentColor`) — Zed's
+exact icon for that agent id.
+
+As a fallback, the **bundled glyphs**: `js/agent-icons.js` is **generated** from
+the icons shipped with Zed (`assets/icons/ai_*.svg`), rendered monochrome
+through `currentColor`:
 
 ```bash
 curl -sL https://raw.githubusercontent.com/zed-industries/zed/main/assets/icons/ai_claude.svg -o .cache/ai_claude.svg
 node scripts/gen-agent-icons.mjs
 ```
 
-The `agent_id` → icon mapping is done by pattern (`claude-acp`, `Claude Agent (zra)`,
+The `agent_id` → icon mapping is done by exact id in the registry, then by
+pattern on the bundled glyphs (`claude-acp`, `Claude Agent (zra)`,
 `my-claude` → Claude), unknown agent → generic icon.
 
 ## Language

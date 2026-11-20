@@ -1,6 +1,7 @@
 // Jeu d'icônes, trait 1.6px sur grille 24 — même famille que celles de Zed (Lucide).
 // Tracés en partie repris de Lucide : licence ISC, voir THIRD_PARTY_NOTICES.md.
-// Les icônes d'agents (Claude, Gemini, …) viennent de Zed : voir agent-icons.js.
+// Les icônes d'agents viennent de Zed : SVG du registre ACP transmis par le
+// daemon (noteRegistryIcons) et glyphes embarqués (agent-icons.js).
 
 import { AGENT_GLYPHS } from './agent-icons.js'
 
@@ -136,11 +137,55 @@ export function agentGlyphId(agentId) {
   return null
 }
 
+// SVG du registre ACP, reçus des postes (message `machine`, champ `agentIcons`) :
+// le cache de Zed, les mêmes icônes que lui. Map globale : un logo de marque est
+// le même sur tous les postes.
+const REGISTRY_ICONS = new Map()
+
+/** Mémorise les SVG reçus d'un poste ; sans eux, repli sur les glyphes embarqués. */
+export function noteRegistryIcons(icons) {
+  if (!icons || typeof icons !== 'object') return
+  for (const [id, svg] of Object.entries(icons)) {
+    if (typeof svg === 'string' && svg) REGISTRY_ICONS.set(id, svg)
+  }
+}
+
+/**
+ * SVG brut du registre → élément inline, tel quel (cercles, transformations…
+ * que le parseur des glyphes embarqués ne connaît pas). `innerHTML` n'exécute
+ * pas les scripts ; on retire quand même scripts, `foreignObject` et
+ * gestionnaires d'événements : le contenu vient d'un registre tiers.
+ */
+function registryIcon(svgText, cls) {
+  const wrap = document.createElement('div')
+  wrap.innerHTML = svgText
+  const svg = wrap.querySelector('svg')
+  if (!svg) return null
+  for (const n of svg.querySelectorAll('script, foreignObject')) n.remove()
+  for (const n of [svg, ...svg.querySelectorAll('*')]) {
+    for (const attr of [...n.attributes]) {
+      if (/^on/i.test(attr.name)) n.removeAttribute(attr.name)
+    }
+  }
+  // La taille vient du CSS (`.icon`), pas des attributs du fichier.
+  svg.removeAttribute('width')
+  svg.removeAttribute('height')
+  svg.setAttribute('class', `icon ${cls}`.trim())
+  svg.setAttribute('aria-hidden', 'true')
+  return svg
+}
+
 /**
  * Icône de l'agent, monochrome (`currentColor`), comme dans le panel de Zed.
- * Agent inconnu : on retombe sur une icône générique plutôt que sur rien.
+ * Registre ACP d'abord (l'icône exacte de Zed pour cet id), puis les glyphes
+ * embarqués par motif ; agent inconnu : une icône générique plutôt que rien.
  */
 export function agentIcon(agentId, cls = '') {
+  const raw = agentId ? REGISTRY_ICONS.get(agentId) : null
+  if (raw) {
+    const el = registryIcon(raw, cls)
+    if (el) return el
+  }
   const glyph = AGENT_GLYPHS[agentGlyphId(agentId)]
   if (!glyph) return icon('sparkles', cls)
   const svg = document.createElementNS(SVG_NS, 'svg')
