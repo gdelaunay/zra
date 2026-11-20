@@ -174,10 +174,12 @@ test('blocksPieces() rend chaque sorte de ContentBlock', () => {
   assert.match(pieces[0], /^<img alt="image".*src="data:image\/jpeg;base64,QUJD">$/)
   assert.equal(pieces[1], '<p class="muted">[image]</p>', 'une image sans données est annoncée')
   assert.equal(pieces[2], '<p class="muted">[audio]</p>')
-  assert.equal(pieces[3], '<p><code>app.js</code></p>')
-  assert.equal(pieces[4], '<p><code>file:///sans-nom.js</code></p>')
-  assert.equal(pieces[5], '<div class="codeblock"><pre><code>contenu</code></pre></div>')
-  assert.equal(pieces[6], '<p><code>file:///vide</code></p>')
+  // resource_link / resource → puces .mention (plus <code> ni contenu étalé).
+  assert.match(pieces[3], /^<p><span class="mention" data-uri="file:\/\/\/app\.js">.*<span class="mention__name">app\.js<\/span><\/span><\/p>$/)
+  assert.match(pieces[4], /mention__name">sans-nom\.js</, 'sans nom : dernier segment de l’URI')
+  assert.match(pieces[5], /mention__name">f</, 'resource embarqué : puce, pas le contenu')
+  assert.ok(!pieces[5].includes('contenu'), 'le contenu embarqué n’est pas affiché')
+  assert.match(pieces[6], /mention__name">vide</)
 })
 
 test('blocksPieces() échappe ce qui vient de l’agent', () => {

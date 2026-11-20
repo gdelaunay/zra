@@ -688,12 +688,12 @@ export class AcpBridge extends EventEmitter {
    *
    * @returns {Promise<{ queued:boolean, queueId?:string, confirmed?:boolean }>}
    */
-  async prompt(sessionId, text, mode = 'queue', { confirmMs = 0 } = {}) {
+  async prompt(sessionId, text, mode = 'queue', { confirmMs = 0, blocks = null } = {}) {
     const st = this.requireSession(sessionId)
 
     if (st.turn === 'busy') {
       if (mode !== 'interrupt') {
-        const entry = this.sessions.enqueue(sessionId, text)
+        const entry = this.sessions.enqueue(sessionId, text, blocks)
         return { queued: true, queueId: entry.queueId }
       }
       // `cancelAndWait` rend toujours un tour clos : acquitté par l'agent, ou
@@ -703,7 +703,7 @@ export class AcpBridge extends EventEmitter {
       await this.cancelAndWait(sessionId)
     }
 
-    const confirmed = await this.sendPrompt(sessionId, text, { confirmMs })
+    const confirmed = await this.sendPrompt(sessionId, blocks ?? text, { confirmMs })
     return confirmMs > 0 ? { queued: false, confirmed } : { queued: false }
   }
 
@@ -836,10 +836,12 @@ export class AcpBridge extends EventEmitter {
     })
   }
 
-  sendPrompt(sessionId, text, { confirmMs = 0 } = {}) {
+  /** `prompt` : texte seul ou tableau de blocs ACP — mentions comprises
+   * (D1 : le daemon a converti les liens du texte au départ). */
+  sendPrompt(sessionId, prompt, { confirmMs = 0 } = {}) {
     const id = `zra-${this.nextId++}`
     const k = idKey(id)
-    const params = { sessionId, prompt: [{ type: 'text', text }] }
+    const params = { sessionId, prompt: Array.isArray(prompt) ? prompt : [{ type: 'text', text: prompt }] }
 
     /** @type {Promise<boolean>|null} */
     const verdict = confirmMs > 0 ? this.awaitVerdict(sessionId, confirmMs) : null
@@ -905,7 +907,7 @@ export class AcpBridge extends EventEmitter {
   async sendQueued(sessionId, entry) {
     if (this.sessions.get(sessionId).holdQueue) return
     if (!this.sessions.shift(sessionId, entry.queueId)) return
-    await this.sendPrompt(sessionId, entry.text)
+    await this.sendPrompt(sessionId, entry.blocks ?? entry.text)
   }
 
   cancelQueued(sessionId, queueId) {

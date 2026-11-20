@@ -21,14 +21,16 @@ export class AutoBackend {
     this.ownsQueue = true
   }
 
-  async send(threadId, text, mode = 'queue') {
+  async send(threadId, text, mode = 'queue', { blocks = null } = {}) {
     try {
-      return await this.acp.send(threadId, text, mode, { confirmMs: this.confirmMs })
+      return await this.acp.send(threadId, text, mode, { confirmMs: this.confirmMs, blocks })
     } catch (err) {
       if (!(err instanceof InjectionError) || err.code !== 'prompt_refused') throw err
       log.warn(tr`injection ACP refusée sur ${threadId} (${err.message}) : repli clavier`)
     }
     try {
+      // Repli clavier : le texte part tel quel dans le composer de Zed —
+      // les liens de mention y restent littéraux (pas de conversion en puces).
       return await this.uia.send(threadId, text, mode)
     } catch (err) {
       throw new InjectionError('inject_failed', tr`l'agent a refusé le message, et le repli clavier a échoué : ${err.message}`)

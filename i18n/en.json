@@ -316,6 +316,7 @@
   "historique indisponible : ce poste ne sait pas relire une session fermée": "history unavailable: this machine cannot replay a closed session",
   "thread ouvert avec « {0} », hors ZRA : lecture seule depuis le mobile. Répondre dans Zed, ou ouvrir un thread ZRA": "thread opened with \"{0}\", outside ZRA: read-only from the phone. Reply in Zed, or open a ZRA thread",
   "réouverture de {0} impossible :": "cannot reopen {0}:",
+  "thread inconnu": "unknown thread",
   "aucune demande de permission en attente sur ce poste": "no pending permission request on this machine",
   "aucune question en attente sur ce poste": "no pending question on this machine",
   "renommer indisponible sur ce poste": "rename unavailable on this machine",

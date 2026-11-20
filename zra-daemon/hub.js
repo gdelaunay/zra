@@ -9,6 +9,7 @@ import { InjectionError } from './inject/backend.js'
 import { AuthError } from './auth.js'
 import { isLoopback } from './server.js'
 import { normPath, projectKey } from './threads-index.js'
+import { buildPromptBlocks, listFiles } from './mentions.js'
 import { tr } from './i18n.js'
 
 const log = logger('hub')
@@ -143,6 +144,9 @@ export class Hub {
 
       case 'send':
         return this.send(conn, msg)
+
+      case 'files':
+        return this.files(conn, msg)
 
       case 'interrupt':
         return this.interrupt(conn, msg.threadId)
@@ -348,7 +352,35 @@ export class Hub {
       return
     }
 
-    await this.inject(conn, msg.threadId, () => this.backend.send(msg.threadId, text, mode))
+    await this.inject(conn, msg.threadId, async () => {
+      const blocks = await this.promptBlocks(thread, text)
+      return this.backend.send(msg.threadId, text, mode, { blocks })
+    })
+  }
+
+  /**
+   * Liens de mention [@nom](file://…) → blocs ACP (D1), au départ. Backend
+   * clavier ou mock : pas de conversion (le texte part tel quel).
+   * @returns {Promise<Array|null>}
+   */
+  async promptBlocks(thread, text) {
+    if (this.backend.name !== 'acp' && this.backend.name !== 'auto') return null
+    return buildPromptBlocks(text, {
+      folderPaths: thread.folderPaths ?? [],
+      embeddedContext: Boolean(this.ops?.capsFor(thread)?.embedded),
+    })
+  }
+
+  /** Fichiers et dossiers du projet pour les mentions @ (D5). */
+  async files(conn, msg) {
+    const thread = this.threads.get(msg.threadId)
+    if (!thread) return this.error(conn, 'unknown_thread', tr`thread inconnu`, msg.threadId)
+    try {
+      const { entries, truncated } = await listFiles(thread.folderPaths ?? [])
+      conn.send({ type: 'files', threadId: msg.threadId, entries, truncated })
+    } catch (err) {
+      this.error(conn, 'files_failed', err.message, msg.threadId)
+    }
   }
 
   /** `queueId` inconnu => ignoré silencieusement (protocole §3). */
@@ -471,7 +503,10 @@ export class Hub {
   /** Dépilage automatique en fin de tour. */
   async deliverQueued(threadId, entry) {
     try {
-      await this.backend.send(threadId, entry.text, 'queue')
+      // File d'attente : même texte, parsé au départ (protocole §3).
+      const thread = this.threads.get(threadId)
+      const blocks = thread ? await this.promptBlocks(thread, entry.text) : null
+      await this.backend.send(threadId, entry.text, 'queue', { blocks })
     } catch (err) {
       log.warn(tr`file d'attente : envoi impossible sur ${threadId} :`, err.message)
       this.broadcastToSubs(threadId, {

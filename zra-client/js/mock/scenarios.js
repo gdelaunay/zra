@@ -438,6 +438,53 @@ export function unknownScenario() {
   ]
 }
 
+// ---- mentions @ (conception 0.5.2) ----
+
+const MOCK_TREE = [
+  'README.md', 'package.json', 'zra.config.example.json',
+  'docs/fr/acp.md', 'docs/fr/client.md', 'docs/fr/zed.md',
+  'zra-client/index.html', 'zra-client/css/app.css',
+  'zra-client/js/completion.js', 'zra-client/js/editor.js', 'zra-client/js/mentions.js',
+  'zra-client/js/store.js', 'zra-client/js/views/thread.js', 'zra-client/js/views/entry.js',
+  'zra-daemon/hub.js', 'zra-daemon/mentions.js', 'zra-shim/acp.js',
+]
+
+/** Listing simulé (D5) : fichiers + dossiers déduits, chemins absolus. */
+export function mockFiles(root) {
+  const dirs = new Set()
+  for (const rel of MOCK_TREE) {
+    for (let i = rel.indexOf('/'); i > 0; i = rel.indexOf('/', i + 1)) dirs.add(rel.slice(0, i))
+  }
+  const entries = MOCK_TREE.map((rel) => ({
+    path: `${root}/${rel}`, label: rel, name: rel.slice(rel.lastIndexOf('/') + 1), dir: false,
+  }))
+  for (const d of dirs) {
+    entries.push({ path: `${root}/${d}`, label: d, name: d.slice(d.lastIndexOf('/') + 1), dir: true })
+  }
+  return entries.sort((a, b) => a.label.localeCompare(b.label))
+}
+
+/** Message utilisateur avec mentions : blocs ACP (live) puis liens markdown
+ * dans le texte (rejeu claude-acp de session/load — D3), réponse de l'agent. */
+export function mentionScenario() {
+  const root = 'C:/Users/gd/Documents/Développement/zra'
+  const uri = (p) => 'file:///' + p.split('/').map(encodeURIComponent).join('/').replace(/%3A/gi, ':')
+  const linkBlock = (rel, dir = false) => ({
+    sessionUpdate: 'user_message_chunk',
+    content: { type: 'resource_link', uri: uri(`${root}/${rel}`) + (dir ? '/' : ''), name: rel.slice(rel.lastIndexOf('/') + 1) },
+  })
+  return [
+    { at: 150, update: userChunk('regarde ') },
+    { at: 250, update: linkBlock('zra-client/js/completion.js') },
+    { at: 350, update: userChunk(' et le dossier ') },
+    { at: 450, update: linkBlock('docs/fr', true) },
+    { at: 550, update: userChunk(`\nrejeu : [@README.md](${uri(`${root}/README.md`)})`) },
+    { at: 900, update: thought('Mentions reçues : un fichier, un dossier, un lien rejoué.') },
+    ...streamSteps('Bien reçu : je lis `completion.js` et je parcours `docs/fr`.\n', 1100),
+    { at: 2200, update: usage(18_240, 1_000_000, 0.031) },
+  ]
+}
+
 function streamSteps(str, start, step = 55) {
   return stream(str).map((frag, i) => ({ at: start + i * step, update: agentChunk(frag) }))
 }

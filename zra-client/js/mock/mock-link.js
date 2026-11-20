@@ -8,6 +8,7 @@ import { emitter } from '../dom.js'
 import {
   MACHINES, MODES, MODELS, OPTIONS, COMMANDS, historyFor,
   fullTurn, shortTurn, longTurn, permissionScenario, permissionFollowUp, questionScenario, questionFollowUp, linkScenario, unknownScenario,
+  mockFiles, mentionScenario,
   userChunk,
 } from './scenarios.js'
 import { tr } from '../i18n.js'
@@ -121,6 +122,12 @@ export class MockLink {
       case 'unsubscribe':
         this.subs.delete(msg.threadId)
         break
+      case 'files': {
+        if (!t) return
+        const root = t.folderPaths?.[0] ?? 'C:/Users/gd/Documents/Développement/zra'
+        this.later(150, () => this.push({ type: 'files', threadId: msg.threadId, entries: mockFiles(root), truncated: false }))
+        break
+      }
       case 'load_history': {
         if (!t || !t.sessionId) {
           this.push({ type: 'error', code: 'no_session', message: tr`thread sans session_id : historique indisponible`, threadId: msg.threadId })
@@ -279,8 +286,16 @@ export class MockLink {
     st.turn = 'busy'
     this.markLive(threadId)
     this.pushState(threadId)
+    // Comme le shim (publishUserMessage) : tous les blocs d'un même prompt
+    // partagent un `at` pour fusionner en une bulle. Une suite de
+    // `user_message_chunk` = un prompt ; le premier chunk non-user le clôt.
+    let userAt = null
     for (const step of steps) {
-      st.timers.push(this.later(step.at, () => this.pushEvent(threadId, step.update)))
+      const isUser = step.update?.sessionUpdate === 'user_message_chunk'
+      if (isUser) userAt = userAt || new Date().toISOString()
+      else userAt = null
+      const at = isUser ? userAt : undefined
+      st.timers.push(this.later(step.at, () => this.pushEvent(threadId, step.update, at)))
     }
     if (hold) return
     const end = (steps[steps.length - 1]?.at || 0) + 250
@@ -332,6 +347,7 @@ export class MockLink {
         break
       }
       case 'unknown': this.play(id, unknownScenario()); break
+      case 'mentions': this.play(id, mentionScenario()); break
       case 'error':
         this.push({ type: 'error', code: 'inject_failed', message: tr`injection refusée par l'agent (repli UIA disponible)`, threadId: id })
         break
@@ -424,8 +440,8 @@ export class MockLink {
     }
   }
 
-  pushEvent(threadId, update) {
-    this.push({ type: 'acp_event', threadId, update, at: new Date().toISOString() })
+  pushEvent(threadId, update, at) {
+    this.push({ type: 'acp_event', threadId, update, at: at ?? new Date().toISOString() })
   }
 
   push(msg) {

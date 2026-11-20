@@ -225,6 +225,14 @@ function handle(machine, msg) {
       break
     }
 
+    case 'files': {
+      const k = key(machine.id, msg.threadId)
+      filesPending.delete(k)
+      filesCache.set(k, { at: Date.now(), entries: msg.entries ?? [], truncated: Boolean(msg.truncated) })
+      emit(`files:${k}`, filesCache.get(k))
+      break
+    }
+
     case 'history': {
       const k = key(machine.id, msg.threadId)
       const st = ensureState(k)
@@ -411,6 +419,25 @@ export function ensureTimeline(k) {
 }
 
 export function machineOf(k) { return state.machines.get(splitKey(k).machineId) }
+
+// ---- Fichiers pour les mentions @ (D5) ----
+const filesCache = new Map() // key → { at, entries, truncated }
+const filesPending = new Set()
+
+/** Entrées du menu @ ; re-demande au daemon si périmé (30 s, comme son cache). */
+export function filesFor(k) {
+  const hit = filesCache.get(k)
+  if (!hit || Date.now() - hit.at > 30_000) requestFiles(k)
+  return hit?.entries ?? []
+}
+
+function requestFiles(k) {
+  if (filesPending.has(k)) return
+  const m = machineOf(k)
+  if (!m || m.status !== 'online') return
+  filesPending.add(k)
+  m.link.send({ type: 'files', threadId: splitKey(k).threadId })
+}
 
 // ---- brouillons du composer ----
 //

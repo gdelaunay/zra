@@ -1,14 +1,16 @@
-// Complétion des commandes slash du composer — portage de Zed 1.28.1 :
-// `completion_provider.rs` (SlashCommandCompletion::try_parse, filtre fuzzy),
-// `message_editor.rs` (validate_slash_commands, confirm_command → send).
-// Le filtre fuzzy est une approximation sous-séquence, pas l'algorithme de Zed
-// (`docs/fr/limitations.md`). Le menu suit `code_context_menus.rs` : items
-// inset, en-tête « Commands » masqué quand un argument est saisi, description
-// de l'item sélectionné dans un aparté (à droite si la place, sinon au-dessus).
+// Complétion du composer — portage de Zed 1.28.1 : `completion_provider.rs`
+// (SlashCommandCompletion::try_parse, MentionCompletion::try_parse, filtre
+// fuzzy), `message_editor.rs` (validate_slash_commands, confirm_command →
+// send, command_hint). Le filtre fuzzy est une approximation sous-séquence,
+// pas l'algorithme de Zed (`docs/fr/limitations.md`). Le menu suit
+// `code_context_menus.rs` : items inset, en-tête « Commands » masqué quand un
+// argument est saisi, description de commande dans un aparté (à droite si la
+// place, sinon au-dessus) ; les mentions n'ont pas d'aparté.
 
 import { h, clear } from './dom.js'
 import { icon } from './icons.js'
 import { tr } from './i18n.js'
+import { parseMention, mentionLink, fileUri } from './mentions.js'
 
 const WS = /\s/
 
@@ -100,6 +102,21 @@ export function slashCandidates(commands, query) {
 }
 
 /**
+ * Candidats mentions : fuzzy sur le label (chemin relatif), ordre de
+ * pertinence, **borne 100** comme Zed (match_path_sets, D5).
+ * @param {Array<{path:string, label:string, name:string, dir:boolean}>} entries
+ */
+export function mentionCandidates(entries, query) {
+  const out = []
+  for (const entry of entries) {
+    const match = fuzzy(query, entry.label)
+    if (match) out.push({ entry, match })
+  }
+  out.sort((a, b) => b.match.score - a.match.score)
+  return out.slice(0, 100)
+}
+
+/**
  * Port de `validate_slash_commands` : un message qui commence par `/` (position
  * 0) avec une commande inconnue est refusé — liste vide comprise (« none »).
  * Un espace devant le `/` échappe à la validation, comme Zed.
@@ -136,23 +153,27 @@ export function commandHint(text, commands) {
 }
 
 /**
- * Menu de complétion slash, ancré au caret (au-dessus, le composer est en
- * bas — `layout_context_menu_aside`). Reste ouvert pendant la frappe ;
- * Entrée/Tab confirment, ↑↓ déplacent la sélection, Échap ferme. Confirmer
- * **envoie** (confirm_command → send), sauf si la commande attend un argument
- * non saisi : insertion « /name » + espace, avec le hint en span fantôme.
+ * Menu de complétion du composer, ancré au caret (au-dessus, le composer est
+ * en bas — `layout_context_menu_aside`). Deux providers, comme Zed
+ * (PromptCompletion::try_parse) : mention @ d'abord si la ligne contient un
+ * @, sinon commande /. Entrée/Tab confirment, ↑↓ déplacent, Échap ferme.
+ * Confirmer une commande **envoie** (confirm_command → send), sauf argument
+ * attendu non saisi : insertion « /name » + espace, hint en span fantôme.
+ * Confirmer une mention insère la puce (sérialisation D3) + un espace.
  *
- * @param {{input:HTMLElement, getCommands:()=>Array<object>, onSend:()=>void}} opts
+ * @param {{input:HTMLElement, getCommands:()=>Array<object>,
+ *   getFiles:()=>Array<object>, onSend:()=>void}} opts
  */
-export function slashCompletion({ input, getCommands, onSend }) {
+export function composerCompletion({ input, getCommands, getFiles = () => [], onSend }) {
   let wrap = null
   let menu = null
   let aside = null
   let items = []
   let selected = 0
   let parsed = null
-  let lineStart = 0
+  let mode = null
   let lastQuery = null
+  let lastMode = null
 
   const isOpen = () => Boolean(wrap)
 
@@ -175,6 +196,15 @@ export function slashCompletion({ input, getCommands, onSend }) {
     return { line: input.value.slice(start, caret), start }
   }
 
+  /** La sélection ↑↓ survit aux updates (keyup/clic) tant que requête et
+   * provider ne changent pas ; nouvelle requête → meilleur item. */
+  function keepSelection(query) {
+    selected = isOpen() && mode === lastMode && query === lastQuery
+      ? Math.min(selected, items.length - 1) : 0
+    lastQuery = query
+    lastMode = mode
+  }
+
   function update() {
     const commands = getCommands()
     // Hint d'argument (command_hint) : indépendant du menu, mis à jour à
@@ -182,7 +212,23 @@ export function slashCompletion({ input, getCommands, onSend }) {
     const hint = commandHint(input.value, commands)
     input.setHint(hint?.label ?? null, hint?.pos ?? 0)
     const { line, start } = lineAtCaret()
-    lineStart = start
+
+    // Mention d'abord (Zed : try_parse tente @ avant / quand la ligne a un @).
+    const m = line.includes('@') ? parseMention(line) : null
+    if (m) {
+      const files = getFiles()
+      if (files.length) {
+        mode = 'mention'
+        parsed = m
+        items = mentionCandidates(files, m.query)
+        if (!items.length) { close(); return }
+        keepSelection(m.query)
+        render()
+        return
+      }
+    }
+
+    mode = 'slash'
     parsed = parseSlash(line)
     if (!parsed || !commands.length) { close(); return }
     // Le menu ferme dès qu'un blanc suit la commande (zone d'argument),
@@ -192,29 +238,26 @@ export function slashCompletion({ input, getCommands, onSend }) {
     const query = parsed.command ?? ''
     items = slashCandidates(commands, query)
     if (!items.length) { close(); return }
-    // La sélection ↑↓ survit aux updates (keyup/clic rappellent update) tant
-    // que la requête ne change pas ; nouvelle requête → meilleur item.
-    selected = isOpen() && query === lastQuery ? Math.min(selected, items.length - 1) : 0
-    lastQuery = query
+    keepSelection(query)
     render()
   }
 
-  function label(cmd, positions) {
+  function label(text, positions) {
     const span = h('span.truncate')
     let last = 0
     for (const at of positions) {
-      if (at > last) span.append(cmd.name.slice(last, at))
-      span.append(h('b.match', { text: cmd.name[at] }))
+      if (at > last) span.append(text.slice(last, at))
+      span.append(h('b.match', { text: text[at] }))
       last = at + 1
     }
-    if (last < cmd.name.length) span.append(cmd.name.slice(last))
+    if (last < text.length) span.append(text.slice(last))
     return span
   }
 
   function render() {
     if (!wrap) {
       wrap = h('div.completion-wrap')
-      menu = h('div.menu.completion', { role: 'listbox', 'aria-label': tr`commandes de l'agent` })
+      menu = h('div.menu.completion', { role: 'listbox' })
       aside = h('div.completion-aside')
       wrap.append(menu, aside)
       // Le clic sur un item ne doit pas voler le focus du champ.
@@ -223,26 +266,41 @@ export function slashCompletion({ input, getCommands, onSend }) {
       document.addEventListener('pointerdown', onDown, true)
     }
     clear(menu)
-    // En-tête de groupe : masqué dès qu'un argument est saisi (Zed).
-    if (parsed.argument === null) menu.append(h('div.menu__label', { text: tr`Commandes` }))
-    items.forEach(({ cmd, match }, i) => {
-      const item = h('button.menu__item', {
-        role: 'option',
-        'aria-selected': i === selected ? 'true' : 'false',
-        class: i === selected ? 'menu__item--on' : '',
-        onclick: () => confirm(i),
-      },
-        cmd.name === 'compact' ? icon('compact', 'icon--sm') : null,
-        label(cmd, match.positions),
-      )
-      menu.append(item)
-    })
+    if (mode === 'mention') {
+      menu.setAttribute('aria-label', tr`fichiers du projet`)
+      items.forEach(({ entry, match }, i) => {
+        menu.append(h('button.menu__item', {
+          role: 'option',
+          'aria-selected': i === selected ? 'true' : 'false',
+          class: i === selected ? 'menu__item--on' : '',
+          onclick: () => confirm(i),
+        },
+          icon(entry.dir ? 'folder' : 'file-text', 'icon--sm'),
+          label(entry.label, match.positions),
+        ))
+      })
+    } else {
+      menu.setAttribute('aria-label', tr`commandes de l'agent`)
+      // En-tête de groupe : masqué dès qu'un argument est saisi (Zed).
+      if (parsed.argument === null) menu.append(h('div.menu__label', { text: tr`Commandes` }))
+      items.forEach(({ cmd, match }, i) => {
+        menu.append(h('button.menu__item', {
+          role: 'option',
+          'aria-selected': i === selected ? 'true' : 'false',
+          class: i === selected ? 'menu__item--on' : '',
+          onclick: () => confirm(i),
+        },
+          cmd.name === 'compact' ? icon('compact', 'icon--sm') : null,
+          label(cmd.name, match.positions),
+        ))
+      })
+    }
     paintAside()
     place()
   }
 
   function paintAside() {
-    const desc = items[selected]?.cmd.description
+    const desc = mode === 'slash' ? items[selected]?.cmd.description : null
     clear(aside)
     aside.classList.toggle('hidden', !desc)
     if (desc) aside.append(h('div.completion-aside__body', { text: desc }))
@@ -283,8 +341,22 @@ export function slashCompletion({ input, getCommands, onSend }) {
   }
 
   function confirm(i) {
-    const { cmd } = items[i]
     const { line, start } = lineAtCaret()
+    if (mode === 'mention') {
+      const { entry } = items[i]
+      const p = parseMention(line)
+      if (!p) { close(); return }
+      const a = start + p.start
+      const b = start + p.end
+      // Puce (D3) + espace ; le value setter reconstruit le DOM avec la puce.
+      const insert = `${mentionLink(entry.name, fileUri(entry.path, entry.dir))} `
+      input.value = input.value.slice(0, a) + insert + input.value.slice(b)
+      input.selectionStart = input.selectionEnd = a + insert.length
+      input.dispatchEvent(new Event('input', { bubbles: true }))
+      close()
+      return
+    }
+    const { cmd } = items[i]
     const p = parseSlash(line)
     if (!p) { close(); return }
     const a = start + p.start

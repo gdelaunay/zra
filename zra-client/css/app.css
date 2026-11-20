@@ -755,6 +755,18 @@ button { cursor: pointer; }
 /* Hint d'argument — command_hint : inlay Parameter, couleur syntax.hint, sans
    fond (inlay_hints.show_background false) ; span fantôme hors du texte. */
 .composer__hint { color: var(--hint); user-select: none; }
+/* Puce de mention — ui/mention_crease.rs : ButtonLike Outlined Compact,
+   hauteur line-height - 1, police buffer 12, icône 12 muted, gap 4. Dans le
+   composer (contenteditable=false, atomique) et dans les bulles/fil. */
+.mention {
+  display: inline-flex; align-items: center; gap: var(--sp-2); vertical-align: middle;
+  height: calc(var(--fs-buffer) * var(--lh) - 1px); padding: 0 var(--sp-2) 1px;
+  border: 1px solid var(--border-variant); border-radius: var(--radius);
+  background: var(--element-background); font: var(--fs-buffer)/1 var(--font-mono); color: var(--text);
+  max-width: 100%; user-select: none;
+}
+.mention .icon { color: var(--text-muted); flex: none; width: 12px; height: 12px; }
+.mention__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .composer__bar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; min-width: 0; gap: var(--sp-2); }
 .composer__left { display: flex; flex-wrap: wrap; gap: var(--sp-1); min-width: 0; align-items: center; }
 .composer__right { display: flex; flex-wrap: wrap; gap: var(--sp-2); min-width: 0; align-items: center; }

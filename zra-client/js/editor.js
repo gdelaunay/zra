@@ -6,16 +6,21 @@
 // pre-wrap côté CSS). Un <br> final unique est un placeholder de rendu (la
 // ligne vide qu'il permet d'afficher), pas du contenu : la sérialisation
 // l'ignore. Le hint d'argument est un span fantôme `composer__hint`
-// (contenteditable=false), exclu du texte — les puces de mention (5b-2)
-// suivront la même règle, sérialisées [@nom](uri) (D3).
+// (contenteditable=false), exclu du texte. Les mentions sont des puces
+// `mention` (contenteditable=false, data-name/data-uri), atomiques, sérialisées
+// [@nom](uri) (D3) — le round-trip brouillon texte ↔ puces est gratuit.
 //
 // Les blocs que le navigateur peut créer (div/p selon l'IME) sont aplatis en
 // texte + <br> à la normalisation ; le collage est sanitise en texte brut.
+
+import { parseMentionLinks, mentionLink } from './mentions.js'
+import { icon } from './icons.js'
 
 const HINT = 'composer__hint'
 const BLOCKS = /^(DIV|P|LI|UL|OL|H[1-6]|BLOCKQUOTE|PRE|SECTION|ARTICLE|TABLE|TR)$/
 
 const isHint = (n) => n.nodeType === 1 && n.classList.contains(HINT)
+const isChip = (n) => n.nodeType === 1 && n.classList.contains('mention')
 const indexOf = (n) => Array.prototype.indexOf.call(n.parentNode.childNodes, n)
 
 /**
@@ -25,51 +30,61 @@ const indexOf = (n) => Array.prototype.indexOf.call(n.parentNode.childNodes, n)
  */
 function scan(el) {
   const units = []
+  let len = 0
   const nodeStart = new Map()  // nœud → offset texte à son entrée
   const childStart = new Map() // enfant direct de el → offset texte
   const hints = []             // spans fantômes, avec leur offset
-  const push = (ch, node, i, extra) => units.push({ ch, node, i, ...extra })
+  const push = (ch, node, i, extra) => { units.push({ ch, node, i, ...extra }); len += ch.length }
   const walk = (n) => {
     if (n.nodeType === 3) {
-      nodeStart.set(n, units.length)
+      nodeStart.set(n, len)
       for (let i = 0; i < n.data.length; i++) push(n.data[i], n, i)
       return
     }
     if (n.nodeType !== 1) return
-    if (isHint(n)) { hints.push({ node: n, offset: units.length }); return }
-    nodeStart.set(n, units.length)
+    if (isHint(n)) { hints.push({ node: n, offset: len }); return }
+    nodeStart.set(n, len)
+    if (isChip(n)) {
+      // Puce atomique : une unité de la longueur de sa sérialisation D3.
+      push(mentionLink(n.dataset.name ?? '', n.dataset.uri ?? ''), n, 0, { atomic: true })
+      return
+    }
     if (n.nodeName === 'BR') { push('\n', n, 0, { br: true }); return }
-    if (BLOCKS.test(n.nodeName) && units.length && units[units.length - 1].ch !== '\n') {
+    if (BLOCKS.test(n.nodeName) && len && units[units.length - 1].ch !== '\n') {
       push('\n', n, 0, { virtual: true })
     }
     for (const c of n.childNodes) walk(c)
   }
-  for (const c of el.childNodes) { childStart.set(c, units.length); walk(c) }
+  for (const c of el.childNodes) { childStart.set(c, len); walk(c) }
   // <br> final unique (sans hint derrière) = placeholder de rendu.
   let last = el.lastChild
   while (last && isHint(last)) last = last.previousSibling
   if (last?.nodeName === 'BR' && el.lastChild === last) {
-    if (units.length && units[units.length - 1].br) units.pop()
+    if (units.length && units[units.length - 1].br) len -= units.pop().ch.length
   } else if (last && last.nodeType === 1 && BLOCKS.test(last.nodeName) && last.textContent === '') {
     // <div><br></div> final : le div placeholder de Chrome.
-    if (units.length && units[units.length - 1].ch === '\n') units.pop()
+    if (units.length && units[units.length - 1].ch === '\n') len -= units.pop().ch.length
   }
   return { units, nodeStart, childStart, hints, text: units.map((u) => u.ch).join('') }
 }
 
-/** Position DOM pour un offset texte — devant le hint s'il est à cet offset. */
+/** Position DOM pour un offset texte — devant le hint s'il est à cet offset,
+ * devant la puce si l'offset tombe dedans (elle est atomique). */
 function locate(el, s, offset) {
   for (const hint of s.hints) {
     if (hint.offset === offset) return { node: el, offset: indexOf(hint.node) }
   }
-  const u = s.units[offset]
-  if (u) {
-    if (u.br || u.virtual) return { node: u.node.parentNode, offset: indexOf(u.node) }
-    return { node: u.node, offset: u.i }
+  let cum = 0
+  for (const u of s.units) {
+    if (offset < cum + u.ch.length) {
+      if (u.atomic || u.br || u.virtual) return { node: u.node.parentNode, offset: indexOf(u.node) }
+      return { node: u.node, offset: u.i + (offset - cum) }
+    }
+    cum += u.ch.length
   }
   const last = s.units[s.units.length - 1]
   if (!last) return { node: el, offset: 0 }
-  if (last.br || last.virtual) return { node: last.node.parentNode, offset: indexOf(last.node) + 1 }
+  if (last.atomic || last.br || last.virtual) return { node: last.node.parentNode, offset: indexOf(last.node) + 1 }
   return { node: last.node, offset: last.i + 1 }
 }
 
@@ -77,7 +92,7 @@ function locate(el, s, offset) {
 function offsetOf(el, s, node, off) {
   if (node === el) {
     const child = el.childNodes[off]
-    return child ? s.childStart.get(child) ?? s.units.length : s.units.length
+    return child ? s.childStart.get(child) ?? s.text.length : s.text.length
   }
   if (node.nodeType === 3) {
     const st = s.nodeStart.get(node)
@@ -86,12 +101,14 @@ function offsetOf(el, s, node, off) {
   if (node.nodeType !== 1) return null
   const hint = node.closest(`.${HINT}`)
   if (hint && el.contains(hint)) return s.childStart.get(hint) ?? null
+  const chip = node.closest('.mention')
+  if (chip && el.contains(chip)) return s.nodeStart.get(chip) ?? null
   const st = s.nodeStart.get(node)
   if (st == null) return null
   if (node.nodeName === 'BR' || off === 0) return st
-  // Élément (bloc transitoire) : offset à l'intérieur = unités descendantes.
+  // Élément (bloc transitoire) : offset à l'intérieur = caractères descendants.
   let n = 0
-  for (const u of s.units) if (node.contains(u.node)) n++
+  for (const u of s.units) if (node.contains(u.node)) n += u.ch.length
   return st + Math.min(off, n)
 }
 
@@ -113,13 +130,41 @@ export function editable(el) {
     return doc.activeElement === el || Boolean(sel?.rangeCount && el.contains(sel.anchorNode))
   }
 
+  /** Puce de mention (D3) : icône + nom, non éditable, data-name/data-uri. */
+  function chipEl(name, uri) {
+    const span = doc.createElement('span')
+    span.className = 'mention'
+    span.contentEditable = 'false'
+    span.dataset.name = name
+    span.dataset.uri = uri
+    const label = doc.createElement('span')
+    label.className = 'mention__name'
+    label.textContent = name
+    span.append(icon(/\/$/.test(uri) ? 'folder' : 'file-text', 'icon--sm'), label)
+    return span
+  }
+
+  /** Texte brut → nœuds texte + <br> ; liens de mention → puces (D3). */
+  function appendRich(parent, text) {
+    const links = parseMentionLinks(text)
+    const pushPlain = (t) => {
+      t.split('\n').forEach((p, i) => {
+        if (i) parent.append(doc.createElement('br'))
+        if (p) parent.append(doc.createTextNode(p))
+      })
+    }
+    let last = 0
+    for (const l of links) {
+      pushPlain(text.slice(last, l.start))
+      parent.append(chipEl(l.name, l.uri))
+      last = l.end
+    }
+    pushPlain(text.slice(last))
+  }
+
   function rebuild(text) {
     while (el.firstChild) el.firstChild.remove()
-    const parts = text.split('\n')
-    parts.forEach((p, i) => {
-      if (i) el.append(doc.createElement('br'))
-      if (p) el.append(doc.createTextNode(p))
-    })
+    appendRich(el, text)
     // La ligne vide finale a besoin d'un <br> de rendu (ignoré au scan).
     if (text.endsWith('\n')) el.append(doc.createElement('br'))
   }
@@ -127,7 +172,7 @@ export function editable(el) {
   function applySelection() {
     if (!isFocused()) return
     const s = scan(el)
-    const clamp = (v) => Math.max(0, Math.min(v, s.units.length))
+    const clamp = (v) => Math.max(0, Math.min(v, s.text.length))
     const a = locate(el, s, clamp(saved.a))
     const b = locate(el, s, clamp(saved.b))
     const r = doc.createRange()
@@ -143,7 +188,7 @@ export function editable(el) {
    * texte vides (restes de splitText / insertNode). */
   function normalize() {
     const s = scan(el)
-    const foreign = [...el.childNodes].some((n) => n.nodeType === 1 && n.nodeName !== 'BR' && !isHint(n))
+    const foreign = [...el.childNodes].some((n) => n.nodeType === 1 && n.nodeName !== 'BR' && !isHint(n) && !isChip(n))
     if (!foreign) {
       if (s.text === '' && el.childNodes.length) {
         while (el.firstChild) el.firstChild.remove()
@@ -184,10 +229,7 @@ export function editable(el) {
     r.setEnd(pb.node, pb.offset)
     r.deleteContents()
     const frag = doc.createDocumentFragment()
-    text.split('\n').forEach((p, i) => {
-      if (i) frag.append(doc.createElement('br'))
-      if (p) frag.append(doc.createTextNode(p))
-    })
+    appendRich(frag, text)
     r.insertNode(frag)
     if (b >= v.length && text.endsWith('\n') && !hadPlaceholder) el.append(doc.createElement('br'))
     saved = { a: a + text.length, b: a + text.length }
@@ -234,7 +276,7 @@ export function editable(el) {
     }
     if (label != null) {
       const s = scan(el)
-      const pos = locate(el, s, Math.min(offset, s.units.length))
+      const pos = locate(el, s, Math.min(offset, s.text.length))
       const span = doc.createElement('span')
       span.className = HINT
       span.contentEditable = 'false'

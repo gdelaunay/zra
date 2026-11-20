@@ -324,6 +324,33 @@ test('menu slash : ↑↓ déplace la sélection sans la remettre à zéro, l’
   type(input, '')
 })
 
+test('mentions @ : menu fichiers, puce insérée, sérialisation D3, rendu en bulle', async () => {
+  const input = $('.composer__input')
+  const key = 'mock-desk/a1f39c0b'
+  type(input, '@')
+  await until(() => $('.menu.completion'), 2000, 'menu @ ouvert (listing arrivé)')
+  assert.ok($('.menu.completion .menu__item svg'), 'icônes fichier/dossier')
+  type(input, '@completion')
+  await until(() => $$('.menu.completion .menu__item').some((n) => /completion\.js/.test(n.textContent)), 1000, 'filtre fuzzy')
+  input.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+  assert.ok(input.querySelector('.mention'), 'puce dans le composer')
+  assert.match(input.value, /^\[@completion\.js\]\(file:\/\/\/.*completion\.js\) $/, 'sérialisation D3 + espace')
+  assert.equal($('.menu.completion'), null, 'menu fermé après confirmation')
+  input.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+  await until(() => $('.user-msg .mention'), 2000, 'puce dans la bulle utilisateur')
+  assert.equal(input.value, '', 'champ vidé')
+  await until(() => { const st = ZRA.store.ensureState(key); return st.turn === 'idle' && !st.queue.length }, 6000, 'tour fini')
+})
+
+test('mentions : rejeu claude — blocs resource_link et liens markdown du texte en puces', async () => {
+  const key = 'mock-desk/a1f39c0b'
+  ZRA.store.state.machines.get('mock-desk').link.send({
+    type: 'zra/trigger', name: 'mentions', threadId: 'a1f39c0b',
+  })
+  await until(() => $$('.user-msg .mention').length >= 3, 4000, 'puces du rejeu (2 blocs + 1 lien texte)')
+  await until(() => { const st = ZRA.store.ensureState(key); return st.turn === 'idle' && !st.queue.length }, 6000, 'tour fini')
+})
+
 test('Stop seul interrompt sans rien envoyer', async () => {
   const key = 'mock-desk/a1f39c0b'
   const tl = ZRA.store.ensureTimeline(key)

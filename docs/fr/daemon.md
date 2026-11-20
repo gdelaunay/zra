@@ -110,6 +110,7 @@ mobile en est averti par un `zra/notice` explicite.
 | `ws.js` | WebSocket RFC 6455 (fragmentation, ping/pong, fermeture) |
 | `static.js` | statiques du client web |
 | `hub.js` | routage du protocole, diffusion, invariants |
+| `mentions.js` | mentions @ : parsing des liens [@nom](file:///…), blocs ACP (D1), garde realpath dans `folderPaths`, listing fichiers (D5 : git ls-files, repli walk, borne 20 000, cache 30 s) |
 | `threads-index.js` | lecture `sidebar_threads`, poll, projection |
 | `thread-state.js` | tour, file d'attente, options |
 | `ring-buffer.js` | 2000 événements par thread |

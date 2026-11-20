@@ -81,6 +81,14 @@ le hint d'argument s'affiche en span fantôme après `/name ` ; confirmer envoie
 sauf si la commande attend un argument non saisi. Une commande inconnue en
 début de message est refusée avec un callout, comme Zed (`docs/fr/acp.md`).
 
+Taper `@` ouvre le menu des mentions : fichiers et dossiers du projet, listés
+par le daemon (requête `files`, cache 30 s), filtre fuzzy borné à 100.
+Confirmer insère une **puce** atomique (backspace = la puce entière) ; le
+brouillon reste du texte, sérialisé `[@nom](file:///…)` — le daemon convertit
+les liens en blocs ACP à l'envoi (`docs/fr/acp.md`, garde de chemin §9).
+Les messages utilisateur affichent les mentions en puces, blocs ACP comme
+liens markdown du rejeu claude-acp.
+
 ## Contrat avec le daemon
 
 → **`docs/fr/protocol.md`** à la racine : contrat complet, message par message, avec les

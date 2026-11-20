@@ -110,6 +110,7 @@ phone is warned by an explicit `zra/notice`.
 | `ws.js` | WebSocket RFC 6455 (fragmentation, ping/pong, close) |
 | `static.js` | web client static files |
 | `hub.js` | protocol routing, broadcasting, invariants |
+| `mentions.js` | @ mentions: parsing [@name](file://…) links, ACP blocks (D1), realpath guard within `folderPaths`, file listing (D5: git ls-files, walk fallback, cap 20,000, 30 s cache) |
 | `threads-index.js` | reading `sidebar_threads`, poll, projection |
 | `thread-state.js` | turn, queue, options |
 | `ring-buffer.js` | 2000 events per thread |

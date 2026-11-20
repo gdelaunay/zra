@@ -81,6 +81,14 @@ unless the command expects an argument that has not been typed. An unknown
 command at the start of the message is refused with a callout, like Zed
 (`docs/en/acp.md`).
 
+Typing `@` opens the mention menu: project files and folders, listed by the
+daemon (`files` request, 30 s cache), fuzzy filter capped at 100. Confirming
+inserts an atomic **chip** (backspace = the whole chip); the draft stays plain
+text, serialized `[@name](file:///…)` — the daemon converts the links to ACP
+blocks on send (`docs/en/acp.md`, path guard §9). User messages display
+mentions as chips, both ACP blocks and markdown links from the claude-acp
+replay.
+
 ## Contract with the daemon
 
 → **`docs/en/protocol.md`** at the root: full contract, message by message, with the

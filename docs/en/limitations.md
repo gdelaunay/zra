@@ -129,3 +129,25 @@ says what is blocking.
 → Nothing to fix on the ZRA side: the behavior comes from the OS and the
 network. If the discomfort persists: measure on a real device with the `[link]`
 logs (browser console, debug level).
+
+## @ mentions: files and folders only
+
+**Decision: accepted, 0.5.2 scope.** Mentions only cover project files and
+folders — not Zed's symbols, threads, fetch, skills, diagnostics. Assumed
+consequences (design D1, agent matrix in `docs/en/acp.md`):
+
+- **Folders: best effort** depending on the agent — claude/pi list via their
+  tools, qwen/gemini read recursively, goose keeps metadata (recent) or
+  dropped it (before 09/2026).
+- **Binary / non-UTF-8 / > 1 MB**: `resource_link` only, no image sending;
+  the agent reads it itself if it can.
+- **Fuzzy**: subsequence approximation on the PWA side (cap 100), not Zed's
+  algorithm (`match_path_sets`); no "recently opened first".
+- **Listing outside git**: `node_modules` excluded (Zed would scan it, it is
+  usually gitignored); empty folders absent (git lists files only, folders
+  deduced from paths).
+- **Icons**: generic file/folder on the PWA side, not per extension like Zed
+  (`file_icons`).
+- **Keyboard fallback** (`uia` backend, agent having refused ACP injection):
+  the text goes as-is into Zed's composer — mention links stay literal there,
+  not converted to chips.

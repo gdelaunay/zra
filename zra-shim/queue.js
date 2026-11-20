@@ -19,7 +19,7 @@
 import { EventEmitter } from 'node:events'
 import { randomUUID } from 'node:crypto'
 
-/** @typedef {{ queueId:string, text:string, at:string }} QueueEntry */
+/** @typedef {{ queueId:string, text:string, at:string, blocks?:Array }} QueueEntry */
 
 export class SessionState {
   constructor(sessionId) {
@@ -179,8 +179,10 @@ export class Sessions extends EventEmitter {
   // ---- file d'attente ------------------------------------------------------
 
   /** @returns {QueueEntry} */
-  enqueue(sessionId, text) {
+  enqueue(sessionId, text, blocks = null) {
     const entry = { queueId: `q${randomUUID().slice(0, 8)}`, text, at: new Date().toISOString() }
+    // Blocs ACP parsés au départ (mentions) : le texte reste pour l'affichage.
+    if (blocks) entry.blocks = blocks
     this.get(sessionId).queue.push(entry)
     this.changed(sessionId)
     return entry

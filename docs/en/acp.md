@@ -74,8 +74,8 @@ What ZRA does with it (0.5.2, 5a):
   (`docs/en/protocol.md` §4) → the composer's `/` menu
   (`zra-client/js/completion.js`): parsing and validation ported from Zed,
   approximated fuzzy (`docs/en/limitations.md`), selected item's description
-  in an aside, identical error callout. The argument hint will show with the
-  contenteditable composer (5b-1) — impossible in a textarea.
+  in an aside, identical error callout. The argument hint shows as a ghost
+  span after `/name ` (contenteditable composer, 5b-1).
 - Closed thread: no shim, but claude-acp replays
   `available_commands_update` on `session/load` → the PWA stores it via
   `history` (`zra-client/js/acp.js`), the menu is available.
@@ -84,3 +84,62 @@ What ZRA does with it (0.5.2, 5a):
   `skill:name` commands; gemini-cli only advertises `name`/`description` (no
   `input`). Other agents: the list comes from their
   `available_commands_update`, ZRA assumes nothing.
+
+## Mentions: `resource_link` / `resource`
+
+Spec: `_upstream/acp/docs/protocol/v1/content.mdx` (v1.15.1).
+
+- **`resource_link`** `{uri, name, …}`: link to a resource the agent reads
+  itself; every agent **MUST** support it in a prompt.
+- **`resource`** (embedded) `{resource: {uri, text, mimeType?}}`: the text
+  content is in the message; the **recommended** path for `@` mentions, gated
+  by the `promptCapabilities.embeddedContext` capability of `initialize`.
+- The `[@name](file:///…)` format is **not** the wire format: it is Zed's
+  serialization convention (`MentionUri::as_link`) and claude-acp's internal
+  conversion. On the wire, these are JSON blocks.
+
+On the Zed side (1.28.1, sources read): `mention_to_content_block`
+(`message_editor.rs`) — text file → `resource` if the agent advertises
+`embeddedContext`, else `resource_link`; folder → always `resource_link`
+(`file:///` URI with trailing `/`, `MentionUri::to_uri`,
+`acp_thread/src/mention.rs`). Links in text are reparsed by
+`parse_mention_links`; claude-acp's `session/load` replay renders user
+messages as **text** containing these markdown links, not blocks.
+
+What ZRA does with it (0.5.2, 5b-2, design D1/D3/D5):
+
+- The PWA enters mentions as chips, serialized `[@name](file:///…)` in the
+  sent text (`zra-client/js/mentions.js`, `editor.js`). The **daemon** parses
+  the links at departure toward the ACP shim and builds the blocks (D1,
+  `zra-daemon/mentions.js`): text file ≤ 1 MB and agent `embeddedContext` →
+  embedded `resource` (content read by the daemon); else `resource_link`;
+  folder, binary, non-UTF-8, > 1 MB → `resource_link`. **Guard**: the
+  `realpath` must be contained in the thread's real `folderPaths`; out of
+  scope → literal text (§9).
+- File listing by the daemon (`files` request, `docs/en/protocol.md` §3):
+  `git ls-files --cached --others --exclude-standard`, walk fallback outside
+  git (+ `node_modules` excluded), cap 20,000, 30 s cache; fuzzy on the PWA
+  side, cap 100.
+- The shim sends the blocks as-is (`sendPrompt`, `zra-shim/acp.js`); the queue
+  keeps the text for display and the blocks for sending.
+- PWA rendering: `.mention` chips in user bubbles — `resource_link`/`resource`
+  blocks **and** markdown links from the replayed text.
+
+Agent matrix (installed sources read: `registry/npx/…`, verified; web sources
+partially re-read: noted):
+
+| Agent | `embeddedContext` | `resource_link` file:// | `resource` embedded |
+|---|---|---|---|
+| claude-acp | yes | text `[@name](file:///…)` → Claude reads itself (Read) | content injected in `<context ref="…">` |
+| pi-acp | **not by default** (env `PI_ACP_ENABLE_EMBEDDED_CONTEXT=true`) | text `\n[Context] uri` → pi reads itself | `[Embedded Context] uri (mime)` + content |
+| qwen-code | yes | `fileData` → reads itself (`readManyFiles`); **filters workspace + ignored files**; folders handled | text context |
+| gemini-cli | yes (PR #6756) | same code as qwen (fork); folder handled; outside workspace → ACP permission request | text context |
+| opencode | yes | `file` part → reads itself; `zed://` also handled | text `[path:line]` + content |
+| codex-acp | yes (advertised since 05/2026, commit #160) | supported (README: "resource links") — handling not re-read line by line | supported (README) |
+| goose | to verify | **reads the UTF-8 file and inlines the content**; non-UTF-8/folder/missing: metadata preserved since PR #11941 (09/2026) — before: silently dropped (issue #11810) | header `--- Resource: …` + content |
+| kimi | yes (kimi-cli PR #1264; kimi-code 06/2026) | decoded path (+ optional line); non-file → XML wrapper | handled |
+
+Consequences: `resource_link` is the common denominator (MUST spec);
+embedding guarantees content arrival (qwen/gemini drop ignored/out-of-workspace
+files as links; goose drops non-UTF-8). Folders: best effort depending on the
+agent (`docs/en/limitations.md`).

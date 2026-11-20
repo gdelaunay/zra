@@ -138,17 +138,21 @@ test('capacités : apprises à l’initialize, le shim vivant fait foi', async (
   assert.equal(ops.capsFor(index.get(A)), null)
 
   ops.noteCaps('claude-acp', { loadSession: true, sessionCapabilities: { title: {}, delete: {} } })
-  assert.deepEqual(ops.capsFor(index.get(A)), { title: true, delete: true })
-  assert.deepEqual(ops.capsFor(index.get(B)), { title: true, delete: true }, 'cache par agent pour les threads fermés')
+  assert.deepEqual(ops.capsFor(index.get(A)), { title: true, delete: true, embedded: false })
+  assert.deepEqual(ops.capsFor(index.get(B)), { title: true, delete: true, embedded: false }, 'cache par agent pour les threads fermés')
 
   // Agent sans capacités de session : connu, donc masqué.
   ops.noteCaps('gemini-acp', { loadSession: true })
   const gemini = { agentId: 'gemini-acp', sessionId: 'x' }
-  assert.deepEqual(ops.capsFor(gemini), { title: false, delete: false })
+  assert.deepEqual(ops.capsFor(gemini), { title: false, delete: false, embedded: false })
+
+  // embeddedContext (mentions D1) est appris aussi.
+  ops.noteCaps('qwen-acp', { promptCapabilities: { embeddedContext: true } })
+  assert.deepEqual(ops.capsFor({ agentId: 'qwen-acp', sessionId: 'x' }), { title: false, delete: false, embedded: true })
 
   // Le shim vivant prime sur le cache.
   shims.register({ shimId: 's1', agentId: 'claude-acp', capabilities: { sessionCapabilities: { title: {} } }, sessions: [SESS_A] })
-  assert.deepEqual(ops.capsFor(index.get(A)), { title: true, delete: false })
+  assert.deepEqual(ops.capsFor(index.get(A)), { title: true, delete: false, embedded: false })
 })
 
 test('rename : erreurs du protocole (thread inconnu, sans session, titre vide)', async (t) => {

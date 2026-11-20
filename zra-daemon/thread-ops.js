@@ -86,9 +86,13 @@ export class ThreadOps extends EventEmitter {
   noteCaps(agentId, agentCapabilities) {
     if (!agentId || !agentCapabilities || !Object.keys(agentCapabilities).length) return
     const sc = agentCapabilities.sessionCapabilities
-    const next = { title: Boolean(sc?.title), delete: Boolean(sc?.delete) }
+    const next = {
+      title: Boolean(sc?.title),
+      delete: Boolean(sc?.delete),
+      embedded: Boolean(agentCapabilities.promptCapabilities?.embeddedContext),
+    }
     const known = this.caps.get(agentId)
-    if (known && known.title === next.title && known.delete === next.delete) return
+    if (known && known.title === next.title && known.delete === next.delete && known.embedded === next.embedded) return
     this.caps.set(agentId, next)
     this.save()
     this.emit('change')
@@ -98,14 +102,18 @@ export class ThreadOps extends EventEmitter {
    * Capacités d'un thread : le shim vivant d'abord (sa réponse `initialize`
    * fait foi), sinon le cache par agent. `null` = inconnu — la PWA tente,
    * l'opération discovere et le cache se remplit.
-   * @returns {{ title:boolean, delete:boolean }|null}
+   * @returns {{ title:boolean, delete:boolean, embedded:boolean }|null}
    */
   capsFor(thread) {
     if (!thread) return null
     if (thread.sessionId && this.shims?.hasSession(thread.sessionId)) {
       const caps = this.shims.forSession(thread.sessionId)?.capabilities
       if (caps && Object.keys(caps).length) {
-        return { title: Boolean(caps.sessionCapabilities?.title), delete: Boolean(caps.sessionCapabilities?.delete) }
+        return {
+          title: Boolean(caps.sessionCapabilities?.title),
+          delete: Boolean(caps.sessionCapabilities?.delete),
+          embedded: Boolean(caps.promptCapabilities?.embeddedContext),
+        }
       }
     }
     return this.caps.get(thread.agentId) ?? null

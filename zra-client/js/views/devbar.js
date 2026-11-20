@@ -15,6 +15,7 @@ const TRIGGERS = [
   ['question', tr`Question de l’agent`, 'message'],
   ['link', tr`Lien à ouvrir (connexion)`, 'link'],
   ['unknown', tr`Événement ACP inconnu`, 'hash'],
+  ['mentions', tr`Mentions @`, 'file-text'],
   ['error', tr`Erreur daemon`, 'alert-triangle'],
   ['offline', tr`Poste hors ligne 4 s`, 'plug'],
   ['shim-lost', tr`Zed ferme l’agent`, 'x'],

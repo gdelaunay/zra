@@ -1123,7 +1123,7 @@ npm ERR! could not determine executable to run</div></div></div>
 <!-- ============================================================ -->
 <section class="ref-section" id="completion">
   <h2>14. Complétion</h2>
-  <p>Menu de complétion des commandes <code>/</code> (<code>crates/editor/src/code_context_menus.rs</code>, déclencheur et filtre <code>completion_provider.rs</code>). Au-dessus du caret ; premier item sélectionné ; frappe = filtre fuzzy, caractères matchés en gras ; en-tête « Commands » masqué dès qu'un argument est saisi. Description de l'item sélectionné dans l'aparté : à droite si ≥ 260 px, sinon au-dessus/en dessous (<code>element.rs layout_context_menu_aside</code>). Confirmer un item <b>envoie le message</b> (<code>message_editor.rs confirm_command → send</code>), sauf si la commande attend un argument (<code>input.hint</code>) non saisi : elle est alors insérée « /name » + espace, avec le hint en inlay. Le menu de mentions <code>@</code> n'est pas encore dessiné.</p>
+  <p>Menu de complétion des commandes <code>/</code> (<code>crates/editor/src/code_context_menus.rs</code>, déclencheur et filtre <code>completion_provider.rs</code>). Au-dessus du caret ; premier item sélectionné ; frappe = filtre fuzzy, caractères matchés en gras ; en-tête « Commands » masqué dès qu'un argument est saisi. Description de l'item sélectionné dans l'aparté : à droite si ≥ 260 px, sinon au-dessus/en dessous (<code>element.rs layout_context_menu_aside</code>). Confirmer un item <b>envoie le message</b> (<code>message_editor.rs confirm_command → send</code>), sauf si la commande attend un argument (<code>input.hint</code>) non saisi : elle est alors insérée « /name » + espace, avec le hint en inlay. Menu de mentions <code>@</code> : fichiers et dossiers du worktree (<code>Candidates::Entries</code>), filtre fuzzy <code>match_path_sets</code> <b>borné à 100</b>, icône de fichier par extension, pas d'aparté ; confirmer insère une <b>puce</b> (crease, <code>ui/mention_crease.rs</code>) + un espace, sérialisée <code>[@nom](uri)</code> (<code>MentionUri::as_link</code>).</p>
   <div class="ref-grid">
     <div class="ref-specimen">
       <div class="ref-label"><b>Commandes</b> — « / » : liste complète, premier item sélectionné · « /comp » : filtre fuzzy (gras), aside à droite</div>
@@ -1191,6 +1191,31 @@ npm ERR! could not determine executable to run</div></div></div>
             <div class="completion-aside elevated" style="width:280px"><div class="body">Review a pull request</div></div>
           </div>
           <div class="composer with-messages"><div class="inner"><div class="editor-box"><div class="editor">/review 123<span class="caret"></span></div><button class="btn ibtn sm expand"><i class="icon sm muted" data-i="maximize"></i></button></div>
+            <div class="bar"><div class="left"><button class="btn ibtn sm"><i class="icon sm muted" data-i="plus"></i></button><button class="btn ibtn sm"><i class="icon sm muted" data-i="crosshair"></i></button></div><div class="right"><button class="btn selector"><span class="lbl sm">Default</span><i class="icon xs muted" data-i="chevron_down"></i></button><button class="btn selector"><span class="lbl sm">Opus</span><i class="icon xs muted" data-i="chevron_down"></i></button><button class="btn filled ibtn send"><i class="icon accent" data-i="send"></i></button></div></div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Mentions @</b> — « @main » : fichiers et dossiers du worktree, fuzzy borné 100 (<code>match_path_sets</code>), icônes de fichier, pas d'aparté · confirmer : puce + espace</div>
+      <div class="ref-frame" style="--frame-h:250px">
+        <div class="completion-stage">
+          <div class="completion-row" data-src="completion_provider.rs Candidates::Entries, match_path_sets">
+            <div class="menu elevated completion" style="width:300px" data-src="crates/editor/src/code_context_menus.rs CompletionsMenu::render">
+              <div class="items">
+                <div class="menu-item"><i class="icon xs muted" data-i="folder"></i><span>src</span></div>
+                <div class="menu-item selected"><i class="icon xs muted" data-i="file_icons/rust"></i><span>src/<span class="match">main</span>.rs</span></div>
+                <div class="menu-item"><i class="icon xs muted" data-i="file_icons/toml"></i><span>Cargo.toml</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="composer with-messages"><div class="inner"><div class="editor-box"><div class="editor">Ajoute un test pour @main<span class="caret"></span></div><button class="btn ibtn sm expand"><i class="icon sm muted" data-i="maximize"></i></button></div>
+            <div class="bar"><div class="left"><button class="btn ibtn sm"><i class="icon sm muted" data-i="plus"></i></button><button class="btn ibtn sm"><i class="icon sm muted" data-i="crosshair"></i></button></div><div class="right"><button class="btn selector"><span class="lbl sm">Default</span><i class="icon xs muted" data-i="chevron_down"></i></button><button class="btn selector"><span class="lbl sm">Opus</span><i class="icon xs muted" data-i="chevron_down"></i></button><button class="btn filled ibtn send"><i class="icon accent" data-i="send"></i></button></div></div></div></div>
+        </div>
+      </div>
+      <div class="ref-frame" style="--frame-h:150px">
+        <div class="completion-stage">
+          <div class="composer with-messages"><div class="inner"><div class="editor-box"><div class="editor" data-src="ui/mention_crease.rs, MentionUri::as_link">Ajoute un test pour <span class="mention"><i class="icon xs muted" data-i="file_icons/rust"></i>main.rs</span> <span class="caret"></span></div><button class="btn ibtn sm expand"><i class="icon sm muted" data-i="maximize"></i></button></div>
             <div class="bar"><div class="left"><button class="btn ibtn sm"><i class="icon sm muted" data-i="plus"></i></button><button class="btn ibtn sm"><i class="icon sm muted" data-i="crosshair"></i></button></div><div class="right"><button class="btn selector"><span class="lbl sm">Default</span><i class="icon xs muted" data-i="chevron_down"></i></button><button class="btn selector"><span class="lbl sm">Opus</span><i class="icon xs muted" data-i="chevron_down"></i></button><button class="btn filled ibtn send"><i class="icon accent" data-i="send"></i></button></div></div></div></div>
         </div>
       </div>

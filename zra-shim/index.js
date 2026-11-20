@@ -168,7 +168,7 @@ export function createShim({
 export async function runCommand(bridge, msg) {
   switch (msg.cmd) {
     case 'prompt':
-      return bridge.prompt(msg.sessionId, msg.text, msg.mode, { confirmMs: Number(msg.confirmMs) || 0 })
+      return bridge.prompt(msg.sessionId, msg.text, msg.mode, { confirmMs: Number(msg.confirmMs) || 0, blocks: msg.blocks })
     case 'cancel':
       return bridge.cancel(msg.sessionId)
     case 'set_option':

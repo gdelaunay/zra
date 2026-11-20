@@ -11,7 +11,7 @@ import { newSessionButton } from './new-session.js'
 import { BottomBar } from './bottombar.js'
 import { settings, update as updateSettings } from '../settings.js'
 import { tr, locale } from '../i18n.js'
-import { slashCompletion, validateSlash } from '../completion.js'
+import { composerCompletion, validateSlash } from '../completion.js'
 import { editable } from '../editor.js'
 
 /**
@@ -819,7 +819,9 @@ function Composer({ key, agentName, selectors, onSend, onStop, getCommands = () 
 
   const editorBox = h('div.composer__editor', {}, input)
   input.placeholder = tr`Message ${agentName()}…`
-  const completion = slashCompletion({ input, getCommands, onSend: () => send('queue') })
+  const completion = composerCompletion({ input, getCommands, getFiles: () => store.filesFor(key), onSend: () => send('queue') })
+  // Listing des fichiers arrivé (ou rafraîchi) : le menu @ suit.
+  const offFiles = store.on(`files:${key}`, () => completion.update())
   let lastCmds = null
 
   // Callout d'erreur de validation des commandes — render_any_thread_error :
@@ -912,12 +914,13 @@ function Composer({ key, agentName, selectors, onSend, onStop, getCommands = () 
     input.disabled = Boolean(foreign)
     syncSend()
     // Le bandeau et le cadenas disent déjà pourquoi : champ grisé, sans texte.
-    // Placeholder de Zed (placeholder_text) : « / for commands » seulement si
-    // l'agent publie des commandes ; la partie « @ » arrive avec les mentions.
+    // Placeholder de Zed (placeholder_text) : « @ to include context » toujours
+    // (les mentions sont là), « / for commands » seulement si l'agent publie
+    // des commandes.
     const cmds = getCommands()
     input.placeholder = foreign ? ''
-      : cmds.length ? tr`Message ${agentName()} — / pour les commandes`
-        : tr`Message ${agentName()}…`
+      : cmds.length ? tr`Message ${agentName()} — @ pour inclure du contexte, / pour les commandes`
+        : tr`Message ${agentName()} — @ pour inclure du contexte`
     if (cmds !== lastCmds) { lastCmds = cmds; completion.update() }
   }
 
@@ -947,7 +950,7 @@ function Composer({ key, agentName, selectors, onSend, onStop, getCommands = () 
     }
   }
 
-  return { el: h('div.composer-block', {}, errCallout, el), sync, setUsage, focus: () => input.focus(), destroy: () => { completion.close(); input.destroy() }, refreshDraft() {
+  return { el: h('div.composer-block', {}, errCallout, el), sync, setUsage, focus: () => input.focus(), destroy: () => { completion.close(); input.destroy(); offFiles() }, refreshDraft() {
     const d = store.getDraft(key)
     if (input.value !== d) { input.value = d; syncSend(); completion.update() }
   } }

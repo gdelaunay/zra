@@ -187,9 +187,30 @@ et sur action explicite « recharger l'historique ».
 `text` est **toujours** traité comme un prompt d'agent. Jamais d'interpolation
 shell, jamais d'`eval` (§9).
 
+`text` peut contenir des liens de mention `[@nom](file:///…)` (sérialisation
+des puces du composer, conception 0.5.2 D3). Le daemon les parse **au départ**
+vers le shim ACP et construit les blocs (D1, `zra-daemon/mentions.js`) :
+fichier texte ≤ 1 Mo et agent `embeddedContext` → `resource` embarqué (contenu
+lu par le daemon) ; sinon `resource_link` ; dossier, binaire, non-UTF-8,
+> 1 Mo → `resource_link`. **Garde de sécurité (§9)** : seuls les chemins dont
+le `realpath` est contenu dans les `folderPaths` réels du thread sont
+lus/embarqués ; hors périmètre → le lien reste en texte littéral. File
+d'attente : même texte, parsé au départ. Repli clavier (backend `uia`) : le
+texte part tel quel, liens littéraux dans le composer de Zed.
+
 La PWA affiche le message immédiatement (écho local optimiste). Si l'agent le
 rejoue en `user_message_chunk`, l'écho est retiré pour éviter le doublon : le
 daemon n'a rien à faire pour ça, mais **ne doit pas réécrire le texte**.
+
+### `files`
+```ts
+{ type: 'files', threadId: string }
+```
+Listing des fichiers et dossiers du projet pour les mentions `@` (conception
+D5) → réponse `files` (§4). Depôt git : `git ls-files --cached --others
+--exclude-standard` (trackés + non trackés non ignorés) ; hors git : parcours
+récursive, exclusions Zed + `node_modules`. Borne 20 000 entrées, cache 30 s
+côté daemon ; la PWA re-demande à l'ouverture du menu si périmé.
 
 ### `interrupt`
 ```ts
@@ -395,6 +416,19 @@ dans cet ordre, même sans thread, et range les autres sous « Projets récents 
 `projectOpen` : les dossiers du thread sont chargés dans une fenêtre Zed (mêmes
 sources ; Zed fermé : `false`). Un projet fermé reste utilisable, le daemon
 l'ouvre dans Zed à la demande, dans une nouvelle fenêtre.
+
+### `files`
+```ts
+{
+  type: 'files', threadId: string,
+  entries: Array<{ path: string, label: string, name: string, dir: boolean }>,
+  truncated: boolean,   // borne 20 000 atteinte
+}
+```
+Réponse à `files` (§3) : fichiers **et dossiers** des `folderPaths` du thread.
+`path` absolu (la PWA en fait l'URI `file://` de la mention), `label` relatif
+pour l'affichage et le fuzzy — préfixé du nom de la racine si multi-projets.
+Dossiers déduits des chemins (git ne liste pas les dossiers vides).
 
 ### `thread_state`
 ```ts

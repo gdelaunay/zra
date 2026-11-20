@@ -131,3 +131,26 @@ absorbe et le diagnostic HTTP (protocole §1) dit ce qui coince.
 → Rien à corriger côté ZRA : le comportement vient de l'OS et du réseau. Si la
 gêne persiste : mesurer sur appareil réel avec les logs `[link]` (console du
 navigateur, niveau debug).
+
+## Mentions @ : fichiers et dossiers seulement
+
+**Décision : accepté, périmètre 0.5.2.** Les mentions ne couvrent que les
+fichiers et dossiers du projet — pas les symboles, fils, fetch, skills,
+diagnostics de Zed. Conséquences assumées (conception D1, matrice agents dans
+`docs/fr/acp.md`) :
+
+- **Dossiers : best effort** selon l'agent — claude/pi listent via leurs
+  outils, qwen/gemini lisent récursivement, goose garde les métadonnées
+  (récent) ou jetait (avant 09/2026).
+- **Binaire / non-UTF-8 / > 1 Mo** : `resource_link` seul, pas d'envoi
+  d'image ; l'agent lit lui-même s'il le peut.
+- **Fuzzy** : approximation sous-séquence côté PWA (borne 100), pas
+  l'algorithme de Zed (`match_path_sets`) ; pas de « récemment ouverts d'abord ».
+- **Listing hors git** : `node_modules` exclu (Zed le scannerait, il est
+  généralement gitignore) ; dossiers vides absents (git ne liste que les
+  fichiers, dossiers déduits des chemins).
+- **Icônes** : génériques fichier/dossier côté PWA, pas par extension comme
+  Zed (`file_icons`).
+- **Repli clavier** (backend `uia`, agent ayant refusé l'injection ACP) : le
+  texte part tel quel dans le composer de Zed — les liens de mention y
+  restent littéraux, pas convertis en puces.

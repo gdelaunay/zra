@@ -55,8 +55,11 @@ export class AcpBackend {
    * `confirmMs` : attendre le verdict de l'agent plutôt que la seule écriture
    * (mode `auto`) — un refus revient alors en `prompt_refused`.
    */
-  send(threadId, text, mode = 'queue', { confirmMs = 0 } = {}) {
-    return this.run(threadId, 'prompt', confirmMs > 0 ? { text, mode, confirmMs } : { text, mode })
+  send(threadId, text, mode = 'queue', { confirmMs = 0, blocks = null } = {}) {
+    const payload = { text, mode }
+    if (blocks) payload.blocks = blocks
+    if (confirmMs > 0) payload.confirmMs = confirmMs
+    return this.run(threadId, 'prompt', payload)
   }
 
   interrupt(threadId) {

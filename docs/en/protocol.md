@@ -187,9 +187,30 @@ and on the explicit "reload history" action.
 `text` is **always** treated as an agent prompt. Never any shell
 interpolation, never any `eval` (§9).
 
+`text` may contain mention links `[@name](file:///…)` (serialization of the
+composer chips, design 0.5.2 D3). The daemon parses them **at departure**
+toward the ACP shim and builds the blocks (D1, `zra-daemon/mentions.js`):
+text file ≤ 1 MB and agent `embeddedContext` → embedded `resource` (content
+read by the daemon); else `resource_link`; folder, binary, non-UTF-8,
+> 1 MB → `resource_link`. **Security guard (§9)**: only paths whose `realpath`
+is contained in the thread's real `folderPaths` are read/embedded; out of
+scope → the link stays literal text. Queue: same text, parsed at departure.
+Keyboard fallback (`uia` backend): the text goes as-is, literal links in
+Zed's composer.
+
 The PWA shows the message immediately (optimistic local echo). If the agent
 replays it as `user_message_chunk`, the echo is removed to avoid the duplicate: the
 daemon has nothing to do for that, but **must not rewrite the text**.
+
+### `files`
+```ts
+{ type: 'files', threadId: string }
+```
+Project file and folder listing for `@` mentions (design D5) → `files`
+response (§4). Git repository: `git ls-files --cached --others
+--exclude-standard` (tracked + untracked non-ignored); outside git: recursive
+walk, Zed exclusions + `node_modules`. Cap 20,000 entries, 30 s cache on the
+daemon side; the PWA re-requests on menu open if stale.
 
 ### `interrupt`
 ```ts
@@ -394,6 +415,19 @@ these projects in this order, even without threads, and files the others under
 `projectOpen`: the thread's folders are loaded in a Zed window (same sources;
 Zed closed: `false`). A closed project stays usable, the daemon opens it in Zed
 on demand, in a new window.
+
+### `files`
+```ts
+{
+  type: 'files', threadId: string,
+  entries: Array<{ path: string, label: string, name: string, dir: boolean }>,
+  truncated: boolean,   // 20,000 cap reached
+}
+```
+Response to `files` (§3): files **and folders** of the thread's `folderPaths`.
+`path` absolute (the PWA makes the mention's `file://` URI from it), `label`
+relative for display and fuzzy — prefixed with the root name if multi-project.
+Folders deduced from paths (git does not list empty folders).
 
 ### `thread_state`
 ```ts

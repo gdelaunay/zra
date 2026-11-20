@@ -40,8 +40,8 @@ de Zed, même si elle utilise les mêmes entiers.
 | `index.js` | entrée : résolution de l'agent, spawn, assemblage, cycle de vie |
 | `framing.js` | découpage JSON Lines qui préserve les octets |
 | `proxy.js` | relai d'un flux vers l'autre, fail-open |
-| `acp.js` | tout ce que le shim *comprend* : sessions, tour, permissions, terminaux, injection |
-| `queue.js` | machine à états tour / file d'attente / options par session |
+| `acp.js` | tout ce que le shim *comprend* : sessions, tour, permissions, terminaux, injection (`sendPrompt` en blocs ACP — mentions comprises) |
+| `queue.js` | machine à états tour / file d'attente / options par session ; la file garde le texte (affichage) et les blocs parsés au départ (envoi) |
 | `daemon-link.js` | lien local vers le daemon, best-effort, backoff, tampon borné |
 | `record.js` | `ZRA_RECORD=1` — toutes les trames en JSONL |
 | `log.js` | journal, **stderr uniquement** |

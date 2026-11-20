@@ -11,6 +11,7 @@
 import { h, button, escapeHtml } from '../dom.js'
 import { icon, toolIcon } from '../icons.js'
 import { markdownBlocks } from '../markdown.js'
+import { parseMentionLinks, uriName } from '../mentions.js'
 import { lineDiff, collapse } from '../diff.js'
 import { shortPath, relTime, toMs, terminalElapsed } from '../format.js'
 import { settings } from '../settings.js'
@@ -55,10 +56,34 @@ export function renderEntry(entry, ctx = {}) {
  * aussi), donc pas d'ombre ni de survol. Un message pas encore confirmé est
  * seulement estompé.
  */
+/** Puce de mention (ui/mention_crease.rs) — HTML pour les bulles et le fil. */
+function mentionHtml(name, uri) {
+  const ic = icon(/\/$/.test(uri || '') ? 'folder' : 'file-text', 'icon--sm').outerHTML
+  return `<span class="mention" data-uri="${escapeHtml(uri || '')}">${ic}<span class="mention__name">${escapeHtml(name || '')}</span></span>`
+}
+
+/** Texte utilisateur brut → HTML : échappé, liens [@nom](file://…) en puces
+ * (le rejeu claude-acp de session/load arrive en texte, pas en blocs — D3). */
+function userTextHtml(text) {
+  const links = parseMentionLinks(text)
+  let out = ''
+  let last = 0
+  for (const l of links) {
+    out += escapeHtml(text.slice(last, l.start)) + mentionHtml(l.name, l.uri)
+    last = l.end
+  }
+  return out + escapeHtml(text.slice(last))
+}
+
 function userMsg(entry) {
-  const text = (entry.blocks || []).filter((b) => b?.type === 'text').map((b) => b.text || '').join('')
+  const html = (entry.blocks || []).map((b) => {
+    if (b?.type === 'text') return userTextHtml(b.text || '')
+    if (b?.type === 'resource_link') return mentionHtml(b.name || uriName(b.uri), b.uri)
+    if (b?.type === 'resource') return mentionHtml(uriName(b.resource?.uri), b.resource?.uri)
+    return ''
+  }).join('')
   return h('div.user-msg', { class: entry.pending ? 'is-pending' : entry.failed ? 'is-failed' : '' },
-    h('div.bubble', { text }),
+    h('div.bubble', { html }),
     entry.failed ? h('div.msg__status', { text: tr`non envoyé` }) : null,
   )
 }
@@ -126,13 +151,13 @@ export function blocksPieces(blocks) {
         parts.push('<p class="muted">[audio]</p>')
         break
       case 'resource_link':
-        parts.push(`<p><code>${escapeHtml(b.name || b.uri || '')}</code></p>`)
+        parts.push(`<p>${mentionHtml(b.name || uriName(b.uri), b.uri)}</p>`)
         break
       case 'resource': {
+        // Puce, pas le contenu embarqué : Zed montre une crease, le contenu
+        // est pour l'agent (mention_to_content_block).
         const r = b.resource || {}
-        parts.push(r.text
-          ? `<div class="codeblock"><pre><code>${escapeHtml(r.text)}</code></pre></div>`
-          : `<p><code>${escapeHtml(r.uri || '')}</code></p>`)
+        parts.push(`<p>${mentionHtml(uriName(r.uri), r.uri)}</p>`)
         break
       }
       default:

@@ -184,3 +184,43 @@ test('normalisation : texte vide → DOM vidé (le placeholder CSS peut s\'affic
   el.dispatchEvent(new win.Event('input', { bubbles: true }))
   assert.equal(el.childNodes.length, 0)
 })
+
+test('puces de mention : round-trip D3 texte ↔ DOM, atomiques dans les offsets', () => {
+  const link = '[@a.js](file:///p/a.js)'
+  const el = make(`voici ${link} ok`)
+  assert.equal(el.value, `voici ${link} ok`, 'la puce se sérialise en lien D3')
+  const chip = el.querySelector('.mention')
+  assert.ok(chip, 'le lien du brouillon devient une puce')
+  assert.equal(chip.contentEditable, 'false')
+  assert.equal(chip.dataset.uri, 'file:///p/a.js')
+  assert.equal(chip.dataset.name, 'a.js')
+  // Offsets : la puce compte pour la longueur de sa sérialisation.
+  const after = 'voici '.length + link.length
+  // Focus simulé : sélection vivante dans el (comme le ferait le navigateur).
+  select(el.firstChild, 0)
+  el.selectionStart = el.selectionEnd = after
+  assert.equal(el.selectionStart, after)
+  // Caret « dans » la puce : clampé devant (elle est atomique).
+  el.selectionStart = el.selectionEnd = 'voici '.length + 3
+  const sel = win.getSelection()
+  assert.ok(el.contains(sel.anchorNode), 'sélection posée dans le DOM')
+  assert.equal(sel.anchorNode, el)
+  assert.equal(sel.anchorOffset, [...el.childNodes].indexOf(chip), 'devant la puce')
+  assert.equal(el.selectionStart, 'voici '.length, 'offset clampé au bord de la puce')
+  // Insertion en fin : le texte ne casse pas le lien.
+  el.selectionStart = el.selectionEnd = el.value.length
+  el.insertText('!')
+  assert.equal(el.value, `voici ${link} ok!`)
+  // Dossier : icône folder, URI à / final conservé.
+  el.value = '[@d](file:///p/d/)'
+  assert.equal(el.value, '[@d](file:///p/d/)')
+  assert.ok(el.querySelector('.mention svg'), 'icône de la puce')
+})
+
+test('insertText : un lien collé devient une puce (reparse des liens collés, Zed)', () => {
+  const el = make('')
+  el.insertText('[@b.ts](file:///p/b.ts) ')
+  assert.ok(el.querySelector('.mention'), 'lien collé → puce')
+  assert.equal(el.value, '[@b.ts](file:///p/b.ts) ')
+  assert.equal(el.selectionStart, el.value.length)
+})

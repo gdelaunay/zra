@@ -40,8 +40,8 @@ numbering, even if it uses the same integers.
 | `index.js` | entry: agent resolution, spawn, wiring, lifecycle |
 | `framing.js` | JSON Lines splitting that preserves the bytes |
 | `proxy.js` | relay from one stream to the other, fail-open |
-| `acp.js` | everything the shim *understands*: sessions, turn, permissions, terminals, injection |
-| `queue.js` | turn / queue / options state machine per session |
+| `acp.js` | everything the shim *understands*: sessions, turn, permissions, terminals, injection (`sendPrompt` in ACP blocks — mentions included) |
+| `queue.js` | turn / queue / options state machine per session; the queue keeps the text (display) and the blocks parsed at departure (sending) |
 | `daemon-link.js` | local link to the daemon, best-effort, backoff, bounded buffer |
 | `record.js` | `ZRA_RECORD=1` — every frame as JSONL |
 | `log.js` | log, **stderr only** |
