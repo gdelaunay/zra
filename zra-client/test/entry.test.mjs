@@ -92,12 +92,9 @@ test('message en attente est estompé, message non envoyé le dit', () => {
   assert.equal(q(failed, '.msg__status').textContent, 'non envoyé')
 })
 
-test('message agent : le curseur n’apparaît que sur le dernier message d’un tour en cours', () => {
+test('message agent : pas de curseur de frappe (absent du panel agent de Zed)', () => {
   const blocks = [text('en train')]
-  assert.equal(q(render(entry({ type: 'agent', blocks }), { busy: true, isLast: true }).node, '.cursor') !== null, true)
-  assert.equal(q(render(entry({ type: 'agent', blocks }), { busy: true, isLast: false }).node, '.cursor'), null)
-  assert.equal(q(render(entry({ type: 'agent', blocks }), { busy: false, isLast: true }).node, '.cursor'), null)
-  assert.equal(q(render(entry({ type: 'agent', blocks }), {}).node, '.cursor'), null)
+  assert.equal(q(render(entry({ type: 'agent', blocks }), { busy: true, isLast: true }).node, '.cursor'), null)
 })
 
 test('messageBody() retrouve le corps écrit par le streaming, pour chaque forme', () => {
@@ -159,9 +156,8 @@ test('blocksPieces() découpe le markdown par bloc de premier niveau', () => {
   assert.deepEqual(blocksPieces(undefined), [])
 })
 
-test('blocksPieces() ajoute le curseur en dernier morceau', () => {
-  assert.deepEqual(blocksPieces([text('x')], { cursor: true }), ['<p>x</p>', '<span class="cursor"></span>'])
-  assert.deepEqual(blocksPieces([], { cursor: true }), ['<span class="cursor"></span>'])
+test('blocksPieces() ne produit pas de curseur de frappe', () => {
+  assert.deepEqual(blocksPieces([text('x')]), ['<p>x</p>'])
 })
 
 test('blocksPieces() rend chaque sorte de ContentBlock', () => {

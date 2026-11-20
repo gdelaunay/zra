@@ -29,12 +29,9 @@ function bounded(text) {
 
 /**
  * @param {string} src
- * @param {{cursor?: boolean}} [opts] cursor: ajoute un curseur de frappe en fin de flux.
  */
-export function renderMarkdown(src, opts = {}) {
-  let html = markdownBlocks(src).join('')
-  if (opts.cursor) html += '<span class="cursor"></span>'
-  return html
+export function renderMarkdown(src) {
+  return markdownBlocks(src).join('')
 }
 
 /**

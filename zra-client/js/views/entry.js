@@ -64,9 +64,8 @@ function userMsg(entry) {
 }
 
 function agentMsg(entry, ctx) {
-  const streaming = Boolean(ctx.busy && ctx.isLast)
   return h('div.assistant-msg', { class: ctx.isLast ? 'last' : '' },
-    h('div.msg__body.md', { html: blocksHtml(entry.blocks, { cursor: streaming }) }),
+    h('div.msg__body.md', { html: blocksHtml(entry.blocks) }),
   )
 }
 
@@ -102,16 +101,15 @@ function thoughtMsg(entry, ctx = {}) {
 }
 
 /** ContentBlock[] -> HTML. Le markdown n'est appliqué qu'aux blocs texte. */
-export function blocksHtml(blocks, opts = {}) {
-  return blocksPieces(blocks, opts).join('')
+export function blocksHtml(blocks) {
+  return blocksPieces(blocks).join('')
 }
 
 /**
  * Le même rendu en morceaux : un par bloc markdown de premier niveau, un par
- * ContentBlock non textuel, le curseur à part. C'est ce que `patchHtml`
- * compare d'un rendu à l'autre.
+ * ContentBlock non textuel. C'est ce que `patchHtml` compare d'un rendu à l'autre.
  */
-export function blocksPieces(blocks, opts = {}) {
+export function blocksPieces(blocks) {
   const parts = []
   const list = blocks || []
   list.forEach((b) => {
@@ -141,7 +139,6 @@ export function blocksPieces(blocks, opts = {}) {
         if (b) parts.push(`<div class="codeblock"><pre class="muted"><code>${escapeHtml(JSON.stringify(b, null, 2))}</code></pre></div>`)
     }
   })
-  if (opts.cursor) parts.push('<span class="cursor"></span>')
   return parts
 }
 

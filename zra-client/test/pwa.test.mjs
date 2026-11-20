@@ -621,10 +621,9 @@ test('streaming : une rafale se révèle peu à peu, le début du message ne bou
   // Chaque état affiché, relevé à chaque mutation du DOM : ne dépend pas du
   // rythme de sondage du test (une machine chargée en sauterait).
   const lengths = []
-  const cursors = []
   const observer = new win.MutationObserver(() => {
     const text = agentText()
-    if (/Rafale/.test(text)) { lengths.push(text.length); cursors.push(Boolean($('.assistant-msg .cursor'))) }
+    if (/Rafale/.test(text)) { lengths.push(text.length) }
   })
   observer.observe($('.thread__scroll'), { childList: true, subtree: true, characterData: true })
   try {
@@ -637,12 +636,10 @@ test('streaming : une rafale se révèle peu à peu, le début du message ne bou
   const partial = [...new Set(lengths)].filter((n) => n < full)
   assert.ok(partial.length >= 2, `révélée en plusieurs fois (états vus : ${[...new Set(lengths)].join(', ')})`)
   assert.ok(partial.every((n, i) => i === 0 || n > partial[i - 1]), 'toujours en avançant')
-  assert.ok(cursors[0], 'curseur de frappe pendant l’écriture')
   assert.equal($$('.assistant-msg').pop().querySelector('p'), para, 'le premier paragraphe garde son nœud')
 
-  // Fin du tour : rendu définitif, sans curseur.
-  await until(() => !$('.assistant-msg .cursor'), 3000, 'curseur retiré')
-  assert.ok(agentText().includes(burst))
+  // Le texte complet est en place (pas de curseur de frappe, comme dans Zed).
+  await until(() => agentText().includes(burst), 3000, 'rafale complète affichée')
 })
 
 test('appairage : poste verrouillé, code saisi, jeton gardé, poste déverrouillé', async () => {

@@ -57,10 +57,10 @@ Ajustements décidés :
   `.background` / `.border` de `conflict`, `renamed`, `ignored`, `hidden`,
   `predictive`, `unreachable`. → Élargir la liste blanche aux besoins du panel ;
   ne pas dumper les tokens éditeur / terminal / VCS inutilisés.
-- **Curseur de streaming** : le client génère `--player-cursor` depuis
-  `players[0]` (joueur local) ; Zed utilise le dernier joueur = joueur agent
-  (`theme/src/styles/players.rs`, fn `agent`). → Générer la couleur depuis
-  `players.at(-1)` et l'utiliser pour `.md .cursor`.
+- **Pas de curseur de streaming** : le caret clignotant est un concept de
+  l'éditeur de code (couleurs des joueurs, `players.rs`), pas du panel agent —
+  Zed ne l'affiche pas dans le markdown de l'agent. ZRA non plus ; le token
+  `--player-cursor` n'est pas généré.
 - Source des JSON : branche `main` côté client, v1.28.1 figée côté référence.
   Valeurs identiques aujourd'hui ; pas de changement prévu.
 

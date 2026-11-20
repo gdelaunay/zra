@@ -493,11 +493,6 @@ button { cursor: pointer; }
 .md tr > :first-child { border-left: 0; }
 .md thead tr:first-child > * { border-top: 0; }
 .md tbody tr:nth-child(even) td { background: var(--panel-background); }
-/* Curseur de streaming : couleur du joueur agent (players.at(-1)). */
-.md .cursor {
-  display: inline-block; width: 6px; height: 1em; vertical-align: text-bottom;
-  background: var(--player-cursor, var(--text-accent)); animation: pulse 1s steps(2) infinite;
-}
 .md .tok-kw { color: var(--syntax-keyword); }
 .md .tok-str { color: var(--syntax-string); }
 .md .tok-com { color: var(--syntax-comment); font-style: italic; }

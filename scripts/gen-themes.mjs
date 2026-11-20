@@ -91,10 +91,6 @@ function block(style, selector, appearance) {
     const v = style.syntax?.[k]?.color
     if (typeof v === 'string') lines.push(`  --syntax-${k.replace(/[._]/g, '-')}: ${v};`)
   }
-  // Curseur de streaming : le dernier joueur = le joueur agent, comme Zed
-  // (`players.rs`, fn `agent`).
-  const player = style.players?.at(-1)
-  if (player?.cursor) lines.push(`  --player-cursor: ${player.cursor};`)
   lines.push('}')
   return lines.join('\n')
 }

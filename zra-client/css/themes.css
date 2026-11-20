@@ -142,7 +142,6 @@
   --syntax-link-uri: #6eb4bfff;
   --syntax-link-text: #73ade9ff;
   --syntax-text-literal: #a1c181ff;
-  --player-cursor: #a1c181ff;
 }
 
 [data-theme='one-light'] {
@@ -281,7 +280,6 @@
   --syntax-link-uri: #3882b7ff;
   --syntax-link-text: #5b79e3ff;
   --syntax-text-literal: #649f57ff;
-  --player-cursor: #669f59ff;
 }
 
 [data-theme='gruvbox-dark'] {
@@ -420,7 +418,6 @@
   --syntax-link-uri: #d3869bff;
   --syntax-link-text: #8ec07cff;
   --syntax-text-literal: #83a598ff;
-  --player-cursor: #b7bb26ff;
 }
 
 [data-theme='gruvbox-dark-hard'] {
@@ -559,7 +556,6 @@
   --syntax-link-uri: #d3869bff;
   --syntax-link-text: #8ec07cff;
   --syntax-text-literal: #83a598ff;
-  --player-cursor: #b7bb26ff;
 }
 
 [data-theme='gruvbox-dark-soft'] {
@@ -698,7 +694,6 @@
   --syntax-link-uri: #d3869bff;
   --syntax-link-text: #8ec07cff;
   --syntax-text-literal: #83a598ff;
-  --player-cursor: #b7bb26ff;
 }
 
 [data-theme='gruvbox-light'] {
@@ -837,7 +832,6 @@
   --syntax-link-uri: #8f3e71ff;
   --syntax-link-text: #427b58ff;
   --syntax-text-literal: #066578ff;
-  --player-cursor: #797410ff;
 }
 
 [data-theme='ayu-dark'] {
@@ -976,7 +970,6 @@
   --syntax-link-uri: #aad84cff;
   --syntax-link-text: #fe8f40ff;
   --syntax-text-literal: #fe8f40ff;
-  --player-cursor: #aad84cff;
 }
 
 [data-theme='ayu-mirage'] {
@@ -1115,5 +1108,4 @@
   --syntax-link-uri: #d5fe80ff;
   --syntax-link-text: #fead66ff;
   --syntax-text-literal: #fead66ff;
-  --player-cursor: #d5fe80ff;
 }

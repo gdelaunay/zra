@@ -331,9 +331,7 @@ export function ThreadView({ key, navigate }) {
           Math.ceil(backlog * (1 - Math.exp(-dt / REVEAL_TAU_MS))),
         )
         r.shown = Math.min(full, r.shown + step)
-        patchHtml(messageBody(node), blocksPieces(revealBlocks(r.entry.blocks, r.shown), {
-          cursor: r.entry.type === 'agent' && (live || r.shown < full),
-        }))
+        patchHtml(messageBody(node), blocksPieces(revealBlocks(r.entry.blocks, r.shown)))
         node._zraLen = r.shown
         // Réflexion en cours : hauteur bornée, défilement collé en bas (Zed).
         const th = node.querySelector('.thought__body.streaming')
@@ -343,7 +341,7 @@ export function ThreadView({ key, navigate }) {
       else r.at = undefined
       if (r.shown >= full && !live) {
         // Tout est affiché et l'agent est passé à autre chose : rendu définitif,
-        // sur place — le message garde ses nœuds, seul le curseur s'en va.
+        // sur place — le message garde ses nœuds.
         reveals.delete(id)
         patchHtml(messageBody(node), blocksPieces(r.entry.blocks))
         node.dataset.rev = r.entry.rev

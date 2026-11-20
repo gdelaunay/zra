@@ -60,8 +60,8 @@ test('tableau', () => {
   assert.match(html, /<td>2<\/td>/)
 })
 
-test('curseur de frappe optionnel', () => {
-  assert.match(renderMarkdown('hop', { cursor: true }), /<span class="cursor"><\/span>$/)
+test('pas de curseur de frappe (absent du panel agent de Zed)', () => {
+  assert.ok(!renderMarkdown('hop').includes('cursor'))
 })
 
 test('rendu incrémental : un préfixe ne casse jamais', () => {
