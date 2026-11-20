@@ -14,6 +14,7 @@ datés, avec le hash du commit de référence ; ROADMAP à jour ; puis commit
 - **0.5.1 — threads** : appui long, titre éditable, notifications push ;
 - **0.5.2 — composer** : commandes `/`, mentions `@` ;
 - **0.5.3 — tous les threads par le shim** : l'entrée d'origine passe par le shim, les threads anciens compris ;
+- **0.5.4 — relais HTTPS** : la PWA servie avec un relais, plus de proxy par poste ;
 - **0.6 — `zra-tray`** : le tray natif Rust et la distribution binaire.
 
 ---
@@ -68,24 +69,7 @@ d'origine, sans shim (`not_zra_thread`). La PWA le signale (cadenas à la place
 de la pastille, bandeau dans le thread). Solution : « 0.5.3 — Tous les
 threads par le shim » ci-dessus.
 
-### 0.6 — Tray natif `zra-tray`
-
-Un petit binaire Rust par plateforme, à la fois **icône de zone de
-notification** et **superviseur du daemon** : il spawn et surveille `node
-zra-daemon/index.js` (restart si crash, logs capturés), et offre un menu natif
-(état, copier URL/code, ouvrir la PWA, logs, redémarrer, quitter). Il ne
-remplace rien : le daemon Node reste la source de vérité, le tray est une
-façade optionnelle — et le chemin de distribution « tout-en-un » grand public
-(archive par plateforme, onboarding au premier lancement).
-
-Conception détaillée — choix techniques (`tray-icon` + `tao`), points de
-robustesse, distribution, ordre de réalisation — : `reference/conception-zra-tray.md`.
-
----
-
-## Avant la 0.6
-
-### Relais HTTPS livré avec le client
+### 0.5.4 — Relais HTTPS
 
 Si possible, pas obligatoire.
 
@@ -106,11 +90,32 @@ statiques et relaie `wss://zra.exemple.fr/to/<ip>/ws` vers
 - l'appairage reste de bout en bout, entre la PWA et le daemon : le relais ne
   voit passer que des trames.
 
+Conception détaillée — architecture, déploiement, simplification des configs,
+options écartées — : `reference/conception-relais-https.md`.
+
+### 0.6 — Tray natif `zra-tray`
+
+Un petit binaire Rust par plateforme, à la fois **icône de zone de
+notification** et **superviseur du daemon** : il spawn et surveille `node
+zra-daemon/index.js` (restart si crash, logs capturés), et offre un menu natif
+(état, copier URL/code, ouvrir la PWA, logs, redémarrer, quitter). Il ne
+remplace rien : le daemon Node reste la source de vérité, le tray est une
+façade optionnelle — et le chemin de distribution « tout-en-un » grand public
+(archive par plateforme, onboarding au premier lancement).
+
+Conception détaillée — choix techniques (`tray-icon` + `tao`), points de
+robustesse, distribution, ordre de réalisation — : `reference/conception-zra-tray.md`.
+
 ---
 
 ## Pistes
 
 ### Tailscale : réseau et HTTPS sans configuration
+
+**Piste non favorisée** : le serveur de coordination de Tailscale est un SaaS
+propriétaire (compte obligatoire). Les variantes open source (Headscale,
+NetBird) n'offrent pas les certificats HTTPS automatiques — le bénéfice
+principal de la piste tombe.
 
 Joindre un poste hors du réseau local demande aujourd'hui WireGuard, un
 proxy HTTPS par poste et du routage Docker (`docs/fr/deploy.md` §3.1, §4.1). Tailscale
