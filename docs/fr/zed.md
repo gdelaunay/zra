@@ -11,6 +11,14 @@ Ce dont ZRA dépend dans Zed, et où le vérifier dans ses sources. Sert à l'au
   git clone --depth 1 --branch v1.28.1 https://github.com/zed-industries/zed.git _upstream/zed
   ```
 
+- **Spécification ACP** : ZRA parle **ACP v1**. Zed 1.28.1 dépend du crate `agent-client-protocol-schema` 1.15.1, coupé au tag `v1.15.1` du dépôt de spécification — même commit que le JSON Schema `schema-v1.29.1` et que le brouillon `schema-v2.0.0-alpha.13`. Documentation et schémas en lecture seule dans `_upstream/acp` (ignorés par git, 8 Mo). Mise en place (Git Bash ; sous PowerShell, `curl.exe`) :
+
+  ```sh
+  mkdir -p _upstream/acp && curl -sL https://github.com/agentclientprotocol/agent-client-protocol/archive/refs/tags/v1.15.1.tar.gz | tar -xz --strip-components=1 -C _upstream/acp --exclude='*/assets/*'
+  ```
+
+  ZRA n'utilise aucun SDK ACP : le JSON-RPC est fait à la main (`zra-shim/framing.js`), donc ces pages sont la référence, pas une dépendance.
+- Pages utiles côté ZRA, sous `_upstream/acp` : `schema/v1/meta.json` (la table des méthodes), `schema/v1/schema.json` (les formes exactes), `docs/protocol/v1/` — `session-setup`, `prompt-turn`, `tool-calls`, `elicitation`, `terminals`, `cancellation`, `slash-commands`, `session-modes`, `session-config-options` — et `docs/protocol/v2/` + `schema/v2/` pour le brouillon v2.
 - Version installée sur le poste : `(Get-Item "$env:LOCALAPPDATA\Programs\Zed\Zed.exe").VersionInfo.ProductVersion` sous Windows, `zed --version` sous Linux.
 
 ## Faits de base
@@ -98,7 +106,7 @@ Les styles GPUI s'écrivent comme des classes utilitaires (`.px_2()`, `.gap_1()`
 ## Points de vigilance
 
 - **Plusieurs canaux installés** : ZRA suit celui dont la base a été écrite en dernier, déterminé au démarrage du daemon. Pour en suivre un autre : `zedChannel` dans `zra.config.json`.
-- **ACP v2** : derrière un drapeau bêta dans Zed 1.28.1. S'il devient le défaut, le shim voit passer des trames v2 qu'il n'observe pas.
+- **ACP v2** : derrière un drapeau bêta dans Zed 1.28.1. S'il devient le défaut, le shim voit passer des trames v2 qu'il n'observe pas. Brouillon sous `_upstream/acp/docs/protocol/v2/`, `migration.mdx` liste les ruptures.
 - **Palette** : ses libellés dérivent des noms d'actions (`humanize_action_name`). Une action renommée casse la recette correspondante.
 
 ## Mettre à jour la référence
@@ -116,3 +124,5 @@ Les styles GPUI s'écrivent comme des classes utilitaires (`.px_2()`, `.gap_1()`
 2. Relire les fichiers touchés, mettre à jour les tableaux et la version de référence.
 3. Thèmes ou icônes modifiés : relancer `scripts/gen-themes.mjs` ou `scripts/gen-agent-icons.mjs`.
 4. Vérifier un poste (`docs/fr/architecture.md`, « Vérifier une machine »).
+
+La référence ACP se met à jour à part : quand `Cargo.lock` de Zed change de version `agent-client-protocol-schema`, re-télécharger le tag du même nom (commande ci-dessus, autre tag). Les changements entre versions sont dans `schema/v1/CHANGELOG.md` et `schema/v2/CHANGELOG.md`.

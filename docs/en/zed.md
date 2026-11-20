@@ -11,6 +11,14 @@ What ZRA depends on in Zed, and where to check it in its sources. Used for the c
   git clone --depth 1 --branch v1.28.1 https://github.com/zed-industries/zed.git _upstream/zed
   ```
 
+- **ACP specification**: ZRA speaks **ACP v1**. Zed 1.28.1 depends on the crate `agent-client-protocol-schema` 1.15.1, cut at tag `v1.15.1` of the specification repository — the same commit as JSON Schema `schema-v1.29.1` and as the draft `schema-v2.0.0-alpha.13`. Read-only documentation and schemas in `_upstream/acp` (ignored by git, 8 MB). Setup (Git Bash; under PowerShell, `curl.exe`):
+
+  ```sh
+  mkdir -p _upstream/acp && curl -sL https://github.com/agentclientprotocol/agent-client-protocol/archive/refs/tags/v1.15.1.tar.gz | tar -xz --strip-components=1 -C _upstream/acp --exclude='*/assets/*'
+  ```
+
+  ZRA uses no ACP SDK: the JSON-RPC is hand-rolled (`zra-shim/framing.js`), so these pages are the reference, not a dependency.
+- Pages that matter for ZRA, under `_upstream/acp`: `schema/v1/meta.json` (the method table), `schema/v1/schema.json` (the exact shapes), `docs/protocol/v1/` — `session-setup`, `prompt-turn`, `tool-calls`, `elicitation`, `terminals`, `cancellation`, `slash-commands`, `session-modes`, `session-config-options` — and `docs/protocol/v2/` + `schema/v2/` for the v2 draft.
 - Version installed on the machine: `(Get-Item "$env:LOCALAPPDATA\Programs\Zed\Zed.exe").VersionInfo.ProductVersion` on Windows, `zed --version` on Linux.
 
 ## Basic facts
@@ -98,7 +106,7 @@ GPUI styles are written like utility classes (`.px_2()`, `.gap_1()`, `.rounded_m
 ## Points to watch
 
 - **Several channels installed**: ZRA follows the one whose database was written last, determined when the daemon starts. To follow another one: `zedChannel` in `zra.config.json`.
-- **ACP v2**: behind a beta flag in Zed 1.28.1. If it becomes the default, the shim sees v2 frames it does not observe.
+- **ACP v2**: behind a beta flag in Zed 1.28.1. If it becomes the default, the shim sees v2 frames it does not observe. Draft under `_upstream/acp/docs/protocol/v2/`; `migration.mdx` lists the breaking changes.
 - **Palette**: its labels derive from action names (`humanize_action_name`). A renamed action breaks the matching recipe.
 
 ## Updating the reference
@@ -116,3 +124,5 @@ GPUI styles are written like utility classes (`.px_2()`, `.gap_1()`, `.rounded_m
 2. Reread the changed files, update the tables and the reference version.
 3. Themes or icons changed: rerun `scripts/gen-themes.mjs` or `scripts/gen-agent-icons.mjs`.
 4. Check a machine (`docs/en/architecture.md`, "Checking a machine").
+
+The ACP reference updates separately: when Zed's `Cargo.lock` changes the `agent-client-protocol-schema` version, re-download the tag of the same name (command above, other tag). Changes between versions are listed in `schema/v1/CHANGELOG.md` and `schema/v2/CHANGELOG.md`.
