@@ -2,6 +2,14 @@
 
 [English](https://forgejo.gdelaunay.fr/gdelaunay/zra/src/branch/main/CHANGELOG.en.md)
 
+## v0.5.1 — 2026-11-20 — Threads : renommer, supprimer, push (`1f97b67`)
+
+- Renommer et supprimer par ACP (`session/set_title`, `session/delete`, unstable), gatés par les capacités de l'agent : le shim émet si le thread est vivant, un client jetable sinon — sans rouvrir Zed, jamais d'écriture dans sa base (tombstones persistés, titre de l'agent superposé en attendant que Zed rattrape, `thread-ops.js`)
+- Liste des threads : actions au survol sur desktop, à l'appui long sur mobile — crayon, stop teinté erreur, poubelle, fondu comme Zed ; renommage inline (Entrée/Échap), suppression avec confirmation ; boutons masqués quand l'agent ne sait pas faire
+- Page agent : le titre est un input éditable sans changement d'apparence, tout le titre sélectionné au clic, taille ajustée au texte ; sélection au bleu clair d'accent de Zed
+- Notifications push de fin de tour (Web Push sans dépendance : VAPID ES256, chiffrement aes128gcm), seulement quand aucun client connecté ne regarde le thread ; réglage « Notifications (fin de tour) » dans la PWA, clic sur la notification → le thread
+- Doc : fiches ACP (`docs/fr/acp.md`), protocole (nouveaux messages, gating), client, daemon — bilingue
+
 ## v0.5 — 2026-11-20 — Coller au panneau agent de Zed (`3903bd9`)
 
 - Fil du thread recopié sur le panel de Zed 1.28.1 : texte brut sans bulles, tool calls en ligne ou en carte, diff sans gouttière, carte terminal (dossier, durée, échec), permission dans la carte de son tool call, plan au-dessus du composer, callouts, spinner braille de Zed pour le tour en cours

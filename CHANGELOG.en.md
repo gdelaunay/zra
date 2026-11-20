@@ -2,6 +2,14 @@
 
 [Français](https://forgejo.gdelaunay.fr/gdelaunay/zra/src/branch/main/CHANGELOG.md)
 
+## v0.5.1 — 2026-11-20 — Threads: rename, delete, push (`1f97b67`)
+
+- Rename and delete over ACP (`session/set_title`, `session/delete`, unstable), gated by the agent's capabilities: the shim issues them for a live thread, a disposable client otherwise — without reopening Zed, never writing to its database (persisted tombstones, agent title overlaid until Zed catches up, `thread-ops.js`)
+- Thread list: actions on hover on desktop, on long press on mobile — pencil, error-tinted stop, trash, fade like Zed; inline rename (Enter/Escape), delete with confirmation; buttons hidden when the agent cannot do it
+- Agent page: the title is an editable input with no appearance change, the whole title selected on click, size fitted to the text; selection in Zed's light accent blue
+- Turn-end push notifications (dependency-free Web Push: VAPID ES256, aes128gcm encryption), only when no connected client is watching the thread; "Notifications (turn end)" setting in the PWA, notification click → the thread
+- Docs: ACP sheets (`docs/en/acp.md`), protocol (new messages, gating), client, daemon — bilingual
+
 ## v0.5 — 2026-11-20 — Matching Zed's agent panel (`3903bd9`)
 
 - Thread transcript copied from Zed 1.28.1's panel: plain text without bubbles, tool calls as a line or a card, diff without gutter, terminal card (directory, duration, failure), permission inside its own tool call card, plan above the composer, callouts, Zed's braille spinner for the running turn

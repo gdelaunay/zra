@@ -1,6 +1,6 @@
 # ZRA — roadmap
 
-Version actuelle : **0.5**. Un numéro mineur par jalon (0.4, 0.5…) ; entre deux
+Version actuelle : **0.5.1**. Un numéro mineur par jalon (0.4, 0.5…) ; entre deux
 jalons, un numéro de correctif (0.5.1…) pour un lot retenu — corrections comme
 petites fonctions — quand ce lot est fini. L'historique est dans `CHANGELOG.md`.
 
@@ -11,7 +11,7 @@ datés, avec le hash du commit de référence ; ROADMAP à jour ; puis commit
 
 - **0.4 — audit, sécurité, conformité à Zed** (fait — comparaison au code de Zed, constats en réel ; voir `CHANGELOG.md`) ;
 - **0.5 — coller au panneau agent de Zed** (fait — retouches d'interface, recopie du panel ; voir `CHANGELOG.md`) ;
-- **0.5.1 — threads** : renommer / supprimer, titre éditable, notifications push ;
+- **0.5.1 — threads** (fait — renommer/supprimer par ACP, titre éditable, push ; voir `CHANGELOG.md`) ;
 - **0.5.2 — composer** : commandes `/`, mentions `@` ;
 - **0.5.3 — tous les threads par le shim** : l'entrée d'origine passe par le shim, les threads anciens compris ;
 - **0.5.4 — relais HTTPS** : la PWA servie avec un relais, plus de proxy par poste ;
@@ -24,19 +24,6 @@ datés, avec le hash du commit de référence ; ROADMAP à jour ; puis commit
 Références visuelles de l'interface Zed : `reference/zed-agent-panel/` (panel),
 `reference/zed-threads-sidebar/` (liste des threads et historique),
 `reference/zed-bottom-bar/` (barre du bas).
-
-### 0.5.1 — threads 🎯
-
-- **actions sur un thread** (liste des threads) : renommer, stopper la
-  génération (thread en cours), supprimer. Au survol sur desktop (comme Zed),
-  à l'appui long sur mobile. Renommage et suppression passent par ACP
-  (`session/set_title`, `session/delete`, capacités unstable de l'agent —
-  `docs/fr/acp.md`) ; pas d'archivage, concept local à Zed sans équivalent ACP ;
-- **titre du thread** (page agent) : le titre est lui-même un input subtil qui
-  permet de le renommer ;
-- **notifications push** quand une réponse arrive sur un thread (Web Push).
-  L'architecture est prévue mais inactive : `sw.js` gère déjà `push` et
-  `notificationclick` (`docs/fr/client.md`).
 
 ### 0.5.2 — composer
 
