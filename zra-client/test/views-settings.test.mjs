@@ -292,13 +292,13 @@ test('Affichage : la langue se choisit et demande un rechargement', () => {
 test('Affichage : la taille du texte s’applique sans rechargement', () => {
   const sheet = open()
   const btn = [...section(sheet, 'Affichage').querySelectorAll('button.btn')][1]
-  assert.equal(btn.querySelector('span').textContent, 'Normale')
+  assert.equal(btn.querySelector('span').textContent, 'Normale (14 px)')
   click(btn)
-  const grande = $$('.menu__item').find((i) => i.querySelector('.truncate').textContent === 'Grande')
+  const grande = $$('.menu__item').find((i) => i.querySelector('.truncate').textContent === 'Grande (16 px)')
   click(grande)
   assert.equal(settingsModule.settings.textScale, 1.15)
   assert.equal(doc.documentElement.style.getPropertyValue('--text-scale'), '1.15')
-  assert.equal(btn.querySelector('span').textContent, 'Grande')
+  assert.equal(btn.querySelector('span').textContent, 'Grande (16 px)')
   settingsModule.update({ textScale: 1 })
   settingsModule.applyTextScale(1)
 })

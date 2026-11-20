@@ -13,16 +13,15 @@
   --lh: 1.618;
   --text-scale: 1;
 
-  /* Échelle Zed : Label XSmall 10, Small 12, Default 14 ; corps agent 16 ;
-     libellé d'outil et « Thinking » 13 ; police buffer 12. */
+  /* Échelle Zed : Label XSmall 10, Small 12, Default 14 ; libellé d'outil et
+     « Thinking » 13 ; police buffer 12. Corps agent unifié à 14 (Zed : 16). */
   --fs-xs: calc(10px * var(--text-scale));
   --fs-sm: calc(12px * var(--text-scale));
   --fs-md: calc(13px * var(--text-scale));
   --fs-lg: calc(14px * var(--text-scale));
-  --fs-xl: calc(16px * var(--text-scale));
   --fs-buffer: calc(12px * var(--text-scale));
-  /* Interligne du markdown agent : 12 × 1.75 ≈ 20.8 px. */
-  --md-lh: calc(20.8px * var(--text-scale));
+  /* Interligne du markdown agent, resserré pour le corps 14 px (20.8 × 14/16). */
+  --md-lh: calc(18.2px * var(--text-scale));
 
   --sp-1: 2px;
   --sp-2: 4px;
@@ -218,9 +217,10 @@ button { cursor: pointer; }
   display: flex; align-items: center; gap: var(--sp-2); min-width: 0;
   flex: 0 1 auto;
 }
+.header__title--brand { font-weight: 600; }
 .header__sub { font-size: var(--fs-sm); color: var(--text-muted); }
 .header__meta {
-  display: flex; align-items: center; gap: var(--sp-2);
+  display: flex; align-items: center; gap: var(--sp-3); margin-left: var(--sp-2);
   font-size: var(--fs-sm); color: var(--text-muted);
   min-width: 0; flex: 1 1 auto; overflow: hidden;
 }
@@ -228,7 +228,7 @@ button { cursor: pointer; }
 .header__agent { color: var(--icon-muted); flex: none; padding: 0 var(--sp-1); display: flex; }
 .header__right { display: flex; align-items: center; gap: var(--sp-2); flex: none; }
 /* Un peu d'air entre la pastille live et le filet qui suit. */
-.header__right .dot, .header__right .lock-dot { margin-right: var(--sp-2); }
+.header__right .dot, .header__right .lock-dot { margin-right: var(--sp-3); }
 
 /* Barre du bas — status_bar.rs : fond status_bar.background, padding 4,
  * hauteur 18 + 2 × 4 = 26. Dock droit seulement : filet puis boutons. */
@@ -339,6 +339,9 @@ button { cursor: pointer; }
 /* Contenu indenté comme les projets (le survol, lui, prend toute la largeur). */
 .thread-row__main, .thread-row__meta { padding-left: calc(var(--sp-4) + var(--indent-step) * 2 - var(--sp-3)); }
 .thread-row__content { display: flex; align-items: center; gap: var(--sp-3); flex: 1; min-width: 0; }
+/* Pastille / cadenas : boîte 18 px comme le « + » des projets (même padding
+ * droit des deux côtés), pour un alignement horizontal exact. */
+.thread-row__status { width: 18px; height: 18px; flex: none; display: flex; align-items: center; justify-content: center; }
 /* Boîte d'icône 16 : icône de l'agent, ou icône d'état (load_circle, warning…). */
 .thread-row__icon { width: 16px; height: 16px; flex: none; display: flex; align-items: center; justify-content: center; color: var(--icon-muted); }
 .thread-row__icon--waiting { color: var(--warning); }
@@ -421,9 +424,11 @@ button { cursor: pointer; }
 }
 
 /* ---------- markdown de l'agent (markdown.rs, MarkdownFont::Agent) ----------
- * corps : police UI 16, interligne 20.8 ; paragraphes marge 8 ; titres graisse
- * normale, h1 18.4 … h4 16 ; listes pl 10 ; code inline 12 fond 8 %. */
-.md { font-size: var(--fs-xl); line-height: var(--md-lh); color: var(--text); word-break: break-word; }
+ * corps : 14 px — divergence ZRA assumée (Zed : ui_font_size 16), unifié avec le
+ * palier des noms de thread/projet pour l'harmonie mobile ; interligne 18.2 ;
+ * paragraphes marge 8 ; titres graisse normale, h1 16.1 … h4 14 ; listes pl 10 ;
+ * code inline 12 fond 8 %. */
+.md { font-size: var(--fs-lg); line-height: var(--md-lh); color: var(--text); word-break: break-word; }
 .md.muted { color: var(--text-muted); }
 .md > *:first-child { margin-top: 0; }
 .md > *:last-child { margin-bottom: 0; }
@@ -433,10 +438,10 @@ button { cursor: pointer; }
 .md h1, .md h2, .md h3, .md h4, .md h5, .md h6 {
   font-weight: 400; margin: var(--sp-7) 0 var(--sp-4); line-height: var(--md-lh);
 }
-.md h1 { font-size: calc(18.4px * var(--text-scale)); margin-top: var(--sp-6); }
-.md h2 { font-size: calc(17.6px * var(--text-scale)); }
-.md h3 { font-size: calc(16.8px * var(--text-scale)); }
-.md h4 { font-size: var(--fs-xl); }
+.md h1 { font-size: calc(16.1px * var(--text-scale)); margin-top: var(--sp-6); }
+.md h2 { font-size: calc(15.4px * var(--text-scale)); }
+.md h3 { font-size: calc(14.7px * var(--text-scale)); }
+.md h4 { font-size: var(--fs-lg); }
 .md > h1:first-child, .md > h2:first-child, .md > h3:first-child { margin-top: 0; }
 .md ul, .md ol { list-style: none; margin: 0 0 var(--sp-4); padding-left: 10px; }
 .md li { position: relative; padding-left: 14px; margin-bottom: var(--sp-2); line-height: var(--md-lh); }
@@ -524,7 +529,7 @@ button { cursor: pointer; }
   display: flex; flex-direction: column; gap: var(--sp-4);
 }
 .tool-output.first { margin-top: var(--sp-3); }
-.tool-output .md { font-size: var(--fs-xl); color: var(--text-muted); }
+.tool-output .md { font-size: var(--fs-lg); color: var(--text-muted); }
 .tool:not(.is-open) .tool-output, .tool:not(.is-open) .tool-collapse { display: none; }
 .io-header { font-family: var(--font-mono); font-size: var(--fs-xs); line-height: var(--lh); color: var(--text-muted); }
 .tool-collapse { margin-left: 6.4px; padding: var(--sp-4) calc(var(--sp-5) + var(--sp-1)) 0; border-left: 1px solid var(--tool-card-border); }
@@ -547,7 +552,7 @@ button { cursor: pointer; }
 /* Une demande en attente se montre toujours, même carte repliée. */
 .card-output { padding: var(--sp-4); font-size: var(--fs-sm); color: var(--text-muted); }
 .card-output + .card-output { border-top: 1px solid var(--tool-card-border); }
-.card-output .md { font-size: var(--fs-xl); color: var(--text-muted); }
+.card-output .md { font-size: var(--fs-lg); color: var(--text-muted); }
 .raw-input { padding: var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-2); border-top: 1px solid var(--tool-card-border); }
 .raw-input .ri-toggle { display: flex; justify-content: space-between; align-items: center; gap: var(--sp-2); padding-left: var(--sp-1); border-radius: var(--sp-1); cursor: pointer; width: 100%; text-align: left; }
 .raw-input .ri-toggle:hover { background: var(--element-hover); }
@@ -845,6 +850,8 @@ button { cursor: pointer; }
 }
 .sheet__title { font-weight: 600; margin-bottom: var(--sp-5); display: flex; align-items: center; gap: var(--sp-3); }
 .field { display: flex; flex-direction: column; gap: var(--sp-2); margin-bottom: var(--sp-5); }
+/* Réglage individuel (langue, taille du texte) : libellé au-dessus, aéré. */
+.setting { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-2); margin: var(--sp-3) 0; }
 .row { display: flex; align-items: center; gap: var(--sp-3); }
 .pair__code { font-family: var(--font-mono); font-size: 1.4em; letter-spacing: .2em; text-align: center; flex: 1; }
 

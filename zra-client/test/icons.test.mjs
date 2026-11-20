@@ -26,7 +26,7 @@ const SVG_NS = 'http://www.w3.org/2000/svg'
 // ---------------------------------------------------------------------------
 
 test('icon() rend un SVG de trait, décoratif, sur grille 24', () => {
-  const svg = icon('send')
+  const svg = icon('search')
   assert.equal(svg.namespaceURI, SVG_NS)
   assert.equal(svg.getAttribute('viewBox'), '0 0 24 24')
   assert.equal(svg.getAttribute('fill'), 'none')
@@ -44,8 +44,9 @@ test('icon() ajoute la classe demandée, sans espace de trop', () => {
 
 test('icon() inconnu : un cercle plutôt qu’un tracé vide', () => {
   const fallback = icon('cette-icone-n-existe-pas')
-  assert.deepEqual(paths(fallback), paths(icon('circle')))
-  assert.equal(paths(fallback)[0].length > 0, true)
+  // Le fallback est le cercle de la grille 24 (P.circle), pas le circle Zed plein.
+  assert.equal(fallback.getAttribute('viewBox'), '0 0 24 24')
+  assert.deepEqual(paths(fallback), ['M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z'])
 })
 
 test('deux icônes distinctes ont des tracés distincts', () => {

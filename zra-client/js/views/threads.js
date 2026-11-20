@@ -39,8 +39,8 @@ export function ThreadsView({ navigate }) {
 
   const list = h('div.scroll')
   const search = h('input.searchbar__input', {
-    type: 'search', placeholder: tr`Filtrer les threads…`, value: query,
-    'aria-label': tr`filtrer les threads`,
+    type: 'search', placeholder: tr`Rechercher dans tous les threads…`, value: query,
+    'aria-label': tr`rechercher dans tous les threads`,
     oninput: debounce((ev) => { query = ev.target.value.toLowerCase(); paint() }, 120),
   })
 
@@ -52,7 +52,7 @@ export function ThreadsView({ navigate }) {
         onSelect: () => { filter = f.id; syncFilterLabel(); paint() },
       })),
     }),
-  }, icon('list-todo', 'icon--sm'), h('span', { text: tr`Tous` }), icon('chevron-down', 'icon--sm'))
+  }, icon('filter', 'icon--sm'), h('span', { text: tr`Tous` }), icon('chevron-down', 'icon--sm'))
 
   const syncFilterLabel = () => {
     filterBtn.querySelector('span').textContent = FILTERS.find((f) => f.id === filter).label
@@ -174,7 +174,7 @@ function header({ navigate }) {
   const sub = h('span.header__sub')
   el.append(
     // Logo placeholder en attendant un choix définitif (l'éclair ne va pas).
-    h('div.header__title', {}, icon('zed_assistant', 'icon--sm'), h('span', { text: 'ZRA' })),
+    h('div.header__title.header__title--brand', {}, icon('zed_assistant', 'icon--sm'), h('span', { text: 'ZRA' })),
     h('div.header__meta', {}, sub),
     button('icon-btn icon-btn--sm', { title: tr`Rafraîchir`, onclick: () => store.refreshAll() }, icon('refresh', 'icon--sm')),
     button('icon-btn icon-btn--sm', { title: tr`Réglages`, onclick: () => openSettings() }, icon('settings', 'icon--sm')),
@@ -313,9 +313,11 @@ function threadRow(m, t, navigate) {
         stateIcon(m, t),
         h('span.thread-row__title.truncate', { text: t.title || tr`Nouveau Thread d'Agent` })),
       t.archived ? h('span.thread-row__badge', { text: tr`archivé` }) : null,
-      readOnly
-        ? h('span.lock-dot', { title: tr`lecture seule : créé hors ZRA, répondre dans Zed` }, icon('lock', 'icon--sm'))
-        : h(`span.dot.dot--${t.state}`)),
+      // Boîte 18 px comme le « + » des projets : pastille / cadenas alignés dessus.
+      h('span.thread-row__status', {},
+        readOnly
+          ? h('span.lock-dot', { title: tr`lecture seule : créé hors ZRA, répondre dans Zed` }, icon('lock', 'icon--sm'))
+          : h(`span.dot.dot--${t.state}`))),
     h('span.thread-row__meta', {},
       h('span.spacer16'),
       // Worktree lié : puce git_worktree + nom ; branche inconnue de l'index.

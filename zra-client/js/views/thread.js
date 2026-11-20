@@ -197,7 +197,7 @@ export function ThreadView({ key, navigate }) {
         h('span.q-text.truncate', { text: q.text }),
         h('span.q-btns', {},
           button('icon-btn icon-btn--sm', { title: tr`Envoyer maintenant`, onclick: () => sendNow(q) },
-            icon('send', 'icon--sm')),
+            icon('forward_arrow_up', 'icon--sm')),
           button('icon-btn icon-btn--sm', { title: tr`Annuler`, onclick: () => store.cancelQueued(key, q.queueId) },
             icon('x', 'icon--sm')))))
     }

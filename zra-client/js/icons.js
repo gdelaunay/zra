@@ -15,7 +15,6 @@ const P = {
   'arrow-down': 'M12 5v14M19 12l-7 7-7-7',
   'search': 'M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm10 2-4.35-4.35',
   'settings': 'M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M2 14h4M10 8h4M18 16h4',
-  'send': 'M12 19V5M5 12l7-7 7 7',
   'stop': 'M7 7h10v10H7z',
   'x': 'M18 6 6 18M6 6l12 12',
   'check': 'M20 6 9 17l-5-5',
@@ -33,7 +32,6 @@ const P = {
   'folder': 'M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9L9.6 3.9A2 2 0 0 0 7.9 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z',
   'alert-triangle': 'M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z',
   'shield': 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z',
-  'list-todo': 'M3 5h.01M3 12h.01M3 19h.01M8 5h13M8 12h13M8 19h13',
   'list': 'M4 6h16M4 12h16M4 18h10',
   'more': 'M5 12h.01M12 12h.01M19 12h.01',
   'mic': 'M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3ZM19 10v2a7 7 0 0 1-14 0v-2M12 19v3',
@@ -59,15 +57,19 @@ const P = {
 // Icônes Zed exactes (grille 16, trait 1.2), extraites de assets/icons via reference/.
 // Utilisées là où la fiche 0.5 les nomme : barre du bas, worktree, spinner, coche double.
 const ZED = {
-  "threads_sidebar_right_open": "<rect opacity=\"0.8\" rx=\"2\" transform=\"matrix(-1 0 0 1 14 2)\" fill=\"currentColor\"/> <path d=\"M9 2V14\" stroke=\"currentColor\" stroke-width=\"1.2\"/> <rect x=\"2\" y=\"2\" rx=\"1.5\" stroke=\"currentColor\" stroke-width=\"1.2\"/>",
-  "threads_sidebar_right_closed": "<rect opacity=\"0.1\" rx=\"2\" transform=\"matrix(-1 0 0 1 14 2)\" fill=\"currentColor\"/> <path d=\"M9 2V14\" stroke=\"currentColor\" stroke-width=\"1.2\"/> <rect x=\"2\" y=\"2\" rx=\"1.5\" stroke=\"currentColor\" stroke-width=\"1.2\"/>",
+  "threads_sidebar_right_open": "<rect opacity=\"0.8\" width=\"5\" height=\"12\" rx=\"2\" transform=\"matrix(-1 0 0 1 14 2)\" fill=\"currentColor\"/> <path d=\"M9 2V14\" stroke=\"currentColor\" stroke-width=\"1.2\"/> <rect x=\"2\" y=\"2\" width=\"12\" height=\"12\" rx=\"1.5\" stroke=\"currentColor\" stroke-width=\"1.2\"/>",
+  "threads_sidebar_right_closed": "<rect opacity=\"0.1\" width=\"5\" height=\"12\" rx=\"2\" transform=\"matrix(-1 0 0 1 14 2)\" fill=\"currentColor\"/> <path d=\"M9 2V14\" stroke=\"currentColor\" stroke-width=\"1.2\"/> <rect x=\"2\" y=\"2\" width=\"12\" height=\"12\" rx=\"1.5\" stroke=\"currentColor\" stroke-width=\"1.2\"/>",
 "zed_assistant": "<path d=\"M8 2.93652L6.9243 6.20697C6.86924 6.37435 6.77565 6.52646 6.65105 6.65105C6.52646 6.77565 6.37435 6.86924 6.20697 6.9243L2.93652 8L6.20697 9.0757C6.37435 9.13076 6.52646 9.22435 6.65105 9.34895C6.77565 9.47354 6.86924 9.62565 6.9243 9.79306L8 13.0635L9.0757 9.79306C9.13076 9.62565 9.22435 9.47354 9.34895 9.34895C9.47354 9.22435 9.62565 9.13076 9.79306 9.0757L13.0635 8L9.79306 6.9243C9.62565 6.86924 9.47354 6.77565 9.34895 6.65105C9.22435 6.52646 9.13076 6.37435 9.0757 6.20697L8 2.93652Z\" fill=\"currentColor\" fill-opacity=\"0.15\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/> <path opacity=\"0.6\" d=\"M3.33334 2V4.66666M2 3.33334H4.66666\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/> <path opacity=\"0.6\" d=\"M12.6665 11.3333V14M11.3333 12.6666H13.9999\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>",
-"threads_sidebar_left_closed": "<rect opacity=\"0.1\" rx=\"2\" transform=\"matrix(-1 0 0 1 7 2)\" fill=\"currentColor\"/> <path d=\"M7 2V14\" stroke=\"currentColor\" stroke-width=\"1.2\"/> <rect x=\"2\" y=\"2\" rx=\"1.5\" stroke=\"currentColor\" stroke-width=\"1.2\"/>",
+"threads_sidebar_left_closed": "<rect opacity=\"0.1\" width=\"5\" height=\"12\" rx=\"2\" transform=\"matrix(-1 0 0 1 7 2)\" fill=\"currentColor\"/> <path d=\"M7 2V14\" stroke=\"currentColor\" stroke-width=\"1.2\"/> <rect x=\"2\" y=\"2\" width=\"12\" height=\"12\" rx=\"1.5\" stroke=\"currentColor\" stroke-width=\"1.2\"/>",
 "git_branch": "<path d=\"M4.5 13C5.32843 13 6 12.3284 6 11.5C6 10.6716 5.32843 10 4.5 10C3.67157 10 3 10.6716 3 11.5C3 12.3284 3.67157 13 4.5 13Z\" stroke=\"currentColor\" stroke-width=\"1.2\"/> <path d=\"M11.5 6C12.3284 6 13 5.3284 13 4.5C13 3.6716 12.3284 3 11.5 3C10.6716 3 10 3.6716 10 4.5C10 5.3284 10.6716 6 11.5 6Z\" stroke=\"currentColor\" stroke-width=\"1.2\"/> <path d=\"M4.5 10L4.5 3\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linecap=\"round\"/> <path d=\"M10 4.44133C8.54131 4.44133 7.14236 5.02697 6.11091 6.06943C5.07946 7.11188 4.5 8.52575 4.5 10\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>",
-"threads_sidebar_left_open": "<rect opacity=\"0.8\" rx=\"2\" transform=\"matrix(-1 0 0 1 7 2)\" fill=\"currentColor\"/> <path d=\"M7 2V14\" stroke=\"currentColor\" stroke-width=\"1.2\"/> <rect x=\"2\" y=\"2\" rx=\"1.5\" stroke=\"currentColor\" stroke-width=\"1.2\"/>",
+"threads_sidebar_left_open": "<rect opacity=\"0.8\" width=\"5\" height=\"12\" rx=\"2\" transform=\"matrix(-1 0 0 1 7 2)\" fill=\"currentColor\"/> <path d=\"M7 2V14\" stroke=\"currentColor\" stroke-width=\"1.2\"/> <rect x=\"2\" y=\"2\" width=\"12\" height=\"12\" rx=\"1.5\" stroke=\"currentColor\" stroke-width=\"1.2\"/>",
 "git_worktree": "<path d=\"M7.78314 8.0003L12.3252 3.45825\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/> <path d=\"M9.49899 9.71719L12.3237 12.5419\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/> <path d=\"M3.25763 8.00031H7.77134\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/> <path d=\"M12.7424 6.47908V3.04047H9.3038\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/> <path d=\"M9.30225 12.9595H12.7409V9.52094\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>",
 "load_circle": "<path stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"1.2\" d=\"M13 8a5 5 0 1 1-3.455-4.755\"/>",
 "check_double": "<path d=\"M11.5999 4.38336L4.99996 10.9833L2 7.98332\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/> <path d=\"M14 6.78339L9.50009 11.2833L8.6001 10.3833\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>",
+"send": "<path stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"1.2\" d=\"M3.377 3.028a.25.25 0 0 0-.292.045.291.291 0 0 0-.067.303l1.496 4.236c.088.25.088.526 0 .776l-1.496 4.236a.291.291 0 0 0 .067.303.25.25 0 0 0 .292.045l9.472-4.72a.267.267 0 0 0 .11-.103.288.288 0 0 0-.11-.4L3.377 3.028ZM5 8h8\"/>",
+"forward_arrow_up": "<path d=\"M10.0001 6.66669L13.3334 10L10.0001 13.3334\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/> <path d=\"M2.66675 5V7.33335C2.66675 8.0406 2.94765 8.71888 3.44775 9.21897C3.94785 9.71907 4.62615 10 5.33345 10H13.3334\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>",
+"circle": "<path d=\"M8 12C10.2091 12 12 10.2091 12 8C12 5.79087 10.2091 4 8 4C5.79087 4 4 5.79087 4 8C4 10.2091 5.79087 12 8 12Z\" fill=\"currentColor\"/>",
+"filter": "<path d=\"M2 5H4\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linecap=\"round\"/> <path d=\"M8 5H14\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linecap=\"round\"/> <path d=\"M12 11H14\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linecap=\"round\"/> <path d=\"M2 11H8\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linecap=\"round\"/> <path opacity=\"0.1\" d=\"M6 7C7.10457 7 8 6.10457 8 5C8 3.89543 7.10457 3 6 3C4.89543 3 4 3.89543 4 5C4 6.10457 4.89543 7 6 7Z\" fill=\"currentColor\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linecap=\"round\"/> <path opacity=\"0.1\" d=\"M10 13C11.1046 13 12 12.1046 12 11C12 9.89543 11.1046 9 10 9C8.89543 9 8 9.89543 8 11C8 12.1046 8.89543 13 10 13Z\" fill=\"currentColor\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linecap=\"round\"/> <path d=\"M6 7C7.10457 7 8 6.10457 8 5C8 3.89543 7.10457 3 6 3C4.89543 3 4 3.89543 4 5C4 6.10457 4.89543 7 6 7Z\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linecap=\"round\"/> <path d=\"M10 13C11.1046 13 12 12.1046 12 11C12 9.89543 11.1046 9 10 9C8.89543 9 8 9.89543 8 11C8 12.1046 8.89543 13 10 13Z\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linecap=\"round\"/>",
 }
 
 // `kind` d'un tool call ACP -> icône, exactement comme le panel de Zed les affiche.
@@ -90,6 +92,7 @@ export function icon(name, cls = '') {
   const svg = document.createElementNS(SVG_NS, 'svg')
   if (ZED[name]) {
     svg.setAttribute('viewBox', '0 0 16 16')
+    svg.setAttribute('fill', 'none')
     svg.setAttribute('aria-hidden', 'true')
     svg.setAttribute('class', `icon ${cls}`.trim())
     svg.innerHTML = ZED[name]

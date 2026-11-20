@@ -81,13 +81,16 @@ function themeSection() {
   )
 }
 
-/** Échelles de taille du texte (confort mobile) ; 1 = tailles de la feuille. */
+/** Échelles de taille du texte (confort mobile) ; 1 = tailles de la feuille.
+ * Unité affichée : la taille des messages (.md = 14 px) à l'échelle 1. */
+const TEXT_BASE_PX = 14
 const TEXT_SCALES = [
   { value: 0.85, label: tr`Petite` },
   { value: 1, label: tr`Normale` },
   { value: 1.15, label: tr`Grande` },
   { value: 1.3, label: tr`Très grande` },
 ]
+const scaleLabel = (s) => `${s.label} (${Math.round(TEXT_BASE_PX * s.value)} px)`
 
 const LANGS = [
   { value: 'auto', label: tr`Auto` },
@@ -116,16 +119,17 @@ function displaySection(api) {
     onclick: (ev) => openMenu(ev.currentTarget, {
       label: tr`Taille du texte`,
       items: TEXT_SCALES.map((s) => ({
-        label: s.label,
+        label: scaleLabel(s),
         on: s.value === settings.textScale,
-        onSelect: () => { updateSettings({ textScale: s.value }); applyTextScale(s.value); scaleBtn.querySelector('span').textContent = s.label },
+        onSelect: () => { updateSettings({ textScale: s.value }); applyTextScale(s.value); scaleBtn.querySelector('span').textContent = scaleLabel(s) },
       })),
     }),
-  }, icon('eye', 'icon--sm'), h('span', { text: (TEXT_SCALES.find((s) => s.value === settings.textScale) || TEXT_SCALES[1]).label }), icon('chevron-down', 'icon--sm'))
+  }, icon('eye', 'icon--sm'), h('span', { text: scaleLabel(TEXT_SCALES.find((s) => s.value === settings.textScale) || TEXT_SCALES[1]) }), icon('chevron-down', 'icon--sm'))
 
   return h('section.field', {},
     h('span.label', { text: tr`Affichage` }),
-    h('div.row', {}, langBtn, scaleBtn),
+    h('div.setting', {}, h('span.label', { text: tr`Langue` }), langBtn),
+    h('div.setting', {}, h('span.label', { text: tr`Taille du texte` }), scaleBtn),
     toggle(tr`Toujours déplier les réflexions`, 'alwaysShowThoughts'),
     toggle(tr`Déplier tous les outils`, 'expandTools'),
     toggle(tr`Mode mock (daemon simulé)`, 'mock', () => {

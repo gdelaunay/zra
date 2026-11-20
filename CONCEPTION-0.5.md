@@ -81,6 +81,12 @@ par la copie intégrale.
 Adaptations actées (le but est d'adapter l'existant, pas d'ajouter des
 features) :
 
+- **Taille du texte de la discussion : 14 px** — divergence assumée d'avec Zed,
+  qui rend le markdown de l'agent à `ui_font_size` 16 px. On unifie les deux
+  paliers 14/16 : corps des messages, sorties d'outils et cartes passent à
+  14 px, le palier des noms de thread/projet — plus harmonieux sur mobile. Le
+  code reste à 12 px mono (`agent_buffer_font_size`), palier distinct. Le
+  sélecteur « Taille du texte » prend 14 px pour base.
 - **Pas de mermaid** : Zed rend les diagrammes mermaid, ZRA non.
 - **Survol → tactile** : les actions révélées au survol chez Zed sont
   accessibles au tap. ZRA s'utilise aussi sur desktop, mais l'adaptation est
@@ -189,4 +195,4 @@ Deux réglages ajoutés :
 
 - **Langue** : auto (suivi du navigateur, défaut) / français / anglais.
 - **Taille du texte** : confort mobile, échelle appliquée aux tailles de
-  police (défaut = tailles actuelles).
+  police (défaut = tailles actuelles ; base discussion 14 px).

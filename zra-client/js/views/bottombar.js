@@ -1,7 +1,7 @@
 // Barre du bas, commune aux deux écrans — copie de la status bar de Zed
 // (reference/zed-bottom-bar/) : fond status_bar.background, padding 4,
-// hauteur 26, boutons 18 × 18 (icône 14). Dock droit seulement : filet vertical
-// 1 × 16 puis, en partant de la droite, liste des threads et agent.
+// hauteur 26, boutons 18 × 18 (icône 14). Dock droit seulement : en partant de
+// la droite, liste des threads puis agent, chacun précédé d'un filet vertical 1 × 16.
 //
 // Actif (icône text_accent, sans fond) = l'écran courant. Le bouton agent
 // ramène à la dernière discussion ouverte ; sans aucune discussion ouverte
@@ -42,6 +42,6 @@ export function BottomBar({ navigate, active }) {
   const off = onSettings(sync)
   sync()
 
-  const el = h('div.bottombar', {}, h('span.spacer'), h('span.divider-v'), agentBtn, threadsBtn)
+  const el = h('div.bottombar', {}, h('span.spacer'), h('span.divider-v'), agentBtn, h('span.divider-v'), threadsBtn)
   return { el, destroy: off }
 }
