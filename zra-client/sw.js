@@ -1,7 +1,7 @@
 // Service worker : coquille de cache (v1) + point d'ancrage Web Push, inactif.
 // Réseau d'abord partout (coquille comprise), cache en repli hors tunnel.
 
-const VERSION = 'zra-v5'
+const VERSION = 'zra-v6'
 /** Au-delà, le réseau est tenu pour absent (hors tunnel) : on sert le cache. */
 const NETWORK_TIMEOUT_MS = 3000
 const SHELL = [
@@ -11,6 +11,11 @@ const SHELL = [
   './icon.svg',
   './css/themes.css',
   './css/app.css',
+  './fonts/IBMPlexSans-Regular.ttf',
+  './fonts/IBMPlexSans-Italic.ttf',
+  './fonts/IBMPlexSans-SemiBold.ttf',
+  './fonts/Lilex-Regular.ttf',
+  './fonts/Lilex-Bold.ttf',
   './js/main.js',
   './js/theme-boot.js',
   './js/i18n.js',

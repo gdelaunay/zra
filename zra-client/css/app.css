@@ -3,10 +3,19 @@
  * reference/zed-bottom-bar/. Toutes les couleurs viennent de themes.css (tokens Zed).
  * Les tailles de police passent par --text-scale (réglage « Taille du texte »). */
 
+/* Polices de Zed embarquées (OFL 1.1, voir fonts/*-OFL.txt et THIRD_PARTY_NOTICES.md) :
+ * IBM Plex Sans pour l'UI, Lilex pour le mono — les originales sous leur nom
+ * d'origine (les alias « Zed Plex » sont dépréciés côté Zed). */
+@font-face { font-family: "IBM Plex Sans"; src: url("../fonts/IBMPlexSans-Regular.ttf"); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: "IBM Plex Sans"; src: url("../fonts/IBMPlexSans-Italic.ttf"); font-weight: 400; font-style: italic; font-display: swap; }
+@font-face { font-family: "IBM Plex Sans"; src: url("../fonts/IBMPlexSans-SemiBold.ttf"); font-weight: 600 700; font-style: normal; font-display: swap; }
+@font-face { font-family: "Lilex"; src: url("../fonts/Lilex-Regular.ttf"); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: "Lilex"; src: url("../fonts/Lilex-Bold.ttf"); font-weight: 700; font-style: normal; font-display: swap; }
+
 :root {
-  --font-ui: "Zed Plex Sans", "IBM Plex Sans", ui-sans-serif, system-ui,
+  --font-ui: "IBM Plex Sans", ui-sans-serif, system-ui,
              "Segoe UI Variable Text", "Segoe UI", Roboto, sans-serif;
-  --font-mono: "Zed Plex Mono", "IBM Plex Mono", ui-monospace, "Cascadia Mono",
+  --font-mono: "Lilex", ui-monospace, "Cascadia Mono",
                "JetBrains Mono", Consolas, "Liberation Mono", monospace;
 
   /* Interligne par défaut de Zed : φ (gpui style.rs). */
