@@ -111,16 +111,19 @@ test('applyTheme() pose le thème sur <html> et rend l’entrée choisie', () =>
 })
 
 test('applyTheme() sur un id inconnu résout le mode auto', () => {
-  // REVUE VISUELLE 0.5 : le défaut auto est figé Gruvbox Dark (voir autoThemeId).
+  globalThis.matchMedia = () => ({ matches: true })
   const theme = applyTheme('theme-qui-n-existe-pas')
-  assert.equal(theme.id, 'gruvbox-dark')
-  assert.equal(document.documentElement.dataset.theme, 'gruvbox-dark')
+  assert.equal(theme.id, 'one-dark')
+  assert.equal(document.documentElement.dataset.theme, 'one-dark')
 })
 
-test('applyTheme() sans argument = mode auto (défaut figé pour la revue)', () => {
-  document.documentElement.dataset.theme = 'one-dark'
-  assert.equal(applyTheme().id, 'gruvbox-dark')
-  assert.equal(document.documentElement.dataset.theme, 'gruvbox-dark')
+test('applyTheme() sans argument suit le thème du navigateur', () => {
+  document.documentElement.dataset.theme = 'gruvbox-dark'
+  globalThis.matchMedia = (q) => ({ matches: /dark/.test(q) })
+  assert.equal(applyTheme().id, 'one-dark', 'navigateur sombre : One Dark')
+  globalThis.matchMedia = () => ({ matches: false })
+  assert.equal(applyTheme().id, 'one-light', 'navigateur clair : One Light')
+  assert.equal(document.documentElement.dataset.theme, 'one-light')
 })
 
 test('applyTheme() aligne la couleur de la barre du navigateur sur le fond du thème', () => {

@@ -96,10 +96,7 @@ export function hostLabel(url) {
 
 /** Thème résolu en mode auto : One dark/light selon le navigateur. */
 export function autoThemeId() {
-  // REVUE VISUELLE 0.5 : défaut figé Gruvbox Dark, plus familier pour la revue.
-  // La logique auto est conservée, décommenter pour la rétablir :
-  // return globalThis.matchMedia?.('(prefers-color-scheme: dark)')?.matches ? 'one-dark' : 'one-light'
-  return 'gruvbox-dark'
+  return globalThis.matchMedia?.('(prefers-color-scheme: dark)')?.matches ? 'one-dark' : 'one-light'
 }
 
 /** Le thème effectif : choix manuel figé, ou résolution auto. */

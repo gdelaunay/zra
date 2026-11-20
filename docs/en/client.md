@@ -133,9 +133,7 @@ CSS variables reuse Zed's token names (`element.hover` →
 `--element-hover`), so adding a theme = adding a line in
 `scripts/gen-themes.mjs`. Eight themes shipped. **Default: One, dark or light
 following the browser** (`prefers-color-scheme`), as long as no manual choice
-was made; the first choice is persisted and freezes the theme. During the 0.5
-visual review, this resolution is neutralized in favor of Gruvbox Dark
-(`autoThemeId` in `js/settings.js`, auto logic commented out).
+was made; the first choice is persisted and freezes the theme.
 
 ## Wired to the daemon
 

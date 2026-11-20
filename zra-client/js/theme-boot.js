@@ -6,9 +6,7 @@
   try {
     var s = JSON.parse(localStorage.getItem('zra.settings.v2') || '{}')
     var t = s.theme
-    // REVUE VISUELLE 0.5 : défaut figé Gruvbox Dark ; logique auto conservée :
-    // if (!t) t = matchMedia('(prefers-color-scheme: dark)').matches ? 'one-dark' : 'one-light'
-    if (!t) t = 'gruvbox-dark'
+    if (!t) t = matchMedia('(prefers-color-scheme: dark)').matches ? 'one-dark' : 'one-light'
     var d = document.documentElement
     d.dataset.theme = t
     if (s.textScale) d.style.setProperty('--text-scale', String(s.textScale))
