@@ -70,6 +70,34 @@ test('message envoyé du mobile : l’écho local cède la place au message publ
   assert.ok(!entries.some((e) => e.pending), 'plus rien « en attente »')
 })
 
+test('écho avec mention @ : les blocs rejoués (resource_link) prennent la place de l’écho', () => {
+  const k = 'mock-desk/thread-mention'
+  store.ensureState(k).historyComplete = true
+  const uri = 'file:///C:/proj/ISSUES.md'
+  store.sendMessage(k, `regarde [@ISSUES.md](${uri}) vite fait stp`)
+  const u = (content) => ({ sessionUpdate: 'user_message_chunk', content, _meta: { zra: { synthetic: true, origin: 'mobile' } } })
+  deliver({ type: 'acp_event', threadId: 'thread-mention', seq: 40, update: u({ type: 'text', text: 'regarde ' }) })
+  deliver({ type: 'acp_event', threadId: 'thread-mention', seq: 41, update: u({ type: 'resource_link', uri, name: 'ISSUES.md' }) })
+  deliver({ type: 'acp_event', threadId: 'thread-mention', seq: 42, update: u({ type: 'text', text: ' vite fait stp' }) })
+  const entries = store.ensureTimeline(k).entries
+  assert.equal(entries.filter((e) => e.type === 'user').length, 1, 'pas de doublon fantôme + réel')
+  assert.ok(!entries.some((e) => e.pending), 'plus rien « en attente »')
+})
+
+test('écho avec mention @ : fichier embarqué (resource) — même réconciliation', () => {
+  const k = 'mock-desk/thread-mention-embed'
+  store.ensureState(k).historyComplete = true
+  const uri = 'file:///C:/proj/ISSUES.md'
+  store.sendMessage(k, `regarde [@ISSUES.md](${uri}) stp`)
+  const u = (content) => ({ sessionUpdate: 'user_message_chunk', content, _meta: { zra: { synthetic: true, origin: 'mobile' } } })
+  deliver({ type: 'acp_event', threadId: 'thread-mention-embed', seq: 43, update: u({ type: 'text', text: 'regarde ' }) })
+  deliver({ type: 'acp_event', threadId: 'thread-mention-embed', seq: 44, update: u({ type: 'resource', resource: { uri, text: '# Issues\ncontenu du fichier…' } }) })
+  deliver({ type: 'acp_event', threadId: 'thread-mention-embed', seq: 45, update: u({ type: 'text', text: ' stp' }) })
+  const entries = store.ensureTimeline(k).entries
+  assert.equal(entries.filter((e) => e.type === 'user').length, 1)
+  assert.ok(!entries.some((e) => e.pending))
+})
+
 test('Zed recharge la session : historique vide, puis le replay remplit sans doublon', () => {
   const k = 'mock-desk/thread-replay'
   store.ensureState(k).historyComplete = true

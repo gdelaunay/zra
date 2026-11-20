@@ -5,7 +5,8 @@
 
 import { emitter } from './dom.js'
 import { DaemonLink } from './link.js'
-import { Timeline, blocksText } from './acp.js'
+import { Timeline, blocksText, blockText } from './acp.js'
+import { parseMentionLinks, uriName } from './mentions.js'
 import { noteRegistryIcons } from './icons.js'
 import { settings, originMachine, tokenFor, setToken } from './settings.js'
 import { tr } from './i18n.js'
@@ -324,10 +325,34 @@ function applyToTimeline(k, update, meta) {
   if (changes.length) emit(`timeline:${k}`, { changes })
 }
 
+/** Texte d'écho réduit pour la comparaison : liens de mention → leur nom,
+ * comme le daemon les réduit en blocs resource/resource_link (D1). */
+function mentionNames(text) {
+  const links = parseMentionLinks(text)
+  if (!links.length) return text
+  let out = ''
+  let last = 0
+  for (const l of links) { out += text.slice(last, l.start) + l.name; last = l.end }
+  return out + text.slice(last)
+}
+
+/** Texte des blocs rejoués réduit pareil : une resource (fichier embarqué,
+ * lien) compte pour son nom, pas pour son contenu. */
+function blocksMatchText(blocks) {
+  return (blocks || []).map((b) => {
+    if (b?.type === 'resource_link') return b.name || uriName(b.uri)
+    if (b?.type === 'resource') return uriName(b.resource?.uri)
+    return blockText(b)
+  }).join('')
+}
+
 /**
  * Un message envoyé depuis le mobile est affiché tout de suite (écho local).
  * Si l'agent le rejoue ensuite en `user_message_chunk`, on retire l'écho pour
- * ne pas afficher deux fois la même chose.
+ * ne pas afficher deux fois la même chose. Avec des mentions @, le texte brut
+ * de l'écho diffère des blocs rejoués : on compare aussi sous forme réduite
+ * (liens et resources → noms). Un lien hors périmètre reste littéral des deux
+ * côtés : la comparaison brute suffit alors.
  */
 function reconcileLocalEcho(k, tl, update) {
   if ((update?.sessionUpdate ?? update?.type) !== 'user_message_chunk') return
@@ -336,7 +361,11 @@ function reconcileLocalEcho(k, tl, update) {
   const real = tl.entries.filter((x) => x.type === 'user' && !x.local).pop()
   if (!real) return
   const realText = blocksText(real.blocks).trim()
-  const idx = st.localEchoes.findIndex((entry) => realText.startsWith(blocksText(entry.blocks).trim()))
+  const realMatch = blocksMatchText(real.blocks).trim()
+  const idx = st.localEchoes.findIndex((entry) => {
+    const echoText = blocksText(entry.blocks).trim()
+    return realText.startsWith(echoText) || realMatch.startsWith(mentionNames(echoText))
+  })
   if (idx === -1) return
   const [echo] = st.localEchoes.splice(idx, 1)
   const pos = tl.entries.indexOf(echo)
