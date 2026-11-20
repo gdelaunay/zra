@@ -1,18 +1,20 @@
-// Écran 2 — un thread : flux d'événements ACP + composer.
+// Écran 2 — un thread : flux d'événements ACP + composer, calqués sur le
+// panel agent de Zed (reference/zed-agent-panel/).
 
 import { h, button, clear, rafBatch, patchHtml } from '../dom.js'
 import { icon, agentIcon } from '../icons.js'
-import { relTime, absTime, shortPath, agentLabel, projectOf, toMs, formatTokens, formatCost, formatDuration } from '../format.js'
+import { relTime, absTime, baseName, agentLabel, projectOf, toMs, formatTokens, formatCost, formatDuration } from '../format.js'
 import * as store from '../store.js'
 import { renderEntry, blocksPieces, revealBlocks, textLength, messageBody, planPanel, permissionButtons, inlineTitle } from './entry.js'
 import { openMenu, toast, switchEl } from '../ui.js'
 import { newSessionButton } from './new-session.js'
+import { BottomBar } from './bottombar.js'
 import { settings, update as updateSettings } from '../settings.js'
 import { tr, locale } from '../i18n.js'
 
 /**
  * Au-delà de ce nombre de réglages hors mode/modèle, ils passent tous dans le
- * menu « ⋯ », quel que soit leur type : la barre du bas ne défile pas.
+ * menu « ⋯ », quel que soit leur type : la barre du composer ne défile pas.
  */
 const INLINE_OPTIONS = 2
 
@@ -29,6 +31,12 @@ const REVEAL_MIN_CPS = 250
 
 /** Icône d'un réglage générique, d'après sa catégorie ACP (indicative, jamais requise). */
 const OPTION_ICONS = { thought_level: 'lightbulb', model_config: 'zap' }
+
+/** Spinner de Zed (`spinner_label.rs`) : braille, Dots 1 s, Sand 2 s. */
+const BRAILLE = {
+  dots: { f: ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'], ms: 1000 },
+  sand: { f: ['⠁', '⠂', '⠄', '⡀', '⡈', '⡐', '⡠', '⣀', '⣁', '⣂', '⣄', '⣌', '⣔', '⣤', '⣥', '⣦', '⣮', '⣶', '⣷', '⣿', '⡿', '⠿', '⢟', '⠟', '⡛', '⠛', '⠫', '⢋', '⠋', '⠍', '⡉', '⠉', '⠑', '⠡', '⢁'], ms: 2000 },
+}
 
 export function ThreadView({ key, navigate }) {
   const st = store.ensureState(key)
@@ -47,18 +55,26 @@ export function ThreadView({ key, navigate }) {
   const nodes = new Map()
   let stick = true
   const activity = h('div.activity.hidden')
+  const activityWrap = h('div.activity-wrap', {}, activity)
   // Plan replié par défaut, comme dans Zed (`plan_expanded`).
   let planOpen = false
 
+  // « Revenir en bas » : icône seule dans un carré, apparence bouton Zed.
   const jump = button('jump.hidden', {
+    title: tr`Dernier message`, 'aria-label': tr`dernier message`,
     onclick: () => { stick = true; scrollToEnd(); jump.classList.add('hidden') },
-  }, icon('arrow-down', 'icon--sm'), tr`Dernier message`)
+  }, icon('arrow-down', 'icon--sm'))
 
-  // Tour en cours : sous le dernier message, une icône de chargement (à choisir
-  // plus tard) et la durée du tour. Absent du fil hors tour.
+  // Indicateur de tour — render_generating : spinner braille, durée du tour ;
+  // « Sand » + libellé quand une confirmation est attendue.
+  const spinEl = h('span.spinner', { text: '⠋' })
+  const turnLabel = h('span')
   const turnTime = h('span.turn__time')
-  const turnLine = h('div.turn', {}, icon('loader', 'icon--sm spin'), turnTime)
+  const turnLine = h('div.generating', {}, h('span.slot', {}, spinEl), turnLabel, turnTime)
+  const turnWrap = h('div.entry-wrap', {}, turnLine)
   let turnTimer = null
+  let spinMode = 'dots'
+  const spinT0 = performance.now()
 
   const banner = h('div.banner.hidden')
   const title = h('span.truncate')
@@ -70,10 +86,12 @@ export function ThreadView({ key, navigate }) {
 
   const modeBtn = button('pill', { onclick: (ev) => optionMenu(ev, 'mode') })
   const modelBtn = button('pill', { onclick: (ev) => optionMenu(ev, 'model') })
-  const optionsSlot = h('span.bottombar__options')
+  const optionsSlot = h('span.composer__options', { style: { display: 'contents' } })
 
   const composer = Composer({
     key,
+    agentName: () => agentLabel(st.summary?.agentId),
+    selectors: [modeBtn, modelBtn, optionsSlot],
     onSend: (text, mode) => {
       // Répondre à un thread fermé : Zed le rouvre au clavier, ce qui prend
       // quelques secondes. Le bandeau le dit jusqu'au retour du thread (ou l'échec).
@@ -86,7 +104,6 @@ export function ThreadView({ key, navigate }) {
       store.sendMessage(key, text, mode)
     },
     onStop: stopTurn,
-    onSendNow: sendNow,
   })
 
   /** Zed est en train de rouvrir ce thread : `null`, ou l'instant de la demande. */
@@ -106,28 +123,30 @@ export function ThreadView({ key, navigate }) {
     syncHeader()
   }
 
+  const bottombar = BottomBar({ navigate, active: 'thread' })
+
   const el = h('div.view',
+    // Barre du haut : icône agent, nom, chemin (un niveau), time ; à droite
+    // pastille live, filet, « + » (nouvelle session), settings.
     h('div.header', {},
       agentSlot,
-      h('div.header__title', {}, dot, lock, title),
+      h('div.header__title', {}, title),
       h('div.header__meta', {}, pathLabel, h('span', { text: '·' }), subtitle),
-      // Nouveau thread dans le projet de celui-ci.
-      newSessionButton({
-        machineId: store.splitKey(key).machineId,
-        project: () => (st.summary ? projectOf(st.summary.folderPaths) : null),
-      }),
-      button('icon-btn', { onclick: overflowMenu, 'aria-label': tr`actions` }, icon('settings', 'icon--sm')),
+      h('div.header__right', {},
+        dot, lock,
+        h('span.divider-v'),
+        newSessionButton({
+          machineId: store.splitKey(key).machineId,
+          project: () => (st.summary ? projectOf(st.summary.folderPaths) : null),
+        }),
+        button('icon-btn icon-btn--sm', { onclick: overflowMenu, 'aria-label': tr`actions` }, icon('settings', 'icon--sm')),
+      ),
     ),
     banner,
     h('div.thread__wrap', {}, feed, jump),
-    activity,
+    activityWrap,
     composer.el,
-    h('div.bottombar', {}, modeBtn, modelBtn, optionsSlot, h('span.spacer'),
-      // Même boîte que le bouton Envoyer : c'est une action, pas un réglage.
-      button('send-btn.send-btn--icon', {
-        title: tr`Liste des threads`, 'aria-label': tr`liste des threads`,
-        onclick: () => navigate('#/'),
-      }, icon('list', 'icon--sm'))),
+    bottombar.el,
   )
 
   /**
@@ -150,7 +169,7 @@ export function ThreadView({ key, navigate }) {
   //
   // Comme Zed (`render_activity_bar`), au-dessus du composer : la permission en
   // attente quand sa carte est hors de vue (`render_main_agent_awaiting_permission`),
-  // et le plan de l'agent.
+  // le plan de l'agent, et la file d'attente des messages.
 
   function syncActivity() {
     const tl = store.ensureTimeline(key)
@@ -159,19 +178,28 @@ export function ThreadView({ key, navigate }) {
     const first = pending[0]
     const node = first && nodes.get(tl.byToolCall.get(first.toolCallId)?.id)
     if (first && !(node && inView(node))) {
-      activity.append(h('div.activity__perm', {},
-        button('activity__head', {
+      activity.append(
+        button('awaiting-head', {
           onclick: () => { stick = false; node?.scrollIntoView?.({ block: 'center' }) },
         },
           icon('alert-triangle', 'icon--sm'),
           h('span', { text: pending.length > 1 ? tr`En attente de confirmation (${pending.length})` : tr`En attente de confirmation` }),
           h('span.spacer'),
           node ? icon(node.getBoundingClientRect().top < feed.getBoundingClientRect().top ? 'arrow-up' : 'arrow-down', 'icon--sm') : null),
-        h('div.md.activity__title', { html: inlineTitle(first.toolCall?.title || 'action') }),
-        permissionButtons(first, ctx())))
+        h('div.md.awaiting-title', { html: inlineTitle(first.toolCall?.title || 'action') }),
+        permissionButtons(first, ctx()))
     }
     if (tl.planEntry?.items?.length) {
       activity.append(planPanel(tl.planEntry, { open: planOpen, onToggle: () => { planOpen = !planOpen; syncActivity() } }))
+    }
+    for (const q of st.queue || []) {
+      activity.append(h('div.queue-row', {},
+        h('span.q-text.truncate', { text: q.text }),
+        h('span.q-btns', {},
+          button('icon-btn icon-btn--sm', { title: tr`Envoyer maintenant`, onclick: () => sendNow(q) },
+            icon('send', 'icon--sm')),
+          button('icon-btn icon-btn--sm', { title: tr`Annuler`, onclick: () => store.cancelQueued(key, q.queueId) },
+            icon('x', 'icon--sm')))))
     }
     activity.classList.toggle('hidden', !activity.childElementCount)
   }
@@ -221,14 +249,23 @@ export function ThreadView({ key, navigate }) {
   function syncTurn() {
     const busy = st.turn === 'busy' && Boolean(st.turnSince)
     if (!busy) {
-      turnLine.remove()
+      turnWrap.remove()
       clearInterval(turnTimer)
       turnTimer = null
       return
     }
+    const waiting = store.ensureTimeline(key).pendingPermissions().length > 0
+    spinMode = waiting ? 'sand' : 'dots'
+    turnLabel.textContent = waiting ? tr`En attente de confirmation…` : ''
     turnTime.textContent = formatDuration(Date.now() - st.turnSince)
-    if (turnLine.parentNode !== feed || turnLine.nextSibling) { feed.append(turnLine); scrollToEnd() }
-    turnTimer ??= setInterval(syncTurn, 1000)
+    if (turnWrap.parentNode !== feed || turnWrap.nextSibling) { feed.append(turnWrap); scrollToEnd() }
+    if (!turnTimer) {
+      turnTimer = setInterval(() => {
+        const { f, ms } = BRAILLE[spinMode]
+        spinEl.textContent = f[Math.floor(((performance.now() - spinT0) % ms) / ms * f.length)]
+        turnTime.textContent = formatDuration(Date.now() - st.turnSince)
+      }, 50)
+    }
   }
 
   function paintStatusLines() {
@@ -298,6 +335,9 @@ export function ThreadView({ key, navigate }) {
           cursor: r.entry.type === 'agent' && (live || r.shown < full),
         }))
         node._zraLen = r.shown
+        // Réflexion en cours : hauteur bornée, défilement collé en bas (Zed).
+        const th = node.querySelector('.thought__body.streaming')
+        if (th) th.scrollTop = th.scrollHeight
       }
       if (r.shown < full) more = true
       else r.at = undefined
@@ -387,6 +427,7 @@ export function ThreadView({ key, navigate }) {
     repaintLast()
     repaintPermissions()
     syncTurn()
+    syncActivity()
   }
 
   /** Les encarts de permission dépendent de l'état du thread, pas d'un événement. */
@@ -417,7 +458,9 @@ export function ThreadView({ key, navigate }) {
     const updatedAt = (toMs(info.updatedAt) ?? 0) > (toMs(summary.updatedAt) ?? 0) ? info.updatedAt : summary.updatedAt
     subtitle.textContent = relTime(updatedAt)
     subtitle.title = absTime(updatedAt)
-    pathLabel.textContent = shortPath(summary.folderPaths?.[0], 2)
+    // Chemin projet : un seul niveau (« ../pp-runtimes »).
+    const folder = summary.folderPaths?.[0]
+    pathLabel.textContent = folder ? `../${baseName(folder)}` : ''
     pathLabel.title = summary.folderPaths?.join('\n') || ''
     clear(agentSlot)
     agentSlot.append(agentIcon(summary.agentId, 'icon--sm'))
@@ -440,17 +483,17 @@ export function ThreadView({ key, navigate }) {
     banner.className = `banner ${level} ${msg ? '' : 'hidden'}`.trim()
     clear(banner)
     const waiting = reopening !== null && m.status === 'online'
-    if (msg) banner.append(icon(waiting ? 'loader' : 'alert-triangle', waiting ? 'icon--sm spin' : 'icon--sm'), h('span', { text: msg }))
+    if (msg) banner.append(icon(waiting ? 'load_circle' : 'alert-triangle', waiting ? 'icon--sm spin' : 'icon--sm'), h('span', { text: msg }))
   }
 
   /**
-   * Comme dans Zed, la pastille porte la valeur, sans icône ; sur un écran
+   * Comme dans Zed, le sélecteur porte la valeur, sans icône ; sur un écran
    * étroit, l'icône remplace la valeur (CSS `.pill__icon` / `.pill__label`).
    */
   function setPill(btn, iconName, label, enabled) {
     clear(btn)
     btn.title = label
-    btn.append(icon(iconName, 'icon--sm pill__icon'), h('span.truncate.pill__label', { text: label }), icon('chevron-down', 'icon--sm'))
+    btn.append(icon(iconName, 'icon--sm pill__icon'), h('span.truncate.pill__label', { text: label }), icon('chevron-down', 'icon--xs'))
     // On ne présume ni d'un mode ni d'un modèle : sans sélecteur annoncé par
     // l'agent (pi n'a pas de mode ; thread fermé, rien d'annoncé), pas de pastille.
     btn.classList.toggle('hidden', !enabled)
@@ -504,7 +547,7 @@ export function ThreadView({ key, navigate }) {
     return button('pill', { title, onclick: (ev) => selectMenu(ev, o) },
       icon(iconName, 'icon--sm pill__icon'),
       h('span.truncate.pill__label', { text: value?.name || o.currentValue || o.name }),
-      icon('chevron-down', 'icon--sm'))
+      icon('chevron-down', 'icon--xs'))
   }
 
   function selectMenu(ev, o) {
@@ -567,10 +610,35 @@ export function ThreadView({ key, navigate }) {
   }
 
   const syncActivitySoon = rafBatch(() => syncActivity())
+  let lastTop = 0
+  // Le geste utilisateur coupe le suivi dès l'entrée, avant la frame qui
+  // suivrait le bas : l'événement `scroll` arrive trop tard (les rAF du stream
+  // passent avant lui dans la frame) et le pouce se ferait ramener en bas.
+  // Molette vers le haut, ou doigt qui descend (= on remonte le fil).
+  const cutStick = () => { stick = false; jump.classList.remove('hidden') }
+  feed.addEventListener('wheel', (ev) => { if (ev.deltaY < 0) cutStick() }, { passive: true })
+  let touchY = null
+  feed.addEventListener('touchstart', (ev) => { touchY = ev.touches[0]?.clientY ?? null }, { passive: true })
+  feed.addEventListener('touchmove', (ev) => {
+    const y = ev.touches[0]?.clientY
+    if (touchY !== null && y > touchY + 2) cutStick()
+    touchY = y
+  }, { passive: true })
   feed.addEventListener('scroll', () => {
-    const atEnd = feed.scrollHeight - feed.scrollTop - feed.clientHeight < 60
-    stick = atEnd
-    jump.classList.toggle('hidden', atEnd)
+    const top = feed.scrollTop
+    const max = feed.scrollHeight - feed.clientHeight
+    // L'utilisateur remonte, même d'un pixel : le suivi s'arrête aussitôt,
+    // sans attendre de sortir de la fenêtre du bas — sinon un chunk qui arrive
+    // pendant le geste ramène en bas et « coince » le pouce (tail-following
+    // de Zed : ListState s'arrête au premier scroll vers le haut).
+    // Un clamp de mise en page (le composer grandit, le fil rétrécit) atterrit
+    // exactement en bas : ce n'est pas un geste utilisateur, on ne coupe pas.
+    if (top < lastTop - 1 && top < max) stick = false
+    // Il redescend tout en bas : le suivi reprend. Notre propre autoscroll
+    // ne va que vers le bas : il ne coupe jamais le suivi par erreur.
+    if (max - top < 60 && top > lastTop) stick = true
+    lastTop = top
+    jump.classList.toggle('hidden', stick)
     // La permission en attente rejoint la barre quand sa carte sort de la vue.
     if (store.ensureTimeline(key).pendingPermissions().length) syncActivitySoon()
   })
@@ -602,6 +670,7 @@ export function ThreadView({ key, navigate }) {
       offs.forEach((off) => off())
       clearInterval(turnTimer)
       clearTimeout(reopenTimer)
+      bottombar.destroy()
       store.closeThread(key)
     },
   }
@@ -610,8 +679,8 @@ export function ThreadView({ key, navigate }) {
 function preserveOpen(oldNode, newNode) {
   const oldOpen = [...oldNode.querySelectorAll('.is-open')].map((n) => n.className)
   if (!oldOpen.length) return
-  const targets = newNode.querySelectorAll('.diff, .raw, .tool')
-  const olds = oldNode.querySelectorAll('.diff, .raw, .tool')
+  const targets = newNode.querySelectorAll('.raw, .tool, .raw-input')
+  const olds = oldNode.querySelectorAll('.raw, .tool, .raw-input')
   targets.forEach((t, i) => { if (olds[i]?.classList.contains('is-open')) t.classList.add('is-open') })
 }
 
@@ -658,10 +727,17 @@ export function dictate(input, { onChange, onActive } = {}) {
   rec.start()
 }
 
-function Composer({ key, onSend, onStop, onSendNow }) {
+/**
+ * Zone de saisie de Zed (`render_message_editor`) : fond editor_background,
+ * éditeur police buffer 12 (4 lignes min), barre dessous — à gauche « + »
+ * (ajout de contexte, désactivé : pas d'envoi de fichier depuis ZRA), à droite
+ * jauge de tokens, sélecteurs, stop et envoi. Pas de « follow agent » (Zed ne
+ * peut pas nous montrer le fichier que l'agent modifie).
+ */
+function Composer({ key, agentName, selectors, onSend, onStop }) {
   const input = h('textarea.composer__input', {
     rows: 1,
-    placeholder: tr`Répondre à l’agent…`,
+    placeholder: tr`Message ${agentName()}…`,
     enterkeyhint: 'send',
     autocapitalize: 'sentences',
     oninput: () => { autoGrow(); store.setDraft(key, input.value) },
@@ -676,24 +752,31 @@ function Composer({ key, onSend, onStop, onSendNow }) {
     },
   })
 
-  const queueBox = h('div.composer__queue')
+  // Ajout de contexte : présent mais désactivé, pas d'envoi de fichier pour l'instant.
+  const plusBtn = button('icon-btn icon-btn--sm', {
+    disabled: true, title: tr`Ajouter du contexte — pas encore disponible`, 'aria-label': tr`ajouter du contexte`,
+  }, icon('plus', 'icon--sm'))
+
   // Envoyer ne change jamais : pendant un tour, le message part en file d'attente.
-  const sendBtn = button('send-btn', { onclick: () => send('queue'), title: tr`Envoyer (Entrée — Maj+Entrée pour aller à la ligne)` },
-    icon('send', 'icon--sm'), h('span', { text: tr`Envoyer` }))
-  // Stop n'apparaît que pendant un tour : icône seule, à gauche d'Envoyer.
-  const stopBtn = button('send-btn.send-btn--icon.send-btn--stop.hidden', {
+  const sendBtn = button('send-btn', { onclick: () => send('queue'), title: tr`Envoyer (Entrée — Maj+Entrée pour aller à la ligne)`, 'aria-label': tr`envoyer` },
+    icon('send'))
+  // Stop n'apparaît que pendant un tour, à gauche d'Envoyer.
+  const stopBtn = button('send-btn send-btn--stop hidden', {
     onclick: stop, title: tr`Interrompre le tour (la file attend le prochain envoi)`,
     'aria-label': tr`interrompre`,
   }, icon('stop', 'icon--sm'))
 
-  // Consommation du contexte, comme sous l'éditeur de Zed : « 27k / 1M ».
-  const usage = h('span.usage.hidden')
+  // Consommation du contexte : anneau comme Zed, ou « 27k » sans maximum connu.
+  const tokens = h('span.tokens.hidden')
+  const usageText = h('span.usage.hidden')
 
   const el = h('div.composer', {},
-    queueBox,
-    h('div.composer__box', {},
-      input,
-      h('div.composer__row', {}, h('span.spacer'), usage, stopBtn, sendBtn),
+    h('div.composer__inner', {},
+      h('div.composer__editor', {}, input),
+      h('div.composer__bar', {},
+        h('div.composer__left', {}, plusBtn),
+        h('div.composer__right', {}, tokens, usageText, ...selectors, stopBtn, sendBtn),
+      ),
     ),
   )
 
@@ -737,37 +820,33 @@ function Composer({ key, onSend, onStop, onSendNow }) {
     input.disabled = Boolean(foreign)
     sendBtn.disabled = Boolean(foreign)
     // Le bandeau et le cadenas disent déjà pourquoi : champ grisé, sans texte.
-    input.placeholder = foreign ? '' : tr`Répondre à l’agent…`
-
-    clear(queueBox)
-    // Vide, la file ne prend aucune place : marges du composer symétriques.
-    queueBox.classList.toggle('hidden', !st.queue?.length)
-    for (const q of st.queue || []) {
-      queueBox.append(h('div.queued', {},
-        icon('clock', 'icon--sm'),
-        h('span.truncate', { text: q.text }),
-        h('span.spacer'),
-        button('icon-btn', { title: tr`Envoyer maintenant`, onclick: () => onSendNow?.(q) },
-          icon('send', 'icon--sm')),
-        button('icon-btn', { title: tr`Annuler`, onclick: () => store.cancelQueued(key, q.queueId) },
-          icon('x', 'icon--sm'))))
-    }
+    input.placeholder = foreign ? '' : tr`Message ${agentName()}…`
   }
 
   /** @param {{ used:number, size:number|null, cost:object|null } | null} u */
   function setUsage(u) {
-    usage.classList.toggle('hidden', !u)
+    tokens.classList.toggle('hidden', !u?.size)
+    usageText.classList.toggle('hidden', !u || Boolean(u?.size))
     if (!u) return
     const ratio = u.size ? u.used / u.size : null
     const cost = formatCost(u.cost)
-    usage.textContent = u.size ? `${formatTokens(u.used)} / ${formatTokens(u.size)}` : formatTokens(u.used)
-    usage.classList.toggle('usage--warn', ratio !== null && ratio >= 0.8 && ratio < 0.95)
-    usage.classList.toggle('usage--full', ratio !== null && ratio >= 0.95)
     const n = (v) => v.toLocaleString(locale)
-    usage.title = [
+    const detail = [
       tr`contexte : ${n(u.used) + (u.size ? ` / ${n(u.size)}` : '')} tokens${ratio !== null ? ` (${Math.round(ratio * 100)} %)` : ''}`,
       cost ? tr`coût de la session : ${cost}` : null,
     ].filter(Boolean).join('\n')
+    if (u.size) {
+      // Anneau 16 px, trait 2 : circonférence 2π × 6 ≈ 37.7 ; orange dès 85 %.
+      const C = 37.7
+      const warn = ratio >= 0.85
+      tokens.title = detail
+      tokens.innerHTML = `<svg class="ring" viewBox="0 0 16 16" aria-hidden="true"><circle class="bg" cx="8" cy="8" r="6"/><circle class="fg${warn ? ' warn' : ''}" cx="8" cy="8" r="6" stroke-dasharray="${(Math.min(1, ratio) * C).toFixed(1)} ${C}"/></svg>`
+    } else {
+      usageText.textContent = formatTokens(u.used)
+      usageText.title = detail
+      usageText.classList.toggle('usage--warn', false)
+      usageText.classList.toggle('usage--full', false)
+    }
   }
 
   return { el, sync, setUsage, focus: () => input.focus(), refreshDraft() {

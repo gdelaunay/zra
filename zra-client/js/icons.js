@@ -7,6 +7,7 @@ import { AGENT_GLYPHS } from './agent-icons.js'
 const P = {
   'chevron-right': 'm9 18 6-6-6-6',
   'chevron-down': 'm6 9 6 6 6-6',
+  'chevron-up': 'm18 15-6-6-6 6',
   'chevron-left': 'm15 18-6-6 6-6',
   'chevron-up-down': 'm8 9 4-4 4 4M8 15l4 4 4-4',
   'arrow-left': 'M19 12H5M12 19l-7-7 7-7',
@@ -55,6 +56,20 @@ const P = {
   'archive': 'M3 4h18v4H3zM5 8v12h14V8M10 12h4',
 }
 
+// Icônes Zed exactes (grille 16, trait 1.2), extraites de assets/icons via reference/.
+// Utilisées là où la fiche 0.5 les nomme : barre du bas, worktree, spinner, coche double.
+const ZED = {
+  "threads_sidebar_right_open": "<rect opacity=\"0.8\" rx=\"2\" transform=\"matrix(-1 0 0 1 14 2)\" fill=\"currentColor\"/> <path d=\"M9 2V14\" stroke=\"currentColor\" stroke-width=\"1.2\"/> <rect x=\"2\" y=\"2\" rx=\"1.5\" stroke=\"currentColor\" stroke-width=\"1.2\"/>",
+  "threads_sidebar_right_closed": "<rect opacity=\"0.1\" rx=\"2\" transform=\"matrix(-1 0 0 1 14 2)\" fill=\"currentColor\"/> <path d=\"M9 2V14\" stroke=\"currentColor\" stroke-width=\"1.2\"/> <rect x=\"2\" y=\"2\" rx=\"1.5\" stroke=\"currentColor\" stroke-width=\"1.2\"/>",
+"zed_assistant": "<path d=\"M8 2.93652L6.9243 6.20697C6.86924 6.37435 6.77565 6.52646 6.65105 6.65105C6.52646 6.77565 6.37435 6.86924 6.20697 6.9243L2.93652 8L6.20697 9.0757C6.37435 9.13076 6.52646 9.22435 6.65105 9.34895C6.77565 9.47354 6.86924 9.62565 6.9243 9.79306L8 13.0635L9.0757 9.79306C9.13076 9.62565 9.22435 9.47354 9.34895 9.34895C9.47354 9.22435 9.62565 9.13076 9.79306 9.0757L13.0635 8L9.79306 6.9243C9.62565 6.86924 9.47354 6.77565 9.34895 6.65105C9.22435 6.52646 9.13076 6.37435 9.0757 6.20697L8 2.93652Z\" fill=\"currentColor\" fill-opacity=\"0.15\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/> <path opacity=\"0.6\" d=\"M3.33334 2V4.66666M2 3.33334H4.66666\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/> <path opacity=\"0.6\" d=\"M12.6665 11.3333V14M11.3333 12.6666H13.9999\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>",
+"threads_sidebar_left_closed": "<rect opacity=\"0.1\" rx=\"2\" transform=\"matrix(-1 0 0 1 7 2)\" fill=\"currentColor\"/> <path d=\"M7 2V14\" stroke=\"currentColor\" stroke-width=\"1.2\"/> <rect x=\"2\" y=\"2\" rx=\"1.5\" stroke=\"currentColor\" stroke-width=\"1.2\"/>",
+"git_branch": "<path d=\"M4.5 13C5.32843 13 6 12.3284 6 11.5C6 10.6716 5.32843 10 4.5 10C3.67157 10 3 10.6716 3 11.5C3 12.3284 3.67157 13 4.5 13Z\" stroke=\"currentColor\" stroke-width=\"1.2\"/> <path d=\"M11.5 6C12.3284 6 13 5.3284 13 4.5C13 3.6716 12.3284 3 11.5 3C10.6716 3 10 3.6716 10 4.5C10 5.3284 10.6716 6 11.5 6Z\" stroke=\"currentColor\" stroke-width=\"1.2\"/> <path d=\"M4.5 10L4.5 3\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linecap=\"round\"/> <path d=\"M10 4.44133C8.54131 4.44133 7.14236 5.02697 6.11091 6.06943C5.07946 7.11188 4.5 8.52575 4.5 10\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>",
+"threads_sidebar_left_open": "<rect opacity=\"0.8\" rx=\"2\" transform=\"matrix(-1 0 0 1 7 2)\" fill=\"currentColor\"/> <path d=\"M7 2V14\" stroke=\"currentColor\" stroke-width=\"1.2\"/> <rect x=\"2\" y=\"2\" rx=\"1.5\" stroke=\"currentColor\" stroke-width=\"1.2\"/>",
+"git_worktree": "<path d=\"M7.78314 8.0003L12.3252 3.45825\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/> <path d=\"M9.49899 9.71719L12.3237 12.5419\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/> <path d=\"M3.25763 8.00031H7.77134\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/> <path d=\"M12.7424 6.47908V3.04047H9.3038\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/> <path d=\"M9.30225 12.9595H12.7409V9.52094\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>",
+"load_circle": "<path stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"1.2\" d=\"M13 8a5 5 0 1 1-3.455-4.755\"/>",
+"check_double": "<path d=\"M11.5999 4.38336L4.99996 10.9833L2 7.98332\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/> <path d=\"M14 6.78339L9.50009 11.2833L8.6001 10.3833\" stroke=\"currentColor\" stroke-width=\"1.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>",
+}
+
 // `kind` d'un tool call ACP -> icône, exactement comme le panel de Zed les affiche.
 export const TOOL_KIND_ICON = {
   read: 'file-text',
@@ -73,6 +88,13 @@ const SVG_NS = 'http://www.w3.org/2000/svg'
 
 export function icon(name, cls = '') {
   const svg = document.createElementNS(SVG_NS, 'svg')
+  if (ZED[name]) {
+    svg.setAttribute('viewBox', '0 0 16 16')
+    svg.setAttribute('aria-hidden', 'true')
+    svg.setAttribute('class', `icon ${cls}`.trim())
+    svg.innerHTML = ZED[name]
+    return svg
+  }
   svg.setAttribute('viewBox', '0 0 24 24')
   svg.setAttribute('fill', 'none')
   svg.setAttribute('stroke', 'currentColor')

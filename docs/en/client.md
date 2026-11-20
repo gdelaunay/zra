@@ -54,13 +54,15 @@ moves from one screen to the other:
 
 ```
 top bar      identity / thread title (+ agent, path, date) · actions
+search       thread filter (list screen, under the top bar)
 content      thread list  |  event stream
-composer     (thread screen only)
-bottom bar   commands: filter  |  mode, model, access to the list
+composer     input + selectors (mode, model…) + gauge (thread screen)
+bottom bar   Zed status bar: agent button, thread list button
 ```
 
-The "normal" screen is the thread: you go to the list through the bottom bar
-button, there is no back button.
+The "normal" screen is the thread: navigation between the two screens goes
+through the two bottom bar buttons (active button = current screen); the
+agent button returns to the last opened discussion.
 
 ## Contract with the daemon
 
@@ -102,8 +104,9 @@ The `agent_id` → icon mapping is done by pattern (`claude-acp`, `Claude Agent 
 ## Language
 
 Texts in French in the code (reference text, key) and in English in
-`js/en.js`, chosen from the browser language: English if it is not
-French. An added or changed text goes through ``tr`…` `` (`js/i18n.js`), then
+`js/en.js`, chosen by the **Language** setting (auto by default: browser
+language, English if it is not French). An added or changed text goes
+through ``tr`…` `` (`js/i18n.js`), then
 `node scripts/i18n-test.mjs --write` and its translation in `en.js`. Daemon
 messages (errors, `zra/notice`) arrive in the machine's language.
 
@@ -119,7 +122,11 @@ npm run themes
 
 CSS variables reuse Zed's token names (`element.hover` →
 `--element-hover`), so adding a theme = adding a line in
-`scripts/gen-themes.mjs`. Eight themes shipped, **Gruvbox Dark by default**.
+`scripts/gen-themes.mjs`. Eight themes shipped. **Default: One, dark or light
+following the browser** (`prefers-color-scheme`), as long as no manual choice
+was made; the first choice is persisted and freezes the theme. During the 0.5
+visual review, this resolution is neutralized in favor of Gruvbox Dark
+(`autoThemeId` in `js/settings.js`, auto logic commented out).
 
 ## Wired to the daemon
 

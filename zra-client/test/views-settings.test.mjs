@@ -200,7 +200,7 @@ test('Postes : un poste implicite porte un badge, pas un bouton Retirer', () => 
 test('Thème : le bouton affiche le thème courant et ouvre le choix', () => {
   const sheet = open()
   const btn = section(sheet, 'Thème').querySelector('button.btn')
-  const current = THEMES.find((t) => t.id === settingsModule.settings.theme)
+  const current = THEMES.find((t) => t.id === settingsModule.currentThemeId())
   assert.equal(btn.querySelector('span').textContent, current.name)
 
   click(btn)
@@ -272,6 +272,35 @@ test('Affichage : toucher au mode mock demande un rechargement', () => {
   click(annuler)                                  // « Recharger » appellerait location.reload()
   assert.equal(settingsModule.settings.mock, false, 'le réglage est écrit, le rechargement est à la main')
   settingsModule.update({ mock: true })
+})
+
+test('Affichage : la langue se choisit et demande un rechargement', () => {
+  const sheet = open()
+  const btn = [...section(sheet, 'Affichage').querySelectorAll('button.btn')][0]
+  assert.equal(btn.querySelector('span').textContent, 'Auto')
+  click(btn)
+  const items = $$('.menu__item')
+  assert.deepEqual(items.map((i) => i.querySelector('.truncate').textContent), ['Auto', 'Français', 'English'])
+  click(items[1])
+  assert.equal(settingsModule.settings.lang, 'fr')
+  assert.match($('.sheet').textContent, /Recharger \?/)
+  const [annuler] = [...$('.sheet').querySelectorAll('button')].filter((b) => b.textContent.trim() !== '')
+  click(annuler)
+  settingsModule.update({ lang: 'auto' })
+})
+
+test('Affichage : la taille du texte s’applique sans rechargement', () => {
+  const sheet = open()
+  const btn = [...section(sheet, 'Affichage').querySelectorAll('button.btn')][1]
+  assert.equal(btn.querySelector('span').textContent, 'Normale')
+  click(btn)
+  const grande = $$('.menu__item').find((i) => i.querySelector('.truncate').textContent === 'Grande')
+  click(grande)
+  assert.equal(settingsModule.settings.textScale, 1.15)
+  assert.equal(doc.documentElement.style.getPropertyValue('--text-scale'), '1.15')
+  assert.equal(btn.querySelector('span').textContent, 'Grande')
+  settingsModule.update({ textScale: 1 })
+  settingsModule.applyTextScale(1)
 })
 
 test('À propos : les postes et l’identifiant du client', () => {

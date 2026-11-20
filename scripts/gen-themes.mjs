@@ -13,14 +13,16 @@ const FAMILIES = [
   { file: 'ayu.json', url: 'https://raw.githubusercontent.com/zed-industries/zed/main/assets/themes/ayu/ayu.json' },
 ]
 
-// Thèmes retenus, dans l'ordre d'affichage du sélecteur. Le premier est le défaut.
+// Thèmes retenus, dans l'ordre d'affichage du sélecteur. Le premier est le
+// repli du CSS (`:root`) ; le défaut effectif est One, dark ou light selon le
+// navigateur (voir `applyTheme`).
 const WANTED = [
+  ['One Dark', 'one-dark'],
+  ['One Light', 'one-light'],
   ['Gruvbox Dark', 'gruvbox-dark'],
   ['Gruvbox Dark Hard', 'gruvbox-dark-hard'],
   ['Gruvbox Dark Soft', 'gruvbox-dark-soft'],
   ['Gruvbox Light', 'gruvbox-light'],
-  ['One Dark', 'one-dark'],
-  ['One Light', 'one-light'],
   ['Ayu Dark', 'ayu-dark'],
   ['Ayu Mirage', 'ayu-mirage'],
 ]
@@ -28,17 +30,17 @@ const WANTED = [
 // Sous-ensemble utile des tokens Zed. On garde les noms de Zed tels quels :
 // `border.variant` -> `--border-variant`.
 const STYLE_KEYS = [
-  'border', 'border.variant', 'border.focused', 'border.selected', 'border.disabled',
+  'border', 'border.variant', 'border.focused', 'border.selected', 'border.disabled', 'border.transparent',
   'background', 'surface.background', 'elevated_surface.background', 'panel.background',
   'element.background', 'element.hover', 'element.active', 'element.selected', 'element.disabled',
-  'ghost_element.background', 'ghost_element.hover', 'ghost_element.active', 'ghost_element.selected',
+  'ghost_element.background', 'ghost_element.hover', 'ghost_element.active', 'ghost_element.selected', 'ghost_element.disabled',
   'drop_target.background',
   'text', 'text.muted', 'text.placeholder', 'text.disabled', 'text.accent',
-  'icon', 'icon.muted', 'icon.disabled', 'icon.accent',
+  'icon', 'icon.muted', 'icon.disabled', 'icon.accent', 'icon.placeholder',
   'status_bar.background', 'title_bar.background', 'toolbar.background', 'tab_bar.background',
   'tab.active_background', 'tab.inactive_background',
-  'search.match_background',
-  'scrollbar.thumb.background', 'scrollbar.thumb.hover_background', 'scrollbar.track.border',
+  'search.match_background', 'search.active_match_background',
+  'scrollbar.thumb.background', 'scrollbar.thumb.hover_background', 'scrollbar.thumb.border', 'scrollbar.track.border',
   'editor.background', 'editor.foreground', 'editor.gutter.background', 'editor.line_number',
   'editor.active_line.background', 'editor.active_line_number', 'editor.subheader.background',
   'terminal.background', 'terminal.foreground', 'terminal.dim_foreground',
@@ -51,12 +53,19 @@ const STYLE_KEYS = [
   'created', 'created.background', 'created.border',
   'deleted', 'deleted.background', 'deleted.border',
   'modified', 'modified.background', 'modified.border',
-  'renamed', 'conflict', 'ignored', 'hidden', 'predictive',
+  'renamed', 'renamed.background', 'renamed.border',
+  'conflict', 'conflict.background', 'conflict.border',
+  'ignored', 'ignored.background', 'ignored.border',
+  'hidden', 'hidden.background', 'hidden.border',
+  'predictive', 'predictive.background', 'predictive.border',
+  'unreachable', 'unreachable.background', 'unreachable.border',
   'error', 'error.background', 'error.border',
   'warning', 'warning.background', 'warning.border',
   'success', 'success.background', 'success.border',
   'info', 'info.background', 'info.border',
-  'hint', 'hint.background',
+  'hint', 'hint.background', 'hint.border',
+  // Couleurs des diffs du panel (Zed : `version_control`, pas `created`/`deleted`).
+  'version_control.added', 'version_control.deleted',
 ]
 
 const SYNTAX_KEYS = [
@@ -68,18 +77,24 @@ const SYNTAX_KEYS = [
 const varName = (k) => '--' + k.replace(/[._]/g, '-')
 
 function block(style, selector, appearance) {
+  // Ayu ne définit pas `version_control.*` : repli sur `created`/`deleted`,
+  // les couleurs de diff de ce thème.
+  const v = { ...style }
+  v['version_control.added'] ??= style.created
+  v['version_control.deleted'] ??= style.deleted
   const lines = [`${selector} {`, `  color-scheme: ${appearance};`]
   for (const k of STYLE_KEYS) {
-    const v = style[k]
-    if (typeof v === 'string') lines.push(`  ${varName(k)}: ${v};`)
+    const val = v[k]
+    if (typeof val === 'string') lines.push(`  ${varName(k)}: ${val};`)
   }
   for (const k of SYNTAX_KEYS) {
     const v = style.syntax?.[k]?.color
     if (typeof v === 'string') lines.push(`  --syntax-${k.replace(/[._]/g, '-')}: ${v};`)
   }
-  const player = style.players?.[0]
+  // Curseur de streaming : le dernier joueur = le joueur agent, comme Zed
+  // (`players.rs`, fn `agent`).
+  const player = style.players?.at(-1)
   if (player?.cursor) lines.push(`  --player-cursor: ${player.cursor};`)
-  if (player?.selection) lines.push(`  --player-selection: ${player.selection};`)
   lines.push('}')
   return lines.join('\n')
 }

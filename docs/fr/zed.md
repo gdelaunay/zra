@@ -79,15 +79,15 @@ Comportement seulement : l'apparence est auditée à part. Côté Zed, sauf ment
 | Fil : réduction des `session/update` (`acp.js` : `Timeline.apply`) | `crates/acp_thread/src/acp_thread.rs` : `handle_session_update`, `upsert_tool_call`, `update_tool_call`, `can_merge_message_chunks` | vérifié |
 | Message de l'utilisateur, de l'agent (`views/entry.js` : `userMsg`, `agentMsg`) | `render_entry`, `render_message_content` | à auditer |
 | Réflexions (`thoughtMsg`) | `render_thinking_block` ; `crates/agent_ui/src/entry_view_state.rs` : `auto_expand_streaming_thought` | vérifié |
-| Tool calls : en-tête, statut, dépliement (`toolCall`, `statusIcon`) | `render_tool_call`, `render_tool_call_label`, `render_tool_call_content` ; réglages `expand_edit_card`, `expand_terminal_card` | vérifié |
-| Terminal (`terminalBlock`) | `render_terminal_tool_call` ; `crates/agent_ui/src/ui/terminal_tool_header.rs` | vérifié |
-| Diff (`diffBlock`, `diff.js`) | `render_diff_editor` | à auditer |
+| Tool calls : deux dispositions (ligne simple / carte), en-tête, échec en croix, dépliement (`toolCall`) | `render_tool_call`, `render_tool_call_label`, `render_tool_call_content` ; réglages `expand_edit_card`, `expand_terminal_card` | vérifié (0.5) |
+| Terminal (`terminalCard`) | `render_terminal_tool_call` ; `crates/agent_ui/src/ui/terminal_tool_header.rs` | vérifié (0.5) |
+| Diff (`diffBlock`, `diff.js`) : sans gouttière, lignes remplies à 12 % | `render_diff_editor` | vérifié (0.5) |
 | Plan, au-dessus du composer (`views/entry.js` : `planPanel` ; `views/thread.js` : `syncActivity`) | `render_activity_bar`, `render_plan_entries`, `render_plan_summary` | vérifié |
 | Permission dans la carte de son tool call (`permissionButtons`), rappelée au-dessus du composer quand la carte est hors de vue ; tool call créé par la demande (`acp.js` : `permission`) | `render_permission_buttons` et variantes, `render_main_agent_awaiting_permission` ; `crates/acp_thread/src/acp_thread.rs` : `request_tool_call_authorization` (`upsert_tool_call`) | vérifié |
 | Question de l'agent : carte du fil, champs selon le schéma, Envoyer / Refuser / Annuler, retirée une fois répondue (`views/entry.js` : `elicitationCard`) ; défauts et validation — requis, longueurs, motif, formats `email`/`uri`/`date`/`date-time`, bornes, nombre de choix (`elicitation.js`) | `conversation_view/elicitation.rs` : `ElicitationCard`, `render_field`, `render_actions`, `should_render_elicitation`, `validate`, `validate_*_value`, `multi_select_default_value` | vérifié |
-| Tour en cours | `render_generating` | à auditer |
-| Composer (`views/thread.js` : `Composer`) | `crates/agent_ui/src/message_editor.rs`, `render_send_button` | à auditer |
-| Mode, modèle, options (`views/thread.js`) | `crates/agent_ui/src/mode_selector.rs`, `model_selector.rs`, `config_options.rs` | écart |
+| Tour en cours : spinner braille Dots / Sand, durée (`views/thread.js` : `syncTurn`) | `render_generating` ; `ui/components/label/spinner_label.rs` | vérifié (0.5) |
+| Composer (`views/thread.js` : `Composer`) : saisie buffer 12, barre gauche « + » / droite jauge + sélecteurs + stop + envoi | `crates/agent_ui/src/message_editor.rs`, `render_send_button` | vérifié (0.5) |
+| Mode, modèle, options (`views/thread.js`) : sélecteurs dans la barre du composer ; réduction icon-only mobile = implémentation ZRA | `crates/agent_ui/src/mode_selector.rs`, `model_selector.rs`, `config_options.rs` | vérifié (0.5) |
 | File d'attente, Stop (`views/thread.js` : `stopTurn`) | `conversation_view/message_queue.rs` (`MessageQueue`), `cancel_generation`, `render_message_queue_entries` | vérifié |
 | Thèmes (`css/themes.css`, généré par `scripts/gen-themes.mjs`) | `assets/themes/` (MIT) ; jetons : `crates/theme/` | vérifié |
 | Icônes (`icons.js`), icônes d'agents (`agent-icons.js`, `scripts/gen-agent-icons.mjs`) | `assets/icons/` (Lucide, ISC ; icônes de marques à part) | à auditer |

@@ -54,13 +54,15 @@ bouge d'un écran à l'autre :
 
 ```
 top bar      identité / titre du thread (+ agent, chemin, date) · actions
+recherche    filtre des threads (écran liste, sous la top bar)
 contenu      liste des threads  |  flux d'événements
-composer     (écran thread seulement)
-bottom bar   commandes : filtre  |  mode, modèle, accès à la liste
+composer     saisie + sélecteurs (mode, modèle…) + jauge (écran thread)
+bottom bar   status bar de Zed : bouton agent, bouton liste des threads
 ```
 
-L'écran « normal » est le thread : on va à la liste par le bouton de la bottom
-bar, il n'y a pas de bouton précédent.
+L'écran « normal » est le thread : la navigation entre les deux écrans se fait
+par les deux boutons de la bottom bar (bouton actif = écran courant) ; le
+bouton agent ramène à la dernière discussion ouverte.
 
 ## Contrat avec le daemon
 
@@ -102,8 +104,9 @@ L'association `agent_id` → icône se fait par motif (`claude-acp`, `Claude Age
 ## Langue
 
 Textes en français dans le code (texte de référence, clé) et en anglais dans
-`js/en.js`, choisis selon la langue du navigateur : anglais si ce n'est pas le
-français. Un texte ajouté ou changé passe par ``tr`…` `` (`js/i18n.js`), puis
+`js/en.js`, choisis par le réglage **Langue** (auto par défaut : langue du
+navigateur, anglais si ce n'est pas le français). Un texte ajouté ou changé
+passe par ``tr`…` `` (`js/i18n.js`), puis
 `node scripts/i18n-test.mjs --write` et sa traduction dans `en.js`. Les
 messages du daemon (erreurs, `zra/notice`) arrivent dans la langue du poste.
 
@@ -119,7 +122,11 @@ npm run themes
 
 Les variables CSS reprennent les noms de tokens de Zed (`element.hover` →
 `--element-hover`), donc ajouter un thème = ajouter une ligne dans
-`scripts/gen-themes.mjs`. Huit thèmes livrés, **Gruvbox Dark par défaut**.
+`scripts/gen-themes.mjs`. Huit thèmes livrés. **Défaut : One, dark ou light
+selon le navigateur** (`prefers-color-scheme`), tant qu'aucun choix manuel n'a
+été fait ; le premier choix est persisté et fige le thème. Pendant la revue
+visuelle 0.5, cette résolution est neutralisée au profit de Gruvbox Dark
+(`autoThemeId` de `js/settings.js`, logique auto commentée).
 
 ## Branché sur le daemon
 

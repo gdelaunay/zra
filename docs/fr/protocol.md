@@ -432,7 +432,7 @@ La PWA sait rendre :
 | `current_mode_update` | mode courant, lu dans la command bar — pas dans le fil |
 | `config_option_update` | ignoré : les options (mode compris) arrivent déjà par `thread_state` — pas dans le fil |
 | `available_commands_update` | mémorisé, pas affiché en v1 |
-| `usage_update` | consommation du contexte sous le composer (« 27k / 1M »), coût en infobulle — pas dans le fil |
+| `usage_update` | consommation du contexte : jauge anneau dans la barre du composer (texte si pas de maximum connu), coût en infobulle — pas dans le fil |
 | `session_info_update` | titre de la top bar (sauf thread renommé dans Zed, `titleOverridden`) et date — pas dans le fil |
 | *(autre)* | **bloc brut repliable** — jamais une erreur |
 

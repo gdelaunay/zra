@@ -85,16 +85,12 @@ features) :
 - **Survol → tactile** : les actions révélées au survol chez Zed sont
   accessibles au tap. ZRA s'utilise aussi sur desktop, mais l'adaptation est
   pensée pour le mobile.
-- **Édition d'un message utilisateur** : appui long (au lieu du clic de Zed)
-  → édition sur place + rewind, comme Zed. Tous les messages utilisateur sont
-  éditables (éditer un message ancien et renvoyer tronque le fil à partir de
-  lui) — seulement si l'agent sait revenir en arrière, comme Zed. La sélection
-  de texte se fait dans l'éditeur ; le geste « appui long = sélection » est
-  désactivé sur les messages hors édition.
-  Validation / annulation — **divergence assumée avec Zed** (qui n'a
-  qu'Entrée / Échap) : petits boutons icône seule sous la bulle, coche verte
-  (`--success`) / croix rouge (`--error`). Entrée valide aussi (+ rewind) ;
-  perdre le focus ne fait rien.
+- **Pas d'édition des messages utilisateur** : Zed ne l'active que si l'agent
+  sait tronquer le fil (`supports_truncate`). Dans Zed v1.28.1, seul l'agent
+  natif l'implémente ; les agents ACP externes — ceux que ZRA pilote — non
+  (`can_rewind_to` = false, messages non éditables dans Zed aussi). ZRA est
+  donc conforme sans rien faire : messages non éditables, sélection de texte
+  native.
 
 ## Composer (décidé)
 

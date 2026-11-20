@@ -5,7 +5,6 @@ import { THEMES } from './themes.js'
 import { tr } from './i18n.js'
 
 const KEY = 'zra.settings.v2'
-const DEFAULT_THEME = THEMES[0].id
 
 const e = emitter()
 export const onSettings = e.on
@@ -16,7 +15,12 @@ function load() {
   const s = raw && typeof raw === 'object' ? raw : {}
   return {
     machines: Array.isArray(s.machines) ? s.machines : [],
-    theme: THEMES.some((t) => t.id === s.theme) ? s.theme : DEFAULT_THEME,
+    /** Absent (`null`) = mode auto : One dark/light selon le navigateur, jusqu'au premier choix manuel. */
+    theme: THEMES.some((t) => t.id === s.theme) ? s.theme : null,
+    /** Langue des textes : auto (navigateur), fr ou en. */
+    lang: s.lang === 'fr' || s.lang === 'en' ? s.lang : 'auto',
+    /** Échelle des tailles de police (confort mobile) ; 1 = tailles de la feuille. */
+    textScale: typeof s.textScale === 'number' && s.textScale >= 0.5 && s.textScale <= 2 ? s.textScale : 1,
     clientId: s.clientId || `zra-${Math.random().toString(36).slice(2, 10)}`,
     defaultSendMode: s.defaultSendMode === 'interrupt' ? 'interrupt' : 'queue',
     /** Faux (défaut) : comme Zed (`thinking_display: "auto"`), dépliées pendant leur écriture. */
@@ -33,10 +37,10 @@ function load() {
 export const settings = load()
 
 function persist() {
-  const { machines, theme, clientId, defaultSendMode, alwaysShowThoughts, expandTools, mock, lastThread, tokens } = settings
+  const { machines, theme, lang, textScale, clientId, defaultSendMode, alwaysShowThoughts, expandTools, mock, lastThread, tokens } = settings
   try {
     localStorage.setItem(KEY, JSON.stringify({
-      machines, theme, clientId, defaultSendMode, alwaysShowThoughts, expandTools, mock, lastThread, tokens,
+      machines, theme, lang, textScale, clientId, defaultSendMode, alwaysShowThoughts, expandTools, mock, lastThread, tokens,
     }))
   } catch { /* mode privé : on tourne en mémoire */ }
 }
@@ -88,8 +92,23 @@ export function hostLabel(url) {
   try { return new URL(url).hostname } catch { return url }
 }
 
+/** Thème résolu en mode auto : One dark/light selon le navigateur. */
+export function autoThemeId() {
+  // REVUE VISUELLE 0.5 : défaut figé Gruvbox Dark, plus familier pour la revue.
+  // La logique auto est conservée, décommenter pour la rétablir :
+  // return globalThis.matchMedia?.('(prefers-color-scheme: dark)')?.matches ? 'one-dark' : 'one-light'
+  return 'gruvbox-dark'
+}
+
+/** Le thème effectif : choix manuel figé, ou résolution auto. */
+export const currentThemeId = () => settings.theme ?? autoThemeId()
+
+/**
+ * Pose le thème sur `<html>` et aligne la barre du navigateur.
+ * `id` absent ou inconnu = mode auto (résolution navigateur).
+ */
 export function applyTheme(id) {
-  const theme = THEMES.find((t) => t.id === id) || THEMES[0]
+  const theme = THEMES.find((t) => t.id === id) || THEMES.find((t) => t.id === autoThemeId()) || THEMES[0]
   document.documentElement.dataset.theme = theme.id
   const meta = document.querySelector('meta[name="theme-color"]')
   if (meta) {
@@ -97,6 +116,11 @@ export function applyTheme(id) {
     if (bg) meta.setAttribute('content', bg.slice(0, 7))
   }
   return theme
+}
+
+/** Échelle des tailles de police, posée sur `<html>` (consommée par `calc()` dans app.css). */
+export function applyTextScale(scale = settings.textScale) {
+  document.documentElement.style.setProperty('--text-scale', String(scale))
 }
 
 /**

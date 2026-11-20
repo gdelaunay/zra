@@ -431,7 +431,7 @@ The PWA can render:
 | `current_mode_update` | current mode, read in the command bar — not in the thread |
 | `config_option_update` | ignored: the options (mode included) already arrive through `thread_state` — not in the thread |
 | `available_commands_update` | stored, not displayed in v1 |
-| `usage_update` | context usage under the composer ("27k / 1M"), cost in a tooltip — not in the thread |
+| `usage_update` | context usage: ring gauge in the composer bar (text if no known maximum), cost in a tooltip — not in the thread |
 | `session_info_update` | top bar title (except a thread renamed in Zed, `titleOverridden`) and date — not in the thread |
 | *(other)* | **collapsible raw block** — never an error |
 

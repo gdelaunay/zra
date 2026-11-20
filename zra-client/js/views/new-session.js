@@ -23,7 +23,7 @@ const FALLBACK_AGENTS = [{ id: 'claude-acp', name: 'Claude' }]
  *        l'index qu'après le montage du bouton.
  */
 export function newSessionButton({ machineId, project, title = tr`Nouveau thread` }) {
-  const btn = button('icon-btn', {
+  const btn = button('icon-btn icon-btn--sm', {
     title,
     'aria-label': tr`nouvelle session`,
     onclick: (ev) => {

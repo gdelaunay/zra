@@ -1,9 +1,10 @@
-// Rendu d'une entrée de timeline. Un type d'entrée = une fonction.
+// Rendu d'une entrée de timeline, calqué sur le panel agent de Zed
+// (`thread_view.rs`, référence reference/zed-agent-panel/).
 // Tout ce que Zed sait afficher, on l'affiche : texte, diff, terminal, plan,
 // permission — et le brut pour tout le reste.
 //
-// Placés comme dans Zed (`thread_view.rs`) : une permission dans la carte de
-// son tool call (`render_permission_buttons`), le plan au-dessus du composer
+// Placés comme dans Zed : une permission dans la carte de son tool call
+// (`render_permission_buttons_flat`), le plan au-dessus du composer
 // (`render_activity_bar`, voir `planPanel`). Leurs entrées restent dans la
 // timeline, mais ne se peignent pas dans le fil.
 
@@ -38,26 +39,33 @@ export function renderEntry(entry, ctx = {}) {
       default: return rawCard({ ...entry, kind: entry.type })
     }
   })()
-  el.classList.add('entry')
-  el.dataset.entry = entry.id
-  el.dataset.rev = entry.rev
-  return el
+  // render_entries : chaque entrée centrée, largeur max max_content_width (850).
+  const wrap = h('div.entry.entry-wrap', {}, el)
+  wrap.dataset.entry = entry.id
+  wrap.dataset.rev = entry.rev
+  return wrap
 }
 
 // ---- messages ----
 
+/**
+ * Message utilisateur : bulle fond editor_background, bordure border, contenu
+ * = éditeur (police buffer, texte brut — pas de markdown). Non éditable : les
+ * agents ACP ne savent pas tronquer le fil (`supports_truncate` faux dans Zed
+ * aussi), donc pas d'ombre ni de survol. Un message pas encore confirmé est
+ * seulement estompé.
+ */
 function userMsg(entry) {
-  // Pas d'en-tête « vous », comme dans Zed : la bulle suffit. Un message pas
-  // encore confirmé est seulement estompé.
-  return h('div.msg.msg--user', { class: entry.pending ? 'is-pending' : entry.failed ? 'is-failed' : '' },
-    h('div.msg__body.md', { html: blocksHtml(entry.blocks) }),
+  const text = (entry.blocks || []).filter((b) => b?.type === 'text').map((b) => b.text || '').join('')
+  return h('div.user-msg', { class: entry.pending ? 'is-pending' : entry.failed ? 'is-failed' : '' },
+    h('div.bubble', { text }),
     entry.failed ? h('div.msg__status', { text: tr`non envoyé` }) : null,
   )
 }
 
 function agentMsg(entry, ctx) {
   const streaming = Boolean(ctx.busy && ctx.isLast)
-  return h('div.msg.msg--agent',
+  return h('div.assistant-msg', { class: ctx.isLast ? 'last' : '' },
     h('div.msg__body.md', { html: blocksHtml(entry.blocks, { cursor: streaming }) }),
   )
 }
@@ -67,9 +75,11 @@ function agentMsg(entry, ctx) {
  * Par défaut, comme Zed (`auto_expand_streaming_thought`) : dépliée pendant son
  * écriture, repliée ensuite ; `alwaysShowThoughts` la laisse dépliée. Le choix
  * de l'utilisateur vit sur l'entrée, et survit donc aux re-rendus du streaming.
+ * Pendant l'écriture : hauteur bornée à 256 px, défilement collé en bas.
  */
 function thoughtMsg(entry, ctx = {}) {
-  const open = entry.open ?? (settings.alwaysShowThoughts || Boolean(ctx.busy && ctx.isLast))
+  const streaming = Boolean(ctx.busy && ctx.isLast)
+  const open = entry.open ?? (settings.alwaysShowThoughts || streaming)
   const root = h('div.thought', { class: open ? 'is-open' : '' })
   const head = button('thought__head', {
     'aria-expanded': String(open),
@@ -79,12 +89,15 @@ function thoughtMsg(entry, ctx = {}) {
       head.setAttribute('aria-expanded', String(entry.open))
     },
   },
-    icon('chevron-right', 'thought__chevron icon--sm'),
-    icon('lightbulb', 'icon--sm'),
-    h('span', { text: tr`réflexion` }),
+    h('span.thought__start', {},
+      icon('lightbulb', 'icon--sm'),
+      h('span.thought__name', { text: tr`réflexion` })),
+    icon('chevron-right', 'thought__chevron thought__disclosure icon--sm'),
   )
-  // `.md` reste enfant direct : c'est là que le streaming écrit (`messageBody`).
-  root.append(head, h('div.md', { html: blocksHtml(entry.blocks) }))
+  const body = h('div.thought__body', { class: streaming ? 'streaming' : '' },
+    h('div.md', { html: blocksHtml(entry.blocks) }))
+  if (streaming) queueMicrotask(() => { body.scrollTop = body.scrollHeight })
+  root.append(head, body)
   return root
 }
 
@@ -108,7 +121,7 @@ export function blocksPieces(blocks, opts = {}) {
         break
       case 'image':
         parts.push(b.data
-          ? `<img alt="image" style="max-width:100%;border-radius:4px" src="data:${escapeHtml(b.mimeType || 'image/png')};base64,${escapeHtml(b.data)}">`
+          ? `<img alt="image" style="max-width:384px;max-height:384px;border-radius:4px" src="data:${escapeHtml(b.mimeType || 'image/png')};base64,${escapeHtml(b.data)}">`
           : '<p class="muted">[image]</p>')
         break
       case 'audio':
@@ -120,12 +133,12 @@ export function blocksPieces(blocks, opts = {}) {
       case 'resource': {
         const r = b.resource || {}
         parts.push(r.text
-          ? `<pre><code>${escapeHtml(r.text)}</code></pre>`
+          ? `<div class="codeblock"><pre><code>${escapeHtml(r.text)}</code></pre></div>`
           : `<p><code>${escapeHtml(r.uri || '')}</code></p>`)
         break
       }
       default:
-        if (b) parts.push(`<pre class="muted"><code>${escapeHtml(JSON.stringify(b, null, 2))}</code></pre>`)
+        if (b) parts.push(`<div class="codeblock"><pre class="muted"><code>${escapeHtml(JSON.stringify(b, null, 2))}</code></pre></div>`)
     }
   })
   if (opts.cursor) parts.push('<span class="cursor"></span>')
@@ -159,7 +172,7 @@ export function revealBlocks(blocks, n) {
 
 /** Corps markdown d'un message déjà monté : là où le streaming écrit. */
 export function messageBody(node) {
-  return node.querySelector(':scope > .msg__body.md, :scope > .md')
+  return node.querySelector('.msg__body.md') || node.querySelector('.thought__body .md')
 }
 
 // ---- tool call ----
@@ -175,41 +188,102 @@ function toolOpenByDefault(entry, ctx) {
   return Boolean(ctx?.timeline?.pendingPermissions?.().some((p) => p.toolCall?.toolCallId === entry.toolCallId))
 }
 
+/**
+ * Deux dispositions, comme Zed (`use_card_layout`) : carte pour une édition,
+ * une exécution ou une confirmation demandée ; ligne simple sinon.
+ */
 function toolCall(entry, ctx) {
   const open = entry.open ?? toolOpenByDefault(entry, ctx)
-  const root = h(`div.tool.tool--${entry.status}`, { class: open ? 'is-open' : '' })
-  const head = button('tool__head', {
+  const contents = entry.content || []
+  const diffs = contents.filter((c) => c?.type === 'diff')
+  const termContent = contents.find((c) => c?.type === 'terminal')
+  const perm = ctx.timeline?.permissionFor?.(entry.toolCallId)
+  const waiting = Boolean(perm && !perm.resolved)
+  const hasLoc = Boolean(entry.locations?.length)
+  const failed = entry.status === 'failed'
+
+  // Carte terminal : en-tête dossier + commande, corps = terminal intégré.
+  if (termContent) return terminalCard(entry, termContent, ctx, { open, failed })
+
+  const isCard = entry.kind === 'edit' || entry.kind === 'execute' || diffs.length > 0 || waiting
+  const root = h(`div.tool${isCard ? '.card' : ''}${hasLoc ? '.has-loc' : ''}${failed ? '.failed' : ''}.tool--${entry.status}`,
+    { class: open ? 'is-open' : '' })
+
+  // En-tête : icône du type, libellé markdown une ligne, dégradé, actions.
+  const actions = h('span.tool-actions')
+  if (diffs.length) {
+    let added = 0, removed = 0
+    for (const d of diffs) { const s = lineDiff(d.oldText ?? '', d.newText ?? ''); added += s.added; removed += s.removed }
+    actions.append(h('span.diffstat', {},
+      h('span.add', { text: `+${added}` }), h('span.del', { text: `−${removed}` })))
+  }
+  if (failed) actions.append(icon('x', 'icon--sm tool__status'))
+  actions.append(button('icon-btn icon-btn--sm disclosure', {
     'aria-expanded': String(open),
     onclick: () => {
       entry.open = !root.classList.contains('is-open')
       root.classList.toggle('is-open')
-      head.setAttribute('aria-expanded', String(entry.open))
+      actions.querySelector('.disclosure').setAttribute('aria-expanded', String(entry.open))
     },
-  },
-    icon('chevron-right', 'tool__chevron icon--sm'),
-    toolIcon(entry.kind, 'tool__icon icon--sm'),
-    h('span.tool__title.truncate', { html: inlineTitle(entry.title) }),
-    h('span.spacer'),
-    h('span.tool__status', statusIcon(entry.status)),
-  )
+  }, icon('chevron-right', 'tool__chevron icon--sm')))
+
+  const label = h('span.tool-label', { class: hasLoc ? 'has-loc' : '' },
+    toolIcon(entry.kind, 'icon--sm'),
+    h('span.md', { html: inlineTitle(entry.title) }),
+    !diffs.length ? h('span.fade') : null)
+  const head = h('div.tool-head', {}, label, actions)
+  // Toute la ligne replie/déplie (le chevron n'est qu'un repère visuel).
+  head.addEventListener('click', (ev) => {
+    if (ev.target.closest('.disclosure')) return
+    entry.open = !root.classList.contains('is-open')
+    root.classList.toggle('is-open')
+    actions.querySelector('.disclosure').setAttribute('aria-expanded', String(entry.open))
+  })
   root.append(head)
 
-  const body = h('div.tool__body')
-  if (entry.locations?.length) {
-    body.append(h('div.tool__locations', ...entry.locations.map((l) =>
-      h('span', {}, shortPath(l.path, 3) + (l.line ? `:${l.line}` : '')))))
+  if (isCard) {
+    // Exécution sans terminal : l'en-tête de carte est la commande.
+    if (entry.kind === 'execute' && !diffs.length) {
+      head.prepend(h('div.cmd', {}, h('pre', { text: plainTitle(entry.title) })))
+      label.classList.add('hidden')
+    }
+    for (const c of contents) {
+      if (c?.type === 'diff') root.append(diffBlock(c))
+      else root.append(h('div.card-output', {}, h('div.md', { html: blocksHtml([c?.type === 'content' ? c.content : c]) })))
+    }
+    if (!contents.length) {
+      root.append(h('div.card-output', { text: entry.status === 'pending' ? tr`en attente…` : tr`aucune sortie` }))
+    }
+    if (entry.rawInput !== undefined) root.append(rawInputBlock(tr`entrée brute`, entry.rawInput))
+    if (entry.rawOutput !== undefined) root.append(rawInputBlock(tr`sortie brute`, entry.rawOutput))
+  } else {
+    const out = h('div.tool-output.first')
+    if (entry.locations?.length) {
+      out.append(h('div.tool__locations', ...entry.locations.map((l) =>
+        h('span', {}, shortPath(l.path, 3) + (l.line ? `:${l.line}` : '')))))
+    }
+    for (const c of contents) {
+      out.append(h('div.md', { html: blocksHtml([c?.type === 'content' ? c.content : c]) }))
+    }
+    if (!contents.length && !entry.locations?.length) {
+      out.append(h('div', { text: entry.status === 'pending' ? tr`en attente…` : tr`aucune sortie` }))
+    }
+    if (entry.rawInput !== undefined) out.append(ioBlock(tr`entrée brute`, entry.rawInput))
+    if (entry.rawOutput !== undefined) out.append(ioBlock(tr`sortie brute`, entry.rawOutput))
+    root.append(out)
+    root.append(h('div.tool-collapse', {},
+      button('btn btn--outlined btn--full', {
+        onclick: () => { entry.open = false; root.classList.remove('is-open') },
+      }, icon('chevron-up', 'icon--sm'))))
   }
-  for (const c of entry.content || []) body.append(toolContent(c, ctx))
-  if (!(entry.content || []).length && !entry.locations?.length) {
-    body.append(h('div.muted', { text: entry.status === 'pending' ? tr`en attente…` : tr`aucune sortie` }))
-  }
-  if (entry.rawInput !== undefined) body.append(collapsible(tr`entrée brute`, json(entry.rawInput)))
-  if (entry.rawOutput !== undefined) body.append(collapsible(tr`sortie brute`, json(entry.rawOutput)))
-  root.append(body)
   // Demande en attente : ses boutons au pied de la carte, même repliée.
-  const perm = ctx.timeline?.permissionFor?.(entry.toolCallId)
-  if (perm && !perm.resolved) root.append(permissionButtons(perm, ctx))
+  if (waiting) root.append(permissionButtons(perm, ctx))
   return root
+}
+
+/** Titre sans markdown : la commande d'une carte d'exécution. */
+function plainTitle(title) {
+  return String(title || '').replace(/`/g, '')
 }
 
 export function inlineTitle(title) {
@@ -217,77 +291,81 @@ export function inlineTitle(title) {
   return escapeHtml(String(title || '')).replace(/`([^`]+)`/g, '<code>$1</code>')
 }
 
-function statusIcon(status) {
-  switch (status) {
-    case 'in_progress': return icon('loader', 'icon--sm spin')
-    case 'completed': return icon('check', 'icon--sm')
-    case 'failed': return icon('x', 'icon--sm')
-    default: return icon('circle', 'icon--sm')
-  }
+/** Entrée/sortie brute d'une carte : repliable, comme « View Raw Input » de Zed. */
+function rawInputBlock(label, value) {
+  const root = h('div.raw-input')
+  root.append(
+    button('ri-toggle', { onclick: () => root.classList.toggle('is-open') },
+      h('span.io-header', { text: label }),
+      icon('chevron-right', 'icon--sm')),
+    h('pre', {}, h('code', { text: jsonString(value) })),
+  )
+  return root
 }
 
-function toolContent(c, ctx) {
-  switch (c?.type) {
-    case 'diff': return diffBlock(c)
-    case 'terminal': return terminalBlock(c, ctx)
-    case 'content': return h('div.md', { html: blocksHtml([c.content]) })
-    default: return h('div.md', { html: blocksHtml([c]) })
-  }
+/** Entrée/sortie brute d'un outil simple : en-tête 10px mono + contenu. */
+function ioBlock(label, value) {
+  return h('div', {},
+    h('span.io-header', { text: label }),
+    h('pre', { style: { margin: 0, overflow: 'auto', maxHeight: '40vh', fontSize: 'var(--fs-xs)', fontFamily: 'var(--font-mono)' } },
+      h('code', { text: jsonString(value) })))
+}
+
+function jsonString(value) {
+  try { return JSON.stringify(value, null, 2) ?? 'null' } catch { return String(value) }
 }
 
 // ---- diff ----
 
+/**
+ * Diff de Zed (`render_diff_editor`) : éditeur sans gouttière, pas de retour
+ * à la ligne, hauteur au contenu ; lignes ajoutées/supprimées remplies à 12 %.
+ */
 function diffBlock(c) {
-  const { lines, added, removed, truncated } = lineDiff(c.oldText ?? '', c.newText ?? '')
+  const { lines, truncated } = lineDiff(c.oldText ?? '', c.newText ?? '')
   const root = h('div.diff')
-  const head = button('diff__head', {
-    onclick: () => root.classList.toggle('is-open'),
-  },
-    icon('chevron-right', 'diff__chevron icon--sm'),
-    h('span.truncate', { text: shortPath(c.path, 3) || 'diff' }),
-    h('span.spacer'),
-    h('span.diff__stat',
-      h('span.plus', { text: `+${added}` }),
-      h('span.minus', { text: `−${removed}` })),
-  )
-  const body = h('div.diff__body')
   for (const l of collapse(lines, 3)) {
     if (l.type === 'skip') {
-      body.append(h('div.diff__line.diff__line--skip', {}, tr`⋯ ${l.count} lignes inchangées`))
+      root.append(h('div.ln.skip', { text: tr`⋯ ${l.count} lignes inchangées` }))
       continue
     }
-    body.append(h(`div.diff__line.diff__line--${l.type === 'ctx' ? 'ctx' : l.type}`,
-      {},
-      h('span.diff__num', { text: l.type === 'add' ? String(l.newNo) : String(l.oldNo ?? '') }),
-      h('span.diff__sign', { text: l.type === 'add' ? '+' : l.type === 'del' ? '−' : ' ' }),
-      h('span.diff__text', { text: l.text || ' ' }),
-    ))
+    root.append(h(`div.ln${l.type === 'add' ? '.add' : l.type === 'del' ? '.del' : ''}`,
+      { text: l.text || ' ' }))
   }
-  if (truncated) body.append(h('div.diff__line.diff__line--skip', {}, tr`fichier trop gros : diff non aligné`))
-  root.append(head, body)
+  if (truncated) root.append(h('div.ln.skip', { text: tr`fichier trop gros : diff non aligné` }))
   return root
 }
 
 // ---- terminal ----
 
-function terminalBlock(c, ctx) {
+/**
+ * Carte terminal (`render_terminal_tool_call`) : en-tête dossier de travail +
+ * commande, corps = terminal. ZRA n'a pas le cwd : l'identifiant du terminal
+ * le remplace. Un terminal qui coule reste collé en bas, comme dans Zed.
+ */
+function terminalCard(entry, c, ctx, { open, failed }) {
   const term = ctx.timeline?.terminals?.get(c.terminalId) || { output: '', exitStatus: null }
   const code = term.exitStatus?.exitCode
-  const root = h('div.term',
-    h('div.term__head',
-      icon('terminal', 'icon--sm'),
-      h('span.truncate', { text: c.terminalId }),
+  const root = h(`div.tool.term${failed ? '.failed' : ''}.tool--${entry.status}`, { class: open ? 'is-open' : '' })
+  const toggle = () => {
+    entry.open = !root.classList.contains('is-open')
+    root.classList.toggle('is-open')
+  }
+  const head = h('div.term-head', {},
+    h('div.term-row', {},
+      h('span.cwd', { text: c.terminalId }),
+      button('icon-btn icon-btn--sm disclosure', { onclick: toggle },
+        icon('chevron-right', 'tool__chevron icon--sm')),
       code === undefined || code === null
-        ? h('span.term__exit', {}, icon('loader', 'icon--sm spin'))
+        ? icon('load_circle', 'icon--sm spin')
         : h(`span.term__exit.term__exit--${code === 0 ? 'ok' : 'ko'}`, { text: `exit ${code}` }),
     ),
-    h('pre.term__out', { text: term.output || '' }),
+    h('div.cmd', {}, h('pre', { text: plainTitle(entry.title) })),
   )
-  // Un terminal qui coule reste collé en bas, comme dans Zed.
-  queueMicrotask(() => {
-    const pre = root.querySelector('.term__out')
-    if (pre) pre.scrollTop = pre.scrollHeight
-  })
+  head.addEventListener('click', (ev) => { if (!ev.target.closest('.disclosure')) toggle() })
+  const body = h('pre.term-body', { text: term.output || '' })
+  root.append(head, body)
+  queueMicrotask(() => { body.scrollTop = body.scrollHeight })
   return root
 }
 
@@ -295,27 +373,26 @@ function terminalBlock(c, ctx) {
 
 /**
  * Plan de l'agent, au-dessus du composer comme dans Zed (`render_plan_summary`,
- * `render_plan_entries`) : une ligne de résumé (l'étape en cours, à défaut
- * « Plan »), qui déplie la liste.
+ * `render_plan_entries`) : une ligne de résumé (l'étape en cours), qui déplie
+ * la liste.
  * @param {object} entry entrée `plan` de la timeline
  * @param {{ open?:boolean, onToggle?:Function }} [opts]
  */
 export function planPanel(entry, { open = false, onToggle } = {}) {
   const done = entry.items.filter((i) => i.status === 'completed').length
   const current = entry.items.find((i) => i.status === 'in_progress')
-  // `h` plutôt que `append` : il ignore le `null` du plan replié.
   return h('div.plan', { class: open ? 'is-open' : '' },
-    button('plan__head', { 'aria-expanded': String(open), onclick: () => onToggle?.() },
+    button('act-summary', { class: open ? 'open' : '', 'aria-expanded': String(open), onclick: () => onToggle?.() },
       icon(open ? 'chevron-down' : 'chevron-right', 'icon--sm'),
-      icon('list-todo', 'icon--sm'),
-      h('span.truncate', { text: current?.content || tr`Plan` }),
-      h('span.spacer'),
-      h('span.muted', { text: `${done}/${entry.items.length}` })),
-    open ? h('ul.plan__list', {}, ...entry.items.map((it) =>
-      h(`li.plan__item.plan__item--${it.status || 'pending'}`, {},
-        icon(it.status === 'completed' ? 'check' : it.status === 'in_progress' ? 'loader' : 'circle',
+      h('span.plan-current', {},
+        h('span', { text: tr`En cours :` }),
+        h('span.plan-step', { text: current?.content || tr`Plan` }),
+        h('span.plan-left', { text: `${done}/${entry.items.length}` }))),
+    open ? h('div.plan-list', {}, ...entry.items.map((it) =>
+      h(`div.plan-row.plan-row--${it.status || 'pending'}`, {},
+        icon(it.status === 'completed' ? 'check' : it.status === 'in_progress' ? 'load_circle' : 'circle',
           `icon--sm ${it.status === 'in_progress' ? 'spin' : ''}`),
-        h('span', { text: it.content || '' }),
+        h('span.plan-text', { text: it.content || '' }),
         it.priority === 'high' ? h('span.plan__prio', { text: '!' }) : null))) : null,
   )
 }
@@ -324,26 +401,31 @@ export function planPanel(entry, { open = false, onToggle } = {}) {
 
 const REJECT = /^reject/
 
+/** Icône d'une option, comme Zed : coche double (toujours), coche, croix. */
+function optionIcon(o) {
+  if (REJECT.test(o.kind || '')) return icon('x', 'icon--xs')
+  if (/always/i.test(o.kind || '')) return icon('check_double', 'icon--xs')
+  return icon('check', 'icon--xs')
+}
+
 /** Boutons d'une demande en attente, au pied de la carte de son tool call. */
 export function permissionButtons(entry, ctx) {
   const { options, note } = permissionOptions(entry, ctx)
-  return h('div.perm.perm--inline', h('div.perm__options', ...options), note ? h('div.perm__note', { text: note }) : null)
+  return h('div.perm', ...options, note ? h('div.perm__note', { text: note }) : null)
 }
 
-/** Demande sans tool call connu : carte à part, comme les permissions génériques de Zed. */
+/** Demande sans tool call connu : carte à part, même charte que les outils. */
 function permissionCard(entry, ctx) {
   const { options, note } = permissionOptions(entry, ctx)
-  const root = h(`div.perm${entry.resolved ? '.perm--done' : ''}`,
-    h('div.perm__head', icon('shield', 'icon--sm'), h('span', { text: tr`Autorisation demandée` }),
+  return h(`div.perm-card${entry.resolved ? '.perm-card--done' : ''}`,
+    h('div.perm-card__head', {},
+      icon('shield', 'icon--sm'),
+      h('span', { text: tr`Autorisation demandée` }),
       h('span.spacer'),
-      h('span.muted', { text: relTime(entry.at) })),
-    h('div.perm__body',
-      h('div.md', { html: inlineTitle(entry.toolCall?.title || 'action') }),
-      h('div.perm__options', ...options),
-      note ? h('div.perm__note', { text: note }) : null,
-    ),
+      h('span.muted', { style: { fontSize: 'var(--fs-xs)' }, text: relTime(entry.at) })),
+    h('div.perm-card__title.md', { html: inlineTitle(entry.toolCall?.title || 'action') }),
+    h('div.perm', {}, ...options, note ? h('div.perm__note', { text: note }) : null),
   )
-  return root
 }
 
 function permissionOptions(entry, ctx) {
@@ -352,8 +434,9 @@ function permissionOptions(entry, ctx) {
 
   const options = (entry.options || []).map((o) => {
     const chosen = o.optionId === entry.pendingOptionId
-    return button('btn.btn--sm', {
-      class: REJECT.test(o.kind || '') ? 'btn--danger' : 'btn--accent',
+    const ic = optionIcon(o)
+    ic.style.color = REJECT.test(o.kind || '') ? 'var(--error)' : 'var(--success)'
+    return button('btn', {
       // Verrouillé = plus personne ne répond, l'option choisie comprise : un
       // second appui renverrait une écriture que le daemon refuserait en
       // `permission_expired`. La coche/le spinner disent le verdict.
@@ -361,9 +444,8 @@ function permissionOptions(entry, ctx) {
       title: ctx.canRespond ? '' : tr`thread injoignable : à traiter sur le poste`,
       onclick: () => ctx.onPermission?.(entry, o),
     },
-      chosen && sent ? icon('loader', 'icon--sm spin') : null,
-      chosen && entry.resolved ? icon('check', 'icon--sm') : null,
-      o.name || o.optionId)
+      chosen && sent ? icon('loader', 'icon--sm spin') : chosen && entry.resolved ? icon('check', 'icon--sm') : ic,
+      h('span', { text: o.name || o.optionId }))
   })
 
   // Seule la réponse compte, pas son origine : le spinner puis la coche sur
@@ -426,7 +508,7 @@ function elicitationCard(entry, ctx) {
       ctx.onElicitation?.(entry, action)
     }
   }
-  const actionBtn = (action, label, cls) => button(`btn.btn--sm${cls}`, {
+  const actionBtn = (action, label, cls) => button(`btn${cls}`, {
     disabled: locked,
     onclick: () => act(action),
   }, sending && entry.pendingAction === action ? icon('loader', 'icon--sm spin') : null, label)
@@ -444,7 +526,7 @@ function elicitationCard(entry, ctx) {
       !ctx.canRespond ? h('div.perm__note', { text: tr`thread injoignable — à traiter sur le poste` }) : null),
     h('div.elicit__actions', {},
       isUrl
-        ? button('btn.btn--sm', { disabled: true, title: tr`à ouvrir sur le poste, dans Zed` }, icon('link', 'icon--sm'), tr`Ouvrir`)
+        ? button('btn', { disabled: true, title: tr`à ouvrir sur le poste, dans Zed` }, icon('link', 'icon--sm'), tr`Ouvrir`)
         : actionBtn('accept', tr`Envoyer`, '.btn--accent'),
       actionBtn('decline', tr`Refuser`, '.btn--danger'),
       actionBtn('cancel', tr`Annuler`, '')),
@@ -550,7 +632,7 @@ function rawCard(entry) {
     button('raw__head', { onclick: () => root.classList.toggle('is-open') },
       icon('chevron-right', 'icon--sm'),
       h('span.truncate', { text: tr`événement non reconnu : ${entry.kind}` })),
-    h('div.raw__body', {}, json(entry.payload)),
+    h('div.raw__body', {}, h('pre', {}, h('code', { text: jsonString(entry.payload) }))),
   )
   return root
 }
@@ -563,10 +645,4 @@ function collapsible(label, node) {
     h('div.raw__body', {}, node),
   )
   return root
-}
-
-function json(value) {
-  let s
-  try { s = JSON.stringify(value, null, 2) } catch { s = String(value) }
-  return h('pre', {}, h('code', { text: s ?? 'null' }))
 }

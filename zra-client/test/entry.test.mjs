@@ -31,12 +31,13 @@ const { settings } = await import('../js/settings.js')
 const click = (el) => el.click()
 const entry = (over = {}) => ({ id: 'e1', rev: 0, at: Date.now(), ...over })
 const text = (t) => ({ type: 'text', text: t })
-/** Monte une entrée dans un conteneur et rend les deux. */
+/** Monte une entrée dans un conteneur et rend les deux. `node` = l'enveloppe
+ * centrée (entry-wrap), `inner` = le composant. */
 function render(e, ctx = {}) {
   const root = dom.window.document.createElement('div')
   const node = renderEntry(e, ctx)
   root.append(node)
-  return { root, node }
+  return { root, node, inner: node.firstElementChild }
 }
 const q = (node, sel) => node.querySelector(sel)
 const qa = (node, sel) => [...node.querySelectorAll(sel)]
@@ -53,19 +54,19 @@ test('renderEntry() marque l’entrée : classe, id et révision', () => {
 })
 
 test('un type d’entrée inconnu s’affiche en brut, pas en trou', () => {
-  const { node } = render(entry({ type: 'zra/mystère', payload: { a: 1 } }))
-  assert.equal(node.classList.contains('raw'), true)
-  assert.match(q(node, '.raw__head').textContent, /événement non reconnu : zra\/mystère/)
-  assert.match(q(node, '.raw__body').textContent, /"a": 1/)
+  const { inner } = render(entry({ type: 'zra/mystère', payload: { a: 1 } }))
+  assert.equal(inner.classList.contains('raw'), true)
+  assert.match(q(inner, '.raw__head').textContent, /événement non reconnu : zra\/mystère/)
+  assert.match(q(inner, '.raw__body').textContent, /"a": 1/)
 })
 
 test('un notice devient une ligne de système, avertie si level=warn', () => {
-  const info = render(entry({ type: 'notice', text: 'tour interrompu', level: 'info' })).node
+  const info = render(entry({ type: 'notice', text: 'tour interrompu', level: 'info' })).inner
   assert.equal(info.className.includes('sysline'), true)
   assert.equal(info.className.includes('warn'), false)
   assert.equal(info.textContent, 'tour interrompu')
 
-  const warn = render(entry({ type: 'notice', text: 'shim parti', level: 'warn' })).node
+  const warn = render(entry({ type: 'notice', text: 'shim parti', level: 'warn' })).inner
   assert.equal(warn.className.includes('warn'), true)
 })
 
@@ -73,19 +74,20 @@ test('un notice devient une ligne de système, avertie si level=warn', () => {
 // Messages utilisateur et agent
 // ---------------------------------------------------------------------------
 
-test('message utilisateur : la bulle porte le markdown, sans en-tête', () => {
-  const { node } = render(entry({ type: 'user', blocks: [text('bonjour **toi**')] }))
-  assert.equal(node.className.includes('msg--user'), true)
+test('message utilisateur : bulle texte brut (éditeur Zed), sans en-tête', () => {
+  const { node, inner } = render(entry({ type: 'user', blocks: [text('bonjour **toi**')] }))
+  assert.equal(inner.classList.contains('user-msg'), true)
   assert.equal(node.querySelector('.msg__status'), null)
-  assert.equal(node.textContent.includes('bonjour'), true)
-  assert.ok(q(node, '.msg__body.md strong'), 'le markdown est rendu')
+  // Comme Zed : le message utilisateur est un buffer, pas du markdown.
+  assert.equal(q(inner, '.bubble').textContent, 'bonjour **toi**')
+  assert.equal(q(inner, '.bubble strong'), null)
 })
 
 test('message en attente est estompé, message non envoyé le dit', () => {
-  const pending = render(entry({ type: 'user', pending: true, blocks: [text('x')] })).node
+  const pending = render(entry({ type: 'user', pending: true, blocks: [text('x')] })).inner
   assert.equal(pending.className.includes('is-pending'), true)
 
-  const failed = render(entry({ type: 'user', failed: true, blocks: [text('x')] })).node
+  const failed = render(entry({ type: 'user', failed: true, blocks: [text('x')] })).inner
   assert.equal(failed.className.includes('is-failed'), true)
   assert.equal(q(failed, '.msg__status').textContent, 'non envoyé')
 })
@@ -102,9 +104,9 @@ test('messageBody() retrouve le corps écrit par le streaming, pour chaque forme
   const agent = render(entry({ type: 'agent', blocks: [text('a')] })).node
   assert.equal(messageBody(agent).className, 'msg__body md')
   const user = render(entry({ type: 'user', blocks: [text('a')] })).node
-  assert.equal(messageBody(user).className, 'msg__body md')
+  assert.equal(messageBody(user), null, 'la bulle utilisateur est du texte brut, pas un corps streamé')
   const thought = render(entry({ type: 'thought', blocks: [text('a')] })).node
-  assert.equal(messageBody(thought).className, 'md', 'le corps d’une réflexion est enfant direct')
+  assert.equal(messageBody(thought).className, 'md')
   const tool = render(entry({ type: 'tool', status: 'completed', kind: 'read', content: [{ type: 'content', content: text('a') }] })).node
   assert.equal(messageBody(tool), null, 'un tool call n’est pas un corps streamé')
 })
@@ -115,9 +117,10 @@ test('messageBody() retrouve le corps écrit par le streaming, pour chaque forme
 
 test('réflexion : dépliée pendant son écriture, repliée ensuite (Zed), le choix survit au re-rendu', () => {
   const e = entry({ type: 'thought', blocks: [text('je réfléchis')] })
-  assert.equal(render(e).node.className.includes('is-open'), false, 'écrite : repliée')
-  const open = render(e, { busy: true, isLast: true }).node
+  assert.equal(render(e).inner.className.includes('is-open'), false, 'écrite : repliée')
+  const open = render(e, { busy: true, isLast: true }).inner
   assert.equal(open.className.includes('is-open'), true, 'en cours d’écriture : dépliée')
+  assert.ok(q(open, '.thought__body').classList.contains('streaming'), 'hauteur bornée pendant l’écriture')
   assert.equal(q(open, '.thought__head').getAttribute('aria-expanded'), 'true')
 
   click(q(open, '.thought__head'))
@@ -125,7 +128,7 @@ test('réflexion : dépliée pendant son écriture, repliée ensuite (Zed), le c
   assert.equal(q(open, '.thought__head').getAttribute('aria-expanded'), 'false')
   assert.equal(e.open, false, 'le choix est écrit sur l’entrée')
 
-  const again = render(e).node
+  const again = render(e).inner
   assert.equal(again.className.includes('is-open'), false, 'un re-rendu respecte le choix')
   click(q(again, '.thought__head'))
   assert.equal(e.open, true)
@@ -135,8 +138,8 @@ test('réflexion : alwaysShowThoughts laisse déplié ; entry.open a priorité',
   const before = settings.alwaysShowThoughts
   settings.alwaysShowThoughts = true
   try {
-    assert.equal(render(entry({ type: 'thought', blocks: [text('x')] })).node.className.includes('is-open'), true)
-    const forced = render(entry({ type: 'thought', open: false, blocks: [text('x')] })).node
+    assert.equal(render(entry({ type: 'thought', blocks: [text('x')] })).inner.className.includes('is-open'), true)
+    const forced = render(entry({ type: 'thought', open: false, blocks: [text('x')] })).inner
     assert.equal(forced.className.includes('is-open'), false, 'entry.open a priorité')
   } finally {
     settings.alwaysShowThoughts = before
@@ -177,7 +180,7 @@ test('blocksPieces() rend chaque sorte de ContentBlock', () => {
   assert.equal(pieces[2], '<p class="muted">[audio]</p>')
   assert.equal(pieces[3], '<p><code>app.js</code></p>')
   assert.equal(pieces[4], '<p><code>file:///sans-nom.js</code></p>')
-  assert.equal(pieces[5], '<pre><code>contenu</code></pre>')
+  assert.equal(pieces[5], '<div class="codeblock"><pre><code>contenu</code></pre></div>')
   assert.equal(pieces[6], '<p><code>file:///vide</code></p>')
 })
 
@@ -197,7 +200,7 @@ test('blocksPieces() échappe ce qui vient de l’agent', () => {
 
 test('un bloc inconnu est rendu en JSON, et un bloc nul ignoré', () => {
   assert.deepEqual(blocksPieces([{ type: 'nouveau', x: 1 }]),
-    ['<pre class="muted"><code>{\n  &quot;type&quot;: &quot;nouveau&quot;,\n  &quot;x&quot;: 1\n}</code></pre>'])
+    ['<div class="codeblock"><pre class="muted"><code>{\n  &quot;type&quot;: &quot;nouveau&quot;,\n  &quot;x&quot;: 1\n}</code></pre></div>'])
   assert.deepEqual(blocksPieces([null, undefined, text('x')]), ['<p>x</p>'])
 })
 
@@ -245,46 +248,42 @@ test('revealBlocks() : un bloc non textuel en tête paraît même sans budget', 
 const tool = (over = {}) => entry({ type: 'tool', toolCallId: 'tc1', status: 'completed', kind: 'edit', title: 'Écrire `app.js`', ...over })
 
 test('tool call : statut, icône d’outil, titre avec code en ligne', () => {
-  const { node } = render(tool())
-  assert.equal(node.className.includes('tool--completed'), true)
-  assert.ok(q(node, '.tool__icon'), 'l’icône du kind est là')
-  assert.equal(q(node, '.tool__title code').textContent, 'app.js', 'les backticks deviennent du code')
-  assert.ok(q(node, '.tool__status svg'))
+  const { inner } = render(tool())
+  assert.equal(inner.className.includes('tool--completed'), true)
+  assert.ok(q(inner, '.tool-label svg'), 'l’icône du kind est là')
+  assert.equal(q(inner, '.tool-label code').textContent, 'app.js', 'les backticks deviennent du code')
 })
 
-test('tool call : chaque statut a sa marque', () => {
-  const icons = {}
+test('tool call : chaque statut a sa marque (Zed : échec seul, en croix)', () => {
   for (const status of ['pending', 'in_progress', 'completed', 'failed', 'inconnu']) {
-    const { node } = render(tool({ status }))
-    assert.equal(node.className.includes(`tool--${status}`), true, status)
-    icons[status] = q(node, '.tool__status path').getAttribute('d')
-    assert.equal(q(node, '.tool__status svg').getAttribute('class').includes('spin'), status === 'in_progress', status)
+    const { inner } = render(tool({ status }))
+    assert.equal(inner.className.includes(`tool--${status}`), true, status)
+    assert.equal(Boolean(q(inner, '.tool__status')), status === 'failed', status)
+    assert.equal(inner.className.includes('failed'), status === 'failed', 'bordure pointillés si échec')
   }
-  assert.notEqual(icons.completed, icons.failed)
-  assert.equal(icons.inconnu, icons.pending, 'un statut non prévu retombe sur le cercle')
 })
 
 test('tool call : le titre est échappé', () => {
   const { node } = render(tool({ title: '<script>alert(1)</script> `x`' }))
   assert.equal(node.querySelector('script'), null)
-  assert.equal(q(node, '.tool__title').innerHTML.includes('&lt;script&gt;'), true)
+  assert.equal(q(node, '.tool-label .md').innerHTML.includes('&lt;script&gt;'), true)
 })
 
 test('tool call : replié/déplié selon le réglage, choix conservé sur l’entrée', () => {
   const e = tool({ open: false })
-  const { node } = render(e)
-  assert.equal(node.className.includes('is-open'), false, 'expandTools vaut false par défaut')
-  click(q(node, '.tool__head'))
-  assert.equal(node.className.includes('is-open'), true)
+  const { inner } = render(e)
+  assert.equal(inner.className.includes('is-open'), false, 'expandTools vaut false par défaut')
+  click(q(inner, '.tool-head'))
+  assert.equal(inner.className.includes('is-open'), true)
   assert.equal(e.open, true)
 
-  const closedByDefault = render(tool()).node
+  const closedByDefault = render(tool()).inner
   assert.equal(closedByDefault.className.includes('is-open'), false, 'expandTools vaut false par défaut')
 
   const before = settings.expandTools
   settings.expandTools = true
   try {
-    assert.equal(render(tool()).node.className.includes('is-open'), true, 'le réglage déplie')
+    assert.equal(render(tool()).inner.className.includes('is-open'), true, 'le réglage déplie')
   } finally {
     settings.expandTools = before
   }
@@ -292,16 +291,17 @@ test('tool call : replié/déplié selon le réglage, choix conservé sur l’en
 
 test('tool call : diff, terminal et autorisation en attente dépliés d’office (comme Zed)', () => {
   const diff = tool({ content: [{ type: 'diff', path: 'a.js', oldText: 'a', newText: 'b' }] })
-  assert.equal(render(diff).node.className.includes('is-open'), true)
+  assert.equal(render(diff).inner.className.includes('is-open'), true)
   const term = tool({ content: [{ type: 'terminal', terminalId: 't' }] })
-  assert.equal(render(term).node.className.includes('is-open'), true)
+  assert.equal(render(term).inner.className.includes('is-open'), true)
   const waiting = tool({ toolCallId: 'tc-9' })
   const timeline = { pendingPermissions: () => [{ toolCall: { toolCallId: 'tc-9' } }], terminals: new Map() }
-  assert.equal(render(waiting, { timeline }).node.className.includes('is-open'), true)
+  assert.equal(render(waiting, { timeline }).inner.className.includes('is-open'), true)
 })
 
-test('tool call : emplacements, sortie, et les replis de brut', () => {
+test('tool call simple : emplacements, sortie, et le brut en en-têtes mono', () => {
   const { node } = render(tool({
+    kind: 'read',
     locations: [{ path: 'C:/proj/zra/src/app.js', line: 12 }, { path: 'C:/proj/zra/README.md' }],
     content: [{ type: 'content', content: text('fait') }],
     rawInput: { path: 'app.js' },
@@ -312,8 +312,17 @@ test('tool call : emplacements, sortie, et les replis de brut', () => {
   assert.match(locs[0].textContent, /app\.js:12$/)
   assert.equal(locs[1].textContent.includes(':'), false, 'pas de ligne, pas de :')
   assert.equal(node.textContent.includes('fait'), true)
-  assert.deepEqual(qa(node, '.raw__head span').map((n) => n.textContent), ['entrée brute', 'sortie brute'])
+  assert.deepEqual(qa(node, '.io-header').map((n) => n.textContent), ['entrée brute', 'sortie brute'])
   assert.match(node.textContent, /"path": "app.js"/)
+})
+
+test('tool call carte : le brut est repliable (View Raw Input)', () => {
+  const { node } = render(tool({ rawInput: { path: 'app.js' } }))
+  const raw = q(node, '.raw-input')
+  assert.ok(raw, 'une carte porte son entrée brute repliable')
+  assert.match(q(raw, '.io-header').textContent, /entrée brute/)
+  click(q(raw, '.ri-toggle'))
+  assert.equal(raw.className.includes('is-open'), true)
 })
 
 test('tool call sans sortie : « en attente… » tant que pending, « aucune sortie » sinon', () => {
@@ -322,19 +331,16 @@ test('tool call sans sortie : « en attente… » tant que pending, « aucune so
   assert.match(render(tool({ content: null, locations: null })).node.textContent, /aucune sortie/)
 })
 
-test('tool call : un diff est rendu avec ses compteurs et se déplie', () => {
+test('tool call : un diff est rendu sans gouttière, avec ses compteurs en tête', () => {
   const { node } = render(tool({
     content: [{ type: 'diff', path: 'C:/proj/zra/app.js', oldText: 'a\nb\nc\n', newText: 'a\nB\nc\nd\n' }],
   }))
   const diff = q(node, '.diff')
-  assert.equal(q(diff, '.diff__head .truncate').textContent, '…/proj/zra/app.js')
-  assert.equal(q(diff, '.plus').textContent, '+2')
-  assert.equal(q(diff, '.minus').textContent, '−1')
-  assert.equal(diff.className.includes('is-open'), false)
-  click(q(diff, '.diff__head'))
-  assert.equal(diff.className.includes('is-open'), true)
-  const signs = qa(diff, '.diff__sign').map((n) => n.textContent)
-  assert.ok(signs.includes('+') && signs.includes('−') && signs.includes(' '), 'ajouts, retraits et contexte')
+  assert.equal(q(node, '.diffstat .add').textContent, '+2')
+  assert.equal(q(node, '.diffstat .del').textContent, '−1')
+  assert.ok(q(diff, '.ln.add'), 'lignes ajoutées')
+  assert.ok(q(diff, '.ln.del'), 'lignes supprimées')
+  assert.equal(q(diff, '.diff__num'), null, 'pas de gouttière, comme Zed')
 })
 
 test('tool call : un diff trop gros pour être aligné le dit, au lieu de calculer', () => {
@@ -345,8 +351,8 @@ test('tool call : un diff trop gros pour être aligné le dit, au lieu de calcul
   const newText = Array.from({ length: n }, (_, i) => `après ${i}`).join('\n')
   const { node } = render(tool({ content: [{ type: 'diff', path: 'big.txt', oldText, newText }] }))
   assert.match(node.textContent, /fichier trop gros : diff non aligné/)
-  assert.equal(q(node, '.plus').textContent, `+${n}`)
-  assert.equal(q(node, '.minus').textContent, `−${n}`)
+  assert.equal(q(node, '.diffstat .add').textContent, `+${n}`)
+  assert.equal(q(node, '.diffstat .del').textContent, `−${n}`)
 })
 
 test('tool call : un long diff non modifié est replié en lignes sautées', () => {
@@ -354,8 +360,8 @@ test('tool call : un long diff non modifié est replié en lignes sautées', () 
   const { node } = render(tool({
     content: [{ type: 'diff', path: 'a.txt', oldText: unchanged, newText: `${unchanged}\nadded` }],
   }))
-  assert.match(q(node, '.diff__body').textContent, /lignes inchangées/)
-  assert.ok(qa(node, '.diff__line').length < 45, 'tout le contexte n’est pas rendu')
+  assert.match(q(node, '.diff').textContent, /lignes inchangées/)
+  assert.ok(qa(node, '.diff .ln').length < 45, 'tout le contexte n’est pas rendu')
 })
 
 test('tool call : terminal en cours, réussi, en échec, et inconnu', () => {
@@ -363,14 +369,14 @@ test('tool call : terminal en cours, réussi, en échec, et inconnu', () => {
   const block = [{ type: 'terminal', terminalId: 'term-1' }]
 
   const running = render(tool({ content: block }), { timeline }).node
-  assert.ok(q(running, '.term__exit svg.spin'), 'un terminal sans code de sortie tourne encore')
-  assert.equal(q(running, '.term__out').textContent, '')
+  assert.ok(q(running, '.term-row svg.spin'), 'un terminal sans code de sortie tourne encore')
+  assert.equal(q(running, '.term-body').textContent, '')
 
   timeline.terminals.set('term-1', { output: 'bonjour\n', exitStatus: { exitCode: 0 } })
   const ok = render(tool({ content: block }), { timeline }).node
   assert.equal(q(ok, '.term__exit').textContent, 'exit 0')
   assert.equal(q(ok, '.term__exit').className.includes('term__exit--ok'), true)
-  assert.equal(q(ok, '.term__out').textContent, 'bonjour\n')
+  assert.equal(q(ok, '.term-body').textContent, 'bonjour\n')
 
   timeline.terminals.set('term-1', { output: 'raté', exitStatus: { exitCode: 2 } })
   const ko = render(tool({ content: block }), { timeline }).node
@@ -378,7 +384,7 @@ test('tool call : terminal en cours, réussi, en échec, et inconnu', () => {
   assert.equal(q(ko, '.term__exit').className.includes('term__exit--ko'), true)
 
   const orphan = render(tool({ content: [{ type: 'terminal', terminalId: 'autre' }] }), { timeline }).node
-  assert.ok(q(orphan, '.term__exit svg.spin'), 'terminal jamais vu : toujours en cours')
+  assert.ok(q(orphan, '.term-row svg.spin'), 'terminal jamais vu : toujours en cours')
 })
 
 test('tool call : la sortie du terminal est échappée', () => {
@@ -398,7 +404,7 @@ test('tool call : un contenu inattendu s’affiche en markdown plutôt que de di
 
 test('plan : pas dans le fil, comme Zed (au-dessus du composer)', () => {
   const { node } = render(entry({ type: 'plan', items: [{ content: 'fait', status: 'completed' }] }))
-  assert.ok(node.classList.contains('entry--placeholder'))
+  assert.ok(q(node, '.entry--placeholder'))
   assert.equal(q(node, '.plan'), null)
 })
 
@@ -406,10 +412,10 @@ test('plan : résumé sur l’étape en cours, liste dépliée à la demande', (
   let toggled = 0
   const plan = entry({ type: 'plan', items: [{ content: 'fait', status: 'completed' }, { content: 'en cours', status: 'in_progress' }] })
   const closed = planPanel(plan, { onToggle: () => toggled++ })
-  assert.match(q(closed, '.plan__head').textContent, /en cours/)
-  assert.equal(q(closed, '.plan__list'), null, 'replié par défaut, comme Zed')
+  assert.match(q(closed, '.act-summary').textContent, /en cours/)
+  assert.equal(q(closed, '.plan-list'), null, 'replié par défaut, comme Zed')
   assert.doesNotMatch(closed.textContent, /null/, 'rien d’autre que le résumé')
-  click(q(closed, '.plan__head'))
+  click(q(closed, '.act-summary'))
   assert.equal(toggled, 1)
 })
 
@@ -423,9 +429,9 @@ test('plan : progression, statut de chaque étape, priorité haute', () => {
       { content: 'sans statut' },
     ],
   }), { open: true })
-  assert.equal(q(node, '.plan__head .muted').textContent, '1/4')
-  const items = qa(node, '.plan__item')
-  assert.deepEqual(items.map((li) => li.className.match(/plan__item--(\w+)/)[1]),
+  assert.equal(q(node, '.plan-left').textContent, '1/4')
+  const items = qa(node, '.plan-row')
+  assert.deepEqual(items.map((li) => li.className.match(/plan-row--(\w+)/)[1]),
     ['completed', 'in_progress', 'pending', 'pending'])
   assert.equal(qa(node, '.plan__prio').length, 1)
   assert.equal(qa(node, '.plan__prio')[0].textContent, '!')
@@ -435,8 +441,8 @@ test('plan : progression, statut de chaque étape, priorité haute', () => {
 
 test('plan vide : 0/0, pas d’erreur', () => {
   const node = planPanel(entry({ type: 'plan', items: [] }), { open: true })
-  assert.equal(q(node, '.plan__head .muted').textContent, '0/0')
-  assert.equal(qa(node, '.plan__item').length, 0)
+  assert.equal(q(node, '.plan-left').textContent, '0/0')
+  assert.equal(qa(node, '.plan-row').length, 0)
 })
 
 // ---------------------------------------------------------------------------
@@ -451,14 +457,15 @@ const permRender = (over = {}, ctx = {}) => render(entry({
   type: 'permission', requestId: 'r1', toolCall: { title: 'Écrire `app.js`' }, options: OPTIONS, ...over,
 }), ctx)
 
-test('permission ouverte et répondable : deux options actives, refus en danger', () => {
+test('permission ouverte et répondable : deux options actives, refus en rouge', () => {
   const calls = []
   const { node } = permRender({}, { canRespond: true, onPermission: (entryArg, o) => calls.push([entryArg, o.optionId]) })
-  const [allow, reject] = qa(node, '.perm__options button')
+  const [allow, reject] = qa(node, '.perm button')
   assert.equal(allow.textContent, 'Autoriser')
   assert.equal(allow.disabled, false)
-  assert.equal(reject.className.includes('btn--danger'), true, 'un kind « reject… » est rouge')
-  assert.equal(allow.className.includes('btn--accent'), true)
+  // Comme Zed : icône colorée (coche verte / croix rouge), bouton fantôme.
+  assert.equal(q(reject, 'svg').style.color, 'var(--error)')
+  assert.equal(q(allow, 'svg').style.color, 'var(--success)')
   assert.equal(q(node, '.perm__note'), null, 'aucune note tant que rien n’est tranché')
   assert.equal(q(node, '.md code').textContent, 'app.js')
 
@@ -470,7 +477,7 @@ test('permission ouverte et répondable : deux options actives, refus en danger'
 
 test('permission en cours d’envoi : l’option choisie tourne, tout est verrouillé', () => {
   const { node } = permRender({ pendingOptionId: 'allow' }, { canRespond: true })
-  const [allow, reject] = qa(node, '.perm__options button')
+  const [allow, reject] = qa(node, '.perm button')
   assert.ok(q(allow, 'svg.spin'), 'spinner sur l’option envoyée')
   assert.equal(allow.disabled, true, 'on ne renvoie pas une réponse déjà en vol')
   assert.equal(reject.disabled, true, 'on ne change plus d’avis')
@@ -478,13 +485,13 @@ test('permission en cours d’envoi : l’option choisie tourne, tout est verrou
 })
 
 test('permission tranchée : coche sur l’option, encart clos, plus rien de cliquable', () => {
-  const { node } = permRender({ pendingOptionId: 'allow', resolved: true, outcome: 'allow' }, { canRespond: true })
-  assert.equal(node.className.includes('perm--done'), true)
-  const [allow, reject] = qa(node, '.perm__options button')
+  const { inner } = permRender({ pendingOptionId: 'allow', resolved: true, outcome: 'allow' }, { canRespond: true })
+  assert.equal(inner.className.includes('perm-card--done'), true)
+  const [allow, reject] = qa(inner, '.perm button')
   assert.ok(q(allow, 'svg'), 'la coche marque l’option choisie')
   assert.equal(allow.disabled, true)
   assert.equal(reject.disabled, true, 'changer d’avis n’est plus possible')
-  assert.equal(q(node, '.perm__note'), null, 'la réponse se lit sur l’option')
+  assert.equal(q(inner, '.perm__note'), null, 'la réponse se lit sur l’option')
 })
 
 // L'option choisie d'un encart tranché restait cliquable (`disabled: locked &&
@@ -494,7 +501,7 @@ test('une permission tranchée ne se rejoue pas, même sur l’option choisie', 
   let calls = 0
   const { node } = permRender({ pendingOptionId: 'allow', resolved: true, outcome: 'allow' },
     { canRespond: true, onPermission: () => { calls++ } })
-  const allow = qa(node, '.perm__options button')[0]
+  const allow = qa(node, '.perm button')[0]
   assert.equal(allow.disabled, true)
   click(allow)
   assert.equal(calls, 0, 'un bouton désactivé ne répond pas au clic')
@@ -503,13 +510,13 @@ test('une permission tranchée ne se rejoue pas, même sur l’option choisie', 
 test('permission tranchée par une option absente : la note donne le verdict', () => {
   const { node } = permRender({ pendingOptionId: 'autre', resolved: true, outcome: 'cancelled' }, { canRespond: true })
   assert.equal(q(node, '.perm__note').textContent, 'réponse : cancelled')
-  assert.deepEqual(qa(node, '.perm__options button').map((b) => b.disabled), [true, true])
+  assert.deepEqual(qa(node, '.perm button').map((b) => b.disabled), [true, true])
 })
 
 test('permission sur thread injoignable : lecture seule et note explicite', () => {
   let calls = 0
   const { node } = permRender({}, { canRespond: false, onPermission: () => { calls++ } })
-  const [allow] = qa(node, '.perm__options button')
+  const [allow] = qa(node, '.perm button')
   assert.equal(allow.disabled, true)
   assert.equal(allow.getAttribute('title'), 'thread injoignable : à traiter sur le poste')
   assert.equal(q(node, '.perm__note').textContent, 'thread injoignable — à traiter sur le poste')
@@ -519,19 +526,19 @@ test('permission sur thread injoignable : lecture seule et note explicite', () =
 
 test('permission sans options : la note porte le verdict', () => {
   const { node } = permRender({ options: [], pendingOptionId: 'x', resolved: true, outcome: 'selected' }, { canRespond: true })
-  assert.equal(qa(node, '.perm__options button').length, 0)
+  assert.equal(qa(node, '.perm button').length, 0)
   assert.equal(q(node, '.perm__note').textContent, 'réponse : selected')
 })
 
 test('permission : l’heure de la demande est affichée', () => {
   const { node } = permRender({ at: new Date(Date.now() - 60_000).toISOString() }, { canRespond: true })
-  assert.match(q(node, '.perm__head .muted').textContent, /min|minute|s/)
+  assert.match(q(node, '.perm-card__head .muted').textContent, /min|minute|s/)
 })
 
 test('permission sans callback : un clic ne fait rien, mais ne casse pas', () => {
-  const { node } = permRender({}, { canRespond: true })
-  click(qa(node, '.perm__options button')[0])
-  assert.equal(node.className.includes('perm'), true)
+  const { inner } = permRender({}, { canRespond: true })
+  click(qa(inner, '.perm button')[0])
+  assert.equal(inner.className.includes('perm-card'), true)
 })
 
 // ---------------------------------------------------------------------------
@@ -541,10 +548,10 @@ test('permission sans callback : un clic ne fait rien, mais ne casse pas', () =>
 test('une valeur non sérialisable s’affiche quand même', () => {
   const circular = { nom: 'x' }
   circular.self = circular
-  const { node } = render(entry({ type: 'raw', kind: 'zra/bizarre', payload: circular }))
+  const { node, inner } = render(entry({ type: 'raw', kind: 'zra/bizarre', payload: circular }))
   assert.match(q(node, '.raw__body').textContent, /\[object Object\]/)
   click(q(node, '.raw__head'))
-  assert.equal(node.className.includes('is-open'), true)
+  assert.equal(inner.className.includes('is-open'), true)
 })
 
 test('un payload absent s’affiche « null »', () => {
@@ -562,10 +569,10 @@ test('permission rattachée à un tool call : boutons au pied de sa carte, rien 
   assert.deepEqual(tl.entries.map((e) => e.type), ['tool', 'permission'], 'le tool call est créé, comme Zed')
   const [tool, perm] = tl.entries
   const ctx = { timeline: tl, canRespond: true }
-  assert.ok(render(perm, ctx).node.classList.contains('entry--placeholder'))
+  assert.ok(render(perm, ctx).node.querySelector('.entry--placeholder'))
   const card = render(tool, ctx).node
-  assert.deepEqual(qa(card, '.perm--inline .perm__options button').map((b) => b.textContent), ['Autoriser', 'Refuser'])
-  assert.ok(card.classList.contains('is-open'), 'une carte en attente est dépliée')
+  assert.deepEqual(qa(card, '.perm button').map((b) => b.textContent), ['Autoriser', 'Refuser'])
+  assert.ok(card.querySelector('.tool').classList.contains('is-open'), 'une carte en attente est dépliée')
 
   tl.resolvePermission('p1', { optionId: 'allow', by: 'mobile' })
   assert.equal(q(render(tool, ctx).node, '.perm'), null, 'tranchée : les boutons disparaissent')
@@ -634,7 +641,7 @@ test('question en cours d’envoi ou thread injoignable : tout est verrouillé',
 
 test('question répondue : elle quitte le fil, comme dans Zed', () => {
   const { node } = render(question({ resolved: true, action: 'accept' }))
-  assert.ok(node.classList.contains('entry--placeholder'))
+  assert.ok(q(node, '.entry--placeholder'))
 })
 
 test('lien à ouvrir : destination et adresse, « Ouvrir » grisé, Refuser et Annuler actifs', () => {

@@ -53,10 +53,16 @@ export function switchEl(on, cls = '') {
   return el
 }
 
+/** Re-clic sur le bouton qui vient de fermer son menu : replie au lieu de rouvrir. */
+let toggleGuard = { anchor: null, at: 0 }
+
 export function openMenu(anchor, opts) {
+  if (toggleGuard.anchor === anchor && Date.now() - toggleGuard.at < 250) {
+    toggleGuard.anchor = null
+    return null
+  }
   const wrap = h('div')
   let close = () => {}
-  const scrim = h('div.scrim', { onclick: () => close() })
   const menu = h('div.menu', { role: 'menu' })
   if (opts.label) menu.append(h('div.menu__label.label', { text: opts.label }))
   for (const item of opts.items) {
@@ -79,8 +85,19 @@ export function openMenu(anchor, opts) {
         : item.on ? icon('check', 'icon--sm') : null,
     ))
   }
-  wrap.append(scrim, menu)
-  close = mount(wrap, { replace: false })
+  wrap.append(menu)
+  const unmount = mount(wrap, { replace: false })
+  // Pas de voile : Zed ne grise pas le fond pour un menu (seulement pour la
+  // feuille des réglages). Un clic ailleurs ferme et traverse — il active sa
+  // cible ; un clic sur le bouton d'origine replie le menu.
+  const onDown = (ev) => {
+    if (!menu.isConnected) { document.removeEventListener('pointerdown', onDown, true); return }
+    if (menu.contains(ev.target)) return
+    if (anchor.contains(ev.target)) toggleGuard = { anchor, at: Date.now() }
+    close()
+  }
+  document.addEventListener('pointerdown', onDown, true)
+  close = () => { document.removeEventListener('pointerdown', onDown, true); unmount() }
 
   const r = anchor.getBoundingClientRect()
   const mw = menu.offsetWidth, mh = menu.offsetHeight

@@ -88,31 +88,33 @@ test('écran 2 : ouverture du thread live, flux ACP rendu', async () => {
   await until(() => $('.plan'), 6000, 'plan')
   await until(() => $$('.tool').length >= 2, 8000, 'tool calls')
   await until(() => $('.diff'), 8000, 'diff')
-  await until(() => /node --test/.test($('.term__out')?.textContent || ''), 9000, 'terminal')
-  await until(() => $('.msg--agent .md p'), 8000, 'markdown agent')
+  await until(() => /node --test/.test($('.term-body')?.textContent || ''), 9000, 'terminal')
+  await until(() => $('.assistant-msg .md p'), 8000, 'markdown agent')
 
-  const diffLines = $$('.diff__line--add').length + $$('.diff__line--del').length
+  const diffLines = $$('.diff .ln.add').length + $$('.diff .ln.del').length
   assert.ok(diffLines > 0, 'le diff est rendu ligne à ligne')
-  await until(() => /pass 3/.test($('.term__out').textContent), 9000, 'fin du terminal')
-  assert.match($('.term__head').textContent, /term-/)
+  await until(() => /pass 3/.test($('.term-body').textContent), 9000, 'fin du terminal')
+  assert.match($('.term-head').textContent, /term-/)
 })
 
 test('consommation et titre annoncés par l’agent : à leur place, pas dans le fil', async () => {
-  // Dès le début du tour : le contexte consommé, sans coût encore.
-  await until(() => $('.usage') && !$('.usage').classList.contains('hidden'), 3000, 'consommation affichée')
+  // Dès le début du tour : la jauge de tokens (anneau), sans coût encore.
+  await until(() => $('.tokens') && !$('.tokens').classList.contains('hidden'), 3000, 'consommation affichée')
   // En fin de tour : coût et nouveau titre (session_info_update).
-  await until(() => $('.usage').textContent === '32k / 1M', 9000, 'consommation de fin de tour')
-  assert.match($('.usage').title, /31\s842 \/ 1\s000\s000 tokens \(3 %\)/)
-  assert.match($('.usage').title, /coût de la session : 0,09/)
+  await until(() => /31\s842 \/ 1\s000\s000 tokens \(3 %\)/.test($('.tokens').title), 9000, 'consommation de fin de tour')
+  assert.match($('.tokens').title, /coût de la session : 0,09/)
+  assert.ok($('.tokens .ring .fg'), 'anneau comme Zed')
   await until(() => /en lecture seule/.test($('.header__title').textContent), 2000, 'titre annoncé par l’agent')
   assert.ok(!$$('.raw').some((n) => /usage_update|session_info_update/.test(n.textContent)), 'aucun bloc brut')
 })
 
-test('le diff se déplie et se replie', () => {
-  const diff = $('.diff')
-  assert.equal(diff.classList.contains('is-open'), false)
-  click(diff.querySelector('.diff__head'))
-  assert.equal(diff.classList.contains('is-open'), true)
+test('la carte d’édition se replie et se déplie sur sa ligne de titre', () => {
+  const card = $('.tool.card')
+  assert.equal(card.classList.contains('is-open'), true, 'diff déplié d’office, comme Zed')
+  click(card.querySelector('.tool-head'))
+  assert.equal(card.classList.contains('is-open'), false)
+  click(card.querySelector('.tool-head'))
+  assert.equal(card.classList.contains('is-open'), true)
 })
 
 test('ossature identique sur les deux écrans', async () => {
@@ -127,14 +129,16 @@ test('ossature identique sur les deux écrans', async () => {
   assert.ok([...view.children].indexOf(view.querySelector('.composer')) <
     [...view.children].indexOf(view.querySelector('.bottombar')))
 
-  // Vue liste : même ossature
+  // Vue liste : même ossature, recherche en haut (comme Zed)
   ZRA.navigate('#/')
   await until(() => $$('.thread-row').length >= 7, 3000)
   const list = $('.view')
   assert.equal(list.firstElementChild.className, 'header')
   assert.equal(list.lastElementChild.className, 'bottombar')
   assert.equal($$('.toolbar').length, 0)
-  assert.ok(list.querySelector('.bottombar input[type=search]'), 'la recherche est en bas')
+  assert.ok(list.querySelector('.searchbar input[type=search]'), 'la recherche est en haut')
+  assert.ok([...list.children].indexOf(list.querySelector('.searchbar')) <
+    [...list.children].indexOf(list.querySelector('.scroll')))
 
   ZRA.navigate('#/t/mock-desk/a1f39c0b')
   await until(() => /Refactor/.test($('.header__title')?.textContent || ''), 3000)
@@ -151,18 +155,27 @@ test('la top bar du thread porte agent, titre, chemin et date', () => {
 test('le retour à la liste se fait depuis la bottombar', async () => {
   const back = $('.bottombar [aria-label="liste des threads"]')
   assert.ok(back)
-  assert.ok(back.classList.contains('send-btn'), 'même boîte que le bouton Envoyer')
-  assert.ok($('.bottombar .pill'), 'les sélecteurs mode/modèle sont en bas')
+  const agent = $('.bottombar [aria-label="discussion"]')
+  assert.ok(agent, 'bouton agent à gauche de la liste')
+  // Sur l'écran thread : agent actif (icône accent), liste inactive.
+  assert.ok(agent.classList.contains('is-active'))
+  assert.ok(!back.classList.contains('is-active'))
+  assert.ok($('.composer .pill'), 'les sélecteurs mode/modèle sont dans le composer')
+  click(back)
+  await until(() => $('.searchbar'), 2000, 'écran liste')
+  assert.ok($('.bottombar [aria-label="liste des threads"]').classList.contains('is-active'), 'liste active sur l’écran liste')
+  ZRA.navigate('#/t/mock-desk/a1f39c0b')
+  await until(() => /Refactor/.test($('.header__title')?.textContent || ''), 3000)
 })
 
 test('réglages génériques : en ligne s’ils sont peu nombreux, sinon dans « ⋯ »', async () => {
   const key = 'mock-desk/a1f39c0b'
   const st = ZRA.store.ensureState(key)
   const option = (id) => st.options.find((o) => o.id === id)
-  const pill = (text) => $$('.bottombar__options .pill').find((n) => n.textContent.includes(text))
+  const pill = (text) => $$('.composer__options .pill').find((n) => n.textContent.includes(text))
 
   // Effort (sélecteur) et mode rapide (interrupteur) : deux pastilles de plus.
-  assert.equal($$('.bottombar .pill').length, 4)
+  assert.equal($$('.composer .pill').length, 4)
   click(pill('Fast mode'))
   await until(() => option('fast').currentValue === true && pill('Fast mode').querySelector('.switch--on'),
     3000, 'mode rapide allumé')
@@ -175,9 +188,9 @@ test('réglages génériques : en ligne s’ils sont peu nombreux, sinon dans «
   const link = ZRA.store.state.machines.get('mock-desk').link
   const extra = { id: 'verbose', name: 'Verbeux', type: 'boolean', category: null, currentValue: false }
   link.push({ type: 'thread_state', threadId: 'a1f39c0b', options: [...st.options, extra] })
-  await until(() => $('.bottombar [aria-label="autres réglages"]'), 3000, 'bouton ⋯')
-  assert.equal($$('.bottombar__options .pill').length, 1)
-  click($('.bottombar [aria-label="autres réglages"]'))
+  await until(() => $('.composer [aria-label="autres réglages"]'), 3000, 'bouton ⋯')
+  assert.equal($$('.composer__options .pill').length, 1)
+  click($('.composer [aria-label="autres réglages"]'))
   const items = $$('.menu__item').map((n) => n.textContent.trim())
   assert.deepEqual(items, ['Fast mode', 'Verbeux', 'Default', 'Low', 'Medium', 'High'])
   click($$('.menu__item').find((n) => n.textContent.trim() === 'Verbeux'))
@@ -185,24 +198,24 @@ test('réglages génériques : en ligne s’ils sont peu nombreux, sinon dans «
 
   // On rend l'état du mock pour les tests suivants.
   link.push({ type: 'thread_state', threadId: 'a1f39c0b', options: st.options.filter((o) => o.id !== 'verbose') })
-  await until(() => !$('.bottombar [aria-label="autres réglages"]'), 3000, 'retour en ligne')
+  await until(() => !$('.composer [aria-label="autres réglages"]'), 3000, 'retour en ligne')
 })
 
-test('pendant un tour, Stop apparaît à gauche d’Envoyer sans changer son libellé', async () => {
+test('pendant un tour, Stop apparaît à gauche d’Envoyer, sans le remplacer', async () => {
   const key = 'mock-desk/a1f39c0b'
-  const label = () => $('.composer .send-btn:not(.send-btn--stop) span').textContent
-  assert.equal(label(), 'Envoyer')
+  const sendBtn = () => $('.composer .send-btn:not(.send-btn--stop)')
+  assert.match(sendBtn().title, /Envoyer/)
 
   ZRA.store.state.machines.get('mock-desk').link.send({
     type: 'zra/trigger', name: 'long', threadId: 'a1f39c0b',
   })
   await until(() => ZRA.store.ensureState(key).turn === 'busy', 3000, 'tour occupé')
   await until(() => !$('.composer .send-btn--stop').classList.contains('hidden'), 3000, 'bouton stop')
-  assert.equal(label(), 'Envoyer', 'le bouton Envoyer ne change jamais')
+  assert.match(sendBtn().title, /Envoyer/, 'le bouton Envoyer ne change jamais')
   assert.equal($('.composer .send-btn--stop').textContent.trim(), '', 'Stop est une icône seule')
-  const row = $('.composer__row')
+  const row = $('.composer__right')
   const kids = [...row.children]
-  assert.ok(kids.indexOf($('.composer .send-btn--stop')) < kids.indexOf($('.composer .send-btn:not(.send-btn--stop)')))
+  assert.ok(kids.indexOf($('.composer .send-btn--stop')) < kids.indexOf(sendBtn()))
 })
 
 test('Stop seul interrompt sans rien envoyer', async () => {
@@ -255,7 +268,7 @@ test('Stop met la file en pause ; « envoyer maintenant » envoie le message en 
   await new Promise((r) => setTimeout(r, 300))
   assert.equal(ZRA.store.ensureState(key).queue.length, 1, 'la file reste, en pause')
 
-  click($('.queued .icon-btn[title="Envoyer maintenant"]'))
+  click($('.queue-row .icon-btn[title="Envoyer maintenant"]'))
   await until(() => ZRA.store.ensureState(key).queue.length === 0, 3000, 'file vidée')
   await until(() => ZRA.store.ensureTimeline(key).entries.some(
     (e) => e.type === 'user' && !e.local && /passe aux tests/.test(JSON.stringify(e.blocks))), 4000,
@@ -271,12 +284,12 @@ test('envoi depuis le mobile : écho local immédiat puis mise en file', async (
   const input = $('.composer__input')
   input.value = 'ajoute un test de non-régression'
   click($('.composer .send-btn:not(.send-btn--stop)'))
-  await until(() => /non-régression/.test($$('.msg--user').pop()?.textContent || ''), 2000, 'écho local')
+  await until(() => /non-régression/.test($$('.user-msg').pop()?.textContent || ''), 2000, 'écho local')
   assert.equal(input.value, '', 'le champ est vidé')
-  await until(() => $('.queued'), 3000, 'entrée en file affichée')
+  await until(() => $('.queue-row'), 3000, 'entrée en file affichée')
   // annulation de la file depuis la PWA
-  click($('.queued .icon-btn[title="Annuler"]'))
-  await until(() => !$('.queued'), 3000, 'file vidée')
+  click($('.queue-row .icon-btn[title="Annuler"]'))
+  await until(() => !$('.queue-row'), 3000, 'file vidée')
 })
 
 test('« envoyer maintenant » pendant un tour : le tour est coupé puis le message envoyé', async () => {
@@ -291,7 +304,7 @@ test('« envoyer maintenant » pendant un tour : le tour est coupé puis le mess
   click($('.composer .send-btn:not(.send-btn--stop)'))
   await until(() => ZRA.store.ensureState(key).queue.length === 1, 3000, 'mis en file')
 
-  click($('.queued .icon-btn[title="Envoyer maintenant"]'))
+  click($('.queue-row .icon-btn[title="Envoyer maintenant"]'))
   await until(() => ZRA.store.ensureTimeline(key).entries.some(
     (e) => e.type === 'notice'), 3000, 'tour interrompu')
   await until(() => ZRA.store.ensureState(key).queue.length === 0, 3000, 'file vidée')
@@ -363,12 +376,12 @@ test('événement ACP inconnu : rendu brut, aucune perte', async () => {
 test('thread fermé : historique chargé via session/load', async () => {
   ZRA.navigate('#/t/mock-desk/c0d81e77')
   await until(() => /encodage/.test($('.header__title')?.textContent || ''), 3000, 'thread fermé ouvert')
-  await until(() => $$('.msg--user').length >= 1 && $('.tool'), 6000, 'replay')
+  await until(() => $$('.user-msg').length >= 1 && $('.tool'), 6000, 'replay')
   assert.match(doc.body.textContent, /encodage/i)
   assert.ok($('.banner') && !$('.banner').classList.contains('hidden'), 'bandeau « thread fermé »')
-  // L'historique rejoue aussi la consommation : 86 % du contexte, en alerte.
-  await until(() => $('.usage')?.textContent === '862k / 1M', 2000, 'consommation de l’historique')
-  assert.ok($('.usage').classList.contains('usage--warn'))
+  // L'historique rejoue aussi la consommation : 86 % du contexte, anneau orange.
+  await until(() => /862/.test($('.tokens')?.title || ''), 2000, 'consommation de l’historique')
+  assert.ok($('.tokens .fg.warn'), 'orange à partir de 85 %, comme Zed')
 })
 
 test('agent sans loadSession : message explicite, composer actif', async () => {
@@ -394,8 +407,8 @@ test('liste : un tour en cours se voit sur sa ligne, sa fin non lue aussi (comme
   await until(() => $$('.thread-row').length >= 7, 3000)
   const row = () => $$('.thread-row').find((r) => /Refactor du lecteur/.test(r.textContent))
   ZRA.store.state.machines.get('mock-desk').link.send({ type: 'zra/trigger', name: 'short', threadId: 'a1f39c0b' })
-  await until(() => row()?.querySelector('.thread-row__activity.spin'), 3000, 'génération affichée')
-  await until(() => row()?.querySelector('.dot--unseen'), 5000, 'fin de tour non lue')
+  await until(() => row()?.querySelector('.thread-row__icon svg.spin'), 3000, 'génération affichée')
+  await until(() => row()?.querySelector('.thread-row__icon--unseen'), 5000, 'fin de tour non lue')
   ZRA.store.openThread('mock-desk/a1f39c0b')
   ZRA.store.closeThread('mock-desk/a1f39c0b')
   assert.equal(ZRA.store.ensureState('mock-desk/a1f39c0b').unseen, false)
@@ -424,9 +437,8 @@ test('le sélecteur de thème s’ouvre par-dessus les réglages, sans les ferme
 test('icônes d’agent au lieu des étiquettes texte', async () => {
   ZRA.navigate('#/')
   await until(() => $$('.thread-row').length >= 7, 3000)
-  const icons = $$('.thread-row__agent')
+  const icons = $$('.thread-row__icon svg')
   assert.ok(icons.length >= 6, 'chaque thread identifié porte son icône')
-  assert.ok(icons.every((n) => n.tagName.toLowerCase() === 'svg'))
   assert.ok(!/Claude|Gemini/.test($$('.thread-row__badge').map((n) => n.textContent).join(' ')),
     'plus d’étiquette texte pour l’agent')
 })
@@ -511,15 +523,15 @@ test('un projet se replie sur sa ligne de titre, et le reste après un rendu', a
 test('thread créé hors ZRA : cadenas dans la liste, bandeau et composer en lecture seule', async () => {
   ZRA.navigate('#/')
   const row = await until(() => $$('.thread-row').find((n) => /avant ZRA/.test(n.textContent)), 3000, 'thread hors ZRA')
-  assert.ok(row.querySelector('.thread-row__lock'), 'cadenas à la place de la pastille')
+  assert.ok(row.querySelector('.lock-dot'), 'cadenas à la place de la pastille')
   assert.ok(!row.disabled, 'reste consultable')
   const zraRow = $$('.thread-row').find((n) => /encodage UTF-8/.test(n.textContent))
-  assert.ok(!zraRow.querySelector('.thread-row__lock'), 'un thread ZRA fermé garde sa pastille')
+  assert.ok(!zraRow.querySelector('.lock-dot'), 'un thread ZRA fermé garde sa pastille')
 
   ZRA.navigate('#/t/mock-laptop/bb88cc11')
   await until(() => /lecture seule/.test($('.banner')?.textContent || ''), 3000, 'bandeau lecture seule')
-  assert.ok($('.header__title .lock-dot:not(.hidden)'), 'cadenas dans la top bar')
-  assert.ok($('.header__title .dot').classList.contains('hidden'), 'à la place de la pastille')
+  assert.ok($('.header__right .lock-dot:not(.hidden)'), 'cadenas dans la top bar')
+  assert.ok($('.header__right .dot').classList.contains('hidden'), 'à la place de la pastille')
   assert.ok($('.composer textarea').disabled)
   ZRA.navigate('#/')
   await until(() => $$('.group__head').length === 2, 3000, 'retour à la liste')
@@ -597,14 +609,14 @@ test('streaming : une rafale se révèle peu à peu, le début du message ne bou
   const link = ZRA.store.state.machines.get('mock-desk').link
   const first = 'Premier paragraphe, déjà là.\n\n'
   const burst = 'Rafale '.repeat(250).trim()
-  const agentText = () => $$('.msg--agent').pop()?.textContent || ''
+  const agentText = () => $$('.assistant-msg').pop()?.textContent || ''
   link.play('b7c2e441', [
     { at: 10, update: { sessionUpdate: 'user_message_chunk', content: { type: 'text', text: 'Écris beaucoup.' } } },
     { at: 30, update: { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: first } } },
     { at: 500, update: { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: burst } } },
   ])
   await until(() => agentText().startsWith('Premier paragraphe, déjà là.'), 3000, 'premier paragraphe')
-  const para = $$('.msg--agent').pop().querySelector('p')
+  const para = $$('.assistant-msg').pop().querySelector('p')
 
   // Chaque état affiché, relevé à chaque mutation du DOM : ne dépend pas du
   // rythme de sondage du test (une machine chargée en sauterait).
@@ -612,7 +624,7 @@ test('streaming : une rafale se révèle peu à peu, le début du message ne bou
   const cursors = []
   const observer = new win.MutationObserver(() => {
     const text = agentText()
-    if (/Rafale/.test(text)) { lengths.push(text.length); cursors.push(Boolean($('.msg--agent .cursor'))) }
+    if (/Rafale/.test(text)) { lengths.push(text.length); cursors.push(Boolean($('.assistant-msg .cursor'))) }
   })
   observer.observe($('.thread__scroll'), { childList: true, subtree: true, characterData: true })
   try {
@@ -626,10 +638,10 @@ test('streaming : une rafale se révèle peu à peu, le début du message ne bou
   assert.ok(partial.length >= 2, `révélée en plusieurs fois (états vus : ${[...new Set(lengths)].join(', ')})`)
   assert.ok(partial.every((n, i) => i === 0 || n > partial[i - 1]), 'toujours en avançant')
   assert.ok(cursors[0], 'curseur de frappe pendant l’écriture')
-  assert.equal($$('.msg--agent').pop().querySelector('p'), para, 'le premier paragraphe garde son nœud')
+  assert.equal($$('.assistant-msg').pop().querySelector('p'), para, 'le premier paragraphe garde son nœud')
 
   // Fin du tour : rendu définitif, sans curseur.
-  await until(() => !$('.msg--agent .cursor'), 3000, 'curseur retiré')
+  await until(() => !$('.assistant-msg .cursor'), 3000, 'curseur retiré')
   assert.ok(agentText().includes(burst))
 })
 

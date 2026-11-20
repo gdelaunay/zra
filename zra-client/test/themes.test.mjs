@@ -64,10 +64,14 @@ test('chaque bloc de themes.css est annoncé : pas de thème orphelin', () => {
   for (const id of cssThemes()) assert.ok(known.has(id), `${id} présent dans le CSS, absent du manifeste`)
 })
 
-test('le thème par défaut est celui de :root, et celui de la page servie', () => {
+test('le repli CSS (:root) est le premier thème ; la page ne fige plus de thème', () => {
   const defaut = THEMES[0]
-  assert.match(CSS, new RegExp(`:root,\\s*\\[data-theme='${defaut.id}'\\]`), ':root porte le thème par défaut')
-  assert.equal(dom.window.document.documentElement.dataset.theme, defaut.id, 'index.html démarre sur le même thème')
+  assert.match(CSS, new RegExp(`:root,\\s*\\[data-theme='${defaut.id}'\\]`), ':root porte le thème de repli')
+  // Le thème est posé avant le premier rendu par theme-boot.js (auto ou choix persisté).
+  const html = readFileSync(join(ROOT, 'index.html'), 'utf8')
+  assert.doesNotMatch(html, /<html[^>]*data-theme/, 'pas de thème en dur sur <html>')
+  assert.match(html, /theme-boot\.js/, 'le script de démarrage est chargé avant le corps')
+  assert.match(readFileSync(join(ROOT, 'js/theme-boot.js'), 'utf8'), /prefers-color-scheme/, 'il résout le mode auto')
 })
 
 test('chaque thème définit toutes les variables de couleur que l’app emploie', () => {
@@ -106,16 +110,17 @@ test('applyTheme() pose le thème sur <html> et rend l’entrée choisie', () =>
   assert.equal(theme.appearance, 'light')
 })
 
-test('applyTheme() sur un id inconnu retombe sur le thème par défaut', () => {
+test('applyTheme() sur un id inconnu résout le mode auto', () => {
+  // REVUE VISUELLE 0.5 : le défaut auto est figé Gruvbox Dark (voir autoThemeId).
   const theme = applyTheme('theme-qui-n-existe-pas')
-  assert.equal(theme.id, THEMES[0].id)
-  assert.equal(document.documentElement.dataset.theme, THEMES[0].id)
+  assert.equal(theme.id, 'gruvbox-dark')
+  assert.equal(document.documentElement.dataset.theme, 'gruvbox-dark')
 })
 
-test('applyTheme() sans argument retombe aussi sur le défaut', () => {
+test('applyTheme() sans argument = mode auto (défaut figé pour la revue)', () => {
   document.documentElement.dataset.theme = 'one-dark'
-  assert.equal(applyTheme().id, THEMES[0].id)
-  assert.equal(document.documentElement.dataset.theme, THEMES[0].id)
+  assert.equal(applyTheme().id, 'gruvbox-dark')
+  assert.equal(document.documentElement.dataset.theme, 'gruvbox-dark')
 })
 
 test('applyTheme() aligne la couleur de la barre du navigateur sur le fond du thème', () => {

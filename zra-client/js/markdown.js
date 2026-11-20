@@ -13,6 +13,10 @@ import { tr } from './i18n.js'
 
 const SAFE_URL = /^(https?:|mailto:|tel:|#|\/|\.\/|\.\.\/)/i
 
+// Bouton copier du bloc de code (VisibleOnHover chez Zed, au tap ici) ; le
+// clic est traité par délégation dans main.js.
+const COPY_BTN = '<div class="cb-actions"><button type="button" class="icon-btn icon-btn--sm cb-copy" title="Copier" aria-label="copier"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" class="icon icon--sm" aria-hidden="true"><path d="M9 9h11v11H9zM15 9V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h4"/></svg></button></div>'
+
 /** Garde-fou de rendu : au-delà, le bloc est tronqué (journal, fichier minifié). */
 const MAX_BLOCK = 100_000
 /** Bornes d'un lien : texte et URL démesurés ne sont pas des liens. */
@@ -60,7 +64,7 @@ export function markdownBlocks(src) {
         body.push(lines[i]); i++
       }
       const cls = lang ? ` class="language-${escapeHtml(lang)}"` : ''
-      out.push(`<pre${closed ? '' : ' data-streaming="1"'}><code${cls}>${highlight(bounded(body.join('\n')), lang)}</code></pre>`)
+      out.push(`<div class="codeblock"><pre${closed ? '' : ' data-streaming="1"'}><code${cls}>${highlight(bounded(body.join('\n')), lang)}</code></pre>${COPY_BTN}</div>`)
       continue
     }
 

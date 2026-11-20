@@ -4,7 +4,7 @@ import { h, button, clear } from '../dom.js'
 import { icon } from '../icons.js'
 import { THEMES } from '../themes.js'
 import * as settingsModule from '../settings.js'
-import { settings, applyTheme, update as updateSettings } from '../settings.js'
+import { settings, applyTheme, applyTextScale, currentThemeId, update as updateSettings } from '../settings.js'
 import * as store from '../store.js'
 import { openSheet, openMenu, toast, confirmSheet } from '../ui.js'
 import { tr } from '../i18n.js'
@@ -60,13 +60,14 @@ function machinesSection(api) {
 }
 
 function themeSection() {
-  const current = () => THEMES.find((t) => t.id === settings.theme) || THEMES[0]
+  // En mode auto, le thème résolu (One selon le navigateur) est marqué actif.
+  const current = () => THEMES.find((t) => t.id === currentThemeId()) || THEMES[0]
   const btn = button('btn', {
     onclick: (ev) => openMenu(ev.currentTarget, {
       label: tr`Thème`,
       items: THEMES.map((t) => ({
         label: t.name,
-        on: t.id === settings.theme,
+        on: t.id === currentThemeId(),
         onSelect: () => { updateSettings({ theme: t.id }); applyTheme(t.id); sync() },
       })),
     }),
@@ -77,16 +78,56 @@ function themeSection() {
   return h('section.field', {},
     h('span.label', { text: tr`Thème` }),
     h('div.row', {}, btn),
-    h('span.composer__hint', { text: tr`Thèmes officiels de Zed, tokens de couleur repris tels quels.` }),
   )
 }
 
+/** Échelles de taille du texte (confort mobile) ; 1 = tailles de la feuille. */
+const TEXT_SCALES = [
+  { value: 0.85, label: tr`Petite` },
+  { value: 1, label: tr`Normale` },
+  { value: 1.15, label: tr`Grande` },
+  { value: 1.3, label: tr`Très grande` },
+]
+
+const LANGS = [
+  { value: 'auto', label: tr`Auto` },
+  { value: 'fr', label: 'Français' },
+  { value: 'en', label: 'English' },
+]
+
 function displaySection(api) {
+  const langBtn = button('btn', {
+    onclick: (ev) => openMenu(ev.currentTarget, {
+      label: tr`Langue`,
+      items: LANGS.map((l) => ({
+        label: l.label,
+        on: l.value === settings.lang,
+        onSelect: () => {
+          if (l.value === settings.lang) return
+          updateSettings({ lang: l.value })
+          confirmSheet(tr`Recharger ?`, tr`La langue des textes change au rechargement de la PWA.`,
+            () => location.reload(), { yes: tr`Recharger` })
+        },
+      })),
+    }),
+  }, icon('globe', 'icon--sm'), h('span', { text: LANGS.find((l) => l.value === settings.lang).label }), icon('chevron-down', 'icon--sm'))
+
+  const scaleBtn = button('btn', {
+    onclick: (ev) => openMenu(ev.currentTarget, {
+      label: tr`Taille du texte`,
+      items: TEXT_SCALES.map((s) => ({
+        label: s.label,
+        on: s.value === settings.textScale,
+        onSelect: () => { updateSettings({ textScale: s.value }); applyTextScale(s.value); scaleBtn.querySelector('span').textContent = s.label },
+      })),
+    }),
+  }, icon('eye', 'icon--sm'), h('span', { text: (TEXT_SCALES.find((s) => s.value === settings.textScale) || TEXT_SCALES[1]).label }), icon('chevron-down', 'icon--sm'))
+
   return h('section.field', {},
     h('span.label', { text: tr`Affichage` }),
+    h('div.row', {}, langBtn, scaleBtn),
     toggle(tr`Toujours déplier les réflexions`, 'alwaysShowThoughts'),
     toggle(tr`Déplier tous les outils`, 'expandTools'),
-    h('span.composer__hint', { text: tr`Sinon, comme Zed : réflexions dépliées pendant leur écriture ; diffs, terminaux et demandes d’autorisation dépliés.` }),
     toggle(tr`Mode mock (daemon simulé)`, 'mock', () => {
       confirmSheet(tr`Recharger ?`, tr`Le mode mock change la source de données : la PWA doit être rechargée.`,
         () => location.reload(), { yes: tr`Recharger` })

@@ -1,7 +1,7 @@
 // Amorçage : thème, transport (réel ou mock), routeur.
 
 import { h, clear } from './dom.js'
-import { settings, applyTheme, update as updateSettings } from './settings.js'
+import { settings, applyTheme, applyTextScale, update as updateSettings } from './settings.js'
 import * as store from './store.js'
 import { ThreadsView } from './views/threads.js'
 import { ThreadView } from './views/thread.js'
@@ -65,6 +65,11 @@ function parseRoute(hash) {
 
 async function boot() {
   applyTheme(settings.theme)
+  applyTextScale()
+  // Mode auto (aucun choix manuel) : le thème suit le navigateur, y compris
+  // ses changements en cours de session. Un choix manuel fige le thème.
+  globalThis.matchMedia?.('(prefers-color-scheme: dark)')
+    ?.addEventListener('change', () => { if (!settings.theme) applyTheme(null) })
   document.documentElement.lang = lang
 
   const mock = isMock()
@@ -81,6 +86,19 @@ async function boot() {
 
   window.addEventListener('hashchange', render)
   render()
+
+  // Copier d'un bloc de code (bouton au survol / au tap), par délégation : le
+  // markdown est repeint pendant le streaming, les boutons ne survivent pas.
+  document.addEventListener('click', (ev) => {
+    const btn = ev.target.closest?.('.cb-copy')
+    if (!btn) return
+    const pre = btn.closest('.codeblock')?.querySelector('pre')
+    if (!pre) return
+    navigator.clipboard?.writeText(pre.textContent).then(
+      () => toast(tr`copié`),
+      () => toast(tr`copie impossible`, { level: 'error' }),
+    )
+  })
 
   // Retour au premier plan : on réveille les liens plutôt que d'attendre le backoff.
   document.addEventListener('visibilitychange', () => {

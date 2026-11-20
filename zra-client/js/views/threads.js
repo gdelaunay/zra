@@ -11,11 +11,12 @@
 
 import { h, button, clear, debounce } from '../dom.js'
 import { icon, agentIcon } from '../icons.js'
-import { zedAge, absTime, shortPath, agentLabel, toMs, projectOf, projectNames, displayTime } from '../format.js'
+import { zedAge, absTime, baseName, agentLabel, toMs, projectOf, projectNames, displayTime } from '../format.js'
 import * as store from '../store.js'
 import { openMenu } from '../ui.js'
 import { openSettings } from './settings.js'
 import { newSessionButton } from './new-session.js'
+import { BottomBar } from './bottombar.js'
 import { openPairSheet } from './pair.js'
 import { tr } from '../i18n.js'
 
@@ -37,7 +38,7 @@ export function ThreadsView({ navigate }) {
   let filter = 'all'
 
   const list = h('div.scroll')
-  const search = h('input.input', {
+  const search = h('input.searchbar__input', {
     type: 'search', placeholder: tr`Filtrer les threads…`, value: query,
     'aria-label': tr`filtrer les threads`,
     oninput: debounce((ev) => { query = ev.target.value.toLowerCase(); paint() }, 120),
@@ -57,10 +58,14 @@ export function ThreadsView({ navigate }) {
     filterBtn.querySelector('span').textContent = FILTERS.find((f) => f.id === filter).label
   }
 
+  const bottombar = BottomBar({ navigate, active: 'threads' })
+
   const el = h('div.view',
     header({ navigate }),
+    // Recherche en haut, juste sous la top bar, comme Zed (render_sidebar_header).
+    h('div.searchbar', {}, icon('search', 'icon--sm'), search, filterBtn),
     list,
-    h('div.bottombar', h('span.grow', search), filterBtn),
+    bottombar.el,
   )
 
   function paint() {
@@ -158,6 +163,7 @@ export function ThreadsView({ navigate }) {
     el,
     destroy() {
       offs.forEach((off) => off())
+      bottombar.destroy()
       el.querySelector('.header')?.dispatchEvent(new CustomEvent('zra:unmount'))
     },
   }
@@ -167,10 +173,11 @@ function header({ navigate }) {
   const el = h('div.header')
   const sub = h('span.header__sub')
   el.append(
-    h('div.header__title', {}, icon('zap', 'icon--sm'), h('span', { text: 'ZRA' })),
+    // Logo placeholder en attendant un choix définitif (l'éclair ne va pas).
+    h('div.header__title', {}, icon('zed_assistant', 'icon--sm'), h('span', { text: 'ZRA' })),
     h('div.header__meta', {}, sub),
-    button('icon-btn', { title: tr`Rafraîchir`, onclick: () => store.refreshAll() }, icon('refresh', 'icon--sm')),
-    button('icon-btn', { title: tr`Réglages`, onclick: () => openSettings() }, icon('settings', 'icon--sm')),
+    button('icon-btn icon-btn--sm', { title: tr`Rafraîchir`, onclick: () => store.refreshAll() }, icon('refresh', 'icon--sm')),
+    button('icon-btn icon-btn--sm', { title: tr`Réglages`, onclick: () => openSettings() }, icon('settings', 'icon--sm')),
   )
   const sync = () => {
     const machines = [...store.state.machines.values()]
@@ -289,6 +296,11 @@ function projectHead(m, project, open, onToggle, state = null, threads = []) {
   )
 }
 
+/**
+ * Ligne de thread comme Zed (`thread_item.rs`) : icône de l'agent qui se
+ * transforme en icône d'état, titre ; pastille ZRA collée à droite. Sous le
+ * titre : worktree lié seulement (le principal est masqué), puis le time.
+ */
 function threadRow(m, t, navigate) {
   // Créé hors ZRA et fermé : consultable, mais on ne peut pas y répondre.
   const readOnly = Boolean(store.foreignAgentOf(m, t))
@@ -296,45 +308,46 @@ function threadRow(m, t, navigate) {
     title: t.title,
     onclick: () => navigate(`#/t/${m.id}/${t.threadId}`),
   },
-    readOnly
-      ? h('span.lock-dot.thread-row__lock', { title: tr`lecture seule : créé hors ZRA, répondre dans Zed` }, icon('lock', 'icon--sm'))
-      : h(`span.dot.dot--${t.state}.thread-row__dot`),
-    h('span.thread-row__body', {},
-      h('span.thread-row__title.truncate', { text: t.title || tr`Nouveau Thread d'Agent` }),
-      h('span.thread-row__meta', {},
-        h('span.thread-row__path.truncate', { text: shortPath(t.folderPaths?.[0], 2) }),
-        t.folderPaths?.length > 1 ? h('span', { text: `+${t.folderPaths.length - 1}` }) : null,
-        h('span', { text: '·' }),
-        h('span', { text: zedAge(displayTime(t)), title: absTime(displayTime(t)) }),
-      ),
-    ),
-    activityIcon(m, t),
-    t.archived ? h('span.thread-row__badge', { text: tr`archivé` }) : null,
-    t.agentId
-      ? agentIcon(t.agentId, 'thread-row__agent icon--sm')
-      : null,
+    h('span.thread-row__main', {},
+      h('span.thread-row__content', {},
+        stateIcon(m, t),
+        h('span.thread-row__title.truncate', { text: t.title || tr`Nouveau Thread d'Agent` })),
+      t.archived ? h('span.thread-row__badge', { text: tr`archivé` }) : null,
+      readOnly
+        ? h('span.lock-dot', { title: tr`lecture seule : créé hors ZRA, répondre dans Zed` }, icon('lock', 'icon--sm'))
+        : h(`span.dot.dot--${t.state}`)),
+    h('span.thread-row__meta', {},
+      h('span.spacer16'),
+      // Worktree lié : puce git_worktree + nom ; branche inconnue de l'index.
+      t.mainPaths?.length ? h('span.chip', {},
+        icon('git_worktree', 'icon--xs'),
+        h('span.truncate', { text: baseName(t.folderPaths?.[0]) })) : null,
+      t.mainPaths?.length ? h('span.dotsep', { text: '•' }) : null,
+      h('span', { text: zedAge(displayTime(t)), title: absTime(displayTime(t)) })),
   )
 }
 
 /**
- * État du tour, comme le sidebar de Zed (`ThreadEntry::apply_active_info`) :
- * attente de confirmation, génération en cours, fin de tour pas encore vue.
+ * Icône de la ligne : l'icône d'état prime sur l'icône de l'agent, comme le
+ * sidebar de Zed (`ThreadEntry::apply_active_info`) : attente de confirmation,
+ * génération en cours, fin de tour pas encore vue.
  */
-function activityIcon(m, t) {
+function stateIcon(m, t) {
   if (t.waiting) {
-    const el = icon('alert-triangle', 'icon--sm thread-row__activity thread-row__activity--waiting')
+    const el = icon('alert-triangle', 'icon--xs thread-row__icon--waiting')
     el.setAttribute('title', tr`attend une confirmation`)
-    return el
+    return h('span.thread-row__icon.thread-row__icon--waiting', {}, el)
   }
   if (t.turn === 'busy') {
-    const el = icon('loader', 'icon--sm spin thread-row__activity')
+    const el = icon('load_circle', 'icon--sm spin')
     el.setAttribute('title', tr`en cours`)
-    return el
+    return h('span.thread-row__icon', {}, el)
   }
   if (store.ensureState(store.key(m.id, t.threadId)).unseen) {
-    return h('span.dot.dot--unseen.thread-row__activity', { title: tr`tour terminé, pas encore lu` })
+    return h('span.thread-row__icon.thread-row__icon--unseen', { title: tr`tour terminé, pas encore lu` },
+      icon('circle', 'icon--sm'))
   }
-  return null
+  return h('span.thread-row__icon', {}, agentIcon(t.agentId, 'icon--sm'))
 }
 
 function matches(t, query, filter) {

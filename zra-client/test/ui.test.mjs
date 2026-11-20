@@ -89,11 +89,12 @@ test('une entrée sans onSelect ferme quand même', (t) => {
   assert.equal(menus().length, 0)
 })
 
-test('le voile ferme le menu, sans rien déclencher', (t) => {
+test('un clic ailleurs ferme le menu, sans rien déclencher', (t) => {
   reset(t)
   let chosen = false
   openMenu(anchor(), { items: [{ label: 'x', onSelect: () => { chosen = true } }] })
-  click(doc.querySelector('.scrim'))
+  // Plus de voile sur les menus (Zed) : le clic extérieur ferme et traverse.
+  doc.body.dispatchEvent(new win.MouseEvent('pointerdown', { bubbles: true }))
   assert.equal(menus().length, 0)
   assert.equal(chosen, false)
 })
