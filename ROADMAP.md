@@ -26,9 +26,18 @@ Références visuelles : `reference/zed-agent-panel/` (panel) et
 
 - **tool calls** : dépliement / repliement et affichage (en-tête, corps,
   entrées et sorties brutes) ;
-- forme et couleurs des commandes, des messages, etc. ;
+- forme et couleurs des commandes, des messages, etc. ; en vue filtrée "archivés", affiche le bouton de suppression définitive du thread;
 - mise en page des réflexions ;
 - l'icône définitive de l'indicateur de tour (`loader` en attendant).
+
+
+### 0.5.1 — appui long sur un thread
+
+- **appui long sur un thread** (liste des threads) : fait apparaître les boutons
+  renommer le thread, et stopper la génération (thread en cours) ou archiver le
+  thread ;
+- **titre du thread** (page agent) : le titre est lui-même un input subtil qui
+  permet de le renommer.
 
 
 ### Threads créés hors ZRA : lecture seule
@@ -219,3 +228,12 @@ avant la 0.6 (si possible). Public visé : ceux qui ont déjà un homelab.
 - Homelab peut **wake** le desktop via Wake-on-LAN
 - Desktop au réveil : daemon systemd → lance Zed → shim enregistre les agents
 - Accès via WireGuard (LAN virtualisé, pas d'exposition publique)
+
+### Piste — appui long sur un poste : wake-on-LAN
+
+Dans la liste des threads, appui long sur un poste → bouton pour le réveiller :
+ Wake-on-LAN, ou commande plus complexe pour récupérer Zed actif (réveil +
+lancement de Zed). Le daemon (Node) peut émettre le paquet magique UDP ; il lui
+faut l'adresse MAC du poste, et le broadcast n'atteint que le LAN local — depuis un
+autre réseau, passer par le homelab (ci-dessus). À instruire si le besoin se
+confirme.
