@@ -33,9 +33,19 @@ Références visuelles de l'interface Zed : `reference/zed-agent-panel/` (panel)
   commande, c'est envoyer son texte ;
 - **mentions `@`** : suggérer des fichiers et dossiers du projet. Ce n'est pas
   dans ACP, c'est Zed qui fournit la liste. Le daemon tourne sur le poste et
-  connaît les `folderPaths` du thread, il pourrait donc lister les fichiers
-  lui-même. Reste à définir ce que la mention envoie à l'agent (lien de
-  ressource ACP, ou chemin en texte). Faisabilité à vérifier.
+  connaît les `folderPaths` du thread : il liste les fichiers lui-même. La
+  mention envoie un lien de ressource ACP, ou le contenu embarqué si l'agent
+  l'annonce (`embeddedContext`) — comme Zed ; faisabilité vérifiée (matrice
+  agents dans la conception).
+
+Conception détaillée — faits spec/Zed/agents, choix, architecture — :
+`reference/conception-composer.md`.
+
+### Backfill des fiches ACP
+
+`docs/fr/acp.md` ne couvre que renommer/supprimer (0.5.1). Les fonctionnalités
+ACP déjà livrées (relais et observation, permissions, élicitation, modes et
+options, terminaux, `session/load`…) restent à y consigner, fiche par méthode.
 
 ### 0.5.3 — Tous les threads par le shim
 

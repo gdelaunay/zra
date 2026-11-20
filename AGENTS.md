@@ -8,6 +8,12 @@
 - Restent en français seulement : `ROADMAP.md`, `ISSUES.md`, `reference/`.
 - Règles de contenu : une information, une maison ; état courant, pas l'historique.
 
+## Documentation des dépendances Zed et ACP
+
+- Toute nouvelle fonctionnalité reposant sur Zed (lecture de sa base ou de ses fichiers, pilotage clavier, imitation de son interface…) est consignée **immédiatement** dans `docs/fr/zed.md` : ligne au tableau de correspondance concerné, chemins des sources dans `_upstream/zed`, et état honnête — `vérifié` seulement si lu dans les sources de la version de référence, sinon `relevé` ou `à vérifier`.
+- Toute nouvelle fonctionnalité reposant sur ACP est consignée **immédiatement** dans `docs/fr/acp.md` : fiche par méthode (ce que dit la spec `_upstream/acp`, comment Zed s'en sert, ce que ZRA en fait, quels agents l'implémentent).
+- Traductions anglaises dans le même commit, comme toute page de doc (règle ci-dessus).
+
 ## Messages et fichiers livrés
 
 - Messages du daemon, du shim et des scripts en français (texte de référence, clé) et en anglais (`i18n/en.json`) ; textes de la PWA de même (`zra-client/js/en.js`, module ES, pour rester sans build et compatible). Un texte ajouté ou changé passe par ``tr`…` `` (`zra-daemon/i18n.js`, `zra-client/js/i18n.js`), puis `node scripts/i18n-test.mjs --write` et sa traduction dans le catalogue. `npm test` (et la CI) vérifie que tout est traduit.
