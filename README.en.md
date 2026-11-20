@@ -125,6 +125,8 @@ Working files, at the root, in French: `ROADMAP.md` (upcoming versions, ideas)
 and `ISSUES.md` (open issues). Third-party content and its licenses:
 `THIRD_PARTY_NOTICES.md`.
 
+License: MIT (`LICENSE`).
+
 ---
 
 Developed with Opus 5.5 in Claude Code, and Qwen3.8-Max / Qwen3.8-Flash in Pi,

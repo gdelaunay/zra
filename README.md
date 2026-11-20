@@ -126,6 +126,8 @@ Fichiers de travail, à la racine : `ROADMAP.md` (versions à venir, idées)
 et `ISSUES.md` (issues ouvertes). Contenus tiers et leurs licences :
 `THIRD_PARTY_NOTICES.md`.
 
+Licence : MIT (`LICENSE`).
+
 ---
 
 Développé avec Opus 5.5 dans Claude Code, et Qwen3.8-Max / Qwen3.8-Flash dans Pi,
