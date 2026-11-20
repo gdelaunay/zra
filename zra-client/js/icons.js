@@ -77,7 +77,7 @@ const ZED = {
 
 // `kind` d'un tool call ACP -> icône, exactement comme le panel de Zed les affiche.
 export const TOOL_KIND_ICON = {
-  read: 'file-text',
+  read: 'search',
   edit: 'pencil',
   delete: 'trash',
   move: 'move',

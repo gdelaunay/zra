@@ -445,8 +445,10 @@ button { cursor: pointer; }
 
 /* Réflexion — render_thinking_block : en-tête 13px muted, corps ml 6 pl 14
  * bordure gauche tool_card_border. Hauteur libre (défaut Zed « auto » : pas de
- * max-height) ; c'est le fil qui suit le bas pendant l'écriture. */
-.thought { display: flex; flex-direction: column; gap: var(--sp-2); }
+ * max-height) ; c'est le fil qui suit le bas pendant l'écriture. Dans Zed le
+ * bloc est un chunk du message assistant (px_5) ; entrée à part chez nous, donc
+ * mêmes marges horizontales 20 px que les autres entrées. */
+.thought { display: flex; flex-direction: column; gap: var(--sp-2); margin: 0 calc(var(--sp-5) + var(--sp-4)); }
 .thought__head {
   display: flex; align-items: center; justify-content: space-between;
   padding-right: var(--sp-2); cursor: pointer; width: 100%; text-align: left;
