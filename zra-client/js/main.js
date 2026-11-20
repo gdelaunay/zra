@@ -7,6 +7,7 @@ import { ThreadsView } from './views/threads.js'
 import { ThreadView } from './views/thread.js'
 import { DevBar } from './views/devbar.js'
 import { toast, closeAllOverlays } from './ui.js'
+import { syncPush } from './push.js'
 import { tr, lang } from './i18n.js'
 
 const app = document.getElementById('app')
@@ -78,6 +79,9 @@ async function boot() {
   store.on('error', (err) => {
     toast(err.message || err.code || tr`erreur daemon`, { level: 'error' })
   })
+
+  // Un poste passe en ligne : (ré)abonnement push si l'utilisateur l'a activé.
+  store.on('machines', () => { syncPush() })
 
   // Nouvelle session créée dans Zed : on l'ouvre tout de suite.
   store.on('thread_created', ({ machineId, threadId }) => {

@@ -162,6 +162,11 @@ export const DEFAULTS = {
   /** Garde-fou : un agent qui ne rend jamais la main ne bloque pas le daemon. */
   historyTimeoutMs: 60_000,
 
+  /** État des opérations sur les threads : tombstones, titres superposés, capacités ACP (`thread-ops.js`). */
+  threadOpsFile: '.zra/thread-ops.json',
+  /** Web Push : clé VAPID et abonnements des navigateurs (`push.js`). */
+  pushFile: '.zra/push.json',
+
   /** Journal d'injections. Dossier de ZRA : `%LOCALAPPDATA%\zra` en Windows, `$XDG_STATE_HOME/zra` ailleurs. */
   logFile: PATHS.injectionLog,
   /** Journal du daemon sur disque, en plus de la console (`--log`). `null` : console seule. */
@@ -224,6 +229,8 @@ export async function loadConfig({ file = process.env.ZRA_CONFIG || (UNDER_TEST 
   if (process.env.ZRA_ZED_KEYBOARD) cfg.zedControl.keyboard = process.env.ZRA_ZED_KEYBOARD
   cfg.auth = { ...DEFAULTS.auth, ...fromFile.auth, ...overrides.auth }
   cfg.auth.file = cfg.auth.file ? abs(cfg.auth.file) : null
+  cfg.threadOpsFile = cfg.threadOpsFile ? abs(cfg.threadOpsFile) : null
+  cfg.pushFile = cfg.pushFile ? abs(cfg.pushFile) : null
 
   if (cfg.zedChannel != null && !ZED_CHANNELS.includes(cfg.zedChannel)) {
     throw new Error(tr`zedChannel inconnu : ${cfg.zedChannel} (${ZED_CHANNELS.join(', ')})`)

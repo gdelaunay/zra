@@ -39,11 +39,14 @@ export class SessionLoader {
    *   settingsFile?: string|null, agentCommands?: object,
    *   ttlMs?: number, timeoutMs?: number,
    *   projectEnv?: (dir:string) => Promise<Record<string,string>>,
-   * }} opts `projectEnv` : environnement du projet, relevé comme Zed (`shell-env.js`)
+   *   onCaps?: (agentId:string|null, caps:object) => void,
+   * }} opts `projectEnv` : environnement du projet, relevé comme Zed (`shell-env.js`) ;
+   *   `onCaps` : capacités vues à l'`initialize`, pour le gating (`thread-ops.js`).
    */
-  constructor({ threads, settingsFile = null, agentCommands = {}, ttlMs = 10 * 60_000, timeoutMs = 60_000, settleMs = 150, projectEnv = projectEnvironment }) {
+  constructor({ threads, settingsFile = null, agentCommands = {}, ttlMs = 10 * 60_000, timeoutMs = 60_000, settleMs = 150, projectEnv = projectEnvironment, onCaps = null }) {
     this.threads = threads
     this.projectEnv = projectEnv
+    this.onCaps = onCaps
     this.settingsFile = settingsFile
     this.agentCommands = agentCommands
     this.ttlMs = ttlMs
@@ -134,6 +137,7 @@ export class SessionLoader {
 
     try {
       const init = await client.initialize()
+      this.onCaps?.(thread.agentId, init?.agentCapabilities)
       if (!init?.agentCapabilities?.loadSession) {
         throw new HistoryError(
           'no_load_session',
@@ -180,6 +184,57 @@ export class SessionLoader {
   /** Le thread a bougé : son replay en cache n'est plus à jour. */
   invalidate(sessionId) {
     this.cache.delete(sessionId)
+  }
+
+  /**
+   * Requête ACP unique sur un thread fermé (`session/set_title`,
+   * `session/delete` — docs/fr/acp.md) : lance l'agent, `initialize`, vérifie
+   * la capacité, requête, tue l'instance. Même plomberie que la relecture ;
+   * le thread n'a pas besoin d'être ouvert dans Zed, la méthode porte sur la
+   * session stockée côté agent.
+   *
+   * @param {string} capability clé de `sessionCapabilities` exigée (`title`, `delete`).
+   */
+  async operate(threadId, method, params, capability) {
+    const thread = this.threads.get(threadId)
+    if (!thread) throw new HistoryError('unknown_thread', tr`thread inconnu de cet index`)
+    if (!thread.sessionId) throw new HistoryError('no_session', tr`thread sans session : opération impossible`)
+    const cwd = thread.folderPaths?.[0]
+    if (!cwd) {
+      throw new HistoryError('inject_failed', tr`dossier du thread inconnu : impossible de lancer l'agent`)
+    }
+
+    let agent
+    try {
+      agent = await resolveAgentCommand(thread.agentId, {
+        settingsFile: this.settingsFile,
+        overrides: this.agentCommands,
+      })
+    } catch (err) {
+      throw new HistoryError('inject_failed', err.message)
+    }
+
+    log.info(tr`${method} sur ${thread.threadId} (${thread.agentId}) dans ${cwd}`)
+    const env = { ...await this.projectEnv(cwd), ...agent.env }
+    const client = new AcpClient({ command: agent.command, args: agent.args, cwd, env })
+    const guard = setTimeout(() => client.kill(), this.timeoutMs)
+    guard.unref?.()
+    try {
+      const init = await client.initialize()
+      this.onCaps?.(thread.agentId, init?.agentCapabilities)
+      if (!init?.agentCapabilities?.sessionCapabilities?.[capability]) {
+        throw new HistoryError('capability_missing',
+          tr`l'agent ${thread.agentId ?? '?'} ne supporte pas ${method}`)
+      }
+      return await client.request(method, params)
+    } catch (err) {
+      if (err instanceof HistoryError) throw err
+      const detail = client.stderr.trim().split('\n').at(-1)
+      throw new HistoryError('inject_failed', tr`${method} refusé : ${err.message}${detail ? ` — ${detail}` : ''}`)
+    } finally {
+      clearTimeout(guard)
+      client.kill()
+    }
   }
 
   close() {

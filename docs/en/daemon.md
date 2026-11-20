@@ -115,8 +115,10 @@ phone is warned by an explicit `zra/notice`.
 | `ring-buffer.js` | 2000 events per thread |
 | `shim-registry.js` | shim → sessions registry (multi-session: Zed launches one agent per window) |
 | `shim-link.js` | `/shim` channel: incoming events, outgoing commands |
-| `session-loader.js` | replay of a closed thread, 10 min TTL cache |
-| `acp-client.js` | minimal, disposable ACP client, for that replay; announces Zed's capabilities |
+| `session-loader.js` | replay of a closed thread, 10 min TTL cache; one-shot ACP operations (`session/set_title`, `session/delete`) on the same principle |
+| `acp-client.js` | minimal, disposable ACP client, for that replay and those operations; announces Zed's capabilities |
+| `thread-ops.js` | rename/delete over ACP: tombstones, overlaid titles, per-agent capabilities, persisted |
+| `push.js` | dependency-free Web Push: VAPID (ES256), aes128gcm encryption, subscriptions |
 | `shell-env.js` | project environment captured as Zed does (login shell, direnv), for that replay |
 | `agent-commands.js` | how to launch an agent: config, `settings.json`, Zed registry |
 | `agents.js` | `agent_servers` registry, Zed presence |

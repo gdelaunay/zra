@@ -297,6 +297,11 @@ function handle(machine, msg) {
       break
     }
 
+    case 'push_subscribed':
+    case 'push_unsubscribed':
+      // Accusés d'abonnement : le réglage est déjà à jour côté PWA.
+      break
+
     default:
       // Message inconnu : on ne casse pas, on trace.
       console.debug('[store] message ZRA inconnu', msg)
@@ -544,6 +549,34 @@ export function interrupt(k) {
   const m = machineOf(k)
   if (!m) return
   m.link.send({ type: 'interrupt', threadId: splitKey(k).threadId })
+}
+
+/**
+ * Renomme par ACP (`session/set_title`). Le titre normalisé par l'agent
+ * revient dans le `threads` rediffusé ; en attendant, le titre demandé est
+ * affiché tout de suite.
+ */
+export function renameThread(k, title) {
+  const m = machineOf(k)
+  if (!m) return
+  const clean = String(title || '').trim()
+  if (!clean) return
+  const st = ensureState(k)
+  if (st.summary) {
+    st.summary = { ...st.summary, title: clean, titleOverridden: true }
+    emit('threads')
+  }
+  m.link.send({ type: 'rename_thread', threadId: splitKey(k).threadId, title: clean })
+}
+
+/**
+ * Supprime par ACP (`session/delete`) : le thread quitte la liste au `threads`
+ * suivant. Définitif — la confirmation est à la charge de l'appelant.
+ */
+export function deleteThread(k) {
+  const m = machineOf(k)
+  if (!m) return
+  m.link.send({ type: 'delete_thread', threadId: splitKey(k).threadId })
 }
 
 /**

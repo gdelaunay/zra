@@ -14,6 +14,8 @@ let dom, win, doc, ZRA
 
 const $ = (sel) => doc.querySelector(sel)
 const $$ = (sel) => [...doc.querySelectorAll(sel)]
+/** Titre du thread : input éditable (`render_title_view`) — sa valeur, pas son texte. */
+const headerTitle = () => $('.header__title input')?.value ?? $('.header__title')?.textContent ?? ''
 const click = (el) => el.dispatchEvent(new win.MouseEvent('click', { bubbles: true }))
 /** Saisie réelle : `input` doit partir, la PWA suit le champ sur cet événement. */
 const type = (el, v) => {
@@ -41,10 +43,16 @@ before(async () => {
   win = dom.window
   doc = win.document
 
+  // jsdom n'a ni matchMedia ni CSS : le minimum pour la PWA. Pas de survol
+  // (`matches: false`) → les actions de thread passent par l'appui long.
+  win.matchMedia ??= (q) => ({ matches: false, media: q, addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {} })
+  win.CSS ??= { escape: (s) => String(s).replace(/[^a-zA-Z0-9_-]/g, (c) => `\\${c}`) }
+
   // La PWA s'exécute sur les globals du navigateur : on les expose au module.
   for (const k of ['window', 'document', 'location', 'localStorage', 'navigator',
     'requestAnimationFrame', 'cancelAnimationFrame', 'getComputedStyle',
-    'HTMLElement', 'Node', 'MouseEvent', 'Event', 'CustomEvent', 'URL', 'URLSearchParams']) {
+    'HTMLElement', 'Node', 'MouseEvent', 'Event', 'CustomEvent', 'URL', 'URLSearchParams',
+    'matchMedia', 'CSS']) {
     Object.defineProperty(globalThis, k, { value: win[k] ?? globalThis[k], configurable: true, writable: true })
   }
   globalThis.WebSocket = win.WebSocket
@@ -85,8 +93,8 @@ test('le filtre texte réduit la liste', async () => {
 
 test('écran 2 : ouverture du thread live, flux ACP rendu', async () => {
   ZRA.navigate('#/t/mock-desk/a1f39c0b')
-  await until(() => /Refactor/.test($('.header__title')?.textContent || ''), 3000, 'thread live ouvert')
-  assert.match($('.header__title').textContent, /Refactor du lecteur/)
+  await until(() => /Refactor/.test(headerTitle()), 3000, 'thread live ouvert')
+  assert.match(headerTitle(), /Refactor du lecteur/)
 
   // le tour lancé à la connexion produit réflexion, plan, outils, diff, terminal, markdown
   await until(() => $('.thought'), 6000, 'réflexion')
@@ -111,7 +119,7 @@ test('consommation et titre annoncés par l’agent : à leur place, pas dans le
   await until(() => /31\s842 \/ 1\s000\s000 tokens \(3 %\)/.test($('.tokens').title), 9000, 'consommation de fin de tour')
   assert.match($('.tokens').title, /coût de la session : 0,09/)
   assert.ok($('.tokens .ring .fg'), 'anneau comme Zed')
-  await until(() => /en lecture seule/.test($('.header__title').textContent), 2000, 'titre annoncé par l’agent')
+  await until(() => /en lecture seule/.test(headerTitle()), 2000, 'titre annoncé par l’agent')
   assert.ok(!$$('.raw').some((n) => /usage_update|session_info_update/.test(n.textContent)), 'aucun bloc brut')
 })
 
@@ -148,7 +156,7 @@ test('ossature identique sur les deux écrans', async () => {
     [...list.children].indexOf(list.querySelector('.scroll')))
 
   ZRA.navigate('#/t/mock-desk/a1f39c0b')
-  await until(() => /Refactor/.test($('.header__title')?.textContent || ''), 3000)
+  await until(() => /Refactor/.test(headerTitle()), 3000)
 })
 
 test('la top bar du thread porte agent, titre, chemin et date', () => {
@@ -172,7 +180,7 @@ test('le retour à la liste se fait depuis la bottombar', async () => {
   await until(() => $('.searchbar'), 2000, 'écran liste')
   assert.ok($('.bottombar [aria-label="liste des threads"]').classList.contains('is-active'), 'liste active sur l’écran liste')
   ZRA.navigate('#/t/mock-desk/a1f39c0b')
-  await until(() => /Refactor/.test($('.header__title')?.textContent || ''), 3000)
+  await until(() => /Refactor/.test(headerTitle()), 3000)
 })
 
 test('réglages génériques : en ligne s’ils sont peu nombreux, sinon dans « ⋯ »', async () => {
@@ -396,9 +404,9 @@ test('événement ACP inconnu : rendu brut, aucune perte', async () => {
 
 test('thread fermé : historique chargé via session/load', async () => {
   ZRA.navigate('#/t/mock-desk/c0d81e77')
-  await until(() => /encodage/.test($('.header__title')?.textContent || ''), 3000, 'thread fermé ouvert')
+  await until(() => /encodage/.test(headerTitle()), 3000, 'thread fermé ouvert')
   await until(() => $$('.user-msg').length >= 1 && $('.tool'), 6000, 'replay')
-  assert.match(doc.body.textContent, /encodage/i)
+  assert.match(headerTitle(), /encodage/i)
   assert.ok($('.banner') && !$('.banner').classList.contains('hidden'), 'bandeau « thread fermé »')
   // L'historique rejoue aussi la consommation : 86 % du contexte, anneau orange.
   await until(() => /862/.test($('.tokens')?.title || ''), 2000, 'consommation de l’historique')
@@ -407,7 +415,7 @@ test('thread fermé : historique chargé via session/load', async () => {
 
 test('agent sans loadSession : message explicite, composer actif', async () => {
   ZRA.navigate('#/t/mock-desk/d39a5b12')
-  await until(() => /Spike/.test($('.header__title')?.textContent || ''), 3000, 'thread gemini ouvert')
+  await until(() => /Spike/.test(headerTitle()), 3000, 'thread gemini ouvert')
   await until(() => /indisponible/.test(doc.body.textContent), 6000, 'historique indisponible')
   assert.equal($('.composer').classList.contains('is-disabled'), false)
 })
@@ -604,7 +612,7 @@ test('le + d’un projet ouvre la session dans ce projet', async () => {
     link.send = send
   }
   // le daemon crée le thread et la PWA l'ouvre
-  await until(() => /Nouveau thread/.test($('.header__title')?.textContent || ''), 4000, 'thread ouvert')
+  await until(() => /Nouveau thread/.test(headerTitle()), 4000, 'thread ouvert')
   assert.ok($('.composer'), 'on est bien sur l’écran thread')
 
   ZRA.navigate('#/')
@@ -613,17 +621,17 @@ test('le + d’un projet ouvre la session dans ce projet', async () => {
 
 test('le + d’un thread ouvre la session dans le projet de ce thread', async () => {
   ZRA.navigate('#/t/mock-laptop/aa77bb00')
-  await until(() => /Notes de release/.test($('.header__title')?.textContent || ''), 3000)
+  await until(() => /Notes de release/.test(headerTitle()), 3000)
   click($('.header [aria-label="nouvelle session"]'))
   await until(() => $('.menu'), 2000, 'menu des agents')
   assert.match($('.menu__label').textContent, /Nouveau thread · zra, notes/)
   ZRA.navigate('#/t/mock-desk/a1f39c0b')
-  await until(() => /Refactor/.test($('.header__title')?.textContent || ''), 3000)
+  await until(() => /Refactor/.test(headerTitle()), 3000)
 })
 
 test('streaming : une rafale se révèle peu à peu, le début du message ne bouge pas', async () => {
   ZRA.navigate('#/t/mock-desk/b7c2e441')
-  await until(() => /tests de la file/.test($('.header__title')?.textContent || ''), 3000, 'thread ouvert')
+  await until(() => /tests de la file/.test(headerTitle()), 3000, 'thread ouvert')
   // Pendant le chargement de l'historique, le direct est tamponné puis peint d'un
   // coup avec lui : c'est le streaming d'après qui nous intéresse.
   await until(() => ZRA.store.state.threadStates.get('mock-desk/b7c2e441')?.historyComplete, 3000, 'historique')
@@ -708,4 +716,59 @@ test('la barre mock est présente et pilote le daemon simulé', async () => {
   const buttons = $$('.devbar .btn')
   assert.ok(buttons.length >= 5)
   click(buttons.find((b) => /nouveau|Autres/i.test(b.textContent)) || buttons[0])
+})
+
+// ---------------------------------------------------------------------------
+// Actions d'un thread : appui long (jsdom n'a pas de survol), renommage,
+// suppression, gating ACP — docs/fr/acp.md
+// ---------------------------------------------------------------------------
+
+/** Appui long sur une ligne : pointerdown, 500 ms, pointerup — les actions se déplient. */
+async function longPress(row) {
+  row.dispatchEvent(new win.Event('pointerdown', { bubbles: true }))
+  await new Promise((r) => setTimeout(r, 550))
+  row.dispatchEvent(new win.Event('pointerup', { bubbles: true }))
+}
+
+const rowOf = (threadId) => $(`.thread-row[data-key="mock-desk/${threadId}"]`)
+
+test('appui long : déplie renommer et supprimer ; le thread gemini n’a aucun bouton (gating)', async () => {
+  ZRA.navigate('#/')
+  await expandAll()
+
+  const row = rowOf('c0d81e77')
+  await longPress(row)
+  const live = rowOf('c0d81e77')
+  assert.ok(live.classList.contains('thread-row--actions'), 'actions dépliées')
+  const btns = live.querySelectorAll('.thread-row__actions button')
+  assert.equal(btns.length, 2, 'crayon + poubelle ; pas de stop, le thread est au repos')
+
+  // Gemini ne sait ni renommer ni supprimer : aucun bouton, même déplié.
+  await longPress(rowOf('d39a5b12'))
+  const gemini = rowOf('d39a5b12')
+  assert.ok(gemini.classList.contains('thread-row--actions'))
+  assert.equal(gemini.querySelectorAll('.thread-row__actions button').length, 0)
+})
+
+test('renommer depuis la liste : éditeur inline, Entrée valide, le titre est mis à jour', async () => {
+  await longPress(rowOf('c0d81e77'))
+  click(rowOf('c0d81e77').querySelector('.thread-row__actions button')) // crayon
+  const input = rowOf('c0d81e77').querySelector('.thread-row__rename')
+  assert.ok(input, 'le titre devient un éditeur une ligne')
+  type(input, 'Titre renommé depuis le mobile')
+  input.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+  await until(() => rowOf('c0d81e77')?.querySelector('.thread-row__title')?.textContent === 'Titre renommé depuis le mobile', 2000, 'titre mis à jour')
+})
+
+test('supprimer depuis la liste : confirmation, le thread quitte la liste', async () => {
+  await longPress(rowOf('b7c2e441'))
+  const btns = rowOf('b7c2e441').querySelectorAll('.thread-row__actions button')
+  click(btns[btns.length - 1]) // poubelle
+  const sheet = $('.sheet')
+  assert.ok(sheet, 'une confirmation s’ouvre')
+  assert.match(sheet.textContent, /Supprimer le thread/)
+  assert.match(sheet.textContent, /définitivement/)
+  const yes = [...sheet.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Supprimer')
+  click(yes)
+  await until(() => !rowOf('b7c2e441'), 2000, 'thread supprimé')
 })

@@ -7,6 +7,7 @@ import * as settingsModule from '../settings.js'
 import { settings, applyTheme, applyTextScale, currentThemeId, update as updateSettings } from '../settings.js'
 import * as store from '../store.js'
 import { openSheet, openMenu, toast, confirmSheet } from '../ui.js'
+import { pushSupported, enablePush, disablePush } from '../push.js'
 import { tr } from '../i18n.js'
 
 export function openSettings() {
@@ -132,6 +133,7 @@ function displaySection(api) {
     h('div.setting', {}, h('span.label', { text: tr`Taille du texte` }), scaleBtn),
     toggle(tr`Toujours déplier les réflexions`, 'alwaysShowThoughts'),
     toggle(tr`Déplier tous les outils`, 'expandTools'),
+    notificationsToggle(),
     toggle(tr`Mode mock (daemon simulé)`, 'mock', () => {
       confirmSheet(tr`Recharger ?`, tr`Le mode mock change la source de données : la PWA doit être rechargée.`,
         () => location.reload(), { yes: tr`Recharger` })
@@ -146,6 +148,32 @@ function toggle(label, prefKey, after) {
     onchange: (ev) => { updateSettings({ [prefKey]: ev.target.checked }); after?.() },
   })
   return h('label.row', { style: { cursor: 'pointer' } }, input, h('span', { text: label }))
+}
+
+/** Notifications push : la permission du navigateur est demandée à l'activation. */
+function notificationsToggle() {
+  const supported = pushSupported()
+  const input = h('input', {
+    type: 'checkbox',
+    checked: settings.notifications === true,
+    disabled: !supported,
+    onchange: async (ev) => {
+      if (ev.target.checked) {
+        const { ok, reason } = await enablePush()
+        if (!ok) {
+          ev.target.checked = false
+          if (reason) toast(reason, { level: 'warn' })
+        }
+      } else {
+        await disablePush()
+      }
+    },
+  })
+  return h('label.row', { style: { cursor: supported ? 'pointer' : 'default' } },
+    input,
+    h('span', { text: tr`Notifications (fin de tour)` }),
+    !supported ? h('span.muted', { style: { fontSize: 'var(--fs-sm)' }, text: tr`non supporté par ce navigateur` }) : null,
+  )
 }
 
 function aboutSection() {

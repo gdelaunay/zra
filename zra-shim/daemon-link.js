@@ -12,7 +12,8 @@
 //                   permission_resolved · permission_expired ·
 //                   elicitation_resolved · elicitation_expired · notice · ack
 //   daemon → shim   cmd { id, cmd: prompt|cancel|set_option|
-//                                 respond_permission|respond_elicitation|cancel_queued }
+//                                 respond_permission|respond_elicitation|cancel_queued|
+//                                 set_title|delete_session }
 
 import { tr } from '../zra-daemon/i18n.js'
 

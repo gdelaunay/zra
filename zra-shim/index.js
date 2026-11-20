@@ -179,6 +179,10 @@ export async function runCommand(bridge, msg) {
       return bridge.respondElicitation(msg.sessionId, msg.requestId, msg.action, msg.content)
     case 'cancel_queued':
       return bridge.cancelQueued(msg.sessionId, msg.queueId)
+    case 'set_title':
+      return bridge.setTitle(msg.sessionId, msg.title)
+    case 'delete_session':
+      return bridge.deleteSession(msg.sessionId)
     default:
       throw new ShimError('unknown_message', tr`commande inconnue : ${msg.cmd}`)
   }

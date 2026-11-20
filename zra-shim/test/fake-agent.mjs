@@ -261,6 +261,7 @@ async function handle(msg) {
         agentCapabilities: {
           loadSession: !NO_LOAD_SESSION,
           promptCapabilities: { image: false, audio: false, embeddedContext: false },
+          sessionCapabilities: process.env.ZRA_FAKE_NO_SESSION_CAPS ? undefined : { title: {}, delete: {} },
         },
         agentInfo: { name: 'fake-agent', version: '1.0.0' },
       })
@@ -293,6 +294,21 @@ async function handle(msg) {
     case 'session/close':
       sessions.delete(params.sessionId)
       return reply(id, {})
+
+    case 'session/set_title': {
+      const session = sessions.get(params.sessionId)
+      if (!session) return fail(id, 'session inconnue', -32002)
+      const title = String(params.title ?? '').trim()
+      if (!title) return fail(id, 'titre vide', -32602)
+      session.title = title
+      update(params.sessionId, { sessionUpdate: 'session_info_update', title })
+      return reply(id, { title })
+    }
+
+    case 'session/delete': {
+      if (!sessions.delete(params.sessionId)) return fail(id, 'session inconnue', -32002)
+      return reply(id, {})
+    }
 
     case 'session/prompt': {
       const session = sessions.get(params.sessionId)

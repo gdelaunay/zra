@@ -227,6 +227,18 @@ button { cursor: pointer; }
   flex: 0 1 auto;
 }
 .header__title--brand { font-weight: 600; }
+/* Titre éditable (render_title_view) : input subtil, fond au survol/focus. */
+.header__title-input {
+  width: auto; max-width: 100%; min-width: 0; padding: 0 2px; border-radius: 2px;
+  font-size: var(--fs-lg); line-height: var(--lh); background: transparent;
+  field-sizing: content;
+}
+/* Éditer ne change rien à l'apparence (render_title_view) : on édite le texte
+ * direct, seul le focus sélectionne tout. Bleu clair d'accent de Zed
+ * (player.local_selection, reference/zed-agent-panel/tokens.css). */
+.header__title-input::selection, .thread-row__rename::selection { background: rgba(116, 173, 232, 0.239); }
+.header__title-input:focus { outline: none; }
+.header__title-input--readonly { cursor: default; pointer-events: none; }
 .header__sub { font-size: var(--fs-sm); color: var(--text-muted); }
 .header__meta {
   display: flex; align-items: center; gap: var(--sp-3); margin-left: var(--sp-2);
@@ -340,11 +352,11 @@ button { cursor: pointer; }
   display: flex; flex-direction: column; gap: 0;
   width: 100%; text-align: left;
   padding: var(--sp-2) var(--sp-3);
-  color: inherit;
+  color: inherit; cursor: pointer;
 }
 .thread-row:hover { background: var(--ghost-element-hover); }
 .thread-row:active { background: var(--ghost-element-active); }
-.thread-row__main { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-4); height: 24px; min-width: 0; }
+.thread-row__main { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-4); height: 24px; min-width: 0; position: relative; }
 /* Contenu indenté comme les projets (le survol, lui, prend toute la largeur). */
 .thread-row__main, .thread-row__meta { padding-left: calc(var(--sp-4) + var(--indent-step) * 2 - var(--sp-3)); }
 .thread-row__content { display: flex; align-items: center; gap: var(--sp-3); flex: 1; min-width: 0; }
@@ -356,6 +368,27 @@ button { cursor: pointer; }
 .thread-row__icon--waiting { color: var(--warning); }
 .thread-row__icon--unseen { color: var(--icon-accent); }
 .thread-row__title { font-size: var(--fs-lg); line-height: var(--lh); }
+/* Actions au survol (desktop) ou à l'appui long (mobile) — render_thread de
+ * Zed : crayon + action contextuelle, fondu de 120 px côté référence, 80 ici
+ * (la ligne est plus compacte). Le gating ACP masque les boutons inutiles. */
+.thread-row__actions { position: absolute; right: 0; top: 0; height: 100%; display: none; align-items: center; gap: 2px; }
+.thread-row__fade { position: absolute; right: 100%; top: 0; width: 80px; height: 100%; pointer-events: none; background: linear-gradient(90deg, transparent, var(--ghost-element-hover)); }
+.thread-row__stop { color: var(--error); background: color-mix(in srgb, var(--error) 15%, transparent); }
+.thread-row__delete:hover { color: var(--error); }
+@media (hover: hover) {
+  .thread-row:hover .thread-row__actions, .thread-row:focus-within .thread-row__actions { display: flex; }
+}
+/* Renommage en cours : pas d'actions ni de fondu derrière l'éditeur. */
+.thread-row:has(.thread-row__rename) .thread-row__actions { display: none; }
+.thread-row--actions { background: var(--ghost-element-hover); }
+.thread-row--actions .thread-row__actions { display: flex; }
+/* Renommage inline : éditeur une ligne à la place du titre (render_rename_title_editor). */
+.thread-row__rename {
+  flex: 1; min-width: 0; height: 20px; padding: 0 2px;
+  background: transparent; color: var(--text);
+  font-size: var(--fs-lg); line-height: var(--lh);
+}
+.thread-row__rename:focus { outline: none; }
 .thread-row__meta {
   display: flex; align-items: center; gap: var(--sp-3);
   font-size: var(--fs-sm); color: var(--text-muted); min-width: 0; overflow: hidden;

@@ -115,8 +115,10 @@ mobile en est averti par un `zra/notice` explicite.
 | `ring-buffer.js` | 2000 événements par thread |
 | `shim-registry.js` | registre shim → sessions (multi-sessions : Zed lance un agent par fenêtre) |
 | `shim-link.js` | canal `/shim` : événements entrants, commandes sortantes |
-| `session-loader.js` | relecture d'un thread fermé, cache TTL 10 min |
-| `acp-client.js` | client ACP minimal et jetable, pour cette relecture ; annonce les capacités de Zed |
+| `session-loader.js` | relecture d'un thread fermé, cache TTL 10 min ; opérations ACP uniques (`session/set_title`, `session/delete`) sur le même principe |
+| `acp-client.js` | client ACP minimal et jetable, pour cette relecture et ces opérations ; annonce les capacités de Zed |
+| `thread-ops.js` | renommer/supprimer par ACP : tombstones, titres superposés, capacités par agent, persistés |
+| `push.js` | Web Push sans dépendance : VAPID (ES256), chiffrement aes128gcm, abonnements |
 | `shell-env.js` | environnement du projet relevé comme Zed (shell de connexion, direnv), pour cette relecture |
 | `agent-commands.js` | comment lancer un agent : config, `settings.json`, registry de Zed |
 | `agents.js` | registry `agent_servers`, présence de Zed |

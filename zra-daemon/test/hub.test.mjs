@@ -111,7 +111,7 @@ function fakeMachine(agents = [{ id: 'claude-zra', wraps: 'claude-acp' }, { id: 
 }
 
 /** Monte un hub avec tout ce qu'il lui faut, factice sauf ring/états/registres. */
-function boot({ threads = defaultThreads(), backend = fakeBackend(), pairing = null, zed = null, loader = null, covers = () => false, config = { auth: {} }, size = 2000 } = {}) {
+function boot({ threads = defaultThreads(), backend = fakeBackend(), pairing = null, zed = null, loader = null, covers = () => false, config = { auth: {} }, size = 2000, ops = null, push = null } = {}) {
   const rings = new RingBuffers({ size })
   const states = new ThreadStates()
   const shims = new ShimRegistry()
@@ -129,8 +129,10 @@ function boot({ threads = defaultThreads(), backend = fakeBackend(), pairing = n
     zed,
     covers,
     pairing,
+    ops,
+    push,
   })
-  return { hub, threads, states, rings, shims, backend, recorded, zed, loader }
+  return { hub, threads, states, rings, shims, backend, recorded, zed, loader, ops, push }
 }
 
 /** Hub démarré avec un client reconnu (loopback) et ses messages. */
@@ -1392,4 +1394,133 @@ test('AuthError d’appairage verrouillé : le code passe au client', () => {
   const conn = client(ctx)
   conn.emit('message', { type: 'pair', code: '123456' })
   assert.deepEqual(conn.last(), { type: 'error', code: 'pair_locked', message: 'trop d’essais' })
+})
+
+// ---------------------------------------------------------------------------
+// Renommer, supprimer, push — docs/fr/acp.md, protocole §3
+// ---------------------------------------------------------------------------
+
+/** ThreadOps factice : enregistre les appels, capacités fixes. */
+function fakeOps(caps = { title: true, delete: true }) {
+  const e = new EventEmitter()
+  e.calls = []
+  e.rename = async (threadId, title) => { e.calls.push(['rename', threadId, title]); return { title } }
+  e.delete = async (threadId) => { e.calls.push(['delete', threadId]) }
+  e.capsFor = () => caps
+  return e
+}
+
+/** PushNotifier factice. */
+function fakePush() {
+  return {
+    subscriptions: new Map(),
+    calls: [],
+    subscribe(sub, meta) {
+      if (!sub?.endpoint || !sub.keys?.p256dh || !sub.keys?.auth) return false
+      this.subscriptions.set(sub.endpoint, { ...sub, ...meta })
+      return true
+    },
+    unsubscribe(endpoint) { return this.subscriptions.delete(endpoint) },
+    async notify(payload) { this.calls.push(payload); return 1 },
+  }
+}
+
+test('rename_thread / delete_thread : passent par ThreadOps, journalisés', async () => {
+  const ops = fakeOps()
+  const ctx = boot({ ops })
+  const conn = pairedClient(ctx)
+  conn.emit('message', { type: 'hello' })
+  conn.mark()
+
+  conn.emit('message', { type: 'rename_thread', threadId: A, title: 'Nouveau nom' })
+  await tick()
+  assert.deepEqual(ops.calls[0], ['rename', A, 'Nouveau nom'])
+  conn.emit('message', { type: 'delete_thread', threadId: B })
+  await tick()
+  assert.deepEqual(ops.calls[1], ['delete', B])
+  assert.deepEqual(ctx.recorded.map((r) => r.type), ['rename_thread', 'delete_thread'])
+})
+
+test('rename_thread : erreur de ThreadOps rendue en error du protocole', async () => {
+  const ops = fakeOps()
+  ops.rename = async () => { throw Object.assign(new Error('agent muet'), { code: 'capability_missing' }) }
+  const ctx = boot({ ops })
+  const conn = pairedClient(ctx)
+  conn.emit('message', { type: 'rename_thread', threadId: A, title: 'x' })
+  await tick()
+  assert.equal(conn.last().type, 'error')
+  assert.equal(conn.last().code, 'capability_missing')
+  assert.equal(conn.last().threadId, A)
+})
+
+test('rename_thread / delete_thread : sans ops, refus net ; thread inconnu ou sans session refusé', async () => {
+  const ctx = boot()
+  const conn = pairedClient(ctx)
+  conn.emit('message', { type: 'rename_thread', threadId: A, title: 'x' })
+  await tick()
+  assert.equal(conn.last().code, 'capability_missing')
+  conn.emit('message', { type: 'delete_thread', threadId: 'inexistant' })
+  await tick()
+  assert.equal(conn.last().code, 'unknown_thread')
+  conn.emit('message', { type: 'delete_thread', threadId: NO_SESSION })
+  await tick()
+  assert.equal(conn.last().code, 'no_session')
+})
+
+test('threads : canRename/canDelete selon les capacités connues, absentes sinon', () => {
+  const ops = fakeOps({ title: true, delete: false })
+  const ctx = boot({ ops })
+  const conn = pairedClient(ctx)
+  conn.emit('message', { type: 'list_threads' })
+  const t = conn.last().threads.find((x) => x.threadId === A)
+  assert.equal(t.canRename, true)
+  assert.equal(t.canDelete, false)
+
+  const ctx2 = boot()
+  const conn2 = pairedClient(ctx2)
+  conn2.emit('message', { type: 'list_threads' })
+  const t2 = conn2.last().threads.find((x) => x.threadId === A)
+  assert.ok(!('canRename' in t2), 'capacités inconnues : pas de champ, la PWA tente')
+})
+
+test('push_subscribe / push_unsubscribe : abonnement enregistré, accusé, invalide refusé', () => {
+  const push = fakePush()
+  const ctx = boot({ push })
+  const conn = pairedClient(ctx)
+  const sub = { endpoint: 'https://push.example.com/x', keys: { p256dh: 'a', auth: 'b' } }
+  conn.emit('message', { type: 'push_subscribe', machineId: 'mock-desk', subscription: sub })
+  assert.deepEqual(conn.last(), { type: 'push_subscribed', endpoint: sub.endpoint })
+  assert.equal(push.subscriptions.get(sub.endpoint).machineId, 'mock-desk')
+
+  conn.emit('message', { type: 'push_subscribe', subscription: { endpoint: 'https://x' } })
+  assert.equal(conn.last().type, 'error')
+
+  conn.emit('message', { type: 'push_unsubscribe', endpoint: sub.endpoint })
+  assert.deepEqual(conn.last(), { type: 'push_unsubscribed', endpoint: sub.endpoint })
+  assert.equal(push.subscriptions.size, 0)
+})
+
+test('fin de tour : push seulement si personne ne regarde le thread en direct', async () => {
+  const push = fakePush()
+  push.subscriptions.set('https://push.example.com/x', { endpoint: 'https://push.example.com/x' })
+  const ctx = boot({ push })
+  const conn = pairedClient(ctx)
+  conn.emit('message', { type: 'hello' })
+
+  // Un tour se termine pendant que le client regarde A : pas de push.
+  conn.emit('message', { type: 'subscribe', threadId: A })
+  ctx.hub.setTurn(A, 'busy')
+  ctx.hub.setTurn(A, 'idle')
+  assert.equal(push.calls.length, 0)
+
+  // Le client ne regarde plus : le push part, avec le dernier texte de l'agent.
+  conn.emit('message', { type: 'unsubscribe', threadId: A })
+  ctx.rings.push(A, { update: { sessionUpdate: 'user_message_chunk', content: { type: 'text', text: 'question' } } })
+  ctx.rings.push(A, { update: { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'la réponse' } } })
+  ctx.hub.setTurn(A, 'busy')
+  ctx.hub.setTurn(A, 'idle')
+  assert.equal(push.calls.length, 1)
+  assert.equal(push.calls[0].threadId, A)
+  assert.equal(push.calls[0].title, 'fil A')
+  assert.equal(push.calls[0].body, 'la réponse')
 })

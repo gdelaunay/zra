@@ -12,10 +12,10 @@ import { PassThrough, Writable } from 'node:stream'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { createShim } from '../index.js'
+import { createShim, runCommand } from '../index.js'
 import { createFramer, parseFrame } from '../framing.js'
 import { pipeFrames } from '../proxy.js'
-import { AcpBridge, projectOptions } from '../acp.js'
+import { AcpBridge, ShimError, projectOptions } from '../acp.js'
 import { createRecorder } from '../record.js'
 import { FakeZed } from './fake-zed.mjs'
 
@@ -348,6 +348,34 @@ test('interrupt coupe le tour et rend la main sur l’acquittement', async (t) =
   // Tour déjà à l'arrêt : ne rien faire (protocole §3 `interrupt`).
   assert.deepEqual(await bridge.cancel(zed.sessionId), { interrupted: false })
   assert.equal(notices.length, 1)
+})
+
+// ---------------------------------------------------------------------------
+// Renommer et supprimer — session/set_title, session/delete (docs/fr/acp.md)
+// ---------------------------------------------------------------------------
+
+test('set_title : le titre normalisé par l’agent est rendu, la requête est celle du shim', async (t) => {
+  const { bridge, zed } = await boot(t)
+  const result = await runCommand(bridge, { cmd: 'set_title', sessionId: zed.sessionId, title: '  Nouveau titre  ' })
+  assert.deepEqual(result, { title: 'Nouveau titre' })
+  // L'agent a annoncé le titre ; Zed le voit passer comme n'importe quel update.
+  await until(() => zed.updates.some((u) => u?.sessionUpdate === 'session_info_update' && u.title === 'Nouveau titre'), { label: 'info_update' })
+})
+
+test('set_title / delete_session : sans capacité annoncée, refus net (capability_missing)', async (t) => {
+  const { bridge, zed } = await boot(t, { env: { ZRA_FAKE_NO_SESSION_CAPS: '1' } })
+  await assert.rejects(() => bridge.setTitle(zed.sessionId, 'x'), (err) => err instanceof ShimError && err.code === 'capability_missing')
+  await assert.rejects(() => bridge.deleteSession(zed.sessionId), (err) => err instanceof ShimError && err.code === 'capability_missing')
+})
+
+test('delete_session : coupe un tour en cours puis supprime la session côté agent', async (t) => {
+  const { bridge, zed } = await boot(t)
+  const turn = zed.prompt('lent: tour à couper')
+  await until(() => bridge.sessions.get(zed.sessionId).turn === 'busy', { label: 'busy' })
+  assert.deepEqual(await runCommand(bridge, { cmd: 'delete_session', sessionId: zed.sessionId }), { deleted: true })
+  assert.equal((await turn).stopReason, 'cancelled')
+  // La session n'existe plus : un prompt refusé par l'agent.
+  await assert.rejects(() => zed.prompt('après suppression'))
 })
 
 test('mode interrupt : on coupe, puis le message part', async (t) => {

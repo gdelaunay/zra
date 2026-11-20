@@ -1,7 +1,7 @@
-// Service worker : coquille de cache (v1) + point d'ancrage Web Push, inactif.
+// Service worker : coquille de cache (v1) + Web Push (fin de tour, `push.js`).
 // Réseau d'abord partout (coquille comprise), cache en repli hors tunnel.
 
-const VERSION = 'zra-v6'
+const VERSION = 'zra-v7'
 /** Au-delà, le réseau est tenu pour absent (hors tunnel) : on sert le cache. */
 const NETWORK_TIMEOUT_MS = 3000
 const SHELL = [
@@ -33,6 +33,7 @@ const SHELL = [
   './js/themes.js',
   './js/agent-icons.js',
   './js/ui.js',
+  './js/push.js',
   './js/views/threads.js',
   './js/views/thread.js',
   './js/views/entry.js',
@@ -81,7 +82,8 @@ self.addEventListener('fetch', (ev) => {
   })())
 })
 
-// Web Push : câblé, inactif en v1 (§8). Le daemon n'envoie rien pour l'instant.
+// Web Push : le daemon envoie une notification de fin de tour (`push.js`),
+// le clic ouvre le thread.
 self.addEventListener('push', (ev) => {
   let data = {}
   try { data = ev.data?.json() || {} } catch { data = { body: ev.data?.text() } }

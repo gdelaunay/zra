@@ -14,7 +14,7 @@ import { settings, update } from '../settings.js'
 import { icon, agentIcon } from '../icons.js'
 import { zedAge, absTime, baseName, agentLabel, toMs, projectOf, projectNames, displayTime } from '../format.js'
 import * as store from '../store.js'
-import { openMenu } from '../ui.js'
+import { openMenu, confirmSheet } from '../ui.js'
 import { openSettings } from './settings.js'
 import { newSessionButton } from './new-session.js'
 import { BottomBar } from './bottombar.js'
@@ -27,6 +27,30 @@ import { tr } from '../i18n.js'
 const expandedMachines = new Set()
 const expandedProjects = new Set()
 const expandedRecent = new Set()
+
+// Actions d'un thread : au survol sur desktop (comme Zed), à l'appui long sur
+// mobile. L'état survit aux re-rendus de la liste (poll, activité) : un
+// renommage en cours ne doit pas être emporté par un `threads`.
+const hoverable = globalThis.matchMedia?.('(hover: hover)')?.matches ?? true
+/** Clé du thread dont les actions sont dépliées par appui long. */
+let actionsOpen = null
+/** Renommage en cours : `{ key, value, selStart, selEnd }`, ou `null`. */
+let renaming = null
+/** Vrai pendant `paint` : le blur d'un input remplacé ne valide rien. */
+let repainting = false
+/** Un appui long ne doit pas naviguer : le click qui suit est avalé. */
+let suppressClick = false
+
+if (!hoverable) {
+  document.addEventListener('pointerdown', (ev) => {
+    if (actionsOpen && !ev.target.closest?.('.thread-row--actions')) closeActions()
+  }, true)
+}
+
+function closeActions() {
+  actionsOpen = null
+  document.querySelectorAll('.thread-row--actions').forEach((el) => el.classList.remove('thread-row--actions'))
+}
 
 const FILTERS = [
   { id: 'all', label: tr`Tous` },
@@ -72,6 +96,15 @@ export function ThreadsView({ navigate }) {
   )
 
   function paint() {
+    repainting = true
+    try {
+      paintList()
+    } finally {
+      repainting = false
+    }
+  }
+
+  function paintList() {
     clear(list)
     const machines = [...store.state.machines.values()]
     if (!machines.length) {
@@ -303,24 +336,41 @@ function projectHead(m, project, open, onToggle, state = null, threads = []) {
  * Ligne de thread comme Zed (`thread_item.rs`) : icône de l'agent qui se
  * transforme en icône d'état, titre ; pastille ZRA collée à droite. Sous le
  * titre : worktree lié seulement (le principal est masqué), puis le time.
+ * Actions (renommer, stopper, supprimer) au survol, ou à l'appui long.
  */
 function threadRow(m, t, navigate) {
   // Créé hors ZRA et fermé : consultable, mais on ne peut pas y répondre.
+  // Renommer et supprimer restent possibles : ils parlent à l'agent, pas à Zed.
   const readOnly = Boolean(store.foreignAgentOf(m, t))
-  return button('thread-row', {
+  const k = store.key(m.id, t.threadId)
+  const row = h('div.thread-row', {
+    role: 'button',
+    tabindex: '0',
     title: t.title,
-    onclick: () => navigate(`#/t/${m.id}/${t.threadId}`),
+    'data-key': k,
+    onclick: () => {
+      if (suppressClick) { suppressClick = false; return }
+      if (actionsOpen === k) { closeActions(); return }
+      navigate(`#/t/${m.id}/${t.threadId}`)
+    },
+    onkeydown: (ev) => {
+      if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); navigate(`#/t/${m.id}/${t.threadId}`) }
+    },
   },
     h('span.thread-row__main', {},
       h('span.thread-row__content', {},
         stateIcon(m, t),
-        h('span.thread-row__title.truncate', { text: t.title || tr`Nouveau Thread d'Agent` })),
+        renaming?.key === k
+          ? renameInput(k, t)
+          : h('span.thread-row__title.truncate', { text: t.title || tr`Nouveau Thread d'Agent` })),
       t.archived ? h('span.thread-row__badge', { text: tr`archivé` }) : null,
       // Boîte 18 px comme le « + » des projets : pastille / cadenas alignés dessus.
       h('span.thread-row__status', {},
         readOnly
           ? h('span.lock-dot', { title: tr`lecture seule : créé hors ZRA, répondre dans Zed` }, icon('lock', 'icon--sm'))
-          : h(`span.dot.dot--${t.state}`))),
+          : h(`span.dot.dot--${t.state}`)),
+      threadActions(k, t),
+    ),
     h('span.thread-row__meta', {},
       h('span.spacer16'),
       // Worktree lié : puce git_worktree + nom ; branche inconnue de l'index.
@@ -329,6 +379,127 @@ function threadRow(m, t, navigate) {
         h('span.truncate', { text: baseName(t.folderPaths?.[0]) })) : null,
       t.mainPaths?.length ? h('span.dotsep', { text: '•' }) : null,
       h('span', { text: zedAge(displayTime(t)), title: absTime(displayTime(t)) })),
+  )
+  if (actionsOpen === k) row.classList.add('thread-row--actions')
+  if (!hoverable) wireLongPress(row, k)
+  return row
+}
+
+/**
+ * Boutons d'action, comme le survol de Zed (`render_thread`) : crayon,
+ * stop teinté erreur si un tour est en cours, poubelle. Le gating ACP
+ * (`canRename`/`canDelete`, absents = inconnu) masque ce que l'agent ne sait
+ * pas faire — docs/fr/acp.md.
+ */
+function threadActions(k, t) {
+  const stop = (ev) => ev.stopPropagation()
+  return h('span.thread-row__actions', {},
+    h('span.thread-row__fade', { 'aria-hidden': 'true' }),
+    t.canRename !== false
+      ? button('icon-btn icon-btn--sm', { title: tr`Renommer`, 'aria-label': tr`renommer le thread`, onclick: (ev) => { stop(ev); beginRename(k, t) } }, icon('pencil', 'icon--sm'))
+      : null,
+    t.turn === 'busy'
+      ? button('icon-btn icon-btn--sm thread-row__stop', { title: tr`Stopper la génération`, 'aria-label': tr`stopper la génération`, onclick: (ev) => { stop(ev); store.interrupt(k) } }, icon('stop', 'icon--sm'))
+      : null,
+    t.canDelete !== false
+      ? button('icon-btn icon-btn--sm thread-row__delete', { title: tr`Supprimer`, 'aria-label': tr`supprimer le thread`, onclick: (ev) => { stop(ev); confirmDelete(k, t) } }, icon('trash', 'icon--sm'))
+      : null,
+  )
+}
+
+/** Appui long (500 ms, sans glisser) : déplie les actions ; le click qui suit est avalé. */
+function wireLongPress(row, k) {
+  let timer = null
+  let x0 = 0
+  let y0 = 0
+  const clear = () => { if (timer) { clearTimeout(timer); timer = null } }
+  row.addEventListener('pointerdown', (ev) => {
+    x0 = ev.clientX
+    y0 = ev.clientY
+    clear()
+    timer = setTimeout(() => {
+      timer = null
+      suppressClick = true
+      closeActions()
+      actionsOpen = k
+      // La ligne a pu être repeinte pendant l'appui (poll, activité) : on
+      // retrouve la ligne vivante plutôt que la référence capturée.
+      const live = document.querySelector(`.thread-row[data-key="${CSS.escape(k)}"]`)
+      live?.classList.add('thread-row--actions')
+    }, 500)
+  })
+  row.addEventListener('pointerup', clear)
+  row.addEventListener('pointercancel', clear)
+  row.addEventListener('pointermove', (ev) => {
+    if (timer && (Math.abs(ev.clientX - x0) > 10 || Math.abs(ev.clientY - y0) > 10)) clear()
+  })
+  // Android ouvre son menu contextuel sur l'appui long : on garde le nôtre.
+  row.addEventListener('contextmenu', (ev) => ev.preventDefault())
+}
+
+function beginRename(k, t) {
+  closeActions()
+  renaming = { key: k, value: t.title || '', selStart: null, selEnd: null }
+  const row = document.querySelector(`.thread-row[data-key="${CSS.escape(k)}"]`)
+  const titleEl = row?.querySelector('.thread-row__title')
+  if (titleEl) titleEl.replaceWith(renameInput(k, t))
+}
+
+/** Éditeur une ligne à la place du titre, comme Zed : Entrée valide, Échap annule, blur valide. */
+function renameInput(k, t) {
+  const input = h('input.thread-row__rename', {
+    value: renaming.value,
+    'aria-label': tr`renommer le thread`,
+    onclick: (ev) => ev.stopPropagation(),
+    onpointerdown: (ev) => ev.stopPropagation(),
+    oninput: (ev) => {
+      renaming.value = ev.target.value
+      renaming.selStart = ev.target.selectionStart
+      renaming.selEnd = ev.target.selectionEnd
+    },
+    onkeydown: (ev) => {
+      ev.stopPropagation()
+      if (ev.key === 'Enter') { ev.preventDefault(); commitRename(k, t) }
+      else if (ev.key === 'Escape') { ev.preventDefault(); cancelRename(k, t) }
+    },
+    onblur: () => commitRename(k, t),
+  })
+  requestAnimationFrame(() => {
+    if (renaming?.key !== k || !input.isConnected) return
+    input.focus()
+    // Comme Zed : tout le titre est sélectionné, il n'y a qu'à taper.
+    input.select()
+  })
+  return input
+}
+
+function commitRename(k, t) {
+  if (repainting || renaming?.key !== k) return
+  const value = renaming.value.trim()
+  renaming = null
+  if (value && value !== (t.title || '')) store.renameThread(k, value)
+  restoreTitle(k, value || t.title)
+}
+
+function cancelRename(k, t) {
+  if (renaming?.key !== k) return
+  renaming = null
+  restoreTitle(k, t.title)
+}
+
+function restoreTitle(k, title) {
+  const row = document.querySelector(`.thread-row[data-key="${CSS.escape(k)}"]`)
+  const input = row?.querySelector('.thread-row__rename')
+  if (input) input.replaceWith(h('span.thread-row__title.truncate', { text: title || tr`Nouveau Thread d'Agent` }))
+}
+
+function confirmDelete(k, t) {
+  closeActions()
+  confirmSheet(
+    tr`Supprimer le thread`,
+    tr`« ${t.title || tr`Nouveau Thread d'Agent`} » sera supprimé côté agent, définitivement.`,
+    () => store.deleteThread(k),
+    { danger: true, yes: tr`Supprimer` },
   )
 }
 

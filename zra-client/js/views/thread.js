@@ -54,6 +54,8 @@ export function ThreadView({ key, navigate }) {
   const feed = h('div.scroll.thread__scroll')
   const nodes = new Map()
   let stick = true
+  /** Le thread a déjà été vu dans l'index : sa disparition = suppression, on quitte. */
+  let hadThread = false
   const activity = h('div.activity.hidden')
   const activityWrap = h('div.activity-wrap', {}, activity)
   // Plan replié par défaut, comme dans Zed (`plan_expanded`).
@@ -77,7 +79,29 @@ export function ThreadView({ key, navigate }) {
   const spinT0 = performance.now()
 
   const banner = h('div.banner.hidden')
-  const title = h('span.truncate')
+  // Le titre est lui-même un input subtil (`render_title_view` de Zed) :
+  // Entrée ou blur valide le renommage (ACP), Échap annule.
+  const displayedTitle = () => {
+    const summary = st.summary || {}
+    const info = store.ensureTimeline(key).info
+    return (!summary.titleOverridden && info.title) || summary.title || tr`Nouveau Thread d'Agent`
+  }
+  const title = h('input.header__title-input.truncate', {
+    'aria-label': tr`titre du thread`,
+    // Comme Zed : cliquer le titre sélectionne tout, il n'y a qu'à taper.
+    onfocus: () => title.select(),
+    oninput: () => { title.size = Math.max(4, title.value.length + 1) },
+    onkeydown: (ev) => {
+      if (ev.key === 'Enter') { ev.preventDefault(); title.blur() }
+      else if (ev.key === 'Escape') { ev.preventDefault(); title.value = displayedTitle(); title.blur() }
+    },
+    onblur: () => {
+      const v = title.value.trim()
+      const current = displayedTitle()
+      if (v && v !== current) store.renameThread(key, v)
+      else title.value = current
+    },
+  })
   const subtitle = h('span', { title: '' })
   const dot = h('span.dot')
   const lock = h('span.lock-dot.hidden', { title: tr`lecture seule : créé hors ZRA, répondre dans Zed` }, icon('lock', 'icon--sm'))
@@ -452,7 +476,14 @@ export function ThreadView({ key, navigate }) {
     const info = store.ensureTimeline(key).info
     // Le titre que l'agent annonce en direct devance l'index de Zed (poll 2 s),
     // sauf si l'utilisateur a renommé le thread : son choix prime.
-    title.textContent = (!summary.titleOverridden && info.title) || summary.title || 'thread'
+    if (document.activeElement !== title) title.value = displayedTitle()
+    // Repli sans `field-sizing: content` : la taille suit le texte (approximatif).
+    title.size = Math.max(4, title.value.length + 1)
+    // Agent sans `session/set_title` : le titre reste consultable, pas éditable.
+    title.readOnly = summary.canRename === false
+    title.tabIndex = title.readOnly ? -1 : 0
+    title.classList.toggle('header__title-input--readonly', title.readOnly)
+    hadThread = hadThread || Boolean(st.summary)
     // Comme dans la liste : cadenas à la place de la pastille si lecture seule.
     const readOnly = Boolean(store.foreignAgent(key))
     dot.className = `dot dot--${st.turn === 'busy' ? 'busy' : st.state || 'closed'}${readOnly ? ' hidden' : ''}`
@@ -651,7 +682,12 @@ export function ThreadView({ key, navigate }) {
     // Écriture abandonnée après une coupure : le texte revient dans le champ.
     store.on(`draft:${key}`, () => composer.refreshDraft()),
     store.on('machines', () => { syncHeader(); repaintPermissions() }),
-    store.on('threads', () => { syncHeader(); composer.sync(st) }),
+    store.on('threads', () => {
+      syncHeader(); composer.sync(st)
+      // Thread supprimé (ici ou depuis un autre appareil) : retour à la liste.
+      const m = store.machineOf(key)
+      if (hadThread && m && !m.threads.some((t) => t.threadId === store.splitKey(key).threadId)) navigate('#/')
+    }),
     // Zed n'a pas rouvert le thread : le bandeau d'attente s'efface, le toast d'erreur dit pourquoi.
     store.on('error', (e) => { if (e.threadId === store.splitKey(key).threadId && e.machineId === store.splitKey(key).machineId) endReopen() }),
   ]

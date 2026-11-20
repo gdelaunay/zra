@@ -64,6 +64,11 @@ The "normal" screen is the thread: navigation between the two screens goes
 through the two bottom bar buttons (active button = current screen); the
 agent button returns to the last opened discussion.
 
+Thread actions: on hover on desktop (like Zed), on long press on mobile —
+rename (single-line editor in place of the title), stop generation, delete
+(confirmation). The agent page title is itself an editable input. Rename and
+delete go through ACP, gated by the agent's capabilities (`docs/en/acp.md`).
+
 ## Contract with the daemon
 
 → **`docs/en/protocol.md`** at the root: full contract, message by message, with the
@@ -71,9 +76,9 @@ sequences and invariants. Summary:
 
 - it sends `hello` `list_threads` `subscribe` `unsubscribe` `load_history`
   `send` `interrupt` `set_option` `cancel_queued` `respond_permission`
-  `new_thread`;
+  `new_thread` `rename_thread` `delete_thread` `push_subscribe` `push_unsubscribe`;
 - it receives `machine` `threads` `thread_state` `acp_event` `history`
-  `thread_created` `permission_resolved` `error`.
+  `thread_created` `permission_resolved` `push_subscribed` `push_unsubscribed` `error`.
 
 `acp_event.update` is passed **verbatim** to `js/acp.js`, which reduces it to a
 timeline. An unknown `sessionUpdate` is never an error: it is shown as a
@@ -140,6 +145,11 @@ was made; the first choice is persisted and freezes the theme.
 The whole protocol is wired against the real daemon: machine identity, modes,
 models and other agent settings, permissions (including the race with the
 machine), pairing. Address of a machine without a port: 7777 over `http://`, 443 over
-`https://` (behind a reverse proxy). Only **Web Push** is still pending:
-`sw.js` already handles `push` and `notificationclick`, no subscription is requested
-in v1.
+`https://` (behind a reverse proxy).
+
+**Web Push**: the "Notifications (turn end)" setting asks for the browser's
+permission then subscribes to the machine (`js/push.js`, VAPID key from
+`machine.pushKey`); `sw.js` shows the notification and opens the thread on
+click. The daemon notifies the end of a turn that no connected client is
+watching live. A browser has only one push subscription: it goes to the first
+online machine advertising a key.

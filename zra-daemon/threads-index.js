@@ -100,13 +100,18 @@ function hex(value) {
 export class ThreadsIndex extends EventEmitter {
   /**
    * @param {{ file:string, pollMs?:number, shims?:import('./shim-registry.js').ShimRegistry,
-   *   zedRunning?:()=>boolean }} opts `zedRunning` : Zed fermé, aucun projet
+   *   zedRunning?:()=>boolean, isDeleted?:(sessionId:string)=>boolean,
+   *   renameOverlay?:(sessionId:string)=>string|null }} opts `zedRunning` : Zed fermé, aucun projet
    *   n'est ouvert, quoi que dise la base (elle garde la dernière session).
+   *   `isDeleted` : sessions supprimées par ACP, masquées (`thread-ops.js`) ;
+   *   `renameOverlay` : titre rendu par l'agent, superposé en attendant Zed.
    */
-  constructor({ file, pollMs = 2000, shims = null, zedRunning = () => true }) {
+  constructor({ file, pollMs = 2000, shims = null, zedRunning = () => true, isDeleted = () => false, renameOverlay = () => null }) {
     super()
     this.file = file
     this.zedRunning = zedRunning
+    this.isDeleted = isDeleted
+    this.renameOverlay = renameOverlay
     this.pollMs = pollMs
     this.shims = shims
     this.db = null
@@ -123,6 +128,7 @@ export class ThreadsIndex extends EventEmitter {
     this.degraded = null
     this.timer = null
     this.snapshot = ''
+    this.raw = new Map()
     /**
      * Sessions rattachées par ZRA à un thread neuf. Zed écrit la ligne dès la
      * création, mais son `session_id` reste NULL jusqu'au premier message ;
@@ -180,6 +186,7 @@ export class ThreadsIndex extends EventEmitter {
     this.degraded = reason
     log.warn(reason)
     this.threads = []
+    this.raw = new Map()
     this.projects = null
     this.snapshot = ''
     this.emit('degraded', reason)
@@ -224,7 +231,11 @@ export class ThreadsIndex extends EventEmitter {
     this.projects = this.readZedProjects(mainOf)
     const open = this.projects && this.openKeys
 
+    /** Titres bruts de la base (sans superposition), pour `ThreadOps.reconcile`. */
+    this.raw = new Map()
     const threads = rows.map((r) => {
+      // Supprimé côté agent par ACP : la ligne de Zed reste (cache), on la masque.
+      if (r.session_id && this.isDeleted(r.session_id)) return null
       const threadId = hex(r.thread_id)
       const folderPaths = splitFolderPaths(r.folder_paths, r.folder_paths_order)
       // Dossiers du dépôt principal : un worktree git lié reste groupé sous son
@@ -232,11 +243,13 @@ export class ThreadsIndex extends EventEmitter {
       const mainPaths = splitFolderPaths(r.main_worktree_paths, r.main_worktree_paths_order)
       if (r.session_id) this.provisional.delete(threadId)
       const sessionId = r.session_id ?? this.provisional.get(threadId) ?? null
+      if (r.session_id) this.raw.set(r.session_id, { title: zedTitle(r), override: r.title_override ? String(r.title_override) : null })
+      const overlay = sessionId ? this.renameOverlay(sessionId) : null
       return {
         threadId,
         sessionId,
         agentId: r.agent_id ?? null,
-        title: zedTitle(r),
+        title: overlay ?? zedTitle(r),
         // Renommé par l'utilisateur dans Zed : ce titre prime sur celui que
         // l'agent annonce en direct (`session_info_update`).
         titleOverridden: Boolean(r.title_override),
@@ -255,10 +268,15 @@ export class ThreadsIndex extends EventEmitter {
         // `unknown` = session_id NULL : brouillon de Zed (`ThreadMetadata::is_draft`).
         state: !sessionId ? 'unknown' : live.has(sessionId) ? 'live' : 'closed',
       }
-    })
+    }).filter(Boolean)
 
     threads.sort((a, b) => String(displayTime(b) ?? '').localeCompare(String(displayTime(a) ?? '')))
     return threads
+  }
+
+  /** Titre brut de la base pour une session (sans superposition), ou `null`. */
+  rawOf(sessionId) {
+    return this.raw?.get(sessionId) ?? null
   }
 
   /**

@@ -241,12 +241,15 @@ test('Affichage : les cases reflètent les réglages et les écrivent', () => {
   assert.deepEqual(labels, [
     'Toujours déplier les réflexions',
     'Déplier tous les outils',
+    'Notifications (fin de tour)',
+    'non supporté par ce navigateur',
     'Mode mock (daemon simulé)',
   ])
   assert.equal(boxes[0].checked, settingsModule.settings.alwaysShowThoughts)
   assert.equal(boxes[1].checked, settingsModule.settings.expandTools)
-  assert.equal(boxes[2].checked, settingsModule.settings.mock, 'le mode mock suit le réglage')
-  assert.equal(boxes[2].checked, true, 'on est en mode mock')
+  assert.equal(boxes[2].disabled, true, 'pas de Web Push dans jsdom : la case est désactivée')
+  assert.equal(boxes[3].checked, settingsModule.settings.mock, 'le mode mock suit le réglage')
+  assert.equal(boxes[3].checked, true, 'on est en mode mock')
 
   boxes[1].checked = true
   boxes[1].dispatchEvent(new win.Event('change', { bubbles: true }))
@@ -258,7 +261,7 @@ test('Affichage : les cases reflètent les réglages et les écrivent', () => {
 
 test('Affichage : toucher au mode mock demande un rechargement', () => {
   const sheet = open()
-  const box = section(sheet, 'Affichage').querySelectorAll('input[type="checkbox"]')[2]
+  const box = section(sheet, 'Affichage').querySelectorAll('input[type="checkbox"]')[3]
   box.checked = false
   box.dispatchEvent(new win.Event('change', { bubbles: true }))
 

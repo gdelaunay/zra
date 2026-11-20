@@ -64,6 +64,12 @@ L'écran « normal » est le thread : la navigation entre les deux écrans se fa
 par les deux boutons de la bottom bar (bouton actif = écran courant) ; le
 bouton agent ramène à la dernière discussion ouverte.
 
+Actions d'un thread : au survol sur desktop (comme Zed), à l'appui long sur
+mobile — renommer (éditeur une ligne à la place du titre), stopper la
+génération, supprimer (confirmation). Le titre de la page agent est lui-même
+un input éditable. Renommage et suppression passent par ACP, gatés par les
+capacités de l'agent (`docs/fr/acp.md`).
+
 ## Contrat avec le daemon
 
 → **`docs/fr/protocol.md`** à la racine : contrat complet, message par message, avec les
@@ -71,9 +77,9 @@ séquences et les invariants. Résumé :
 
 - elle envoie `hello` `list_threads` `subscribe` `unsubscribe` `load_history`
   `send` `interrupt` `set_option` `cancel_queued` `respond_permission`
-  `new_thread` ;
+  `new_thread` `rename_thread` `delete_thread` `push_subscribe` `push_unsubscribe` ;
 - elle reçoit `machine` `threads` `thread_state` `acp_event` `history`
-  `thread_created` `permission_resolved` `error`.
+  `thread_created` `permission_resolved` `push_subscribed` `push_unsubscribed` `error`.
 
 `acp_event.update` est passé **verbatim** à `js/acp.js`, qui le réduit en
 timeline. Un `sessionUpdate` inconnu n'est jamais une erreur : il s'affiche en
@@ -140,6 +146,11 @@ selon le navigateur** (`prefers-color-scheme`), tant qu'aucun choix manuel n'a
 Tout le protocole est câblé contre le vrai daemon : identité du poste, modes,
 modèles et autres réglages de l'agent, permissions (y compris la course avec le
 poste), appairage. Adresse d'un poste sans port : 7777 en `http://`, 443 en
-`https://` (derrière un reverse proxy). Seul reste en attente **Web Push** :
-`sw.js` gère déjà `push` et `notificationclick`, aucun abonnement n'est demandé
-en v1.
+`https://` (derrière un reverse proxy).
+
+**Web Push** : le réglage « Notifications (fin de tour) » demande la permission
+du navigateur puis s'abonne auprès du poste (`js/push.js`, clé VAPID de
+`machine.pushKey`) ; `sw.js` affiche la notification et ouvre le thread au
+clic. Le daemon notifie la fin d'un tour qu'aucun client connecté ne regarde
+en direct. Un navigateur n'a qu'un abonnement push : il va au premier poste
+en ligne qui annonce une clé.

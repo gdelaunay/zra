@@ -35,6 +35,8 @@ export const M = {
   sessionCancel: 'session/cancel',
   sessionSetMode: 'session/set_mode',
   sessionSetConfigOption: 'session/set_config_option',
+  sessionSetTitle: 'session/set_title',
+  sessionDelete: 'session/delete',
   sessionUpdate: 'session/update',
   requestPermission: 'session/request_permission',
   createElicitation: 'elicitation/create',
@@ -706,6 +708,40 @@ export class AcpBridge extends EventEmitter {
     if (st.turn !== 'busy') return { interrupted: false }
     await this.cancelAndWait(sessionId)
     return { interrupted: true }
+  }
+
+  /**
+   * Renomme la session (`session/set_title`, unstable — docs/fr/acp.md).
+   * L'agent rend le titre stocké, éventuellement normalisé : c'est celui-là
+   * que le client affiche. La session n'a pas besoin d'être active, mais ce
+   * shim ne parle que pour les siennes (`requireSession`).
+   */
+  async setTitle(sessionId, title) {
+    this.requireCapability('title', M.sessionSetTitle)
+    this.requireSession(sessionId)
+    const result = await this.request(M.sessionSetTitle, { sessionId, title })
+    return { title: typeof result?.title === 'string' ? result.title : title }
+  }
+
+  /**
+   * Supprime la session côté agent (`session/delete`, unstable). Un tour en
+   * cours est coupé d'abord : l'agent ne doit pas garder une requête en vol
+   * sur une session qui n'existe plus. Zed, lui, garde son entrée jusqu'au
+   * redémarrage (cache) — le daemon la masque.
+   */
+  async deleteSession(sessionId) {
+    this.requireCapability('delete', M.sessionDelete)
+    const st = this.requireSession(sessionId)
+    if (st.turn === 'busy') await this.cancelAndWait(sessionId)
+    await this.request(M.sessionDelete, { sessionId })
+    return { deleted: true }
+  }
+
+  /** Capacité de session annoncée à l'`initialize` (`sessionCapabilities`). */
+  requireCapability(name, method) {
+    if (!this.agentCapabilities?.sessionCapabilities?.[name]) {
+      throw new ShimError('capability_missing', tr`l'agent ne supporte pas ${method}`)
+    }
   }
 
   /**

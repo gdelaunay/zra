@@ -14,7 +14,7 @@ import { tr } from './i18n.js'
 const log = logger('hub')
 
 /** Messages entrants qui constituent une écriture, donc à journaliser (§9). */
-const WRITES = new Set(['send', 'set_option', 'respond_permission', 'respond_elicitation', 'new_thread', 'interrupt', 'cancel_queued'])
+const WRITES = new Set(['send', 'set_option', 'respond_permission', 'respond_elicitation', 'new_thread', 'interrupt', 'cancel_queued', 'rename_thread', 'delete_thread'])
 
 export class Hub {
   /**
@@ -28,10 +28,14 @@ export class Hub {
    *   zed?: import('./zed/control.js').ZedControl|null,
    *   covers?: (sessionId:string) => boolean,
    *   pairing?: import('./auth.js').Pairing|null,
+   *   ops?: import('./thread-ops.js').ThreadOps|null,
+   *   push?: import('./push.js').PushNotifier|null,
    * }} deps `pairing` : absent, aucun appairage exigé (tests, mode dev).
    */
-  constructor({ config, threads, states, rings, shims, backend, machine, recordInjection, loader = null, zed = null, covers = () => false, pairing = null }) {
+  constructor({ config, threads, states, rings, shims, backend, machine, recordInjection, loader = null, zed = null, covers = () => false, pairing = null, ops = null, push = null }) {
     this.pairing = pairing
+    this.ops = ops
+    this.push = push
     this.zed = zed
     this.covers = covers
     this.config = config
@@ -63,6 +67,8 @@ export class Hub {
     threads.on('change', () => this.broadcastThreads())
     states.on('change', (threadId) => this.pushState(threadId))
     states.on('dequeue', (threadId, entry) => this.deliverQueued(threadId, entry))
+    // Capacités apprises en cours de route : le gating de la liste change.
+    ops?.on('change', () => this.broadcastThreads())
   }
 
   // ---- cycle de vie des clients -------------------------------------------
@@ -155,6 +161,18 @@ export class Hub {
 
       case 'new_thread':
         return this.newThread(conn, msg)
+
+      case 'rename_thread':
+        return this.renameThread(conn, msg)
+
+      case 'delete_thread':
+        return this.deleteThread(conn, msg)
+
+      case 'push_subscribe':
+        return this.pushSubscribe(client, msg)
+
+      case 'push_unsubscribe':
+        return this.pushUnsubscribe(client, msg)
 
       case 'zra/trigger':
         // Marqueur explicite : un daemon réel n'a pas de scénarios à déclencher.
@@ -402,6 +420,43 @@ export class Hub {
     await this.inject(conn, msg.threadId, () => this.backend.setOption(msg.threadId, msg.key, msg.value))
   }
 
+  /**
+   * Renommage par ACP (`session/set_title` — docs/fr/acp.md). Le titre rendu
+   * par l'agent (normalisé) arrive dans le `threads` rediffusé, pas d'accusé
+   * dédié. Thread fermé : client jetable, sans rouvrir Zed.
+   */
+  async renameThread(conn, msg) {
+    const thread = this.requireWritable(conn, msg.threadId)
+    if (!thread) return
+    if (!this.ops) {
+      return this.error(conn, 'capability_missing', tr`renommer indisponible sur ce poste`, msg.threadId)
+    }
+    try {
+      await this.ops.rename(msg.threadId, msg.title)
+    } catch (err) {
+      this.error(conn, err.code || 'inject_failed', err.message, msg.threadId)
+    }
+  }
+
+  /**
+   * Suppression par ACP (`session/delete`) : la session part côté agent, le
+   * thread quitte la liste (tombstone). Zed garde son entrée jusqu'au
+   * redémarrage, plus ouvrable — accepté (docs/fr/acp.md). La confirmation
+   * est côté PWA.
+   */
+  async deleteThread(conn, msg) {
+    const thread = this.requireWritable(conn, msg.threadId)
+    if (!thread) return
+    if (!this.ops) {
+      return this.error(conn, 'capability_missing', tr`supprimer indisponible sur ce poste`, msg.threadId)
+    }
+    try {
+      await this.ops.delete(msg.threadId)
+    } catch (err) {
+      this.error(conn, err.code || 'inject_failed', err.message, msg.threadId)
+    }
+  }
+
   /** Enveloppe commune : une erreur de backend devient un `error` du protocole. */
   async inject(conn, threadId, run) {
     try {
@@ -492,6 +547,46 @@ export class Hub {
     const key = projectKey(folderPaths)
     return this.threads.threads.find((t) => t.folderPaths?.length && projectKey(t.folderPaths) === key)?.folderPaths
       ?? this.threads.projects?.find((p) => projectKey(p.folderPaths) === key)?.folderPaths ?? null
+  }
+
+  // ---- notifications push ---------------------------------------------------
+
+  pushSubscribe(client, msg) {
+    if (!this.push) {
+      return this.error(client.conn, 'internal_error', tr`notifications indisponibles sur ce poste`)
+    }
+    const ok = this.push.subscribe(msg.subscription ?? {}, {
+      machineId: typeof msg.machineId === 'string' ? msg.machineId : null,
+      clientId: client.clientId,
+    })
+    if (!ok) return this.error(client.conn, 'internal_error', tr`abonnement push invalide`)
+    client.conn.send({ type: 'push_subscribed', endpoint: msg.subscription.endpoint })
+  }
+
+  pushUnsubscribe(client, msg) {
+    this.push?.unsubscribe(msg.endpoint)
+    client.conn.send({ type: 'push_unsubscribed', endpoint: msg.endpoint ?? null })
+  }
+
+  /**
+   * Fin de tour : une réponse est arrivée. Personne ne regarde ce thread en
+   * direct (aucun abonné connecté) : le push prend le relais, comme Zed
+   * notifie un thread qui n'est pas actif.
+   */
+  notifyTurnEnd(threadId) {
+    if (!this.push?.subscriptions.size) return
+    for (const client of this.clients.values()) {
+      if (client.authed && client.subs.has(threadId)) return
+    }
+    const thread = this.threads.get(threadId)
+    if (!thread) return
+    const body = lastAgentText(this.rings.read(threadId))
+    this.push.notify({
+      threadId,
+      title: thread.title || tr`Nouveau Thread d'Agent`,
+      body: body || tr`Réponse reçue`,
+      tag: threadId,
+    }).catch((err) => log.warn(tr`push :`, err.message))
   }
 
   // ---- sortie --------------------------------------------------------------
@@ -606,12 +701,22 @@ export class Hub {
   }
 
   /** Aux clients reconnus seulement : un client pas encore appairé ne voit rien. */
-  /** Les threads de l'index, avec leur activité (`turn`, `waiting`) quand il y en a. */
+  /** Les threads de l'index, avec leur activité (`turn`, `waiting`) et le gating ACP. */
   listThreads() {
     return this.threads.threads.map((t) => {
+      const out = { ...t }
+      // Capacités connues seulement : absent = inconnu, la PWA tente et découvre.
+      const caps = this.ops?.capsFor(t)
+      if (caps) {
+        out.canRename = caps.title
+        out.canDelete = caps.delete
+      }
       const a = this.activity.get(t.threadId)
-      if (!a || (a.turn !== 'busy' && !a.waiting.size)) return t
-      return { ...t, turn: a.turn, waiting: a.waiting.size > 0 }
+      if (a && (a.turn === 'busy' || a.waiting.size)) {
+        out.turn = a.turn
+        out.waiting = a.waiting.size > 0
+      }
+      return out
     })
   }
 
@@ -635,10 +740,12 @@ export class Hub {
     if (!this.threads.get(threadId)) return
     const a = this.activityOf(threadId)
     const wasWaiting = a.waiting.size > 0
+    const was = a.turn
     if (turn === 'idle') a.waiting.clear()
     if (a.turn === turn && wasWaiting === a.waiting.size > 0) return
     a.turn = turn
     this.broadcastThreads()
+    if (was === 'busy' && turn === 'idle') this.notifyTurnEnd(threadId)
   }
 
   setWaiting(threadId, requestId, on) {
@@ -663,4 +770,17 @@ export class Hub {
 /** Chemins comparés comme Windows les compare : sans casse ni séparateur final. */
 function samePath(a, b) {
   return normPath(a) === normPath(b)
+}
+
+/** Dernier texte de l'agent avant le prochain message utilisateur, tronqué pour la notification. */
+function lastAgentText(events) {
+  const parts = []
+  for (let i = events.length - 1; i >= 0; i--) {
+    const u = events[i]?.update
+    const kind = u?.sessionUpdate
+    if (kind === 'user_message_chunk') break
+    if (kind === 'agent_message_chunk' && u.content?.type === 'text' && u.content.text) parts.unshift(u.content.text)
+  }
+  const text = parts.join('').trim()
+  return text.length > 160 ? `${text.slice(0, 159)}…` : text
 }

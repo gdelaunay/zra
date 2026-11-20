@@ -261,6 +261,38 @@ comparés sans casse ni séparateur. Le daemon refuse (`new_thread_failed`) des
 dossiers qu'aucun thread de son index ne porte : le mobile ne fait ouvrir à Zed
 que ce que Zed a déjà ouvert. Absent ⇒ la fenêtre Zed active.
 
+### `rename_thread`
+```ts
+{ type: 'rename_thread', threadId: string, title: string }
+```
+Renomme le thread par ACP (`session/set_title`, unstable — `docs/fr/acp.md`).
+Thread vivant : le shim émet la requête ; thread fermé : client jetable, sans
+rouvrir Zed. Réponse : `threads` à jour — le titre rendu par l'agent (normalisé)
+y est superposé en attendant que l'index de Zed rattrape. Titre vide ⇒ ignoré ;
+agent sans la capacité ⇒ `error` `capability_missing`.
+
+### `delete_thread`
+```ts
+{ type: 'delete_thread', threadId: string }
+```
+Supprime la session côté agent (`session/delete`, unstable), puis masque le
+thread de l'index (tombstone persisté : la ligne de Zed reste, mais ne
+ressuscite pas). Réponse : `threads` sans le thread. Zed ouvert, son entrée
+fantôme reste jusqu'au redémarrage, plus ouvrable — accepté (`docs/fr/acp.md`).
+La confirmation est côté PWA. Agent sans la capacité ⇒ `error`
+`capability_missing`.
+
+### `push_subscribe` / `push_unsubscribe`
+```ts
+{ type: 'push_subscribe', machineId: string, subscription: PushSubscriptionJSON }
+{ type: 'push_unsubscribe', endpoint: string }
+```
+Abonnement Web Push du navigateur (`PushSubscription.toJSON()`), rattaché au
+poste tel que la PWA le nomme (`machineId`, pour l'URL de la notification).
+Réponse : `push_subscribed` / `push_unsubscribed`, ou `error` (abonnement
+invalide). Le daemon notifie la fin d'un tour qu'aucun client connecté ne
+regarde en direct (§4 `machine.pushKey`).
+
 ### `zra/trigger` *(mode bouchon uniquement)*
 ```ts
 { type: 'zra/trigger', name: string, threadId?: string }
@@ -296,6 +328,7 @@ Révoqué, un appareil voit sa connexion fermée (code 4401).
   agents?: Array<{ id: string, name?: string }>,  // registry agent_servers
   agentIcons?: Record<string, string>,  // SVG bruts du registre ACP (cache de Zed), par id d'agent
   urls?: string[],         // adresses du poste hors loopback (IP locales, ou noms du certificat)
+  pushKey?: string | null, // clé VAPID publique (base64url) : abonnement Web Push de la PWA
 }
 ```
 Envoyé au bootstrap, et à chaque changement notable (Zed lancé/fermé).
@@ -319,7 +352,7 @@ type ThreadSummary = {
   threadId: string          // hex du BLOB sidebar_threads.thread_id
   sessionId: string | null
   agentId: string | null    // "claude-acp", … — sert à choisir l'icône
-  title: string             // title_override ?? title, lus comme Zed (vide ou « New Agent Thread » : absent) ; '' si absent
+  title: string             // title_override ?? title, lus comme Zed (vide ou « New Agent Thread » : absent) ; '' si absent. Un renommage ZRA par ACP est superposé en attendant que Zed rattrape
   titleOverridden?: boolean // renommé dans Zed : prime sur le titre annoncé par l'agent
   folderPaths: string[]     // UTF-8 décodé, séparateurs libres, dans l'ordre d'affichage de Zed (folder_paths_order)
   mainPaths?: string[]      // dépôt principal d'un worktree git lié (main_worktree_paths) ; absent si identique
@@ -332,6 +365,8 @@ type ThreadSummary = {
   waiting?: boolean         // une permission ou une question attend une réponse
   state: 'live' | 'closed' | 'unknown'
   projectOpen?: boolean | null // projet du thread ouvert dans une fenêtre Zed ; null : inconnu
+  canRename?: boolean       // l'agent sait `session/set_title` ; absent : inconnu, la PWA tente et découvre
+  canDelete?: boolean       // l'agent sait `session/delete` ; même règle
 }
 ```
 **Liste complète à chaque fois**, pas un delta : la PWA remplace. À envoyer au
@@ -502,6 +537,14 @@ La question est close : répondue du mobile ou dans Zed, ou retirée par l'agent
 (`by: 'agent'`, tour annulé ou agent arrêté). Comme dans Zed, sa carte quitte
 le fil.
 
+### `push_subscribed` / `push_unsubscribed`
+```ts
+{ type: 'push_subscribed', endpoint: string }
+{ type: 'push_unsubscribed', endpoint: string | null }
+```
+Accusés des abonnements Web Push. Le réglage côté PWA est déjà à jour ; ces
+messages ne font que confirmer.
+
 ### `error`
 ```ts
 { type: 'error', code: string, message: string, threadId?: string }
@@ -521,6 +564,7 @@ la langue du poste (français ou anglais). Codes attendus par la PWA (les autres
 | `elicitation_expired` | question déjà répondue ou retirée | toast, la carte quitte le fil |
 | `new_thread_failed` | Zed n'a pas ouvert de session | toast |
 | `not_zra_thread` | thread fermé d'un agent sans entrée ZRA : Zed le rouvrirait sans shim | toast, lecture seule |
+| `capability_missing` | l'agent ne supporte pas la méthode ACP demandée (`session/set_title`, `session/delete`) | toast ; le bouton est masqué quand la capacité est connue |
 | `prompt_refused` | l'agent a refusé le prompt injecté (mode `auto`, avant le repli clavier) | toast |
 | `zed_control_failed` | le pilotage de Zed (CLI, clavier) a échoué ou expiré | toast |
 | `internal_error` | erreur inattendue du daemon sur ce message | toast |

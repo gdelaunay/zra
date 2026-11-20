@@ -17,7 +17,13 @@ Les deux méthodes ACP sont **unstable** (`_upstream/acp/schema/v1/schema.unstab
 - `session/set_title` : la session n'a pas besoin d'être active sur la connexion. La réponse rend le titre stocké, éventuellement normalisé (le client affiche celui-là) ; l'agent ne doit plus le remplacer par un titre généré. Titre invalide : `-32602` ; session inconnue : `-32002`.
 - `session/delete` : supprime la session de `session/list`, côté agent.
 
-Conséquences pour ZRA : jamais d'écriture dans la base de Zed (discipline lecture seule de `threads-index.js`) — renommage et suppression passent par ACP via le shim. Zed ouvert, un thread supprimé reste dans sa sidebar (cache) jusqu'au prochain démarrage, mais ne peut plus être ouvert : pas de résurrection.
+Ce que ZRA en fait — jamais d'écriture dans la base de Zed (discipline lecture seule de `threads-index.js`) :
+
+- **Thread vivant** : le shim émet la requête sur la connexion que Zed tient (`zra-shim/acp.js` : `setTitle`, `deleteSession`). Un tour en cours est coupé avant la suppression.
+- **Thread fermé** : client jetable (`zra-daemon/session-loader.js` : `operate`), sans rouvrir Zed — la méthode porte sur la session stockée côté agent.
+- **`zra-daemon/thread-ops.js`** porte l'état persisté (`.zra/thread-ops.json`) : tombstones (la ligne de Zed reste, l'index la masque — pas de résurrection), titres rendus par l'agent superposés en attendant que Zed rattrape (un renommage fait dans Zed prime et retire la superposition), capacités par agent pour le gating (`canRename`/`canDelete` du message `threads`, absents = inconnu).
+- Zed ouvert, un thread supprimé reste dans sa sidebar (cache) jusqu'au prochain démarrage, mais ne peut plus être ouvert.
+- Côté PWA : `rename_thread` / `delete_thread` (`docs/fr/protocol.md` §3) ; erreurs `capability_missing` quand l'agent ne supporte pas la méthode.
 
 Compatibilité relevée dans les sources des agents (2026-11) :
 

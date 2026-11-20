@@ -24,6 +24,15 @@ const AGENTS = [
   { id: 'codex-acp', name: 'Codex', wraps: 'codex-acp' },
 ]
 
+// Capacités ACP simulées par agent (docs/fr/acp.md) : claude et codex
+// savent renommer et supprimer, gemini non — boutons masqués, comme le gating.
+const CAPS = {
+  'claude-zra': { canRename: true, canDelete: true },
+  'claude-acp': { canRename: true, canDelete: true },
+  'codex-acp': { canRename: true, canDelete: true },
+  'gemini-acp': { canRename: false, canDelete: false },
+}
+
 const PERMISSION_LABELS = {
   'allow-once': 'Autoriser une fois',
   'allow-always': "Yes, and don't ask again for `node --no-warnings --test zra-client/test/pwa.test.mjs zra-daemon/test/protocol.test.mjs` commands in C:\\Users\\dev\\Documents\\Développement\\zra",
@@ -65,13 +74,22 @@ export class MockLink {
         zedRunning: this.spec.zedRunning, version: this.spec.version,
         agents: AGENTS,
       })
-      this.push({ type: 'threads', threads: this.threads, projects: this.spec.projects ?? null })
+      this.pushThreads()
       for (const t of this.threads) this.pushState(t.threadId)
       if (this.id === 'mock-desk') this.later(900, () => this.play('a1f39c0b', fullTurn('mode ro')))
     })
   }
 
   wake() { this.connect() }
+
+  /** Liste des threads, avec le gating ACP simulé par agent. */
+  pushThreads() {
+    this.push({
+      type: 'threads',
+      threads: this.threads.map((t) => ({ ...t, ...(CAPS[t.agentId] ?? {}) })),
+      projects: this.spec.projects ?? null,
+    })
+  }
 
   close() {
     this.clearAll()
@@ -94,7 +112,7 @@ export class MockLink {
         this.push({ type: 'pong' })
         break
       case 'list_threads':
-        this.push({ type: 'threads', threads: this.threads, projects: this.spec.projects ?? null })
+        this.pushThreads()
         break
       case 'subscribe':
         this.subs.add(msg.threadId)
@@ -148,6 +166,23 @@ export class MockLink {
         break
       }
 
+      case 'rename_thread': {
+        if (!t) return
+        const title = String(msg.title ?? '').trim()
+        if (!title) return
+        t.title = title
+        t.titleOverridden = true
+        this.pushThreads()
+        break
+      }
+
+      case 'delete_thread': {
+        if (!t) return
+        this.threads = this.threads.filter((x) => x.threadId !== msg.threadId)
+        this.pushThreads()
+        break
+      }
+
       // Nouvelle session d'agent, comme un « new thread » lancé dans Zed.
       case 'new_thread': {
         const agent = AGENTS.find((a) => a.id === msg.agentId) || AGENTS[0]
@@ -163,7 +198,7 @@ export class MockLink {
           state: 'live',
         }
         this.threads.unshift(created)
-        this.push({ type: 'threads', threads: this.threads, projects: this.spec.projects ?? null })
+        this.pushThreads()
         this.push({ type: 'thread_created', threadId: created.threadId, agentId: agent.id })
         this.pushState(created.threadId)
         break
@@ -303,12 +338,12 @@ export class MockLink {
       case 'offline':
         this.setStatus('offline')
         this.lastError = tr`poste injoignable (simulé)`
-        this.later(4000, () => { this.lastError = null; this.setStatus('online'); this.push({ type: 'threads', threads: this.threads, projects: this.spec.projects ?? null }) })
+        this.later(4000, () => { this.lastError = null; this.setStatus('online'); this.pushThreads() })
         break
       case 'shim-lost': {
         const t = this.thread(id)
         if (t) { t.state = 'closed'; this.turnOf(id).queue = [] }
-        this.push({ type: 'threads', threads: this.threads, projects: this.spec.projects ?? null })
+        this.pushThreads()
         this.pushState(id)
         this.pushEvent(id, { sessionUpdate: 'zra/notice', level: 'warn', text: tr`Zed a fermé l'agent : file d'attente perdue` })
         break
@@ -316,7 +351,7 @@ export class MockLink {
       case 'shim-back': {
         const t = this.thread(id)
         if (t) t.state = 'live'
-        this.push({ type: 'threads', threads: this.threads, projects: this.spec.projects ?? null })
+        this.pushThreads()
         this.pushState(id)
         break
       }
@@ -330,7 +365,7 @@ export class MockLink {
           updatedAt: new Date().toISOString(), archived: false, state: 'live',
         }
         this.threads.unshift(t)
-        this.push({ type: 'threads', threads: this.threads, projects: this.spec.projects ?? null })
+        this.pushThreads()
         break
       }
       default:
@@ -355,14 +390,14 @@ export class MockLink {
 
   markLive(threadId) {
     const t = this.thread(threadId)
-    if (t && t.state !== 'live') { t.state = 'live'; this.push({ type: 'threads', threads: this.threads, projects: this.spec.projects ?? null }) }
+    if (t && t.state !== 'live') { t.state = 'live'; this.pushThreads() }
   }
 
   touch(threadId) {
     const t = this.thread(threadId)
     if (!t) return
     t.updatedAt = new Date().toISOString()
-    this.push({ type: 'threads', threads: this.threads, projects: this.spec.projects ?? null })
+    this.pushThreads()
   }
 
   pushState(threadId) {
@@ -385,7 +420,7 @@ export class MockLink {
     if (t && (t.turn === 'busy') !== (st.turn === 'busy')) {
       if (st.turn === 'busy') t.turn = 'busy'
       else delete t.turn
-      this.push({ type: 'threads', threads: this.threads, projects: this.spec.projects ?? null })
+      this.pushThreads()
     }
   }
 

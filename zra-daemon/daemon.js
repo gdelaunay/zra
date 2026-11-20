@@ -14,6 +14,8 @@ import { createBackend } from './inject/backend.js'
 import { Hub } from './hub.js'
 import { ShimHost } from './shim-link.js'
 import { SessionLoader } from './session-loader.js'
+import { ThreadOps } from './thread-ops.js'
+import { PushNotifier } from './push.js'
 import { ZedDriver, ZedCli, createKeyboard } from './zed/driver.js'
 import { ZedControl } from './zed/control.js'
 import { createServers } from './server.js'
@@ -55,6 +57,8 @@ class Machine {
     this.keyboard = null
     /** Adresses par lesquelles le poste se joint, hors loopback (protocole §4). */
     this.urls = []
+    /** Clé VAPID publique (base64url) : la PWA s'abonne aux push avec elle. */
+    this.pushKey = null
   }
 
   describe() {
@@ -67,6 +71,7 @@ class Machine {
       agents: this.agents,
       agentIcons: this.agentIcons,
       urls: this.urls,
+      pushKey: this.pushKey,
     }
   }
 }
@@ -92,8 +97,15 @@ export async function startDaemon(config) {
   const { addresses, tunnel, lan, skipped } = resolveBinds(config, interfaces())
 
   const shims = new ShimRegistry()
+  // Opérations ACP sur les threads (renommer, supprimer) : l'index a besoin
+  // de ses tombstones et titres superposés dès sa construction.
+  const ops = new ThreadOps({ file: config.threadOpsFile })
   // `machine` n'existe qu'à la ligne d'après ; lu au premier `refresh`, pas avant.
-  const threads = new ThreadsIndex({ file: config.zedDb, pollMs: config.pollMs, shims, zedRunning: () => Boolean(machine.zedRunning) })
+  const threads = new ThreadsIndex({
+    file: config.zedDb, pollMs: config.pollMs, shims, zedRunning: () => Boolean(machine.zedRunning),
+    isDeleted: (sessionId) => ops.deleted.has(sessionId),
+    renameOverlay: (sessionId) => ops.renames.get(sessionId) ?? null,
+  })
   const states = new ThreadStates()
   const rings = new RingBuffers({ size: config.ringSize })
   const record = injectionLog(config.logFile)
@@ -121,7 +133,18 @@ export async function startDaemon(config) {
     agentCommands: config.agentCommands,
     ttlMs: config.historyTtlMs,
     timeoutMs: config.historyTimeoutMs,
+    onCaps: (agentId, caps) => ops.noteCaps(agentId, caps),
   })
+
+  ops.bind({ threads, shims, host, loader })
+  // Un shim connecté annonce les capacités de son agent : le gating en profite.
+  shims.on('change', ({ added }) => {
+    if (!added) return
+    const entry = shims.shims.get(added)
+    if (entry) ops.noteCaps(entry.agentId, entry.capabilities)
+  })
+  // L'index a rattrapé un titre superposé (ou Zed a renommé) : on le retire.
+  threads.on('change', () => ops.reconcile())
 
   // Pilotage de la fenêtre Zed : ouvrir une session, rouvrir un thread, backend
   // `uia`. `zedControl.runner` sert aux tests. Le backend clavier est résolu ici
@@ -170,9 +193,13 @@ export async function startDaemon(config) {
   // Appairage : tout client hors loopback présente un jeton.
   const pairing = config.auth.required ? new Pairing({ file: config.auth.file, log: logger('auth') }) : null
 
+  // Web Push : clé VAPID du poste, abonnements des navigateurs.
+  const push = new PushNotifier({ file: config.pushFile })
+  machine.pushKey = push.publicKey
+
   hub = new Hub({
     config, threads, states, rings, shims, backend, machine, recordInjection: record, loader,
-    zed: control, covers: (sessionId) => host.covers(sessionId), pairing,
+    zed: control, covers: (sessionId) => host.covers(sessionId), pairing, ops, push,
   })
 
   host.on('update', ({ threadId, update, at }) => {
@@ -352,7 +379,7 @@ export async function startDaemon(config) {
 
   return {
     config, hub, threads, states, rings, shims, backend, servers, machine, presence,
-    host, loader, control, driver, pairing,
+    host, loader, control, driver, pairing, ops, push,
     addresses, tunnel, watch,
     port: config.port,
 
