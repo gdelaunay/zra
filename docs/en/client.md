@@ -69,8 +69,14 @@ rename (single-line editor in place of the title), stop generation, delete
 (confirmation). The agent page title is itself an editable input. Rename and
 delete go through ACP, gated by the agent's capabilities (`docs/en/acp.md`).
 
+The composer is a contenteditable with a textarea-like facade (`editor.js`):
+the draft stays plain text, Enter sends, Shift+Enter and Ctrl+Enter insert a
+newline, paste is plain text, and the field grows up to 40% of the screen.
+Mention chips will come with `@`.
+
 The composer offers the agent's commands: typing `/` opens the completion
-(fuzzy filter, selected item's description in an aside); confirming sends,
+anchored to the caret (fuzzy filter, selected item's description in an aside);
+the argument hint shows as a ghost span after `/name `; confirming sends,
 unless the command expects an argument that has not been typed. An unknown
 command at the start of the message is refused with a callout, like Zed
 (`docs/en/acp.md`).

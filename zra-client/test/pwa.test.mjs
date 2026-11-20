@@ -247,6 +247,83 @@ test('envoi désactivé champ vide, actif dès qu’il y a du texte', async () =
   type(input, '')
 })
 
+test('composer : Entrée envoie, Maj+Entrée et Ctrl+Entrée sautent une ligne', async () => {
+  const input = $('.composer__input')
+  const key = 'mock-desk/a1f39c0b'
+  // Le test précédent laisse un tour long en cours : on le coupe pour partir propre.
+  if (ZRA.store.ensureState(key).turn === 'busy') {
+    click($('.composer .send-btn--stop'))
+    await until(() => ZRA.store.ensureState(key).turn === 'idle', 2000, 'tour précédent coupé')
+  }
+  const enter = (mods = {}) => input.dispatchEvent(new win.KeyboardEvent('keydown',
+    { key: 'Enter', bubbles: true, cancelable: true, ...mods }))
+  type(input, 'ligne A')
+  input.selectionStart = input.selectionEnd = 7
+  enter({ shiftKey: true })
+  assert.equal(input.value, 'ligne A\n', 'Maj+Entrée : saut de ligne')
+  enter({ ctrlKey: true })
+  assert.equal(input.value, 'ligne A\n\n', 'Ctrl+Entrée : saut de ligne')
+  // Pendant une composition IME, Entrée appartient à la saisie.
+  enter({ isComposing: true })
+  assert.equal(input.value, 'ligne A\n\n', 'IME : pas d’envoi')
+  enter()
+  // Écho délivré (non local) : le mock a traité l'envoi (latence 40 ms) —
+  // sinon l'attente idle ci-dessous passerait avant le démarrage du tour.
+  await until(() => ZRA.store.ensureTimeline(key).entries.some(
+    (e) => e.type === 'user' && !e.local && JSON.stringify(e.blocks).includes('ligne A')), 3000, 'message délivré')
+  assert.equal(input.value, '', 'champ vidé après envoi')
+  // Attendre la fin du tour mock : pas d'effet de bord sur les tests suivants.
+  await until(() => { const st = ZRA.store.ensureState(key); return st.turn === 'idle' && !st.queue.length }, 6000, 'tour fini')
+})
+
+test('commande slash : l’argument déjà tapé est envoyé tel quel (new_text de Zed)', async () => {
+  const input = $('.composer__input')
+  const key = 'mock-desk/a1f39c0b'
+  type(input, '/web agents ACP')
+  assert.equal($('.menu.completion'), null, 'espace après la commande : pas de menu')
+  input.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+  await until(() => ZRA.store.ensureTimeline(key).entries.some(
+    (e) => e.type === 'user' && !e.local && JSON.stringify(e.blocks).includes('/web agents ACP')), 3000, 'argument conservé, message délivré')
+  assert.equal(input.value, '', 'champ vidé après envoi')
+  await until(() => { const st = ZRA.store.ensureState(key); return st.turn === 'idle' && !st.queue.length }, 6000, 'tour fini')
+})
+
+test('hint d’argument : span fantôme après /web sans argument, retiré dès la saisie', async () => {
+  const input = $('.composer__input')
+  const key = 'mock-desk/a1f39c0b'
+  const usersBefore = ZRA.store.ensureTimeline(key).entries.filter((e) => e.type === 'user').length
+  type(input, '/web')
+  await until(() => $('.menu.completion'), 1000, 'menu ouvert')
+  input.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+  assert.equal(input.value, '/web ', 'insertion « /web » + espace')
+  assert.equal(ZRA.store.ensureTimeline(key).entries.filter((e) => e.type === 'user').length, usersBefore,
+    'argument attendu non saisi : pas d’envoi')
+  const hint = input.querySelector('.composer__hint')
+  assert.equal(hint?.textContent, 'requête à rechercher', 'hint affiché')
+  assert.equal(hint?.contentEditable, 'false', 'span non éditable')
+  type(input, '/web une requête')
+  assert.equal(input.querySelector('.composer__hint'), null, 'argument saisi : hint retiré')
+  assert.equal(input.value, '/web une requête', 'le hint ne fait pas partie du texte')
+  type(input, '')
+})
+
+test('menu slash : ↑↓ déplace la sélection sans la remettre à zéro, l’espace ferme le menu', async () => {
+  const input = $('.composer__input')
+  const key = (k, type = 'keydown') => input.dispatchEvent(new win.KeyboardEvent(type, { key: k, bubbles: true }))
+  const selectedName = () => $('.menu.completion .menu__item--on')?.textContent.trim()
+  type(input, '/')
+  await until(() => $('.menu.completion'), 1000, 'menu ouvert')
+  assert.equal(selectedName(), 'test', 'premier item sélectionné d’office')
+  key('ArrowDown'); key('ArrowDown', 'keyup')
+  assert.equal(selectedName(), 'review', '↓ : sélection suivante, conservée au keyup')
+  key('ArrowUp'); key('ArrowUp', 'keyup')
+  assert.equal(selectedName(), 'test', '↑ : retour')
+  type(input, '/web ')
+  assert.equal($('.menu.completion'), null, 'espace après la commande : menu fermé')
+  assert.ok(input.querySelector('.composer__hint'), 'le hint reste affiché')
+  type(input, '')
+})
+
 test('Stop seul interrompt sans rien envoyer', async () => {
   const key = 'mock-desk/a1f39c0b'
   const tl = ZRA.store.ensureTimeline(key)
@@ -561,7 +638,7 @@ test('thread créé hors ZRA : cadenas dans la liste, bandeau et composer en lec
   await until(() => /lecture seule/.test($('.banner')?.textContent || ''), 3000, 'bandeau lecture seule')
   assert.ok($('.header__right .lock-dot:not(.hidden)'), 'cadenas dans la top bar')
   assert.ok($('.header__right .dot').classList.contains('hidden'), 'à la place de la pastille')
-  assert.ok($('.composer textarea').disabled)
+  assert.ok($('.composer__input').disabled)
   ZRA.navigate('#/')
   await until(() => $$('.group__head').length === 2, 3000, 'retour à la liste')
 })

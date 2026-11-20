@@ -70,8 +70,14 @@ génération, supprimer (confirmation). Le titre de la page agent est lui-même
 un input éditable. Renommage et suppression passent par ACP, gatés par les
 capacités de l'agent (`docs/fr/acp.md`).
 
+Le composer est un contenteditable à façade textarea (`editor.js`) : le
+brouillon reste du texte, Entrée envoie, Maj+Entrée et Ctrl+Entrée sautent une
+ligne, le collage est en texte brut, le champ grandit jusqu'à 40 % de l'écran.
+Les puces de mention arriveront avec `@`.
+
 Le composer propose les commandes de l'agent : taper `/` ouvre la complétion
-(filtre fuzzy, description de l'item sélectionné en aparté) ; confirmer envoie,
+ancrée au caret (filtre fuzzy, description de l'item sélectionné en aparté) ;
+le hint d'argument s'affiche en span fantôme après `/name ` ; confirmer envoie,
 sauf si la commande attend un argument non saisi. Une commande inconnue en
 début de message est refusée avec un callout, comme Zed (`docs/fr/acp.md`).
 

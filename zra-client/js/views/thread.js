@@ -12,6 +12,7 @@ import { BottomBar } from './bottombar.js'
 import { settings, update as updateSettings } from '../settings.js'
 import { tr, locale } from '../i18n.js'
 import { slashCompletion, validateSlash } from '../completion.js'
+import { editable } from '../editor.js'
 
 /**
  * Au-delà de ce nombre de réglages hors mode/modèle, ils passent tous dans le
@@ -781,30 +782,44 @@ export function dictate(input, { onChange, onActive } = {}) {
  * peut pas nous montrer le fichier que l'agent modifie).
  */
 function Composer({ key, agentName, selectors, onSend, onStop, getCommands = () => [] }) {
-  const input = h('textarea.composer__input', {
-    rows: 1,
-    placeholder: tr`Message ${agentName()}…`,
+  // Contenteditable (D2) avec façade textarea (editor.js) : brouillon texte,
+  // offsets de sélection, collage texte brut ; le hint et l'ancrage au caret
+  // du menu deviennent possibles. Les puces de mention arrivent en 5b-2.
+  const input = editable(h('div.composer__input', {
+    contenteditable: 'true',
+    role: 'textbox',
+    'aria-multiline': 'true',
     enterkeyhint: 'send',
     autocapitalize: 'sentences',
-    oninput: () => { autoGrow(); store.setDraft(key, input.value); syncSend(); hideError(); completion.update() },
+    oninput: () => { store.setDraft(key, input.value); syncSend(); hideError(); completion.update() },
     // Entrée envoie ; Maj+Entrée et Ctrl+Entrée sautent une ligne.
     // Pendant une composition (IME, accents morts), Entrée appartient à la saisie.
     // Le menu de complétion, s'il est ouvert, consomme Entrée/Tab/↑↓/Échap.
     onkeydown: (ev) => {
       if (completion.keydown(ev)) return
       if (ev.key !== 'Enter' || ev.isComposing) return
-      if (ev.shiftKey) return
       ev.preventDefault()
-      if (ev.ctrlKey || ev.metaKey) newline()
+      if (ev.shiftKey || ev.ctrlKey || ev.metaKey) input.insertText('\n')
+      else send('queue')
+    },
+    // Filet mobile : si le clavier n'émet pas de keydown Enter exploitable,
+    // beforeinput porte le saut de ligne / l'envoi (hors composition IME).
+    onbeforeinput: (ev) => {
+      if (ev.inputType !== 'insertParagraph' && ev.inputType !== 'insertLineBreak') return
+      if (ev.isComposing) return
+      ev.preventDefault()
+      if (ev.inputType === 'insertLineBreak') input.insertText('\n')
+      else if (completion.isOpen()) completion.keydown({ key: 'Enter', preventDefault() {} })
       else send('queue')
     },
     // Déplacement du caret (flèches, clic) : le déclencheur suit la position.
     onkeyup: () => completion.update(),
     onclick: () => completion.update(),
-  })
+  }))
 
   const editorBox = h('div.composer__editor', {}, input)
-  const completion = slashCompletion({ input, anchor: editorBox, getCommands, onSend: () => send('queue') })
+  input.placeholder = tr`Message ${agentName()}…`
+  const completion = slashCompletion({ input, getCommands, onSend: () => send('queue') })
   let lastCmds = null
 
   // Callout d'erreur de validation des commandes — render_any_thread_error :
@@ -863,27 +878,11 @@ function Composer({ key, agentName, selectors, onSend, onStop, getCommands = () 
   // Le brouillon de ce thread, s'il y en a un.
   input.value = store.getDraft(key)
   syncSend()
-  if (input.value) queueMicrotask(autoGrow)
-
-  /** Ctrl+Entrée n'insère rien de lui-même dans un textarea : on le fait. */
-  function newline() {
-    const { selectionStart: a, selectionEnd: b, value } = input
-    input.value = value.slice(0, a) + '\n' + value.slice(b)
-    input.selectionStart = input.selectionEnd = a + 1
-    autoGrow()
-    store.setDraft(key, input.value)
-    syncSend()
-  }
 
   /** Rien à envoyer tant que le champ ne contient que du blanc, ou sur un
    * thread en lecture seule : le bouton est désactivé (`send` refuse déjà). */
   function syncSend() {
     sendBtn.disabled = !input.value.trim() || Boolean(store.foreignAgent(key))
-  }
-
-  function autoGrow() {
-    input.style.height = 'auto'
-    input.style.height = `${Math.min(input.scrollHeight, window.innerHeight * 0.4)}px`
   }
 
   function send(mode) {
@@ -897,7 +896,6 @@ function Composer({ key, agentName, selectors, onSend, onStop, getCommands = () 
     onSend(text, mode)
     input.value = ''
     store.setDraft(key, '')
-    autoGrow()
     syncSend()
   }
 
@@ -949,8 +947,8 @@ function Composer({ key, agentName, selectors, onSend, onStop, getCommands = () 
     }
   }
 
-  return { el: h('div.composer-block', {}, errCallout, el), sync, setUsage, focus: () => input.focus(), destroy: () => completion.close(), refreshDraft() {
+  return { el: h('div.composer-block', {}, errCallout, el), sync, setUsage, focus: () => input.focus(), destroy: () => { completion.close(); input.destroy() }, refreshDraft() {
     const d = store.getDraft(key)
-    if (input.value !== d) { input.value = d; autoGrow(); syncSend(); completion.update() }
+    if (input.value !== d) { input.value = d; syncSend(); completion.update() }
   } }
 }

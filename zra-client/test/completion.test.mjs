@@ -4,7 +4,7 @@
 // (le code v1.28.1 diverge — ISSUES.md « slash-espace-final »).
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { parseSlash, fuzzy, slashCandidates, validateSlash, requiresArgument } from '../js/completion.js'
+import { parseSlash, fuzzy, slashCandidates, validateSlash, requiresArgument, commandHint } from '../js/completion.js'
 
 const CMD = (name, description, input) => ({ name, description, ...(input ? { input } : {}) })
 const COMMANDS = [CMD('help', 'aide'), CMD('compact', 'résumer'), CMD('test', 'tests')]
@@ -73,4 +73,23 @@ test('requiresArgument : présence de input.hint', () => {
   assert.equal(requiresArgument(CMD('web', 'x', { hint: 'requête' })), true)
   assert.equal(requiresArgument(CMD('compact', 'x')), false)
   assert.equal(requiresArgument(undefined), false)
+})
+
+test('commandHint : port de command_hint — position et libellé (cas Zed)', () => {
+  const CMDS = [CMD('help', 'aide'), CMD('review', 'revue', { hint: 'PR number or branch' })]
+  // Sans espace final : position clampée à la longueur, espace en préfixe.
+  assert.deepEqual(commandHint('/review', CMDS), { pos: 7, label: ' PR number or branch' })
+  // Espace final saisi : le hint le suit, sans préfixe.
+  assert.deepEqual(commandHint('/review ', CMDS), { pos: 8, label: 'PR number or branch' })
+  // Espaces surnuméraires : le hint reste à end + 1, au milieu des blancs.
+  assert.deepEqual(commandHint('/review  ', CMDS), { pos: 8, label: 'PR number or branch' })
+  // Argument saisi : plus de hint.
+  assert.equal(commandHint('/review 42', CMDS), null)
+  // Commande sans input, inconnue, ou liste vide : pas de hint.
+  assert.equal(commandHint('/help', CMDS), null)
+  assert.equal(commandHint('/deploy', CMDS), null)
+  assert.equal(commandHint('/review', []), null)
+  assert.equal(commandHint('bonjour', CMDS), null)
+  // Le texte entier est parsé (Zed passe snapshot.text()), pas la ligne caret.
+  assert.deepEqual(commandHint('salut\n/review', CMDS), { pos: 13, label: ' PR number or branch' })
 })

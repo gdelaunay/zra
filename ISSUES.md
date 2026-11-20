@@ -15,6 +15,11 @@ attente d'un poste ou d'une condition).
 
 - **Relecture sous Linux** : un agent installé via nvm (ou une clé dans
   `.bashrc`) se relit. (Poste Windows ici.)
+- **IME Android du composer** : le composer est passé contenteditable
+  (0.5.2, 5b-1). Tester la saisie réelle Gboard — accents, composition,
+  autocorrection — autour du span de hint non éditable, et Entrée (envoi) /
+  Maj+Entrée (ligne). Repli textarea si l'IME pose problème (conception D2).
+  (Poste Windows ici.)
 
 ## À faire
 

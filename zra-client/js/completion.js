@@ -116,16 +116,35 @@ export function validateSlash(text, commands) {
 export const requiresArgument = (cmd) => Boolean(cmd?.input?.hint)
 
 /**
- * Menu de complétion slash, ancré au-dessus du composer (la position x du
- * caret n'est pas accessible dans un textarea — ancrage au caret en 5b-1).
- * Reste ouvert pendant la frappe ; Entrée/Tab confirment, ↑↓ déplacent la
- * sélection, Échap ferme. Confirmer **envoie** (confirm_command → send), sauf
- * si la commande attend un argument non saisi : insertion « /name » + espace.
- *
- * @param {{input:HTMLTextAreaElement, anchor:HTMLElement,
- *   getCommands:()=>Array<object>, onSend:()=>void}} opts
+ * Port de `command_hint` (message_editor.rs) : le hint s'affiche quand le
+ * texte (entier, comme Zed) parse en commande connue sans argument. Position
+ * = fin du dernier non-blanc + 1 ; au-delà du texte, on clamp et on préfixe
+ * le libellé d'une espace (le hint la « remplace » visuellement).
+ * @returns {{pos:number, label:string}|null}
  */
-export function slashCompletion({ input, anchor, getCommands, onSend }) {
+export function commandHint(text, commands) {
+  if (!commands.length) return null
+  const p = parseSlash(text)
+  if (!p || p.argument !== null || !p.command) return null
+  const cmd = commands.find((c) => c.name === p.command)
+  const hint = cmd?.input?.hint
+  if (!hint) return null
+  let pos = p.end + 1
+  let label = hint
+  if (pos > text.length) { pos = text.length; label = ` ${hint}` }
+  return { pos, label }
+}
+
+/**
+ * Menu de complétion slash, ancré au caret (au-dessus, le composer est en
+ * bas — `layout_context_menu_aside`). Reste ouvert pendant la frappe ;
+ * Entrée/Tab confirment, ↑↓ déplacent la sélection, Échap ferme. Confirmer
+ * **envoie** (confirm_command → send), sauf si la commande attend un argument
+ * non saisi : insertion « /name » + espace, avec le hint en span fantôme.
+ *
+ * @param {{input:HTMLElement, getCommands:()=>Array<object>, onSend:()=>void}} opts
+ */
+export function slashCompletion({ input, getCommands, onSend }) {
   let wrap = null
   let menu = null
   let aside = null
@@ -133,6 +152,7 @@ export function slashCompletion({ input, anchor, getCommands, onSend }) {
   let selected = 0
   let parsed = null
   let lineStart = 0
+  let lastQuery = null
 
   const isOpen = () => Boolean(wrap)
 
@@ -157,13 +177,25 @@ export function slashCompletion({ input, anchor, getCommands, onSend }) {
 
   function update() {
     const commands = getCommands()
+    // Hint d'argument (command_hint) : indépendant du menu, mis à jour à
+    // chaque édition — span fantôme hors du texte, caret conservé.
+    const hint = commandHint(input.value, commands)
+    input.setHint(hint?.label ?? null, hint?.pos ?? 0)
     const { line, start } = lineAtCaret()
     lineStart = start
     parsed = parseSlash(line)
     if (!parsed || !commands.length) { close(); return }
-    items = slashCandidates(commands, parsed.command ?? '')
+    // Le menu ferme dès qu'un blanc suit la commande (zone d'argument),
+    // comme Zed.
+    const after = line[parsed.start + 1 + (parsed.command?.length ?? 0)]
+    if (parsed.command && after !== undefined && WS.test(after)) { close(); return }
+    const query = parsed.command ?? ''
+    items = slashCandidates(commands, query)
     if (!items.length) { close(); return }
-    selected = 0
+    // La sélection ↑↓ survit aux updates (keyup/clic rappellent update) tant
+    // que la requête ne change pas ; nouvelle requête → meilleur item.
+    selected = isOpen() && query === lastQuery ? Math.min(selected, items.length - 1) : 0
+    lastQuery = query
     render()
   }
 
@@ -216,14 +248,14 @@ export function slashCompletion({ input, anchor, getCommands, onSend }) {
     if (desc) aside.append(h('div.completion-aside__body', { text: desc }))
   }
 
-  /** Au-dessus du composer ; aparté à droite si ≥ 260 px, sinon au-dessus du menu. */
+  /** Au-dessus du caret ; aparté à droite si ≥ 260 px, sinon au-dessus du menu. */
   function place() {
-    const r = anchor.getBoundingClientRect()
+    const r = input.caretRect()
     menu.style.left = '0px'
     menu.style.top = '0px'
     const mw = menu.offsetWidth
     const mh = menu.offsetHeight
-    const left = Math.min(Math.max(8, r.left + 8), window.innerWidth - mw - 8)
+    const left = Math.min(Math.max(8, r.left), window.innerWidth - mw - 8)
     let top = r.top - mh - 4
     if (top < 8) top = Math.min(r.bottom + 4, window.innerHeight - mh - 8)
     menu.style.left = `${left}px`
@@ -255,10 +287,11 @@ export function slashCompletion({ input, anchor, getCommands, onSend }) {
     const { line, start } = lineAtCaret()
     const p = parseSlash(line)
     if (!p) { close(); return }
-    const caret = input.selectionStart ?? input.value.length
     const a = start + p.start
     const b = start + p.end
-    const insert = `/${cmd.name} `
+    // new_text de Zed : l'argument déjà tapé est conservé (replace_range
+    // couvre toute la plage source, new_text le réinsère).
+    const insert = p.argument !== null ? `/${cmd.name} ${p.argument}` : `/${cmd.name} `
     input.value = input.value.slice(0, a) + insert + input.value.slice(b)
     input.selectionStart = input.selectionEnd = a + insert.length
     const send = !requiresArgument(cmd) || p.argument !== null
