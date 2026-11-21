@@ -4,14 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Référence — liste des threads de Zed v1.28.1</title>
-<link rel="stylesheet" href="tokens.css">
-<link rel="stylesheet" href="sidebar.css">
+<link rel="stylesheet" href="shared/tokens.css">
+<link rel="stylesheet" href="shared/base.css">
+<link rel="stylesheet" href="shared/sidebar.css">
 </head>
 <body>
 
 <header class="ref-head">
   <h1>Liste des threads de Zed — référence visuelle</h1>
-  <p>Zed v1.28.1, réglages par défaut, thème One Dark, sidebar à gauche (300 px). Instantanés statiques ; comportements et conditions dans <code>README.md</code>.</p>
+  <p>Zed v1.28.1, réglages par défaut, thème One Dark, sidebar à gauche (300 px). Instantanés statiques ; comportements et conditions dans <code>zed-ui.md</code>.</p>
   <p><code>data-src</code> sur chaque élément : fichier et fonction d'origine (chemins relatifs à <code>crates/sidebar/src</code> sauf mention).</p>
   <div class="ref-toolbar">
     Largeur de la sidebar :
@@ -817,22 +818,7 @@
   </div>
 </section>
 
-<script src="icons.js"></script>
-<script>
-// Largeur de la sidebar
-for (const b of document.querySelectorAll('[data-w]')) {
-  b.addEventListener('click', () => {
-    document.documentElement.style.setProperty('--frame-w', b.dataset.w + 'px')
-    for (const o of document.querySelectorAll('[data-w]')) o.setAttribute('aria-pressed', o === b)
-  })
-}
-// Mise en évidence des sources
-document.getElementById('toggle-src').addEventListener('click', (e) => {
-  const on = document.body.classList.toggle('show-src')
-  e.currentTarget.setAttribute('aria-pressed', on)
-})
-// Survol : affiche data-src en infobulle native
-for (const el of document.querySelectorAll('[data-src]')) el.title = el.dataset.src
-</script>
+<script src="shared/icons.js"></script>
+<script src="shared/ref.js"></script>
 </body>
 </html>

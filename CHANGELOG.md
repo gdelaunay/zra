@@ -40,7 +40,7 @@
 - Icônes des agents du registre ACP : le daemon lit le cache de Zed
 - Comportements : suivi du fil coupé au premier geste et repris en bas, pas de curseur de streaming dans le fil, envoi désactivé champ vide, filtre des threads persisté, messages de l'utilisateur non éditables (les agents ACP ne savent pas tronquer le fil)
 - Licence MIT : fichier `LICENSE`, mention dans les deux README
-- Doc : références visuelles de l'UI de Zed (`reference/zed-agent-panel`, `reference/zed-threads-sidebar`, `reference/zed-bottom-bar`), spécification ACP v1 en lecture seule (`_upstream/acp`), fiches de conception (`reference/`)
+- Doc : références visuelles de l'UI de Zed (`reference/zed-ui/agent-panel`, `reference/zed-ui/threads-sidebar`, `reference/zed-ui/bottom-bar`), spécification ACP v1 en lecture seule (`_upstream/acp`), fiches de conception (`reference/`)
 
 ## v0.4 — 2026-11-19 — Audit, sécurité, conformité à Zed (`bd6ca86`)
 

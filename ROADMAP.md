@@ -21,9 +21,9 @@ datés, avec le hash du commit de référence ; ROADMAP à jour ; puis commit
 
 ## Ouvert
 
-Références visuelles de l'interface Zed : `reference/zed-agent-panel/` (panel),
-`reference/zed-threads-sidebar/` (liste des threads et historique),
-`reference/zed-bottom-bar/` (barre du bas).
+Références visuelles de l'interface Zed : `reference/zed-ui/agent-panel.html` (panel),
+`reference/zed-ui/threads-sidebar.html` (liste des threads et historique),
+`reference/zed-ui/bottom-bar.html` (barre du bas) — styles et script communs dans `reference/zed-ui/shared/`.
 
 ### Backfill des fiches ACP
 

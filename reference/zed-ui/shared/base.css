@@ -1,0 +1,181 @@
+/* Base commune des références visuelles de Zed v1.28.1 (agent-panel.html,
+   bottom-bar.html, threads-sidebar.html). Réglages par défaut :
+   ui_font_size 16 (1rem = 16px), densité UI par défaut, thème One Dark.
+   Contenu : polices, variables dérivées, chrome de la page de référence (hors Zed),
+   primitives partagées (crates/ui). Chaque page charge en plus sa propre feuille
+   (panel.css, bar.css, sidebar.css) ; tokens.css et icons.js sont générés par gen.mjs.
+   Chaque règle cite sa source ; les éléments des pages portent data-src. */
+
+/* Polices embarquées par Zed (.ZedSans = IBM Plex Sans, .ZedMono = Lilex), lues dans _upstream. */
+@font-face { font-family: "Zed Sans"; src: url("../../../_upstream/zed/assets/fonts/ibm-plex-sans/IBMPlexSans-Regular.ttf"); font-weight: 400; }
+@font-face { font-family: "Zed Sans"; src: url("../../../_upstream/zed/assets/fonts/ibm-plex-sans/IBMPlexSans-Italic.ttf"); font-weight: 400; font-style: italic; }
+@font-face { font-family: "Zed Sans"; src: url("../../../_upstream/zed/assets/fonts/ibm-plex-sans/IBMPlexSans-SemiBold.ttf"); font-weight: 600 700; }
+@font-face { font-family: "Zed Mono"; src: url("../../../_upstream/zed/assets/fonts/lilex/Lilex-Regular.ttf"); font-weight: 400; }
+@font-face { font-family: "Zed Mono"; src: url("../../../_upstream/zed/assets/fonts/lilex/Lilex-Bold.ttf"); font-weight: 700; }
+
+:root {
+  --font-ui: "Zed Sans", "IBM Plex Sans", system-ui, sans-serif;
+  --font-mono: "Zed Mono", "Lilex", ui-monospace, Consolas, monospace;
+
+  /* gpui : line_height par défaut = phi (style.rs) */
+  --lh: 1.618;
+  /* window.line_height() = 1rem × phi */
+  --window-lh: 25.89px;
+
+  /* Couleurs dérivées calculées par le code (pas dans le thème) */
+  /* thread_view.rs tool_card_header_bg : element_background ⊕ editor_foreground 2.5 % */
+  --tool-card-header-bg: color-mix(in srgb, var(--element-background), var(--editor-foreground) 2.5%);
+  /* thread_view.rs tool_card_border_color : border × 0.8 */
+  --tool-card-border: color-mix(in srgb, var(--border) 80%, transparent);
+  /* thread_view.rs activity_bar_bg : editor_background ⊕ element_selected 30 % */
+  --activity-bar-bg: color-mix(in srgb, var(--editor-background), var(--element-selected) 30%);
+  /* theme_settings schema.rs : hunks remplis à 12 % en thème sombre */
+  --diff-added-bg: color-mix(in srgb, var(--version-control-added) 12%, transparent);
+  --diff-deleted-bg: color-mix(in srgb, var(--version-control-deleted) 12%, transparent);
+  /* CountBadge (count_badge.rs) : editor_background ⊕ error.opacity(0.4) */
+  --badge-bg: color-mix(in srgb, var(--editor-background) 60%, var(--error) 40%);
+
+  /* ui/styles/elevation.rs ElevatedSurface (popovers, menus, tooltips) */
+  --shadow-elevated: 0 2px 3px rgba(0, 0, 0, .12), 0 1px 0 rgba(0, 0, 0, .06);
+  /* gpui shadow_sm / shadow_md */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, .1), 0 1px 2px -1px rgba(0, 0, 0, .1);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, .1), 0 2px 4px -2px rgba(0, 0, 0, .1);
+}
+
+/* ---------- Page de référence (hors Zed) ---------- */
+* { box-sizing: border-box; }
+body {
+  margin: 0; padding: 24px 32px 80px;
+  background: #1b1d22; color: var(--text);
+  font: 14px/1.5 var(--font-ui);
+}
+.ref-head { max-width: 1100px; margin-bottom: 24px; }
+.ref-head h1 { font-size: 22px; font-weight: 600; margin: 0 0 4px; }
+.ref-head p { margin: 4px 0; color: var(--text-muted); }
+.ref-toolbar { display: flex; gap: 8px; align-items: center; margin-top: 12px; color: var(--text-muted); font-size: 12px; }
+.ref-toolbar button { font: inherit; color: var(--text); background: var(--element-background); border: 1px solid var(--border-variant); border-radius: 4px; padding: 2px 8px; cursor: pointer; }
+.ref-toolbar button[aria-pressed="true"] { border-color: var(--border-focused); }
+.ref-nav { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; margin-top: 8px; }
+.ref-nav a { color: var(--text-accent); text-decoration: none; }
+.ref-section { margin-top: 40px; }
+.ref-section > h2 { font-size: 17px; font-weight: 600; margin: 0 0 4px; border-bottom: 1px solid var(--border-variant); padding-bottom: 4px; }
+.ref-section > p { color: var(--text-muted); margin: 4px 0 12px; max-width: 900px; }
+.ref-grid { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; }
+.ref-specimen { display: flex; flex-direction: column; gap: 6px; }
+.ref-specimen > .ref-label { font-size: 12px; color: var(--text-muted); font-family: var(--font-mono); }
+.ref-specimen > .ref-label b { color: var(--text); font-family: var(--font-ui); font-weight: 600; }
+/* Largeur par défaut du cadre : 640 (panel) ; bar.css et sidebar.css redéfinissent
+   leur défaut (900 / 300). Les boutons data-w posent --frame-w sur <html>. */
+.ref-frame { width: var(--frame-w, 640px); background: var(--panel-background); border: 1px dashed #555; }
+.ref-frame--auto { width: auto; padding: 16px; }
+/* Mise en évidence des sources au survol (bouton « Sources ») */
+body.show-src [data-src] { outline: 1px dotted rgba(116, 173, 232, .35); }
+body.show-src [data-src]:hover { outline: 1px solid var(--text-accent); }
+
+/* ---------- Primitives partagées (crates/ui) ---------- */
+
+/* Icon — ui/components/icon.rs : Medium 16. Small et XSmall agrandis pour le
+   tactile ZRA (Zed : Small 14, XSmall 12) — écart documenté dans zed-ui.md. */
+.icon { display: inline-flex; flex: none; width: 16px; height: 16px; color: var(--icon); }
+.icon > svg { width: 100%; height: 100%; display: block; }
+.icon.xs { width: 14px; height: 14px; }
+.icon.sm { width: 16px; height: 16px; }
+.icon.muted { color: var(--icon-muted); }
+.icon.accent { color: var(--icon-accent); }
+.icon.success { color: var(--success); }
+.icon.error { color: var(--error); }
+.icon.warning { color: var(--warning); }
+.icon.disabled { color: var(--icon-disabled); }
+/* with_rotate_animation(2) — thread_item.rs (Running), sidebar.rs (groupe replié) */
+.icon.spin { animation: z-spin 2s linear infinite; }
+@keyframes z-spin { to { transform: rotate(360deg); } }
+
+/* Label — ui/components/label : Default 14, Small 12, XSmall 10 ; interligne phi */
+.lbl { font-size: 14px; line-height: var(--lh); color: var(--text); white-space: nowrap; }
+.lbl.sm { font-size: 12px; }
+.lbl.xs { font-size: 10px; }
+.lbl.muted { color: var(--text-muted); }
+.lbl.disabled { color: var(--text-disabled); }
+.lbl.placeholder { color: var(--text-placeholder); }
+.lbl.mono { font-family: var(--font-mono); }
+.lbl.trunc { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+
+/* ButtonLike — ui/components/button/button_like.rs
+   Default 22px de haut, padding x 4px, gap 4px, rayon 4px. Style Subtle par défaut.
+   La status bar (bar.css) dérive : fantôme sans fond, hauteur libre. */
+.btn {
+  display: inline-flex; align-items: center; gap: 4px; flex: none;
+  height: 22px; padding: 0 4px; border-radius: 4px; border: 1px solid transparent;
+  background: var(--ghost-element-background); color: var(--text);
+  font: inherit; cursor: pointer;
+}
+.btn:hover { background: var(--ghost-element-hover); }
+.btn:active { background: var(--ghost-element-active); }
+.btn.outlined { border-color: var(--border-variant); background: var(--element-background); }
+.btn.outlined:hover { border-color: var(--border); background: var(--ghost-element-hover); }
+.btn.filled { background: var(--element-background); }
+.btn.filled:hover { background: color-mix(in srgb, var(--element-background) 50%, transparent); }
+.btn.tinted-accent { background: var(--info-background); border-color: var(--info-border); }
+.btn.tinted-error { background: var(--error-background); border-color: var(--error-border); }
+.btn.selected { background: var(--ghost-element-selected); }
+.btn[disabled] { cursor: default; background: var(--ghost-element-disabled); }
+.btn[disabled] .lbl { color: var(--text-disabled); }
+.btn.full { width: 100%; justify-content: center; }
+/* Button : label et raccourci séparés de 6px (button.rs, gap Base06) */
+.btn > .btn-body { display: inline-flex; align-items: center; gap: 6px; justify-content: space-between; }
+
+/* IconButton carré — proportion Zed observée à l'écran : bouton = icône × 1.75
+   (le code source dit icône + 2 × 2 px ; écart documenté dans zed-ui.md).
+   ZRA : icône 16 → bouton 28 ; sm n'a plus de taille propre (icône 16 aussi) ;
+   xs : icône 14 → bouton 24.5 (inutilisé). */
+.ibtn { width: 28px; height: 28px; padding: 0; justify-content: center; }
+.ibtn.xs { width: 24.5px; height: 24.5px; }
+.ibtn.toggled { background: var(--ghost-element-selected); }
+
+/* KeyBinding — ui/components/keybinding.rs : texte « Ctrl-Alt-Shift-Touche » sous Windows/Linux */
+.kbd { font-size: 12px; line-height: 1; color: var(--text-muted); white-space: nowrap; padding: 1px 0; }
+.kbd.sm { font-size: 12px; }
+
+/* Divider — ui/components/divider.rs, couleur par défaut border_variant ;
+   vertical 14 px par défaut, 16 px (h_4) dans la status bar (bar.css). */
+.divider-h { height: 1px; width: 100%; background: var(--border-variant); flex: none; }
+.divider-h.border { background: var(--border); }
+.divider-v { width: 1px; height: 14px; background: var(--border); flex: none; }
+
+/* DiffStat — ui/components/diff_stat.rs : « + 12 » et « ‒ 3 » (espace fine) */
+.diffstat { display: inline-flex; gap: 4px; align-items: center; }
+.diffstat .add { color: var(--version-control-added); }
+.diffstat .del { color: var(--version-control-deleted); }
+
+/* Surfaces élevées — ui/traits/styled_ext.rs elevation_2 : rayon 8, bordure border_variant */
+.elevated {
+  background: var(--elevated-surface-background);
+  border: 1px solid var(--border-variant); border-radius: 8px;
+  box-shadow: var(--shadow-elevated);
+}
+
+/* Tooltip — ui/components/tooltip.rs : elevation_2, py 4 px 8, texte 14px, méta 12px muted */
+.tooltip { display: inline-flex; flex-direction: column; padding: 4px 8px; font-size: 14px; line-height: var(--lh); max-width: 320px; }
+.tooltip-row { display: flex; gap: 16px; align-items: center; justify-content: space-between; }
+.tooltip .meta { font-size: 12px; color: var(--text-muted); }
+.tooltip .sep { border-top: 1px solid var(--border-variant); padding-top: 4px; margin-top: 4px; display: flex; gap: 8px; justify-content: space-between; align-items: center; }
+
+/* ContextMenu — ui/components/context_menu.rs : elevation_2, py 4, largeur min 200,
+   items ListItem inset (marge x 4, padding x 6, rayon 4), icône 14 muted, gap 6 */
+.menu { display: inline-flex; flex-direction: column; min-width: 200px; padding: 4px 0; font-size: 14px; line-height: var(--lh); }
+.menu-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  margin: 0 4px; padding: 0 6px; border-radius: 4px; color: var(--text); cursor: pointer;
+}
+.menu-item:hover, .menu-item.hover, .menu-item.selected { background: var(--ghost-element-hover); }
+.menu-item.selected { background: var(--ghost-element-selected); }
+.menu-item.disabled { color: var(--text-disabled); cursor: default; }
+.menu-item.disabled:hover { background: none; }
+.menu-item .start { display: flex; align-items: center; gap: 6px; }
+/* ListSubHeader inset : hauteur 20, px 8 (+2), libellé 12px muted */
+.menu-header { height: 20px; padding: 0 10px; margin-bottom: 4px; display: flex; align-items: center; font-size: 12px; color: var(--text-muted); }
+/* ListSeparator : 1px border_variant, marge y 6 */
+.menu-sep { height: 1px; background: var(--border-variant); margin: 6px 0; }
+
+/* pulsating_between (opacité aller-retour) — animations reprises de Zed */
+@keyframes z-pulse { from { opacity: var(--lo); } to { opacity: var(--hi); } }

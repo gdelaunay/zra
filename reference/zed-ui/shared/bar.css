@@ -1,0 +1,73 @@
+/* Barre du bas de Zed v1.28.1 (status bar + boutons de panels).
+   Sources : crates/workspace/src/status_bar.rs, dock.rs, multi_workspace.rs ;
+   crates/ui/src/components (icon, divider, count_badge, indicator, tooltip, context_menu).
+   Valeurs par défaut : ui_font_size 16, densité par défaut, thème One Dark, raccourcis Windows.
+   Base commune (polices, chrome, primitives) : base.css ; cette feuille commence
+   par les dérives de la status bar, puis les composants de la barre. */
+
+/* ---------- Dérives de la status bar (vs primitives de base.css) ---------- */
+
+/* Cadre de la galerie : 900 px par défaut. */
+.ref-frame { width: var(--frame-w, 900px); }
+
+/* ButtonLike — button_like.rs : ici tous les boutons sont des IconButton ;
+   fantôme sans fond (le fond Subtle de base.css ne s'applique pas). La hauteur
+   vient de .ibtn (28 px) — ne pas la redéfinir ici. */
+.btn { flex: 0 1 auto; background: none; }
+.btn:hover, .btn.hover { background: var(--ghost-element-hover); }
+.btn:active, .btn.pressed { background: var(--ghost-element-active); }
+/* toggle_state — icon_button.rs render : icône Color::Selected = text_accent,
+   pas de changement de fond (pas de selected_style sur les boutons de panel). */
+.ibtn.toggled { background: none; }
+.ibtn.toggled .icon { color: var(--text-accent); }
+
+/* Divider — divider.rs : vertical 1 × 16 px (h_4), couleur passée = border */
+.divider-v { height: 16px; }
+
+/* ---------- Barre du bas ---------- */
+
+/* StatusBar — status_bar.rs render : pleine largeur, fond status_bar.background,
+   padding Base04 (4 px), justify-between, gap Base08 (8 px) entre les deux groupes.
+   Hauteur ZRA = bouton 28 + 2 × 4 = 36 px (même hauteur que les autres barres). */
+.status-bar {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  width: 100%; padding: 4px; background: var(--status-bar-background);
+}
+/* render_left_tools : gap_1 (4 px), min_w_0, overflow_x_hidden */
+.sb-left { display: flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden; }
+/* render_right_tools : flex_shrink_0, gap_1, items en ordre inverse */
+.sb-right { display: flex; align-items: center; gap: 6px; flex: none; }
+
+/* PanelButtons — dock.rs render : h_flex gap_1 (4 px).
+   Dock gauche : boutons puis filet ; docks bas/droit : filet puis boutons.
+   Pas de boutons → pas de filet. */
+.panel-buttons { display: flex; align-items: center; gap: 6px; }
+
+/* Bouton de panel — dock.rs render : IconButton icône Small (14), 18 × 18,
+   toggle_state quand le panel est actif et le dock ouvert → icône accent. */
+.panel-btn { position: relative; }
+
+/* CountBadge — count_badge.rs : absolu top 0 right 0, pilule 14 px (h_3p5, min_w_3p5),
+   padding 1 px, bordure 1 px border, fond editor_background ⊕ error 40 %, ombre sm,
+   label 9 px medium ; plafond « 99+ ». Masqué quand le bouton est actif. */
+.count-badge {
+  position: absolute; top: 0; right: 0; display: flex; align-items: center; justify-content: center;
+  height: 14px; min-width: 14px; padding: 1px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--badge-bg); box-shadow: var(--shadow-sm);
+  font-size: 9px; font-weight: 500; line-height: 1; color: var(--text);
+}
+
+/* Bouton d'ouverture de la sidebar — status_bar.rs render_sidebar_toggle :
+   wrapper h_flex gap_0p5 (2 px), filet du côté du centre de la barre.
+   Icône threads_sidebar_{left,right}_closed, Small. */
+.sidebar-toggle { display: flex; align-items: center; gap: 2px; }
+
+/* Indicator — indicator.rs + icon.rs IconWithIndicator : conteneur 10 px (size_2p5),
+   bordure 2 px couleur status_bar_background, rond, absolu bottom -2 right -2 ;
+   pastille 6 px (w_1p5) accent. */
+.indicator-wrap {
+  position: absolute; bottom: -2px; right: -2px; width: 10px; height: 10px;
+  border: 2px solid var(--status-bar-background); border-radius: 999px;
+  display: flex; align-items: center; justify-content: center;
+}
+.indicator-dot { width: 6px; height: 6px; border-radius: 999px; background: var(--text-accent); }

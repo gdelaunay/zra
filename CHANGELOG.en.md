@@ -40,7 +40,7 @@
 - ACP registry agent icons: the daemon reads Zed's cache
 - Behaviours: transcript follow cut at the first gesture and resumed at the bottom, no streaming cursor in the transcript, send disabled on an empty field, thread filter persisted, user messages not editable (ACP agents cannot truncate the transcript)
 - MIT licence: `LICENSE` file, mention in both READMEs
-- Docs: visual references of Zed's UI (`reference/zed-agent-panel`, `reference/zed-threads-sidebar`, `reference/zed-bottom-bar`), ACP v1 specification read-only (`_upstream/acp`), design sheets (`reference/`)
+- Docs: visual references of Zed's UI (`reference/zed-ui/agent-panel`, `reference/zed-ui/threads-sidebar`, `reference/zed-ui/bottom-bar`), ACP v1 specification read-only (`_upstream/acp`), design sheets (`reference/`)
 
 ## v0.4 — 2026-11-19 — Audit, security, Zed conformance (`bd6ca86`)
 

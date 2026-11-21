@@ -1,5 +1,5 @@
 // Écran 2 — un thread : flux d'événements ACP + composer, calqués sur le
-// panel agent de Zed (reference/zed-agent-panel/).
+// panel agent de Zed (reference/zed-ui/agent-panel.html).
 
 import { h, button, clear, rafBatch, patchHtml, scrollbarOnGestures } from '../dom.js'
 import { icon, agentIcon } from '../icons.js'

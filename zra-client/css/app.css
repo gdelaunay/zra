@@ -1,6 +1,6 @@
 /* ZRA — calque du panel agent de Zed (v1.28.1, réglages par défaut).
- * Valeurs et sources : reference/zed-agent-panel/, reference/zed-threads-sidebar/,
- * reference/zed-bottom-bar/. Toutes les couleurs viennent de themes.css (tokens Zed).
+ * Valeurs et sources : reference/zed-ui/ (agent-panel.html, threads-sidebar.html,
+ * bottom-bar.html). Toutes les couleurs viennent de themes.css (tokens Zed).
  * Les tailles de police passent par --text-scale (réglage « Taille du texte »). */
 
 /* Polices de Zed embarquées (OFL 1.1, voir fonts/*-OFL.txt et THIRD_PARTY_NOTICES.md) :
@@ -244,7 +244,7 @@ button { cursor: pointer; }
 }
 /* Éditer ne change rien à l'apparence (render_title_view) : on édite le texte
  * direct, seul le focus sélectionne tout. Bleu clair d'accent de Zed
- * (player.local_selection, reference/zed-agent-panel/tokens.css). */
+ * (player.local_selection, reference/zed-ui/shared/tokens.css). */
 .header__title-input::selection, .thread-row__rename::selection { background: rgba(116, 173, 232, 0.239); }
 .header__title-input:focus { outline: none; }
 .header__title-input--readonly { cursor: default; pointer-events: none; }
@@ -471,7 +471,7 @@ button { cursor: pointer; }
 .thought { display: flex; flex-direction: column; gap: var(--sp-2); margin: 0 calc(var(--sp-5) + var(--sp-4)); }
 .thought__head {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 1px var(--sp-2) 1px 0; cursor: pointer; width: 100%; text-align: left;
+  padding: 0 var(--sp-2) 0 0; cursor: pointer; width: 100%; text-align: left;
 }
 .thought__start { display: flex; align-items: center; gap: var(--sp-3); height: calc(25.9px * var(--text-scale) - 2px); color: var(--icon-muted); }
 .thought__name { font-size: var(--fs-md); color: var(--text-muted); }

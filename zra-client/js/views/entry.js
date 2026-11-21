@@ -1,5 +1,5 @@
 // Rendu d'une entrée de timeline, calqué sur le panel agent de Zed
-// (`thread_view.rs`, référence reference/zed-agent-panel/).
+// (`thread_view.rs`, référence reference/zed-ui/agent-panel.html).
 // Tout ce que Zed sait afficher, on l'affiche : texte, diff, terminal, plan,
 // permission — et le brut pour tout le reste.
 //

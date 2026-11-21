@@ -7,9 +7,9 @@ Third-party content shipped with ZRA, with its original license (text reproduced
 |---|---|---|---|
 | Thèmes Ayu Dark, Ayu Mirage | `zra-client/css/themes.css` | Zed, `assets/themes/ayu/` | MIT |
 | Thèmes Gruvbox Dark, Dark Hard, Dark Soft, Light | idem | Zed, `assets/themes/gruvbox/` | MIT |
-| Thèmes One Dark, One Light | idem, et `reference/zed-agent-panel/tokens.css` (One Dark) | Zed, `assets/themes/one/` | MIT |
+| Thèmes One Dark, One Light | idem, et `reference/zed-ui/shared/tokens.css` (One Dark) | Zed, `assets/themes/one/` | MIT |
 | Tracés d'icônes / Icon paths | `zra-client/js/icons.js` | Lucide | ISC |
-| Icônes de Zed / Zed icons | `reference/zed-agent-panel/icons.js` | Zed, `assets/icons/` (tracés Lucide) | ISC |
+| Icônes de Zed / Zed icons | `reference/zed-ui/shared/icons.js` | Zed, `assets/icons/` (tracés Lucide) | ISC |
 | Logos d'agents / Agent logos | `zra-client/js/agent-icons.js` | Zed, `assets/icons/ai_*.svg` | Marques de leurs titulaires, affichées pour désigner l'agent / Trademarks of their owners, shown to identify the agent |
 | Icônes du registre ACP / ACP registry icons | Servies par le daemon depuis le cache de Zed (`external_agents/registry/icons/`) / Served by the daemon from Zed's cache | Registre ACP / ACP registry (`agentclientprotocol/registry`) | Marques de leurs titulaires, affichées pour désigner l'agent / Trademarks of their owners, shown to identify the agent |
 | Polices IBM Plex Sans & Lilex / IBM Plex Sans & Lilex fonts | `zra-client/fonts/` | Zed, `assets/fonts/` (IBM Plex Sans ; Lilex, mishamyrt/Lilex) | SIL OFL 1.1 |
