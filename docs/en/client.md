@@ -54,7 +54,7 @@ Both screens share the same frame, with fixed heights, so that nothing
 moves from one screen to the other:
 
 ```
-top bar      identity / thread title (+ agent, path, date) · actions
+top bar      identity / thread title (+ agent, path) · actions
 search       thread filter (list screen, under the top bar; choice persisted)
 content      thread list  |  event stream
 composer     input + `/` completion + selectors (mode, model…) + gauge (thread screen)

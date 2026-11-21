@@ -54,7 +54,7 @@ Les deux écrans partagent le même cadre, à hauteurs fixes, pour que rien ne
 bouge d'un écran à l'autre :
 
 ```
-top bar      identité / titre du thread (+ agent, chemin, date) · actions
+top bar      identité / titre du thread (+ agent, chemin) · actions
 recherche    filtre des threads (écran liste, sous la top bar ; choix persisté)
 contenu      liste des threads  |  flux d'événements
 composer     saisie + complétion `/` + sélecteurs (mode, modèle…) + jauge (écran thread)

@@ -3,7 +3,7 @@
 
 import { h, button, clear, rafBatch, patchHtml } from '../dom.js'
 import { icon, agentIcon } from '../icons.js'
-import { relTime, absTime, baseName, agentLabel, projectOf, toMs, formatTokens, formatCost, formatDuration, terminalElapsed } from '../format.js'
+import { baseName, agentLabel, projectOf, formatTokens, formatCost, formatDuration, terminalElapsed } from '../format.js'
 import * as store from '../store.js'
 import { renderEntry, blocksPieces, revealBlocks, textLength, messageBody, planPanel, permissionButtons, inlineTitle } from './entry.js'
 import { openMenu, toast, switchEl } from '../ui.js'
@@ -105,7 +105,6 @@ export function ThreadView({ key, navigate }) {
       else title.value = current
     },
   })
-  const subtitle = h('span', { title: '' })
   const dot = h('span.dot')
   const lock = h('span.lock-dot.hidden', { title: tr`lecture seule : créé hors ZRA, répondre dans Zed` }, icon('lock', 'icon--sm'))
   const agentSlot = h('span.header__agent')
@@ -159,12 +158,12 @@ export function ThreadView({ key, navigate }) {
   const bottombar = BottomBar({ navigate, active: 'thread' })
 
   const el = h('div.view',
-    // Barre du haut : icône agent, nom, chemin (un niveau), time ; à droite
+    // Barre du haut : icône agent, nom, chemin (un niveau) ; à droite
     // pastille live, filet, « + » (nouvelle session), rechargement, réglages.
     h('div.header', {},
       agentSlot,
       h('div.header__title', {}, title),
-      h('div.header__meta', {}, pathLabel, h('span', { text: '·' }), subtitle),
+      h('div.header__meta', {}, pathLabel),
       h('div.header__right', {},
         dot, lock,
         h('span.divider-v'),
@@ -483,7 +482,6 @@ export function ThreadView({ key, navigate }) {
 
   function syncHeader() {
     const summary = st.summary || {}
-    const info = store.ensureTimeline(key).info
     // Le titre que l'agent annonce en direct devance l'index de Zed (poll 2 s),
     // sauf si l'utilisateur a renommé le thread : son choix prime.
     if (document.activeElement !== title) title.value = displayedTitle()
@@ -498,9 +496,6 @@ export function ThreadView({ key, navigate }) {
     const readOnly = Boolean(store.foreignAgent(key))
     dot.className = `dot dot--${st.turn === 'busy' ? 'busy' : st.state || 'closed'}${readOnly ? ' hidden' : ''}`
     lock.classList.toggle('hidden', !readOnly)
-    const updatedAt = (toMs(info.updatedAt) ?? 0) > (toMs(summary.updatedAt) ?? 0) ? info.updatedAt : summary.updatedAt
-    subtitle.textContent = relTime(updatedAt)
-    subtitle.title = absTime(updatedAt)
     // Chemin projet : un seul niveau (« ../pp-runtimes »).
     const folder = summary.folderPaths?.[0]
     pathLabel.textContent = folder ? `../${baseName(folder)}` : ''
