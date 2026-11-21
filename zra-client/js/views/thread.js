@@ -9,7 +9,8 @@ import { renderEntry, blocksPieces, revealBlocks, textLength, messageBody, planP
 import { openMenu, toast, switchEl } from '../ui.js'
 import { newSessionButton } from './new-session.js'
 import { BottomBar } from './bottombar.js'
-import { settings, update as updateSettings, onSettings } from '../settings.js'
+import { settings, onSettings } from '../settings.js'
+import { openSettings } from './settings.js'
 import { tr, locale } from '../i18n.js'
 import { composerCompletion, validateSlash } from '../completion.js'
 import { editable } from '../editor.js'
@@ -159,7 +160,7 @@ export function ThreadView({ key, navigate }) {
 
   const el = h('div.view',
     // Barre du haut : icône agent, nom, chemin (un niveau), time ; à droite
-    // pastille live, filet, « + » (nouvelle session), settings.
+    // pastille live, filet, « + » (nouvelle session), rechargement, réglages.
     h('div.header', {},
       agentSlot,
       h('div.header__title', {}, title),
@@ -171,7 +172,8 @@ export function ThreadView({ key, navigate }) {
           machineId: store.splitKey(key).machineId,
           project: () => (st.summary ? projectOf(st.summary.folderPaths) : null),
         }),
-        button('icon-btn icon-btn--sm', { onclick: overflowMenu, 'aria-label': tr`actions` }, icon('settings', 'icon--sm')),
+        button('icon-btn icon-btn--sm', { title: tr`Recharger l’historique`, onclick: () => { st.historyComplete = false; store.loadHistory(key) } }, icon('refresh', 'icon--sm')),
+        button('icon-btn icon-btn--sm', { title: tr`Réglages`, onclick: () => openSettings() }, icon('settings', 'icon--sm')),
       ),
     ),
     banner,
@@ -621,28 +623,6 @@ export function ThreadView({ key, navigate }) {
     openMenu(ev.currentTarget, { items })
   }
 
-  function overflowMenu(ev) {
-    openMenu(ev.currentTarget, {
-      items: [
-        { label: tr`Recharger l’historique`, icon: 'refresh', onSelect: () => { st.historyComplete = false; store.loadHistory(key) } },
-        { label: settings.alwaysShowThoughts ? tr`Replier les réflexions` : tr`Déplier les réflexions`, icon: 'lightbulb',
-          onSelect: toggleThoughts },
-        { label: settings.expandTools ? tr`Replier les outils` : tr`Déplier les outils`, icon: 'wrench',
-          onSelect: () => { updateSettings({ expandTools: !settings.expandTools }); paintAll() } },
-        { separator: true },
-        { label: tr`Copier l’identifiant du thread`, icon: 'copy',
-          onSelect: () => copy(store.splitKey(key).threadId) },
-      ],
-    })
-  }
-
-  /** Toutes les réflexions d'un coup : le nouvel état par défaut efface les choix un à un. */
-  function toggleThoughts() {
-    updateSettings({ alwaysShowThoughts: !settings.alwaysShowThoughts })
-    for (const entry of store.ensureTimeline(key).entries) if (entry.type === 'thought') delete entry.open
-    paintAll()
-  }
-
   // ---- défilement ----
 
   function scrollToEnd(force = false) {
@@ -687,6 +667,20 @@ export function ThreadView({ key, navigate }) {
   const offs = [
     // Jeu d'icônes changé : les puces de mention du fil se repeignent.
     (() => { let last = settings.iconSet; return onSettings((s) => { if (s.iconSet !== last) { last = s.iconSet; paintAll() } }) })(),
+    // Réflexions/outils changés dans les réglages globaux : le nouveau défaut
+    // des réflexions efface les choix un à un, puis le fil se repeint.
+    (() => {
+      let lastThoughts = settings.alwaysShowThoughts, lastTools = settings.expandTools
+      return onSettings((s) => {
+        if (s.alwaysShowThoughts === lastThoughts && s.expandTools === lastTools) return
+        if (s.alwaysShowThoughts !== lastThoughts) {
+          lastThoughts = s.alwaysShowThoughts
+          for (const entry of store.ensureTimeline(key).entries) if (entry.type === 'thought') delete entry.open
+        }
+        lastTools = s.expandTools
+        paintAll()
+      })
+    })(),
     store.on(`timeline:${key}`, onTimeline),
     store.on(`state:${key}`, onState),
     // Écriture abandonnée après une coupure : le texte revient dans le champ.

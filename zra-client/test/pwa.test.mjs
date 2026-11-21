@@ -163,8 +163,17 @@ test('la top bar du thread porte agent, titre, chemin et date', () => {
   assert.ok($('.header__agent svg'), "icône de l'agent à gauche du titre")
   assert.match($('.header__meta .path').textContent, /zra/)
   assert.match($('.header__meta').textContent, /·/)
-  assert.equal($$('.header .icon-btn').length, 2, 'nouvelle session + réglages, pas de retour')
+  assert.equal($$('.header .icon-btn').length, 3, 'nouvelle session + rechargement + réglages, pas de retour')
+  assert.ok($('.header [title="Recharger l’historique"]'), 'rechargement de l’historique dans la top bar')
   assert.ok(!$('.header [aria-label=retour]'), 'plus de bouton précédent')
+})
+
+test('les réglages du thread ouvrent la feuille globale', async () => {
+  click($('.header [title="Réglages"]'))
+  await until(() => $('.sheet'), 2000, 'feuille des réglages')
+  assert.match($('.sheet').textContent, /Postes/, 'réglages globaux, pas un menu local')
+  doc.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Escape' }))
+  await until(() => !$('.sheet'), 2000, 'feuille fermée')
 })
 
 test('le retour à la liste se fait depuis la bottombar', async () => {
