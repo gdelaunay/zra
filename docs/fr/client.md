@@ -202,6 +202,13 @@ Deux modes de service, détection automatique au boot (marqueur `/zra-relay`) :
   direct — adresse d'un poste sans port : 7777 en `http://`, 443 en `https://`
   (derrière un reverse proxy).
 
+Les postes enregistrés persistent leur **cible** (IP ou adresse), jamais l'URL
+construite : elle est reconstruite au boot selon le mode courant (`settings.js` :
+`parseTarget`, `machineUrl`). Le serveur derrière un domaine peut changer
+(daemon ↔ relais) sans casser les entrées — une IP saisie sous le relais suit
+les règles directes quand la page est servie par un daemon, et les jetons
+d'appairage suivent la cible : même poste, même jeton entre les modes.
+
 **Web Push** : le réglage « Notifications (fin de tour) » demande la permission
 du navigateur puis s'abonne auprès du poste (`js/push.js`, clé VAPID de
 `machine.pushKey`) ; `sw.js` affiche la notification et ouvre le thread au

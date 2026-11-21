@@ -9,7 +9,7 @@ globalThis.localStorage ??= {
   removeItem: (k) => mem.delete(k),
 }
 
-const { normalizeUrl, settings, update, setRelayMode, hostLabel } = await import('../js/settings.js')
+const { normalizeUrl, parseTarget, machineUrl, settings, update, setRelayMode, hostLabel } = await import('../js/settings.js')
 
 test('adresse d’un poste : 7777 par défaut en HTTP, 443 en HTTPS (reverse proxy)', () => {
   assert.equal(normalizeUrl('10.77.0.1', 'http:'), 'http://10.77.0.1:7777')
@@ -38,6 +38,37 @@ test('mode relais : une IP devient une route /to/<ip> sur l’origine de la page
   // Hors mode relais : comportement direct inchangé.
   setRelayMode(false)
   assert.equal(normalizeUrl('10.77.0.1', 'http:'), 'http://10.77.0.1:7777')
+})
+
+test('cible persistée, URL dérivée : une IP enregistrée sous le relais suit le mode direct', (t) => {
+  const origin = 'https://zra.exemple.fr'
+  setRelayMode(true)
+  t.after(() => setRelayMode(false))
+  assert.equal(parseTarget('192.168.1.32', 'https:'), '192.168.1.32', 'la cible est l’IP, pas la route')
+  assert.equal(machineUrl('192.168.1.32', 'https:', origin), 'https://zra.exemple.fr/to/192.168.1.32')
+  // Adresse complète saisie en direct : hôte IP → route du relais ; hostname → direct.
+  assert.equal(machineUrl('http://192.168.1.32:7777', 'https:', origin), 'https://zra.exemple.fr/to/192.168.1.32')
+  assert.equal(machineUrl('https://poste.exemple.fr', 'https:', origin), 'https://poste.exemple.fr')
+  setRelayMode(false)
+  assert.equal(machineUrl('192.168.1.32', 'http:'), 'http://192.168.1.32:7777')
+  assert.equal(machineUrl('192.168.1.32', 'https:'), 'https://192.168.1.32')
+  assert.equal(machineUrl('https://poste.exemple.fr', 'https:'), 'https://poste.exemple.fr')
+})
+
+test('migration : URL construite → cible, jeton conservé, doublons fondus', async () => {
+  localStorage.setItem('zra.settings.v2', JSON.stringify({
+    machines: [
+      { id: 'm1', url: 'https://zra.exemple.fr/to/192.168.1.32', label: '192.168.1.32' },
+      { id: 'm2', url: 'https://poste.exemple.fr', label: 'poste' },
+      { id: 'm3', url: 'https://zra.exemple.fr/to/192.168.1.32', label: 'doublon' },
+    ],
+    tokens: { 'https://zra.exemple.fr/to/192.168.1.32': 'tok-relais', 'https://poste.exemple.fr': 'tok-direct' },
+  }))
+  const mig = await import('../js/settings.js?migration')
+  assert.deepEqual(mig.settings.machines.map((m) => m.target), ['192.168.1.32', 'https://poste.exemple.fr'])
+  assert.equal(mig.tokenFor('192.168.1.32'), 'tok-relais', 'le jeton suit la cible, plus l’URL du relais')
+  assert.equal(mig.tokenFor('https://poste.exemple.fr'), 'tok-direct')
+  assert.equal(mig.settings.tokens['https://zra.exemple.fr/to/192.168.1.32'], undefined, 'ancienne clé purgée')
 })
 
 test('threadFilter : « tous » par défaut, persisté au choix', () => {

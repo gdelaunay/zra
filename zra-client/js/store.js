@@ -8,7 +8,7 @@ import { DaemonLink } from './link.js'
 import { Timeline, blocksText, blockText } from './acp.js'
 import { parseMentionLinks, uriName } from './mentions.js'
 import { noteRegistryIcons } from './icons.js'
-import { settings, originMachine, tokenFor, setToken } from './settings.js'
+import { settings, originMachine, tokenFor, setToken, withUrl, machineUrl } from './settings.js'
 import { tr } from './i18n.js'
 
 const e = emitter()
@@ -48,8 +48,11 @@ export function init({ mock = null } = {}) {
   MockLink = mock
   state.mock = Boolean(mock)
   const configs = mock
-    ? [{ id: 'mock-desk', url: 'mock://desk', label: 'DESK-ZED' }, { id: 'mock-laptop', url: 'mock://laptop', label: 'LAPTOP-ZED' }]
-    : dedupe([originMachine(), ...settings.machines].filter(Boolean))
+    ? [
+        { id: 'mock-desk', url: 'mock://desk', target: 'mock://desk', label: 'DESK-ZED' },
+        { id: 'mock-laptop', url: 'mock://laptop', target: 'mock://laptop', label: 'LAPTOP-ZED' },
+      ]
+    : dedupe([originMachine(), ...settings.machines.map(withUrl)].filter(Boolean))
 
   for (const cfg of configs) addMachine(cfg)
   emit('machines')
@@ -62,6 +65,8 @@ function dedupe(list) {
 
 export function addMachine(cfg) {
   if (state.machines.has(cfg.id)) return state.machines.get(cfg.id)
+  // Cible et URL : l'une peut manquer (poste implicite, ancien format) — l'autre se dérive.
+  cfg = { ...cfg, target: cfg.target ?? cfg.url, url: cfg.url ?? machineUrl(cfg.target) }
   const machine = {
     ...cfg,
     status: 'connecting',
@@ -72,7 +77,7 @@ export function addMachine(cfg) {
     error: null,
     link: state.mock
       ? new MockLink({ id: cfg.id, url: cfg.url, label: cfg.label, clientId: settings.clientId })
-      : new DaemonLink({ id: cfg.id, url: cfg.url, clientId: settings.clientId, token: () => tokenFor(cfg.url) }),
+      : new DaemonLink({ id: cfg.id, url: cfg.url, clientId: settings.clientId, token: () => tokenFor(cfg.target) }),
   }
   state.machines.set(cfg.id, machine)
   wire(machine)
@@ -150,7 +155,7 @@ function handle(machine, msg) {
     // Appairage : le poste ne répond qu'à un appareil appairé.
     case 'auth_required':
       // Jeton refusé (révoqué, poste réinstallé) : il ne sert plus à rien.
-      if (tokenFor(machine.url)) setToken(machine.url, null)
+      if (tokenFor(machine.target)) setToken(machine.target, null)
       machine.status = 'locked'
       machine.error = tr`Appairage requis.`
       if (msg.name && (machine.implicit || !machine.label)) machine.label = msg.name
@@ -158,7 +163,7 @@ function handle(machine, msg) {
       break
 
     case 'paired':
-      setToken(machine.url, msg.token)
+      setToken(machine.target, msg.token)
       machine.status = 'online'
       machine.error = null
       emit('machines')

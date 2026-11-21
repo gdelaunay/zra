@@ -31,8 +31,30 @@ function load() {
   let raw = null
   try { raw = JSON.parse(localStorage.getItem(KEY) || 'null') } catch { /* stockage corrompu */ }
   const s = raw && typeof raw === 'object' ? raw : {}
+  // Postes : la cible (IP ou adresse) est la seule référence persistée ; l'URL
+  // de connexion se reconstruit selon le mode courant (`machineUrl`) — le
+  // serveur derrière un domaine peut changer (daemon ↔ relais) sans casser
+  // les postes enregistrés. Ancien format : URL construite → cible extraite.
+  const targetOf = (m) => {
+    if (m.target) return m.target
+    const route = /^https?:\/\/[^/]+\/to\/([^/]+)/.exec(m.url || '')
+    return route ? route[1] : (m.url || '')
+  }
+  const machines = []
+  const tokens = s.tokens && typeof s.tokens === 'object' ? { ...s.tokens } : {}
+  for (const m of Array.isArray(s.machines) ? s.machines : []) {
+    const target = targetOf(m)
+    if (!target || machines.some((x) => x.target === target)) continue
+    machines.push({ id: m.id, target, label: m.label })
+    // Jetons anciennement par URL construite → par cible : le même poste garde
+    // son jeton entre mode relais et direct.
+    if (m.url && m.url !== target && tokens[m.url] && !tokens[target]) {
+      tokens[target] = tokens[m.url]
+      delete tokens[m.url]
+    }
+  }
   return {
-    machines: Array.isArray(s.machines) ? s.machines : [],
+    machines,
     /** Absent (`null`) = mode auto : One dark/light selon le navigateur, jusqu'au premier choix manuel. */
     theme: THEMES.some((t) => t.id === s.theme) ? s.theme : null,
     /** Langue des textes : auto (navigateur), fr ou en. */
@@ -53,8 +75,8 @@ function load() {
     notifications: s.notifications === true,
     mock: s.mock === true,
     lastThread: s.lastThread || null,
-    /** Jetons d'appairage, par adresse de poste. */
-    tokens: s.tokens && typeof s.tokens === 'object' ? s.tokens : {},
+    /** Jetons d'appairage, par cible de poste (IP ou adresse). */
+    tokens,
   }
 }
 
@@ -75,41 +97,68 @@ export function update(patch) {
   e.emit('change', settings)
 }
 
+/** IPv4 littérale — le relais ne vise que ça (pas de DNS). */
+const isIPv4 = (s) => /^\d{1,3}(\.\d{1,3}){3}$/.test(s) && s.split('.').every((p) => Number(p) <= 255)
+
 /**
- * Normalise une saisie utilisateur : "10.77.0.1" -> "http://10.77.0.1:7777".
- *
- * Sans schéma, on prend celui de la page : une PWA servie en HTTPS ne peut
- * ouvrir qu'un `wss://` (contenu mixte bloqué). Sans port : en HTTP celui du
- * daemon, 7777 ; en HTTPS le port standard, 443 — le daemon est alors derrière
- * un reverse proxy (docs/fr/deploy.md §4). Un port explicite est toujours respecté.
- *
- * En mode relais : seule l'IPv4 du poste compte, la route est construite sur
- * l'origine de la page (`/to/<ip>`, le port du daemon est fixe côté relais).
+ * Cible d'un poste : la référence persistée, indépendante du mode de service.
+ * Relais : IP littérale (schéma et port ignorés, le relais vise 7777).
+ * Direct : adresse normalisée — sans schéma, celui de la page (une PWA en
+ * HTTPS ne peut ouvrir que du `wss://`) ; sans port, 7777 en HTTP, 443 en
+ * HTTPS (reverse proxy, docs/fr/deploy.md §4) ; port explicite respecté,
+ * chemin du proxy gardé.
  */
-export function normalizeUrl(input, pageProtocol = globalThis.location?.protocol, origin = globalThis.location?.origin) {
+export function parseTarget(input, pageProtocol = globalThis.location?.protocol) {
   let s = String(input || '').trim()
   if (!s) return null
   if (!/^https?:\/\//i.test(s)) s = `${pageProtocol === 'https:' ? 'https' : 'http'}://${s}`
   let u
   try { u = new URL(s) } catch { return null }
-  if (relayOn) {
-    const ip = u.hostname
-    if (!/^\d{1,3}(\.\d{1,3}){3}$/.test(ip) || ip.split('.').some((p) => Number(p) > 255)) return null
-    return `${origin}/to/${ip}`
-  }
+  if (relayOn) return isIPv4(u.hostname) ? u.hostname : null
   const explicitPort = /^https?:\/\/(\[[^\]]*\]|[^/:]*):\d+/i.test(s)
   if (!explicitPort && u.protocol === 'http:') u.port = '7777'
   u.pathname = u.pathname.replace(/\/+$/, '')
   return u.origin + (u.pathname === '/' ? '' : u.pathname)
 }
 
+/**
+ * URL de connexion d'une cible, selon le mode courant — jamais persistée.
+ * Une IP nue saisie en mode relais suit les règles directes quand la page est
+ * servie par un daemon (et inversement, une adresse dont l'hôte est une IP
+ * repasse par la route du relais). Une adresse à hostname reste joignable en
+ * direct même sous le relais : le mode ne casse aucune entrée enregistrée.
+ */
+export function machineUrl(target, pageProtocol = globalThis.location?.protocol, origin = globalThis.location?.origin) {
+  if (!target) return null
+  if (relayOn) {
+    if (isIPv4(target)) return `${origin}/to/${target}`
+    try {
+      const u = new URL(target)
+      if (isIPv4(u.hostname)) return `${origin}/to/${u.hostname}`
+    } catch { /* cible nue non IP : adresse directe */ }
+    return target
+  }
+  if (/^https?:\/\//i.test(target)) return target
+  // IP nue (saisie en mode relais) : schéma de la page, 7777 en http, 443 en https.
+  return pageProtocol === 'https:' ? `https://${target}` : `http://${target}:7777`
+}
+
+/** Saisie utilisateur → URL de connexion dans le mode courant. */
+export function normalizeUrl(input, pageProtocol = globalThis.location?.protocol, origin = globalThis.location?.origin) {
+  const target = parseTarget(input, pageProtocol)
+  return target ? machineUrl(target, pageProtocol, origin) : null
+}
+
+/** Poste persisté → poste connectable : l'URL est dérivée, pas stockée. */
+export const withUrl = (m) => ({ ...m, url: machineUrl(m.target) })
+
 export function addMachine(input, label) {
-  const url = normalizeUrl(input)
-  if (!url) return { error: tr`Adresse invalide.` }
-  if (settings.machines.some((m) => m.url === url)) return { error: tr`Poste déjà enregistré.` }
-  const machine = { id: `m${Date.now().toString(36)}`, url, label: label || hostLabel(url) }
+  const target = parseTarget(input)
+  if (!target) return { error: tr`Adresse invalide.` }
+  if (settings.machines.some((m) => m.target === target)) return { error: tr`Poste déjà enregistré.` }
+  const machine = { id: `m${Date.now().toString(36)}`, target, label: label || hostLabel(machineUrl(target)) }
   update({ machines: [...settings.machines, machine] })
-  return { machine }
+  return { machine: { ...machine, url: machineUrl(target) } }
 }
 
 export function removeMachine(id) {
@@ -177,20 +226,22 @@ export function originMachine() {
 
   // Le daemon écoute toujours sur 7777, y compris quand un serveur de dev sert
   // le client sur un autre port de la même machine.
+  const url = `${location.protocol}//${location.hostname}:7777`
   return {
     id: 'origin',
-    url: `${location.protocol}//${location.hostname}:7777`,
+    url,
+    target: url,
     label: local ? tr`Ce poste` : location.hostname,
     implicit: true,
   }
 }
 
-/** Jeton d'appairage d'un poste, ou `null`. */
-export const tokenFor = (url) => settings.tokens[url] ?? null
+/** Jeton d'appairage d'un poste (par cible), ou `null`. */
+export const tokenFor = (target) => settings.tokens[target] ?? null
 
-export function setToken(url, token) {
+export function setToken(target, token) {
   const tokens = { ...settings.tokens }
-  if (token) tokens[url] = token
-  else delete tokens[url]
+  if (token) tokens[target] = token
+  else delete tokens[target]
   update({ tokens })
 }

@@ -94,7 +94,7 @@ test('Postes : une adresse valide est ajoutée, le champ vidé, la liste reconst
   assert.equal(store.state.machines.size, avant + 1)
   assert.equal(input.value, '', 'le champ est vidé')
   const added = settingsModule.settings.machines.at(-1)
-  assert.equal(added.url, 'http://10.0.0.9:7777', 'l’adresse est normalisée')
+  assert.equal(added.target, 'http://10.0.0.9:7777', 'l’adresse est normalisée')
   assert.ok(toasts().some((t) => t.includes('ajouté')), 'un toast confirme')
 
   const apres = section($('.sheet'), 'Postes')
@@ -110,7 +110,7 @@ test('Postes : Entrée dans le champ ajoute, comme le bouton', () => {
   const input = section(sheet, 'Postes').querySelector('input.input')
   input.value = 'http://10.0.0.10:7777'
   input.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
-  assert.ok(settingsModule.settings.machines.some((m) => m.url === 'http://10.0.0.10:7777'))
+  assert.ok(settingsModule.settings.machines.some((m) => m.target === 'http://10.0.0.10:7777'))
   const added = settingsModule.settings.machines.at(-1)
   settingsModule.removeMachine(added.id)
   store.dropMachine(added.id)
@@ -126,15 +126,15 @@ test('Postes : une adresse vide ou déjà enregistrée est refusée, sans rien a
   assert.equal(store.state.machines.size, avant)
   assert.ok(toasts().some((t) => t.includes('Adresse invalide.')))
 
-  input.value = settingsModule.settings.machines[0]?.url ?? 'http://10.0.0.9:7777'
+  input.value = settingsModule.settings.machines[0]?.target ?? 'http://10.0.0.9:7777'
   settingsModule.addMachine('10.0.0.11')
-  const url = settingsModule.settings.machines.at(-1).url
+  const url = settingsModule.settings.machines.at(-1).target
   input.value = url
   click($('.sheet').querySelector('section.field button.btn'))
   assert.equal(store.state.machines.size, avant, 'un doublon n’ouvre pas une seconde connexion')
   assert.ok(toasts().some((t) => t.includes('déjà enregistré')))
 
-  for (const m of settingsModule.settings.machines.filter((x) => x.url === 'http://10.0.0.11:7777')) {
+  for (const m of settingsModule.settings.machines.filter((x) => x.target === 'http://10.0.0.11:7777')) {
     settingsModule.removeMachine(m.id)
   }
 })

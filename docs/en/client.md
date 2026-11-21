@@ -202,6 +202,13 @@ Two serving modes, automatic detection at boot (`/zra-relay` marker):
   behavior — address of a machine without a port: 7777 over `http://`, 443 over
   `https://` (behind a reverse proxy).
 
+Saved machines persist their **target** (IP or address), never the built URL:
+it is rebuilt at boot according to the current mode (`settings.js`:
+`parseTarget`, `machineUrl`). The server behind a domain can change
+(daemon ↔ relay) without breaking entries — an IP typed under the relay
+follows the direct rules when the page is served by a daemon, and pairing
+tokens follow the target: same machine, same token across modes.
+
 **Web Push**: the "Notifications (turn end)" setting asks for the browser's
 permission then subscribes to the machine (`js/push.js`, VAPID key from
 `machine.pushKey`); `sw.js` shows the notification and opens the thread on
