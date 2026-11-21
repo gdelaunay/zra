@@ -4,6 +4,7 @@
 import { readFile } from 'node:fs/promises'
 import { unwatchFile, watchFile } from 'node:fs'
 import { join } from 'node:path'
+import { homedir } from 'node:os'
 
 import { ROOT } from './config.js'
 import { ShimRegistry } from './shim-registry.js'
@@ -59,6 +60,8 @@ class Machine {
     this.urls = []
     /** Clé VAPID publique (base64url) : la PWA s'abonne aux push avec elle. */
     this.pushKey = null
+    /** Dossier home du poste : parent par défaut d'un nouveau projet sans projet connu. */
+    this.home = homedir()
   }
 
   describe() {
@@ -72,6 +75,7 @@ class Machine {
       agentIcons: this.agentIcons,
       urls: this.urls,
       pushKey: this.pushKey,
+      home: this.home,
     }
   }
 }

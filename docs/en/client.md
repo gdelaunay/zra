@@ -97,9 +97,9 @@ sequences and invariants. Summary:
 
 - it sends `hello` `list_threads` `subscribe` `unsubscribe` `load_history`
   `send` `interrupt` `set_option` `cancel_queued` `respond_permission`
-  `new_thread` `rename_thread` `delete_thread` `push_subscribe` `push_unsubscribe`;
+  `new_thread` `new_project` `rename_thread` `delete_thread` `push_subscribe` `push_unsubscribe`;
 - it receives `machine` `threads` `thread_state` `acp_event` `history`
-  `thread_created` `permission_resolved` `push_subscribed` `push_unsubscribed` `error`.
+  `thread_created` `project_created` `permission_resolved` `push_subscribed` `push_unsubscribed` `error`.
 
 `acp_event.update` is passed **verbatim** to `js/acp.js`, which reduces it to a
 timeline. An unknown `sessionUpdate` is never an error: it is shown as a

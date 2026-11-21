@@ -322,6 +322,12 @@ function handle(machine, msg) {
       // Accusés d'abonnement : le réglage est déjà à jour côté PWA.
       break
 
+    case 'project_created':
+      // Réponse à `new_project` : le projet lui-même remonte par le `threads`
+      // suivant (poll de l'index de Zed).
+      emit('project_created', { machineId: machine.id, folderPaths: msg.folderPaths })
+      break
+
     default:
       // Message inconnu : on ne casse pas, on trace.
       console.debug('[store] message ZRA inconnu', msg)
@@ -732,6 +738,17 @@ export function newThread(machineId, agentId, folderPaths) {
   const m = state.machines.get(machineId)
   if (!m) return
   m.link.send(folderPaths?.length ? { type: 'new_thread', agentId, folderPaths } : { type: 'new_thread', agentId })
+}
+
+/**
+ * Crée un dossier de projet sur le poste et l'ouvre dans Zed. Le daemon répond
+ * `project_created` (ou `error` `new_project_failed`) ; le projet apparaît dans
+ * la liste au `threads` suivant.
+ */
+export function newProject(machineId, name, parent) {
+  const m = state.machines.get(machineId)
+  if (!m) return
+  m.link.send({ type: 'new_project', name, parent })
 }
 
 export function cancelQueued(k, queueId) {

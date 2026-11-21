@@ -35,11 +35,15 @@ Zed même sans thread.
 
 ## Faits vérifiés (sources `_upstream/zed`)
 
-- **La CLI de Zed ne crée pas les dossiers manquants** : l'ouverture échoue avec
-  « '{path}' does not exist » (`crates/workspace/src/workspace.rs`, erreur
-  `DevServerProjectPathDoesNotExist`). D'où le `mkdir` explicite avant la CLI.
-  Le `create_dir_all` de `crates/cli/src/main.rs` ne concerne que les stubs de
-  diff, pas l'ouverture.
+- **Zed ne crée jamais les dossiers manquants** : en local, un chemin absent
+  donne un worktree sans racine sur disque (`Worktree::local`,
+  `crates/worktree/src/worktree.rs` : métadonnées absentes → aucune entrée
+  racine, aucune création) ; en dev server, l'ouverture échoue avec
+  « '{path}' does not exist » (`crates/workspace/src/workspace.rs`,
+  `DevServerProjectPathDoesNotExist`). Dans les deux cas le dossier n'apparaît
+  pas sur disque : le `mkdir` explicite avant la CLI est nécessaire. Le
+  `create_dir_all` de `crates/cli/src/main.rs` ne concerne que les stubs de
+  diff.
 - `ZedCli.open` (`zed/driver.js`) fait déjà `zed --classic <dossiers>` : retrouve
   la fenêtre du projet ou lui en ouvre une. Rien à ajouter côté CLI.
 - L'index poll la base de Zed toutes les 2 s (`threads-index.js`, `pollMs`) :

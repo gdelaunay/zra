@@ -33,6 +33,11 @@ function fakeDriver({ enabled = true, recipes = ['newThread', 'openThread'], fai
       await new Promise((r) => setTimeout(r, slowMs))
       if (fail) throw fail
     },
+    async openWorkspace(folderPaths) {
+      calls.push(['openWorkspace', folderPaths])
+      await new Promise((r) => setTimeout(r, slowMs))
+      if (fail) throw fail
+    },
   }
 }
 
@@ -477,4 +482,20 @@ test('focus est sérialisé avec les autres manœuvres', async () => {
   const ctx = boot({ driver })
   await Promise.all([ctx.control.focus({ threadId: 't1' }), ctx.control.focus({ threadId: 't2' })])
   assert.deepEqual(order, ['début t1', 'fin t1', 'début t2', 'fin t2'])
+})
+
+test('openProject : ouvre le projet via la CLI, sérialisé, l’échec remonte', async () => {
+  const order = []
+  const driver = fakeDriver()
+  driver.openWorkspace = async (folderPaths) => {
+    order.push(`début ${folderPaths[0]}`)
+    await new Promise((r) => setTimeout(r, 15))
+    order.push(`fin ${folderPaths[0]}`)
+  }
+  const ctx = boot({ driver })
+  await Promise.all([ctx.control.openProject(['C:/proj/a']), ctx.control.openProject(['C:/proj/b'])])
+  assert.deepEqual(order, ['début C:/proj/a', 'fin C:/proj/a', 'début C:/proj/b', 'fin C:/proj/b'])
+
+  const ko = boot({ driver: fakeDriver({ fail: new Error('CLI introuvable') }) })
+  await assert.rejects(() => ko.control.openProject(['C:/proj/c']), /CLI introuvable/)
 })

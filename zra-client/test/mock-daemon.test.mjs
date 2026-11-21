@@ -242,6 +242,31 @@ test('nouvelle session : thread créé, annoncé et listé', async () => {
   hz.stop()
 })
 
+test('nouveau projet : dossier créé, project_created, le projet rejoint le sidebar', async () => {
+  const hz = harness()
+  await hz.until((m) => m.some((x) => x.type === 'threads'))
+  assert.equal(hz.last('machine').home, 'C:/Users/gd')
+
+  hz.link.send({ type: 'new_project', name: 'projet-neuf', parent: 'C:/Users/gd/Documents' })
+  await hz.until((m) => m.some((x) => x.type === 'project_created'))
+  assert.deepEqual(hz.last('project_created').folderPaths, ['C:/Users/gd/Documents/projet-neuf'])
+  const projects = hz.last('threads').projects
+  assert.ok(projects.some((p) => p.folderPaths[0] === 'C:/Users/gd/Documents/projet-neuf' && p.open))
+  hz.stop()
+})
+
+test('nouveau projet : nom invalide ou dossier existant → new_project_failed', async () => {
+  const hz = harness()
+  await hz.until((m) => m.some((x) => x.type === 'threads'))
+  hz.link.send({ type: 'new_project', name: 'a/b', parent: 'C:/Users/gd' })
+  await hz.until((m) => m.some((x) => x.type === 'error' && x.code === 'new_project_failed'))
+  hz.link.send({ type: 'new_project', name: 'zra', parent: 'C:/Users/gd/Documents/Développement' })
+  await hz.until((m) => m.filter((x) => x.type === 'error' && x.code === 'new_project_failed').length >= 2)
+  assert.match(hz.last('error').message, /existe déjà/)
+  assert.equal(hz.of('project_created').length, 0)
+  hz.stop()
+})
+
 test('interruption sèche : le tour est coupé, rien n’est envoyé', async () => {
   const hz = harness()
   await hz.until((m) => m.some((x) => x.type === 'threads'))

@@ -17,6 +17,7 @@ import * as store from '../store.js'
 import { openMenu, confirmSheet } from '../ui.js'
 import { openSettings } from './settings.js'
 import { newSessionButton } from './new-session.js'
+import { openProjectSheet } from './new-project.js'
 import { BottomBar } from './bottombar.js'
 import { openPairSheet } from './pair.js'
 import { tr } from '../i18n.js'
@@ -150,10 +151,6 @@ export function ThreadsView({ navigate }) {
       const recent = groups.recent
       // Filtré, un projet du sidebar sans thread correspondant disparaît.
       const zed = query || filter !== 'all' ? groups.zed.filter((g) => g.threads.length) : groups.zed
-      if (!zed.length && !recent.length) {
-        section.append(h('div.empty', { style: { padding: '12px' }, text: tr`Aucun thread` }))
-        continue
-      }
       const projectGroup = (parent, group) => {
         // Une recherche montre ses résultats, même dans un projet replié.
         const open = Boolean(query) || expandedProjects.has(collapseKey(m, group.project))
@@ -164,24 +161,32 @@ export function ThreadsView({ navigate }) {
         for (const t of group.threads) projectSection.append(threadRow(m, t, navigate))
         if (!group.threads.length) projectSection.append(h('div.project__empty', { text: tr`Aucun thread` }))
       }
-      for (const group of zed) projectGroup(section, group)
-      if (!recent.length) continue
-      // Projets connus de la base mais absents du sidebar de Zed.
-      const recentOpen = Boolean(query) || !zed.length || expandedRecent.has(m.id)
-      const recentSection = h('div.recent')
-      section.append(recentSection)
-      if (zed.length) {
-        recentSection.append(button('recent__head', {
-          'aria-expanded': String(recentOpen),
-          onclick: () => { if (expandedRecent.has(m.id)) expandedRecent.delete(m.id); else expandedRecent.add(m.id); paint() },
-        },
-          h('span.group__name', { text: tr`Projets récents` }),
-          icon(recentOpen ? 'chevron-down' : 'chevron-right', 'icon--sm group__chevron'),
-          h('span.spacer'),
-          h('span.group__meta', { text: `${recent.length}` }),
-        ))
+      if (!zed.length && !recent.length) {
+        section.append(h('div.empty', { style: { padding: '12px' }, text: tr`Aucun thread` }))
       }
-      if (recentOpen) for (const group of recent) projectGroup(recentSection, group)
+      for (const group of zed) projectGroup(section, group)
+      if (recent.length) {
+        // Projets connus de la base mais absents du sidebar de Zed.
+        const recentOpen = Boolean(query) || !zed.length || expandedRecent.has(m.id)
+        const recentSection = h('div.recent')
+        section.append(recentSection)
+        if (zed.length) {
+          recentSection.append(button('recent__head', {
+            'aria-expanded': String(recentOpen),
+            onclick: () => { if (expandedRecent.has(m.id)) expandedRecent.delete(m.id); else expandedRecent.add(m.id); paint() },
+          },
+            h('span.group__name', { text: tr`Projets récents` }),
+            icon(recentOpen ? 'chevron-down' : 'chevron-right', 'icon--sm group__chevron'),
+            h('span.spacer'),
+            h('span.group__meta', { text: `${recent.length}` }),
+          ))
+        }
+        if (recentOpen) for (const group of recent) projectGroup(recentSection, group)
+      }
+      // « Nouveau projet » en fin de section, sous « Projets récents » : l'usage
+      // est rare, l'affordance vient après les projets (conception-nouveau-projet.md).
+      // Une recherche montre des résultats, pas des actions.
+      if (!query) section.append(newProjectRow(m))
     }
 
     if (!total && query) {
@@ -242,6 +247,14 @@ function machineHead(m, open, onToggle) {
     icon(open ? 'chevron-down' : 'chevron-right', 'icon--sm group__chevron'),
     h('span.spacer'),
     h('span.group__meta', { text: m.threads.length ? `${m.threads.length}` : '' }),
+  )
+}
+
+/** Ligne « nouveau projet » : même style que la tête « Projets récents ». */
+function newProjectRow(m) {
+  return button('recent__head', { onclick: () => openProjectSheet(m) },
+    icon('plus', 'icon--sm group__icon'),
+    h('span.group__name', { text: tr`Nouveau projet` }),
   )
 }
 

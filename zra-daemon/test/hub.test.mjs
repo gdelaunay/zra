@@ -9,6 +9,9 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { EventEmitter } from 'node:events'
+import { mkdtemp, rm, mkdir as fsMkdir, stat } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 
 import { Hub } from '../hub.js'
 import { RingBuffers } from '../ring-buffer.js'
@@ -1053,6 +1056,7 @@ function fakeZedControl(over = {}) {
     canReopen: true,
     calls: [],
     async reopen(thread) { this.calls.push(['reopen', thread.threadId]) },
+    async openProject(folderPaths) { this.calls.push(['openProject', folderPaths]) },
     async newThread(agentId, opts) {
       this.calls.push(['newThread', agentId, opts])
       const threadId = 'thread-neuf'
@@ -1186,6 +1190,117 @@ test('new_thread ouvert dans le bon dossier : aucun avertissement', async () => 
   conn.emit('message', { type: 'new_thread', agentId: 'claude-zra', folderPaths: ['C:/proj/zra'] })
   await tick()
   assert.deepEqual(ctx.rings.read('thread-neuf'), [])
+})
+
+// ---------------------------------------------------------------------------
+// new_project
+// ---------------------------------------------------------------------------
+
+/** Attend que le handler async (fs inclus) ait répondu. */
+async function answered(conn) {
+  for (let i = 0; i < 200 && !conn.sent.length; i++) await tick()
+}
+
+test('new_project : mkdir puis CLI, project_created avec le dossier, journalisé', async () => {
+  const parent = await mkdtemp(join(tmpdir(), 'zra-np-'))
+  try {
+    const zed = fakeZedControl()
+    const ctx = boot({ zed })
+    const conn = pairedClient(ctx)
+    conn.emit('message', { type: 'new_project', name: ' mon-projet ', parent })
+    await answered(conn)
+    const dir = join(parent, 'mon-projet')
+    assert.deepEqual(zed.calls, [['openProject', [dir]]])
+    assert.deepEqual(conn.last(), { type: 'project_created', folderPaths: [dir] })
+    assert.equal((await stat(dir)).isDirectory(), true)
+    assert.deepEqual(ctx.recorded.map((r) => r.type), ['new_project'])
+    assert.equal(ctx.recorded[0].parent, parent)
+  } finally { await rm(parent, { recursive: true, force: true }) }
+})
+
+test('new_project : nom invalide → refus, rien créé, Zed non piloté', async () => {
+  const parent = await mkdtemp(join(tmpdir(), 'zra-np-'))
+  try {
+    const zed = fakeZedControl()
+    const ctx = boot({ zed })
+    const conn = pairedClient(ctx)
+    for (const name of ['', '   ', 'a/b', 'a\\b', '.', '..', 'x'.repeat(101), 'a\u0000b', null]) {
+      conn.mark()
+      conn.emit('message', { type: 'new_project', name, parent })
+      await answered(conn)
+      assert.equal(conn.last().code, 'new_project_failed', JSON.stringify(name))
+    }
+    assert.deepEqual(zed.calls, [])
+  } finally { await rm(parent, { recursive: true, force: true }) }
+})
+
+test('new_project : parent non absolu → refus', async () => {
+  const zed = fakeZedControl()
+  const ctx = boot({ zed })
+  const conn = pairedClient(ctx)
+  for (const parent of ['proj/relatif', '', null]) {
+    conn.mark()
+    conn.emit('message', { type: 'new_project', name: 'projet', parent })
+    await answered(conn)
+    assert.equal(conn.last().code, 'new_project_failed', JSON.stringify(parent))
+    assert.match(conn.last().message, /chemin absolu/)
+  }
+  assert.deepEqual(zed.calls, [])
+})
+
+test('new_project : dossier déjà existant → refus, pas d’ouverture silencieuse', async () => {
+  const parent = await mkdtemp(join(tmpdir(), 'zra-np-'))
+  try {
+    await fsMkdir(join(parent, 'deja-la'))
+    const zed = fakeZedControl()
+    const ctx = boot({ zed })
+    const conn = pairedClient(ctx)
+    conn.emit('message', { type: 'new_project', name: 'deja-la', parent })
+    await answered(conn)
+    assert.equal(conn.last().code, 'new_project_failed')
+    assert.match(conn.last().message, /existe déjà/)
+    assert.deepEqual(zed.calls, [])
+  } finally { await rm(parent, { recursive: true, force: true }) }
+})
+
+test('new_project : parent inexistant → refus (mkdir non récursif)', async () => {
+  const parent = await mkdtemp(join(tmpdir(), 'zra-np-'))
+  try {
+    const zed = fakeZedControl()
+    const ctx = boot({ zed })
+    const conn = pairedClient(ctx)
+    conn.emit('message', { type: 'new_project', name: 'projet', parent: join(parent, 'absent') })
+    await answered(conn)
+    assert.equal(conn.last().code, 'new_project_failed')
+    assert.match(conn.last().message, /n'existe pas/)
+    assert.deepEqual(zed.calls, [])
+  } finally { await rm(parent, { recursive: true, force: true }) }
+})
+
+test('new_project : pilotage désactivé ou absent → refus', async () => {
+  for (const zed of [fakeZedControl({ enabled: false }), null]) {
+    const ctx = boot({ zed })
+    const conn = pairedClient(ctx)
+    conn.emit('message', { type: 'new_project', name: 'projet', parent: tmpdir() })
+    await answered(conn)
+    assert.equal(conn.last().code, 'new_project_failed')
+    assert.match(conn.last().message, /pilotage de Zed désactivé/)
+  }
+})
+
+test('new_project : la CLI échoue → le dossier reste, l’erreur le dit', async () => {
+  const parent = await mkdtemp(join(tmpdir(), 'zra-np-'))
+  try {
+    const zed = fakeZedControl({ async openProject() { throw new Error('CLI introuvable') } })
+    const ctx = boot({ zed })
+    const conn = pairedClient(ctx)
+    conn.emit('message', { type: 'new_project', name: 'projet', parent })
+    await answered(conn)
+    assert.equal(conn.last().code, 'new_project_failed')
+    assert.match(conn.last().message, /Dossier créé/)
+    assert.match(conn.last().message, /CLI introuvable/)
+    assert.equal((await stat(join(parent, 'projet'))).isDirectory(), true)
+  } finally { await rm(parent, { recursive: true, force: true }) }
 })
 
 // ---------------------------------------------------------------------------

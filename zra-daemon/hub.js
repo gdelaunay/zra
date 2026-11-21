@@ -5,6 +5,8 @@
 // `thread_state` après toute action, journalisation de toute écriture.
 
 import { logger } from './log.js'
+import { mkdir } from 'node:fs/promises'
+import { isAbsolute, join } from 'node:path'
 import { InjectionError } from './inject/backend.js'
 import { AuthError } from './auth.js'
 import { isLoopback } from './server.js'
@@ -15,7 +17,7 @@ import { tr } from './i18n.js'
 const log = logger('hub')
 
 /** Messages entrants qui constituent une écriture, donc à journaliser (§9). */
-const WRITES = new Set(['send', 'set_option', 'respond_permission', 'respond_elicitation', 'new_thread', 'interrupt', 'cancel_queued', 'rename_thread', 'delete_thread'])
+const WRITES = new Set(['send', 'set_option', 'respond_permission', 'respond_elicitation', 'new_thread', 'new_project', 'interrupt', 'cancel_queued', 'rename_thread', 'delete_thread'])
 
 export class Hub {
   /**
@@ -119,6 +121,7 @@ export class Hub {
         threadId: msg.threadId ?? null, text: msg.text ?? null,
         key: msg.key ?? null, value: msg.value ?? null,
         optionId: msg.optionId ?? null, agentId: msg.agentId ?? null,
+        ...(msg.type === 'new_project' ? { name: msg.name ?? null, parent: msg.parent ?? null } : {}),
       })
     }
 
@@ -165,6 +168,9 @@ export class Hub {
 
       case 'new_thread':
         return this.newThread(conn, msg)
+
+      case 'new_project':
+        return this.newProject(conn, msg)
 
       case 'rename_thread':
         return this.renameThread(conn, msg)
@@ -569,6 +575,44 @@ export class Hub {
       log.warn(`new_thread ${agentId} :`, err.message)
       this.error(conn, 'new_thread_failed', err.message)
     }
+  }
+
+  /**
+   * Nouveau projet : crée le dossier puis l'ouvre dans Zed (CLI `--classic`).
+   * La CLI ne crée pas les dossiers manquants (« '{path}' does not exist »,
+   * `workspace.rs` de Zed) : le `mkdir` est à nous, non récursif — un dossier
+   * qui existe déjà est un refus, pas une ouverture silencieuse. Pas de thread
+   * créé : le projet remonte par le poll de l'index, son « + » devient actif.
+   * Voir `reference/conception-nouveau-projet.md`.
+   */
+  async newProject(conn, { name, parent }) {
+    if (!this.zed?.enabled) {
+      return this.error(conn, 'new_project_failed',
+        tr`Création de projet indisponible : pilotage de Zed désactivé sur ce poste (zedControl.enabled).`)
+    }
+    const fail = (message) => this.error(conn, 'new_project_failed', message)
+    if (typeof name !== 'string' || !name.trim()) return fail(tr`Nom de projet non précisé.`)
+    const clean = name.trim()
+    if (clean.length > 100 || /[\\/\u0000-\u001f]/.test(clean) || clean === '.' || clean === '..') {
+      return fail(tr`Nom de projet invalide : un seul segment de dossier, sans « / » ni « \\ ».`)
+    }
+    if (typeof parent !== 'string' || !isAbsolute(parent)) return fail(tr`Dossier parent invalide : chemin absolu requis.`)
+    const dir = join(parent, clean)
+    try {
+      await mkdir(dir)
+    } catch (err) {
+      if (err.code === 'EEXIST') return fail(tr`Le dossier « ${dir} » existe déjà.`)
+      if (err.code === 'ENOENT') return fail(tr`Le dossier parent « ${parent} » n'existe pas.`)
+      return fail(tr`Création du dossier impossible : ${err.message}`)
+    }
+    try {
+      await this.zed.openProject([dir])
+    } catch (err) {
+      log.warn(`new_project ${dir} :`, err.message)
+      // Le dossier reste : un dossier vide est inoffensif, le supprimer serait plus surprenant.
+      return fail(tr`Dossier créé (${dir}), mais Zed ne l'a pas ouvert : ${err.message}`)
+    }
+    conn.send({ type: 'project_created', folderPaths: [dir] })
   }
 
   /**

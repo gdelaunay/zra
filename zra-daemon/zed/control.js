@@ -179,6 +179,15 @@ export class ZedControl {
   }
 
   /**
+   * Ouvre un projet dans Zed (CLI), sans session : le bouton « nouveau projet »
+   * de la PWA. Sérialisé avec les autres manœuvres : deux ouvertures
+   * entrelacées se confondraient.
+   */
+  openProject(folderPaths) {
+    return this.serial(() => this.driver.openWorkspace(folderPaths))
+  }
+
+  /**
    * Rouvre un thread fermé dans Zed et attend que son agent l'ait rechargé
    *. Sans effet si le thread est déjà vivant.
    */

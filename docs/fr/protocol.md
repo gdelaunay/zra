@@ -282,6 +282,20 @@ comparés sans casse ni séparateur. Le daemon refuse (`new_thread_failed`) des
 dossiers qu'aucun thread de son index ne porte : le mobile ne fait ouvrir à Zed
 que ce que Zed a déjà ouvert. Absent ⇒ la fenêtre Zed active.
 
+### `new_project`
+```ts
+{ type: 'new_project', name: string, parent: string }
+```
+Crée un dossier de projet sur ce poste et l'ouvre dans Zed (CLI `--classic`).
+`name` : un seul segment de chemin (ni `/` ni `\`, ni `.` ni `..`, 100 caractères
+max) ; `parent` : chemin absolu, toujours envoyé par la PWA (pré-rempli,
+éditable). Le daemon fait le `mkdir` lui-même — Zed ne crée jamais les dossiers
+manquants — puis ouvre le dossier. Aucun thread créé : le projet remonte au
+`threads` suivant (poll de l'index), son « + » devient actif.
+Réponse : `project_created`, ou `error` `new_project_failed` (dossier déjà
+existant, parent inexistant, pilotage de Zed désactivé, échec de la CLI —
+auquel cas le dossier créé reste).
+
 ### `rename_thread`
 ```ts
 { type: 'rename_thread', threadId: string, title: string }
@@ -350,6 +364,7 @@ Révoqué, un appareil voit sa connexion fermée (code 4401).
   agentIcons?: Record<string, string>,  // SVG bruts du registre ACP (cache de Zed), par id d'agent
   urls?: string[],         // adresses du poste hors loopback (IP locales, ou noms du certificat)
   pushKey?: string | null, // clé VAPID publique (base64url) : abonnement Web Push de la PWA
+  home?: string,           // dossier home du poste : parent par défaut d'un nouveau projet
 }
 ```
 Envoyé au bootstrap, et à chaque changement notable (Zed lancé/fermé).
@@ -552,6 +567,13 @@ pour ne pas afficher la conversation deux fois.
 Réponse à `new_thread`. À envoyer **après** le `threads` qui contient le nouveau
 thread, sinon la PWA ouvre un écran sans titre. Elle navigue dessus aussitôt.
 
+### `project_created`
+```ts
+{ type: 'project_created', folderPaths: string[] }
+```
+Réponse à `new_project` : le dossier créé, ouvert dans Zed. Le projet lui-même
+remonte au `threads` suivant (poll de l'index de Zed).
+
 ### `permission_resolved`
 ```ts
 {
@@ -599,6 +621,7 @@ la langue du poste (français ou anglais). Codes attendus par la PWA (les autres
 | `permission_expired` | demande déjà tranchée | toast, encart verrouillé |
 | `elicitation_expired` | question déjà répondue ou retirée | toast, la carte quitte le fil |
 | `new_thread_failed` | Zed n'a pas ouvert de session | toast |
+| `new_project_failed` | dossier de projet non créé ou non ouvert | message affiché dans la feuille « nouveau projet » |
 | `not_zra_thread` | thread fermé d'un agent sans entrée ZRA : Zed le rouvrirait sans shim | toast, lecture seule |
 | `capability_missing` | l'agent ne supporte pas la méthode ACP demandée (`session/set_title`, `session/delete`) | toast ; le bouton est masqué quand la capacité est connue |
 | `prompt_refused` | l'agent a refusé le prompt injecté (mode `auto`, avant le repli clavier) | toast |

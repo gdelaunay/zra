@@ -282,6 +282,20 @@ compared ignoring case and separators. The daemon refuses (`new_thread_failed`)
 folders that no thread in its index uses: the phone only makes Zed open
 what Zed has already opened. Absent ⇒ the active Zed window.
 
+### `new_project`
+```ts
+{ type: 'new_project', name: string, parent: string }
+```
+Creates a project folder on this machine and opens it in Zed (CLI `--classic`).
+`name`: a single path segment (no `/` or `\`, no `.` or `..`, 100 characters
+max); `parent`: absolute path, always sent by the PWA (pre-filled, editable).
+The daemon does the `mkdir` itself — Zed never creates missing folders — then
+opens the folder. No thread is created: the project shows up in the next
+`threads` (index poll), its **+** becomes active.
+Answer: `project_created`, or `error` `new_project_failed` (folder already
+exists, parent missing, Zed control disabled, CLI failure — in which case the
+created folder stays).
+
 ### `rename_thread`
 ```ts
 { type: 'rename_thread', threadId: string, title: string }
@@ -350,6 +364,7 @@ Once revoked, a device has its connection closed (code 4401).
   agentIcons?: Record<string, string>,  // raw ACP registry SVGs (Zed's cache), by agent id
   urls?: string[],         // the machine's addresses outside loopback (local IPs, or certificate names)
   pushKey?: string | null, // public VAPID key (base64url): the PWA's Web Push subscription
+  home?: string,           // the machine's home folder: default parent for a new project
 }
 ```
 Sent at bootstrap, and on every notable change (Zed started/closed).
@@ -551,6 +566,13 @@ so as not to show the conversation twice.
 Answer to `new_thread`. To send **after** the `threads` that contains the new
 thread, otherwise the PWA opens an untitled screen. It navigates to it right away.
 
+### `project_created`
+```ts
+{ type: 'project_created', folderPaths: string[] }
+```
+Answer to `new_project`: the created folder, opened in Zed. The project itself
+shows up in the next `threads` (Zed index poll).
+
 ### `permission_resolved`
 ```ts
 {
@@ -598,6 +620,7 @@ the machine's language (French or English). Codes expected by the PWA (others ge
 | `permission_expired` | request already settled | toast, card locked |
 | `elicitation_expired` | question already answered or withdrawn | toast, the card leaves the thread |
 | `new_thread_failed` | Zed did not open a session | toast |
+| `new_project_failed` | project folder not created or not opened | message shown in the "new project" sheet |
 | `not_zra_thread` | closed thread of an agent without a ZRA entry: Zed would reopen it without a shim | toast, read-only |
 | `capability_missing` | the agent does not support the requested ACP method (`session/set_title`, `session/delete`) | toast; the button is hidden when the capability is known |
 | `prompt_refused` | the agent refused the injected prompt (`auto` mode, before the keyboard fallback) | toast |

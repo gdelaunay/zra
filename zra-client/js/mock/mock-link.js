@@ -49,6 +49,8 @@ export class MockLink {
     this.lastError = null
     this.spec = MACHINES[id] || MACHINES['mock-desk']
     this.threads = this.spec.threads.map((t) => ({ ...t }))
+    // Sidebar de Zed simulé : `new_project` y ajoute ses dossiers.
+    this.projects = (this.spec.projects ?? []).map((p) => ({ ...p }))
     this.turns = new Map()   // threadId -> { timers:[], queue:[], turn }
     this.subs = new Set()
     this.pendingPerms = new Map()  // requestId -> { threadId, toolCallId }
@@ -73,7 +75,7 @@ export class MockLink {
       this.push({
         type: 'machine', name: this.spec.name, os: this.spec.os,
         zedRunning: this.spec.zedRunning, version: this.spec.version,
-        agents: AGENTS,
+        agents: AGENTS, home: this.spec.home,
       })
       this.pushThreads()
       for (const t of this.threads) this.pushState(t.threadId)
@@ -88,7 +90,7 @@ export class MockLink {
     this.push({
       type: 'threads',
       threads: this.threads.map((t) => ({ ...t, ...(CAPS[t.agentId] ?? {}) })),
-      projects: this.spec.projects ?? null,
+      projects: this.projects.length ? this.projects : null,
     })
   }
 
@@ -208,6 +210,24 @@ export class MockLink {
         this.pushThreads()
         this.push({ type: 'thread_created', threadId: created.threadId, agentId: agent.id })
         this.pushState(created.threadId)
+        break
+      }
+
+      // Nouveau projet : mkdir simulé puis ouverture Zed — le projet rejoint
+      // le sidebar, sans thread (son « + » devient actif).
+      case 'new_project': {
+        const name = String(msg.name ?? '').trim()
+        const parent = String(msg.parent ?? '').trim()
+        const fail = (message) => this.push({ type: 'error', code: 'new_project_failed', message })
+        if (!name || /[\\/]/.test(name) || name === '.' || name === '..') return fail(tr`Nom de projet invalide : un seul segment de dossier, sans « / » ni « \\ ».`)
+        if (!parent) return fail(tr`Dossier parent invalide : chemin absolu requis.`)
+        const dir = `${parent.replace(/[\\/]+$/, '')}/${name}`
+        if (this.projects.some((p) => p.folderPaths[0] === dir)) return fail(tr`Le dossier « ${dir} » existe déjà.`)
+        this.later(400, () => {
+          this.projects.unshift({ folderPaths: [dir], open: true })
+          this.push({ type: 'project_created', folderPaths: [dir] })
+          this.pushThreads()
+        })
         break
       }
 

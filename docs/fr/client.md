@@ -97,9 +97,9 @@ séquences et les invariants. Résumé :
 
 - elle envoie `hello` `list_threads` `subscribe` `unsubscribe` `load_history`
   `send` `interrupt` `set_option` `cancel_queued` `respond_permission`
-  `new_thread` `rename_thread` `delete_thread` `push_subscribe` `push_unsubscribe` ;
+  `new_thread` `new_project` `rename_thread` `delete_thread` `push_subscribe` `push_unsubscribe` ;
 - elle reçoit `machine` `threads` `thread_state` `acp_event` `history`
-  `thread_created` `permission_resolved` `push_subscribed` `push_unsubscribed` `error`.
+  `thread_created` `project_created` `permission_resolved` `push_subscribed` `push_unsubscribed` `error`.
 
 `acp_event.update` est passé **verbatim** à `js/acp.js`, qui le réduit en
 timeline. Un `sessionUpdate` inconnu n'est jamais une erreur : il s'affiche en
