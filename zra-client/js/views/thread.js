@@ -583,12 +583,18 @@ export function ThreadView({ key, navigate }) {
     }
   }
 
-  /** Erreur d'agent — render_any_thread_error : titre, description markdown
-   * (message + `data` ACP), retry si le prompt est connu, copier, fermer. */
+  /** Erreur d'agent — render_any_thread_error : titre, description markdown,
+   * retry si le prompt est connu, copier, fermer. Comme Zed, que du texte :
+   * `-32603` avec `data = { details }` → le texte `details` devient le message
+   * (`agent_servers/src/acp/v1.rs`, prompt) ; sinon le message, plus `data`
+   * en texte si c'est une string. Pas de bloc JSON (Zed n'en rend pas). */
   function agentErrorSpec(err) {
     let desc = err.message || tr`Erreur inconnue.`
-    if (err.data != null) {
-      desc += typeof err.data === 'string' ? `\n\n${err.data}` : `\n\n\`\`\`json\n${JSON.stringify(err.data, null, 2)}\n\`\`\``
+    const data = err.data
+    if (err.code === -32603 && data && typeof data.details === 'string' && Object.keys(data).length === 1) {
+      desc = data.details
+    } else if (typeof data === 'string') {
+      desc += `\n\n${data}`
     }
     const canRetry = Boolean(err.prompt)
     return {

@@ -18,12 +18,13 @@ const SEVERITY_ICON = { error: 'x-circle', warning: 'alert-triangle', info: 'inf
  *   spinner?, actions?: [{ label, onclick }], copy?: () => void, close?: () => void }.
  * `markdown` : la description est du markdown (erreur d'agent, comme Zed).
  * `spinner` : action en cours (pattern « Authenticating to Claude Code… »),
- * rendu à droite comme dans la galerie.
+ * rendu à droite : `arrow_circle` muted animé 2 s, comme
+ * `render_auth_required_state` (`IconName::ArrowCircle`, rotate 2).
  */
 export function renderCallout({ severity = 'info', title, desc, markdown, spinner, actions, copy, close }) {
   const acts = h('span.callout__actions')
   for (const a of actions || []) acts.append(button('btn', { onclick: a.onclick }, a.label))
-  if (spinner) acts.append(icon('load_circle', 'icon--sm spin'))
+  if (spinner) acts.append(icon('arrow_circle', 'icon--sm spin muted'))
   if (copy) acts.append(button('icon-btn icon-btn--sm', { title: tr`Copier`, 'aria-label': tr`Copier`, onclick: copy }, icon('copy', 'icon--sm')))
   if (close) acts.append(button('icon-btn icon-btn--sm', { title: tr`Fermer`, 'aria-label': tr`Fermer`, onclick: close }, icon('x', 'icon--sm')))
   const body = h('div.callout__body', {},

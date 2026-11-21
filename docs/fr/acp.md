@@ -154,6 +154,10 @@ Côté Zed (1.28.1, sources lues) :
   `code`/`message`/`data` de l'erreur de protocole ; le message affiché est la
   chaîne complète `format!("{:#}", error)` (`ThreadError::Other`,
   `crates/agent_ui/src/conversation_view.rs`).
+- Exception `crates/agent_servers/src/acp/v1.rs` (prompt) : erreur `-32603`
+  avec `data = { details: "…" }` → le texte `details` remplace l'erreur
+  (affiché tel quel, sans « Internal error » ni JSON) ; les autres erreurs
+  gardent leur forme complète.
 - Rendu : callout « An Error Happened » au-dessus du composer
   (`thread_view.rs` `render_any_thread_error`) — description markdown muted,
   retry si le tour peut reprendre (`can_retry`), copier, fermer.
@@ -167,9 +171,11 @@ Côté ZRA :
   `details` + `prompt`.
 - Rendu : le même callout que les états de connexion (`zra-client/js/callout.js`,
   `views/thread.js` `paintCallout`) — titre « Une erreur est survenue »,
-  description markdown (message + `data`), retry du prompt refusé, copier,
-  fermer ; la saisie refusée revient dans le brouillon. Plus d'avis legacy
-  dans le fil pour ces erreurs.
+  description markdown en texte seul (message ; `data` ajouté en texte si
+  c'est une string, jamais de bloc JSON — Zed n'en rend pas), retry du prompt
+  refusé, copier, fermer ; la saisie refusée revient dans le brouillon. Comme
+  Zed, `-32603` avec `data = { details }` affiche le texte `details` en message
+  normal (`agentErrorSpec`). Plus d'avis legacy dans le fil pour ces erreurs.
 
 Agents : tout agent peut refuser un `session/prompt` ; constat réel qwen-code
 (poste Windows, 0.5.3) : `-32603` + détail 403 dans `data`.

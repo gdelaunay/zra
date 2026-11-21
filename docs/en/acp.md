@@ -155,6 +155,10 @@ On the Zed side (1.28.1, sources read):
   `code`/`message`/`data` from the protocol error; the displayed message is the
   full chain `format!("{:#}", error)` (`ThreadError::Other`,
   `crates/agent_ui/src/conversation_view.rs`).
+- Exception in `crates/agent_servers/src/acp/v1.rs` (prompt): `-32603` error
+  with `data = { details: "…" }` → the `details` text replaces the error
+  (displayed as-is, no "Internal error", no JSON); other errors keep their
+  full form.
 - Rendering: "An Error Happened" callout above the composer
   (`thread_view.rs` `render_any_thread_error`) — muted markdown description,
   retry if the turn can resume (`can_retry`), copy, close.
@@ -168,9 +172,12 @@ On the ZRA side:
   `details` + `prompt`.
 - Rendering: the same callout as connection states (`zra-client/js/callout.js`,
   `views/thread.js` `paintCallout`) — title "An Error Happened", markdown
-  description (message + `data`), retry of the refused prompt, copy, close;
-  the refused input returns to the draft. No legacy notice in the feed for
-  these errors anymore.
+  description as plain-text markdown (message; `data` appended as text when
+  it is a string, never a JSON block — Zed renders none), retry of the refused
+  prompt, copy, close; the refused input returns to the draft. Like Zed,
+  `-32603` with `data = { details }` displays the `details` text as a normal
+  message (`agentErrorSpec`). No legacy notice in the feed for these errors
+  anymore.
 
 Agents: any agent can refuse a `session/prompt`; real-world observation
 qwen-code (Windows machine, 0.5.3): `-32603` + 403 detail in `data`.

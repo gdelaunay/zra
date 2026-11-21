@@ -352,7 +352,7 @@ export class MockLink {
         this.push({
           type: 'error', code: 'inject_failed', threadId: id,
           message: tr`L'agent a refusé le message, et le repli clavier a échoué : Internal error.`,
-          details: { code: -32603, data: { error: '403 Access to model denied. Please make sure you are eligible for using the model.' } },
+          details: { code: -32603, data: { details: '403 Access to model denied. Please make sure you are eligible for using the model.' } },
           prompt: [{ type: 'text', text: tr`Message refusé (simulé).` }],
         })
         break

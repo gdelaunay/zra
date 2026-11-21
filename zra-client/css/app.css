@@ -934,8 +934,9 @@ button { cursor: pointer; }
 .completion-aside__body { padding: 0 var(--sp-4); max-height: calc(12 * var(--fs-buffer) * var(--lh)); overflow-y: auto; white-space: pre-wrap; }
 
 /* Callout — callout.rs / galerie zed-ui section 11 : filet haut, fond teinté
-   par sévérité (info 10 %, warning 20 %, error 8 %), p 8 gap 8, icône sur la
-   hauteur de ligne, titre + actions, description muted scrollable (max 128 px). */
+   par sévérité (info 10 %, warning 20 %, error 8 %), p 8 gap 8, icône et
+   ligne de titre sur la hauteur de ligne fenêtre (`h(line_height)` /
+   `min_h(line_height)` de callout.rs), description muted scrollable (max 128 px). */
 .composer-block { display: contents; }
 .callout-slot { display: contents; }
 .callout {
@@ -946,13 +947,17 @@ button { cursor: pointer; }
 .callout--info { background: color-mix(in srgb, var(--info-background) 10%, transparent); }
 .callout--warning { background: color-mix(in srgb, var(--warning-background) 20%, transparent); }
 .callout--error { background: color-mix(in srgb, var(--error) 8%, transparent); }
-.callout__icon { display: flex; align-items: center; min-height: calc(var(--fs-sm) * var(--lh)); flex: none; color: var(--text-muted); }
+.callout__icon { display: flex; align-items: center; height: calc(var(--fs-lg) * var(--lh)); flex: none; color: var(--text-muted); }
 .callout--warning .callout__icon { color: var(--warning); }
 .callout--error .callout__icon { color: var(--error); }
 .callout__body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
-.callout__title-row { display: flex; flex-wrap: wrap; gap: var(--sp-2); justify-content: space-between; align-items: center; }
+.callout__title-row { display: flex; flex-wrap: wrap; gap: var(--sp-2); justify-content: space-between; align-items: center; min-height: calc(var(--fs-lg) * var(--lh)); }
 .callout__title { flex: 1; min-width: 0; }
 .callout__actions { display: flex; gap: var(--sp-1); align-items: center; flex: none; }
+/* Boutons d'icône du callout à la taille Zed (IconButton 20 px, icon.rs) : ils
+   tiennent dans la hauteur de ligne, donc titre et icône restent alignés
+   (l'icon-btn tactile global de 28 px étirerait la ligne de titre). */
+.callout__actions .icon-btn { width: 20px; height: 20px; }
 .callout__desc { color: var(--text-muted); white-space: pre-wrap; word-break: break-word; max-height: 128px; overflow-y: auto; }
 .callout__desc.md { font-size: var(--fs-sm); line-height: var(--lh); white-space: normal; }
 .menu__item--on .icon { color: var(--icon); }
