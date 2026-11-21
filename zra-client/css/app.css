@@ -133,20 +133,21 @@ button { cursor: pointer; }
 /* ---------- primitives (crates/ui) ---------- */
 
 /* Icon : Medium 16, Small 16, XSmall 14. */
-.icon { width: 16px; height: 16px; flex: none; display: block; margin: 4}
+.icon { width: 16px; height: 16px; flex: none; display: block; }
 .icon--sm { width: 16px; height: 16px; }
 .icon--xs { width: 14px; height: 14px; }
 .icon--lg { width: 18px; height: 18px; }
 
-/* IconButton carré : icône + 2 × 2 px (icon.rs square_components). */
+/* IconButton carré : hitbox 28 px pour une icône 16 (× 1.75), plus large que
+ * les 20 px de Zed (icon.rs square_components) — cible tactile, hover aéré.
+ * icon-btn--sm n'a plus de taille propre : ses icônes font aussi 16 px. */
 .icon-btn {
   display: inline-flex; align-items: center; justify-content: center;
-  width: 20px; height: 20px; padding: 0; border-radius: var(--radius);
+  width: 28px; height: 28px; padding: 0; border-radius: var(--radius);
   color: var(--icon);
   background: var(--ghost-element-background);
   flex: none;
 }
-.icon-btn--sm { width: 18px; height: 18px; }
 .icon-btn:hover { background: var(--ghost-element-hover); }
 .icon-btn:active { background: var(--ghost-element-active); }
 .icon-btn[disabled] { color: var(--icon-disabled); background: var(--ghost-element-disabled); pointer-events: none; }
@@ -222,7 +223,7 @@ button { cursor: pointer; }
 
 /* Barre du haut — render_toolbar : 32 px, fond tab_bar_background, filet bas border. */
 .header {
-  display: flex; align-items: center; gap: var(--sp-2);
+  display: flex; align-items: center; gap: var(--sp-3);
   flex: none;
   height: calc(var(--bar-h) + var(--safe-top));
   padding: var(--safe-top) var(--sp-2) 0;
@@ -255,14 +256,14 @@ button { cursor: pointer; }
 }
 .header__meta .path { font-family: var(--font-mono); }
 .header__agent { color: var(--icon-muted); flex: none; padding: 0 var(--sp-1); display: flex; }
-.header__right { display: flex; align-items: center; gap: var(--sp-2); flex: none; }
+.header__right { display: flex; align-items: center; gap: var(--sp-3); flex: none; }
 /* Un peu d'air entre la pastille live et le filet qui suit. */
 .header__right .dot, .header__right .lock-dot { margin-right: var(--sp-3); }
 
 /* Barre du bas — status_bar.rs : fond status_bar.background, padding 4,
  * hauteur 18 + 2 × 4 = 26. Dock droit seulement : filet puis boutons. */
 .bottombar {
-  display: flex; align-items: center; justify-content: flex-end; gap: var(--sp-2);
+  display: flex; align-items: center; justify-content: flex-end; gap: var(--sp-3);
   flex: none;
   height: calc(var(--bar-h) + var(--safe-bottom));
   padding: var(--sp-2) var(--sp-2) calc(var(--sp-2) + var(--safe-bottom));
@@ -470,7 +471,7 @@ button { cursor: pointer; }
 .thought { display: flex; flex-direction: column; gap: var(--sp-2); margin: 0 calc(var(--sp-5) + var(--sp-4)); }
 .thought__head {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 1 var(--sp-2) 1 0; cursor: pointer; width: 100%; text-align: left;
+  padding: 1px var(--sp-2) 1px 0; cursor: pointer; width: 100%; text-align: left;
 }
 .thought__start { display: flex; align-items: center; gap: var(--sp-3); height: calc(25.9px * var(--text-scale) - 2px); color: var(--icon-muted); }
 .thought__name { font-size: var(--fs-md); color: var(--text-muted); }
@@ -789,8 +790,8 @@ button { cursor: pointer; }
 .mention .icon { color: var(--text-muted); flex: none; width: 12px; height: 12px; }
 .mention__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .composer__bar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; min-width: 0; gap: var(--sp-2); }
-.composer__left { display: flex; flex-wrap: wrap; gap: var(--sp-1); min-width: 0; align-items: center; }
-.composer__right { display: flex; flex-wrap: wrap; gap: var(--sp-2); min-width: 0; align-items: center; }
+.composer__left { display: flex; flex-wrap: wrap; gap: var(--sp-2); min-width: 0; align-items: center; }
+.composer__right { display: flex; flex-wrap: wrap; gap: var(--sp-3); min-width: 0; align-items: center; }
 .composer.is-disabled { opacity: .55; pointer-events: none; }
 
 /* Jauge de tokens — render_token_usage : anneau 16, trait 2, orange dès 85 %. */
@@ -841,7 +842,7 @@ button { cursor: pointer; }
  * thread en lecture seule) : muted. Stop — IconButton tinted-error. */
 .send-btn {
   display: inline-flex; align-items: center; justify-content: center;
-  width: 20px; height: 20px; padding: 0; border-radius: var(--radius);
+  width: 28px; height: 28px; padding: 0; border-radius: var(--radius);
   background: var(--element-background); color: var(--text-accent);
   flex: none;
 }
@@ -857,7 +858,7 @@ button { cursor: pointer; }
 .jump {
   position: absolute; right: var(--sp-5); bottom: var(--sp-5);
   display: flex; align-items: center; justify-content: center;
-  width: 26px; height: 26px; border-radius: var(--radius);
+  width: 28px; height: 28px; border-radius: var(--radius);
   background: var(--elevated-surface-background);
   border: 1px solid var(--border-variant);
   box-shadow: var(--shadow-elevated);
