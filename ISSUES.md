@@ -17,8 +17,7 @@ Fait → effet → à faire. Une issue acceptée (on ne fera rien) part dans
   fréquent parmi les parents des projets existants (`threads.projects`,
   `folderPaths` de l'index) ; on crée le dossier puis on l'ouvre via la CLI
   Zed (`defaultZedCli`, `zra-daemon/platform.js` — le pilote s'en sert déjà
-  pour ouvrir des dossiers, `zed/driver.js`). À vérifier : la CLI Zed
-  crée-t-elle le dossier s'il n'existe pas, ou faut-il un `mkdir` avant ?
-  Points ouverts : nom du dossier (saisi par l'utilisateur ? généré ?),
-  départage en cas d'égalité ou d'absence de projets.
+  pour ouvrir des dossiers, `zed/driver.js`). Conception détaillée — points
+  ouverts tranchés, faits vérifiés dans les sources de Zed :
+  `reference/conception-nouveau-projet.md`.
 
