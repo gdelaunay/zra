@@ -3,6 +3,7 @@
 
 import { emitter } from './dom.js'
 import { tr } from './i18n.js'
+import { isRelay } from './settings.js'
 
 const BACKOFF = [1000, 2000, 4000, 8000, 16000, 30000]
 /** Au-delà du backoff court : un poste mort est retenté à ce rythme, pas plus. */
@@ -225,14 +226,15 @@ export class DaemonLink {
    */
   async diagnose() {
     let msg
+    const relay = isRelay()
     try {
       const res = await fetch(this.url, { cache: 'no-store', signal: AbortSignal.timeout(5000) })
-      if (res.status === 403) msg = tr`Accès refusé (403) — origine ou IP non autorisée (proxy, allowedOrigins).`
-      else if (res.status === 502 || res.status === 503 || res.status === 504) msg = tr`Le proxy répond mais pas le poste — machine éteinte ou daemon arrêté ?`
+      if (res.status === 403) msg = relay ? tr`Adresse refusée par le relais — IP privée uniquement (réseau local ou tunnel).` : tr`Accès refusé (403) — origine ou IP non autorisée (proxy, allowedOrigins).`
+      else if (res.status === 502 || res.status === 503 || res.status === 504) msg = relay ? tr`Le relais répond mais pas le poste — machine éteinte ou daemon arrêté ?` : tr`Le proxy répond mais pas le poste — machine éteinte ou daemon arrêté ?`
       else if (!res.ok) msg = tr`Le serveur répond ${res.status} — configuration à vérifier.`
       else msg = tr`Le poste répond, mais le WebSocket échoue — réessai en cours.`
     } catch {
-      msg = tr`Poste injoignable — réseau ou VPN coupé ?`
+      msg = relay ? tr`Relais injoignable — réseau ou VPN coupé ?` : tr`Poste injoignable — réseau ou VPN coupé ?`
     }
     if (this.status === 'online') return
     this.diag = msg

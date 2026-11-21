@@ -1,7 +1,7 @@
 // Amorçage : thème, transport (réel ou mock), routeur.
 
 import { h, clear, revealScrollbar } from './dom.js'
-import { settings, applyTheme, applyTextScale, update as updateSettings } from './settings.js'
+import { settings, applyTheme, applyTextScale, detectRelayMode, update as updateSettings } from './settings.js'
 import * as store from './store.js'
 import { ThreadsView } from './views/threads.js'
 import { ThreadView } from './views/thread.js'
@@ -74,6 +74,9 @@ async function boot() {
   document.documentElement.lang = lang
 
   const mock = isMock()
+  // Mode relais (PWA servie par zra-relay) : détecté avant de construire les
+  // postes — la saisie d'une IP devient une route `/to/<ip>` sur l'origine.
+  if (!mock) await detectRelayMode()
   store.init({ mock: mock ? (await import('./mock/mock-link.js')).MockLink : null })
 
   store.on('error', (err) => {

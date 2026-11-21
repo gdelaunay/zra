@@ -11,6 +11,7 @@
   "scripts": {
     "daemon": "node --no-warnings zra-daemon/index.js",
     "daemon:dev": "node --no-warnings zra-daemon/index.js --loopback-only",
+    "relay": "node --no-warnings zra-relay/index.js",
     "mock": "node zra-client/tools/mock-server.mjs",
     "test": "node scripts/test.mjs",
     "fixture": "node --no-warnings scripts/make-fixture.mjs",

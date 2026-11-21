@@ -5,6 +5,6 @@ import { join } from 'node:path'
 
 const root = join(import.meta.dirname, '..')
 const run = (args) => spawnSync(process.execPath, args, { cwd: root, stdio: 'inherit', env: { ...process.env, ZRA_LANG: 'fr' } }).status
-const tests = run(['--no-warnings', '--test', 'zra-client/test/*.test.mjs', 'zra-daemon/test/*.test.mjs', 'zra-shim/test/*.test.mjs'])
+const tests = run(['--no-warnings', '--test', 'zra-client/test/*.test.mjs', 'zra-daemon/test/*.test.mjs', 'zra-shim/test/*.test.mjs', 'zra-relay/test/*.test.mjs'])
 const i18n = run(['scripts/i18n-test.mjs'])
 process.exitCode = tests || i18n ? 1 : 0

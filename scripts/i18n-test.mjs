@@ -8,7 +8,7 @@ import { join } from 'node:path'
 
 const root = join(import.meta.dirname, '..')
 const bricks = [
-  { dirs: 'zra-daemon zra-shim scripts zra-client/tools', catalog: 'i18n/en.json', prefix: '' },
+  { dirs: 'zra-daemon zra-shim zra-relay scripts zra-client/tools', catalog: 'i18n/en.json', prefix: '' },
   { dirs: 'zra-client/js', catalog: 'zra-client/js/en.js', prefix: 'export default ' },
 ]
 const skip = /\/test\/|i18n(-test)?\.m?js$/

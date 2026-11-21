@@ -5,7 +5,7 @@ import { icon } from '../icons.js'
 import { THEMES } from '../themes.js'
 import { ICON_SETS } from '../file-icons.js'
 import * as settingsModule from '../settings.js'
-import { settings, applyTheme, applyTextScale, currentThemeId, update as updateSettings } from '../settings.js'
+import { settings, applyTheme, applyTextScale, currentThemeId, isRelay, update as updateSettings } from '../settings.js'
 import * as store from '../store.js'
 import { openSheet, openMenu, toast, confirmSheet } from '../ui.js'
 import { pushSupported, enablePush, disablePush } from '../push.js'
@@ -42,7 +42,7 @@ function machinesSection(api) {
     ))
   }
 
-  const input = h('input.input', { placeholder: tr`10.0.0.2 ou http://10.0.0.2:7777`, inputmode: 'url', autocapitalize: 'off', spellcheck: 'false' })
+  const input = h('input.input', { placeholder: isRelay() ? tr`10.0.0.2 — IP du poste` : tr`10.0.0.2 ou http://10.0.0.2:7777`, inputmode: 'url', autocapitalize: 'off', spellcheck: 'false' })
   const add = () => {
     const res = settingsModule.addMachine(input.value)
     if (res.error) return toast(res.error, { level: 'error' })
@@ -57,7 +57,7 @@ function machinesSection(api) {
     h('span.label', { text: tr`Postes` }),
     list,
     h('div.row', {}, h('span', { style: { flex: 1 } }, input), button('btn', { onclick: add }, icon('plus', 'icon--sm'), tr`Ajouter`)),
-    h('span.composer__hint', { text: tr`Adresse du daemon. Port 7777 par défaut en http, 443 en https (derrière un reverse proxy).` }),
+    h('span.composer__hint', { text: isRelay() ? tr`IP du poste sur le réseau local ou le tunnel. Le relais construit la route (port 7777).` : tr`Adresse du daemon. Port 7777 par défaut en http, 443 en https (derrière un reverse proxy).` }),
   )
 }
 

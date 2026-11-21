@@ -9,6 +9,24 @@ const KEY = 'zra.settings.v2'
 const e = emitter()
 export const onSettings = e.on
 
+/**
+ * Mode relais : la PWA est servie par `zra-relay` (même origine), qui joint
+ * les postes par leur IP (`/to/<ip>/ws`). Détecté au démarrage par le marqueur
+ * `/zra-relay` ; sinon, comportement direct (proxy par poste).
+ */
+let relayOn = false
+export const isRelay = () => relayOn
+export function setRelayMode(on) { relayOn = Boolean(on) }
+
+export async function detectRelayMode() {
+  if (!globalThis.location?.protocol?.startsWith('http')) return setRelayMode(false)
+  try {
+    const res = await fetch(`${location.origin}/zra-relay`, { cache: 'no-store', signal: AbortSignal.timeout(3000) })
+    setRelayMode(res.ok && (await res.json())?.relay === true)
+  } catch { setRelayMode(false) }
+  return relayOn
+}
+
 function load() {
   let raw = null
   try { raw = JSON.parse(localStorage.getItem(KEY) || 'null') } catch { /* stockage corrompu */ }
@@ -64,14 +82,22 @@ export function update(patch) {
  * ouvrir qu'un `wss://` (contenu mixte bloqué). Sans port : en HTTP celui du
  * daemon, 7777 ; en HTTPS le port standard, 443 — le daemon est alors derrière
  * un reverse proxy (docs/fr/deploy.md §4). Un port explicite est toujours respecté.
+ *
+ * En mode relais : seule l'IPv4 du poste compte, la route est construite sur
+ * l'origine de la page (`/to/<ip>`, le port du daemon est fixe côté relais).
  */
-export function normalizeUrl(input, pageProtocol = globalThis.location?.protocol) {
+export function normalizeUrl(input, pageProtocol = globalThis.location?.protocol, origin = globalThis.location?.origin) {
   let s = String(input || '').trim()
   if (!s) return null
   if (!/^https?:\/\//i.test(s)) s = `${pageProtocol === 'https:' ? 'https' : 'http'}://${s}`
-  const explicitPort = /^https?:\/\/(\[[^\]]*\]|[^/:]*):\d+/i.test(s)
   let u
   try { u = new URL(s) } catch { return null }
+  if (relayOn) {
+    const ip = u.hostname
+    if (!/^\d{1,3}(\.\d{1,3}){3}$/.test(ip) || ip.split('.').some((p) => Number(p) > 255)) return null
+    return `${origin}/to/${ip}`
+  }
+  const explicitPort = /^https?:\/\/(\[[^\]]*\]|[^/:]*):\d+/i.test(s)
   if (!explicitPort && u.protocol === 'http:') u.port = '7777'
   u.pathname = u.pathname.replace(/\/+$/, '')
   return u.origin + (u.pathname === '/' ? '' : u.pathname)
@@ -95,7 +121,12 @@ export function renameMachine(id, label) {
 }
 
 export function hostLabel(url) {
-  try { return new URL(url).hostname } catch { return url }
+  try {
+    const u = new URL(url)
+    // Route relais : le poste se nomme par l'IP visée, pas par l'hôte du relais.
+    const m = /^\/to\/([^/]+)/.exec(u.pathname)
+    return m ? m[1] : u.hostname
+  } catch { return url }
 }
 
 /** Thème résolu en mode auto : One dark/light selon le navigateur. */
@@ -137,6 +168,8 @@ export function applyTextScale(scale = settings.textScale) {
  */
 export function originMachine() {
   if (!location.protocol.startsWith('http')) return null
+  // Servi par le relais : l'origine est celle du homelab, pas d'un poste.
+  if (relayOn) return null
 
   const local = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname)
   const servedByDaemon = location.port === '7777'

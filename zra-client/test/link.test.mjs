@@ -33,6 +33,7 @@ globalThis.localStorage ??= {
 }
 
 const { DaemonLink } = await import('../js/link.js')
+const { setRelayMode } = await import('../js/settings.js')
 
 let clock
 beforeEach(() => { FakeSocket.all.length = 0 })
@@ -254,4 +255,23 @@ test('trois échecs : le GET de diagnostic dit pourquoi (502, réseau, 403)', as
   FakeSocket.all.at(-1).open()
   assert.equal(l.diag, null)
   assert.equal(l.lastError, null)
+})
+
+test('mode relais : le diagnostic parle du relais, pas du proxy', async (t) => {
+  setRelayMode(true)
+  t.after(() => setRelayMode(false))
+  const responses = []
+  globalThis.fetch = async () => responses.shift()
+  t.after(() => { delete globalThis.fetch })
+  const l = new DaemonLink({ id: 'desk', url: 'https://zra.exemple.fr/to/10.0.0.2', clientId: 'c1' })
+  t.after(() => l.close())
+  responses.push({ ok: false, status: 502 })
+  await l.diagnose()
+  assert.equal(l.lastError, 'Le relais répond mais pas le poste — machine éteinte ou daemon arrêté ?')
+  responses.push({ ok: false, status: 403 })
+  await l.diagnose()
+  assert.equal(l.lastError, 'Adresse refusée par le relais — IP privée uniquement (réseau local ou tunnel).')
+  responses.push(Promise.reject(new Error('réseau coupé')))
+  await l.diagnose()
+  assert.equal(l.lastError, 'Relais injoignable — réseau ou VPN coupé ?')
 })
