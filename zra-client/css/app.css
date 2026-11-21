@@ -115,16 +115,19 @@ button { cursor: pointer; }
 :focus-visible { outline: 1px solid var(--border-focused); outline-offset: 1px; }
 
 /* Scrollbar fine comme le style « Regular » de Zed (thumb 6 px), masquée au
- * repos : `.is-scrolling` (posée par main.js) la révèle au scroll, fondu
- * sortie 400 ms / entrée 50 ms, délai 1 s (ui/components/scrollbar.rs). */
+ * repos : `.is-scrolling` (posée par main.js) la révèle au scroll, délai 1 s,
+ * fondus sortie 400 ms / entrée 50 ms (ui/components/scrollbar.rs). Blink
+ * n'anime pas les pseudo-éléments de scrollbar : le fondu passe par une
+ * propriété enregistrée, interpolée sur l'élément qui scrolle. */
+@property --sb-alpha { syntax: '<number>'; inherits: true; initial-value: 0; }
+* { transition: --sb-alpha 400ms; }
+.is-scrolling { --sb-alpha: 1; transition-duration: 50ms; }
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-thumb {
-  background: transparent;
+  background: color-mix(in srgb, var(--scrollbar-thumb-background) calc(var(--sb-alpha) * 100%), transparent);
   border-radius: 6px;
-  transition: background-color 400ms;
 }
-.is-scrolling::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb-background); transition-duration: 50ms; }
-::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover-background); transition-duration: 50ms; }
+::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover-background); }
 ::-webkit-scrollbar-track { background: transparent; }
 
 /* ---------- primitives (crates/ui) ---------- */
