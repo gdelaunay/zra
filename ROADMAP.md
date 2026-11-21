@@ -21,10 +21,6 @@ datés, avec le hash du commit de référence ; ROADMAP à jour ; puis commit
 
 ## Ouvert
 
-Références visuelles de l'interface Zed : `reference/zed-ui/agent-panel.html` (panel),
-`reference/zed-ui/threads-sidebar.html` (liste des threads et historique),
-`reference/zed-ui/bottom-bar.html` (barre du bas) — styles et script communs dans `reference/zed-ui/shared/`.
-
 ### Backfill des fiches ACP
 
 `docs/fr/acp.md` ne couvre que renommer/supprimer (0.5.1). Les fonctionnalités
@@ -48,21 +44,11 @@ robustesse, distribution, ordre de réalisation — : `reference/conception-zra-
 
 ## Pistes
 
-### Homelab — la réponse retenue au problème central
-
-La réponse au problème du poste qui doit rester allumé. À formaliser en doc
-avant la 0.6 (si possible). Public visé : ceux qui ont déjà un homelab.
-
-- PWA hostée sur le homelab (Nginx/Caddy + HTTPS)
-- Homelab peut **wake** le desktop via Wake-on-LAN
-- Desktop au réveil : daemon systemd → lance Zed → shim enregistre les agents
-- Accès via WireGuard (LAN virtualisé, pas d'exposition publique)
-
-#### Piste — appui long sur un poste : wake-on-LAN
+### Appui long sur un poste : wake-on-LAN
 
 Dans la liste des threads, appui long sur un poste → bouton pour le réveiller :
- Wake-on-LAN, ou commande plus complexe pour récupérer Zed actif (réveil +
+Wake-on-LAN, ou commande plus complexe pour récupérer Zed actif (réveil +
 lancement de Zed). Le daemon (Node) peut émettre le paquet magique UDP ; il lui
-faut l'adresse MAC du poste, et le broadcast n'atteint que le LAN local — depuis un
-autre réseau, passer par le homelab (ci-dessus). À instruire si le besoin se
-confirme.
+faut l'adresse MAC du poste, et le broadcast n'atteint que le LAN local — depuis
+un autre réseau, passer par une machine toujours allumée du LAN. À instruire si
+le besoin se confirme.
