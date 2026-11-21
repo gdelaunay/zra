@@ -1,6 +1,6 @@
 # ZRA — roadmap
 
-Version actuelle : **0.5.2**. Un numéro mineur par jalon (0.4, 0.5…) ; entre deux
+Version actuelle : **0.5.3**. Un numéro mineur par jalon (0.4, 0.5…) ; entre deux
 jalons, un numéro de correctif (0.5.1…) pour un lot retenu — corrections comme
 petites fonctions — quand ce lot est fini. L'historique est dans `CHANGELOG.md`.
 
@@ -13,7 +13,7 @@ datés, avec le hash du commit de référence ; ROADMAP à jour ; puis commit
 - **0.5 — coller au panneau agent de Zed** (fait — retouches d'interface, recopie du panel ; voir `CHANGELOG.md`) ;
 - **0.5.1 — threads** (fait — renommer/supprimer par ACP, titre éditable, push ; voir `CHANGELOG.md`) ;
 - **0.5.2 — composer** (fait — commandes `/`, mentions `@`, icônes de fichiers ; voir `CHANGELOG.md`) ;
-- **0.5.3 — tous les threads par le shim** : l'entrée d'origine passe par le shim, les threads anciens compris ;
+- **0.5.3 — tous les threads par le shim** (fait — entrée d'origine shimée par preload node, threads anciens compris ; voir `CHANGELOG.md`) ;
 - **0.5.4 — relais HTTPS** : la PWA servie avec un relais, plus de proxy par poste ;
 - **0.6 — `zra-tray`** : le tray natif Rust et la distribution binaire.
 
@@ -30,26 +30,6 @@ Références visuelles de l'interface Zed : `reference/zed-agent-panel/` (panel)
 `docs/fr/acp.md` ne couvre que renommer/supprimer (0.5.1). Les fonctionnalités
 ACP déjà livrées (relais et observation, permissions, élicitation, modes et
 options, terminaux, `session/load`…) restent à y consigner, fiche par méthode.
-
-### 0.5.3 — Tous les threads par le shim
-
-Que `npm run setup` fasse passer l'entrée d'origine (`claude-acp`) elle-même
-par le shim, plutôt que d'ajouter `Claude Agent (zra)` à côté. Tous les threads,
-anciens compris, deviendraient pilotables, et il n'y aurait plus deux familles
-d'agents. L'entrée reste `registry` — Zed continue d'installer et de mettre à
-jour l'agent — et le shim est injecté par l'env (preload node). Les agents
-binaires (non-node) gardent l'entrée `… (zra)` à côté.
-
-Conception détaillée — mécanique de Zed, preload `--import data:`, launcher
-fail-open, limites — : `reference/conception-shim-registry.md`.
-
-### Threads créés hors ZRA : lecture seule
-
-Les threads d'un agent que ZRA n'enveloppe pas (`claude-acp`, créés avant ZRA)
-se lisent mais ne s'écrivent pas une fois fermés : Zed les rouvre avec l'agent
-d'origine, sans shim (`not_zra_thread`). La PWA le signale (cadenas à la place
-de la pastille, bandeau dans le thread). Solution : « 0.5.3 — Tous les
-threads par le shim » ci-dessus.
 
 ### 0.5.4 — Relais HTTPS
 

@@ -100,6 +100,18 @@ emits `session/load` and the daemon follows it. Fixing it (inferring the unload
 from an unexpected `session/load`) would be hacky for little gain; accepted as
 is.
 
+## Threads of binary agents created outside ZRA: read-only
+
+Since 0.5.3, npx agents (claude-acp, pi-acp, qwen-code…) go through the shim
+via their original entry: all their threads, old ones included, are drivable.
+Binary agents (non-node: opencode, kimi, amp…) keep a `… (zra)` entry
+alongside — `NODE_OPTIONS` has no effect on a binary. Their threads created
+with the original entry (before ZRA, or directly in Zed) can be read but not
+written to once closed: Zed reopens them without a shim (`not_zra_thread`,
+lock and banner in the PWA).
+→ Accepted as is: answer those threads in Zed; new threads opened with the
+"… (zra)" entry are drivable.
+
 ## Reopening a thread with a non-unique title
 
 The `openThread` recipe filters Zed's sidebar by the thread title then opens

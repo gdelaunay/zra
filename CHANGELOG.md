@@ -2,6 +2,16 @@
 
 [English](https://forgejo.gdelaunay.fr/gdelaunay/zra/src/branch/main/CHANGELOG.en.md)
 
+## v0.5.3 — 2026-11-21 — Tous les threads par le shim (`3aff3ff`)
+
+- L'entrée d'origine des agents npx (`claude-acp`, `pi-acp`, `qwen-code`…) passe par le shim : elle reste `registry` — Zed garde l'installation et les mises à jour — et son `env` porte un preload node (`NODE_OPTIONS --import data:` percent-encodé) qui lance le shim avant le code de l'agent. Tous les threads, anciens compris, deviennent pilotables : plus de cadenas (`not_zra_thread`) ni de deux familles d'agents ; les entrées `… (zra)` des agents npx sont dégagées à l'install (confirmation)
+- Fail-open jusqu'au bout : ZRA supprimé sans uninstall, l'import dynamique échoue, le `catch` avale, l'agent démarre tel quel ; daemon absent ou planté, le relai continue ; dépôt déplacé, preload silencieux (`setup status` le signale). Le `NODE_OPTIONS` de l'utilisateur est conservé, l'`npm install` de Zed n'est pas affecté
+- Launcher (`zra-shim/launcher.mjs`) : spawn le shim autour de la commande de Zed, stdio inherit, code de sortie transmis, `NODE_OPTIONS` retiré de l'env transmis (pas de cascade vers l'agent ni ses sous-process node), garde `ZRA_SHIMMED`, journal fichier uniquement
+- Édition chirurgicale de l'env (`upsertAgentServerEnv`, `removeAgentServerEnv`) : seule la tranche env change, le reste du fichier reste octet pour octet ; uninstall rend l'env des entrées d'origine et retire l'entrée réduite à `{"type":"registry"}` ; agents binaires inchangés (entrée `… (zra)` à côté, `NODE_OPTIONS` sans effet sur un binaire)
+- Résolution de commande sans preload ni `ZRA_*` (`withoutZraEnv`) : le daemon qui relit un thread fermé et le shim lancent l'agent sans re-preload ; entrée registry shimée reconnue (`isPreloadEntry`), `wraps` posé pour la PWA
+- Tests : launcher en vrais processus (chaîne réelle, fail-open launcher/shim absents, double preload, pas de cascade), round-trip install→uninstall à l'octet, résolution et détection ; issue notée : erreurs de l'agent (détail `error.data` perdu, rendu legacy vs callout « An Error Happened » de Zed)
+- Doc : lignes `zed.md` vérifiées dans v1.28.1 (`settings_env` appliqué en dernier, Install/Remove du panneau registry), `shim.md` (les deux cas, launcher), `architecture.md`, `deploy.md`, `limitations.md` (threads des binaires créés hors ZRA), README — bilingue
+
 ## v0.5.2 — 2026-11-21 — Composer : commandes `/`, mentions `@` (`0224107`)
 
 - Commandes `/` : menu de complétion fuzzy ancré au caret (navigation ↑↓ stable, fermeture à l'espace), aparté de description, hint d'argument via le shim ; validation à l'envoi avec callout d'erreur ; Échap masque le menu jusqu'à la prochaine saisie

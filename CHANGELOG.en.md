@@ -2,6 +2,16 @@
 
 [Français](https://forgejo.gdelaunay.fr/gdelaunay/zra/src/branch/main/CHANGELOG.md)
 
+## v0.5.3 — 2026-11-21 — Every thread through the shim (`3aff3ff`)
+
+- The original entry of npx agents (`claude-acp`, `pi-acp`, `qwen-code`…) goes through the shim: it stays `registry` — Zed keeps installation and updates — and its `env` carries a node preload (`NODE_OPTIONS --import data:`, percent-encoded) that launches the shim before the agent's code. Every thread, old ones included, becomes drivable: no more lock (`not_zra_thread`) or two families of agents; the `… (zra)` entries of npx agents are removed at install (confirmation)
+- Fail-open all the way: ZRA deleted without uninstall, the dynamic import fails, the `catch` swallows it, the agent starts as-is; daemon absent or crashed, the relay continues; repository moved, silent preload (`setup status` reports it). The user's `NODE_OPTIONS` is kept, Zed's `npm install` is unaffected
+- Launcher (`zra-shim/launcher.mjs`): spawns the shim around Zed's command, stdio inherit, exit code forwarded, `NODE_OPTIONS` removed from the forwarded env (no cascade to the agent or its node subprocesses), `ZRA_SHIMMED` guard, file-only log
+- Surgical env editing (`upsertAgentServerEnv`, `removeAgentServerEnv`): only the env slice changes, the rest of the file stays byte for byte; uninstall restores the original entries' env and removes an entry reduced to `{"type":"registry"}`; binary agents unchanged (`… (zra)` entry alongside, `NODE_OPTIONS` has no effect on a binary)
+- Command resolution without the preload or `ZRA_*` (`withoutZraEnv`): the daemon replaying a closed thread and the shim launch the agent without re-preload; shimmed registry entry recognized (`isPreloadEntry`), `wraps` set for the PWA
+- Tests: launcher in real processes (real chain, fail-open with launcher/shim absent, double preload, no cascade), byte-identical install→uninstall round-trip, resolution and detection; issue noted: agent errors (`error.data` detail lost, legacy rendering vs Zed's "An Error Happened" callout)
+- Doc: `zed.md` lines verified in v1.28.1 (`settings_env` applied last, registry panel Install/Remove), `shim.md` (both cases, launcher), `architecture.md`, `deploy.md`, `limitations.md` (threads of binaries created outside ZRA), README — bilingual
+
 ## v0.5.2 — 2026-11-21 — Composer: `/` commands, `@` mentions (`0224107`)
 
 - `/` commands: fuzzy completion menu anchored to the caret (stable ↑↓ navigation, closes on space), description aside, argument hint via the shim; validation on send with an error callout; Escape hides the menu until the next input

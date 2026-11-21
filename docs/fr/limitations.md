@@ -102,6 +102,18 @@ capacité et reçoit bien son `session/close`.
 `session/load` inattendu) serait du bidouillage pour un gain faible ; accepté
 en l'état.
 
+## Threads d'agents binaires créés hors ZRA : lecture seule
+
+Depuis la 0.5.3, les agents npx (claude-acp, pi-acp, qwen-code…) passent par le
+shim via leur entrée d'origine : tous leurs threads, anciens compris, sont
+pilotables. Les agents binaires (non-node : opencode, kimi, amp…) gardent une
+entrée `… (zra)` à côté — `NODE_OPTIONS` n'a pas d'effet sur un binaire. Leurs
+threads créés avec l'entrée d'origine (avant ZRA, ou directement dans Zed) se
+lisent mais ne s'écrivent pas une fois fermés : Zed les rouvre sans shim
+(`not_zra_thread`, cadenas et bandeau sur la PWA).
+→ Accepté en l'état : ces threads se répondent dans Zed ; les nouveaux threads
+ouverts avec l'entrée `… (zra)` sont pilotables.
+
 ## Réouverture d'un thread au titre non unique
 
 La recette `openThread` filtre le sidebar de Zed par le titre du thread puis

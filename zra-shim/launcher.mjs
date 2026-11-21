@@ -6,10 +6,10 @@
 // arguments — stdio inherit, et sort avec le code de sortie de l'enfant. Le
 // code de l'agent ne tourne jamais dans ce processus.
 //
-// **Fail-open, règle absolue** (conception : reference/conception-shim-registry.md) :
-// toute erreur — fichier introuvable, spawn raté, exception — ne fait rien et
-// laisse l'agent démarrer ici, sans ZRA. ZRA supprimé : l'import dynamique du
-// payload échoue, ce fichier n'est même pas chargé.
+// **Fail-open, règle absolue** : toute erreur — fichier introuvable, spawn
+// raté, exception — ne fait rien et laisse l'agent démarrer ici, sans ZRA.
+// ZRA supprimé : l'import dynamique du payload échoue, ce fichier n'est même
+// pas chargé.
 //
 // Journal : fichier ZRA uniquement, jamais stdout (c'est le canal ACP de Zed).
 
