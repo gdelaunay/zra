@@ -24,8 +24,8 @@ test('adresses : le poste prend la première, les appareils les suivantes', () =
   assert.equal(hostAt('10.77.0.0/24', 1), '10.77.0.1')
   assert.equal(hostAt('10.77.0.9/24', 2), '10.77.0.2', 'adresse de réseau normalisée')
   assert.equal(hostAt('172.20.0.0/16', 300), '172.20.1.44')
-  assert.throws(() => hostAt('10.77.0.0/24', 255), /plus d'adresse libre/)
-  assert.throws(() => hostAt('10.77.0/24', 1), /plage invalide/)
+  assert.throws(() => hostAt('10.77.0.0/24', 255), /Plus d'adresse libre/)
+  assert.throws(() => hostAt('10.77.0/24', 1), /Plage invalide/)
 })
 
 test('endpoint : port ajouté au besoin, IPv6 entre crochets', () => {

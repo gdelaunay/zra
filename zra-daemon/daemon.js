@@ -87,7 +87,7 @@ export async function startDaemon(config) {
   const readPublic = config.publicNetworks ?? publicNetworks
   const refreshPublic = async () => {
     const res = await readPublic()
-    if (res.error) log.warn(tr`profils réseau illisibles (${res.error}) : réseaux publics non filtrés`)
+    if (res.error) log.warn(tr`Profils réseau illisibles (${res.error}) : réseaux publics non filtrés.`)
     publicNames = res.names
   }
   // `config.interfaces` : interfaces factices, pour les tests du suivi du réseau.
@@ -223,7 +223,7 @@ export async function startDaemon(config) {
   const presence = new ZedPresence({ intervalMs: config.zedProbeMs, detect: config.zedProbe })
   presence.onChange((running) => {
     machine.zedRunning = running
-    log.info(running ? tr`Zed est lancé` : tr`Zed est fermé`)
+    log.info(running ? tr`Zed est lancé.` : tr`Zed est fermé.`)
     // Zed fermé : plus aucun projet ouvert, quoi que garde sa base.
     threads.refresh()
     hub.broadcast({ type: 'machine', ...machine.describe() })
@@ -298,18 +298,18 @@ export async function startDaemon(config) {
     return hosts.map((h) => `${scheme}://${h}:${config.port}`)
   }
   machine.urls = publicUrls()
-  const announce = (a) => log.info(tr`écoute ${`${scheme}://${a}:${config.port}`}  (${`${wsScheme}://${a}:${config.port}/ws`})`)
-  log.info(tr`poste « ${machine.name} » — ${threads.threads.length} thread(s) dans l'index`)
+  const announce = (a) => log.info(tr`Écoute ${`${scheme}://${a}:${config.port}`}  (${`${wsScheme}://${a}:${config.port}/ws`})`)
+  log.info(tr`Poste « ${machine.name} » — ${threads.threads.length} thread(s) dans l'index.`)
   for (const a of addresses) announce(a)
-  if (tunnel) log.info(tr`tunnel : ${tunnel.name} (${tunnel.address}, ${tunnel.how})`)
-  else if (config.requireTunnel) log.warn(tr`tunnel absent : on l’attend (--wait-tunnel)`)
-  if (lan.length) log.info(tr`réseau local : ${lan.map((i) => `${i.name} (${i.address})`).join(', ')}`)
+  if (tunnel) log.info(tr`Tunnel : ${tunnel.name} (${tunnel.address}, ${tunnel.how}).`)
+  else if (config.requireTunnel) log.warn(tr`Tunnel absent : on l’attend (--wait-tunnel).`)
+  if (lan.length) log.info(tr`Réseau local : ${lan.map((i) => `${i.name} (${i.address})`).join(', ')}`)
   const logSkipped = (list) => {
     if (!list?.length) return
-    log.warn(tr`réseau marqué Public, pas d'écoute : ${list.map((i) => `${i.name} (${i.address})`).join(', ')} — si c’est un réseau de confiance : Paramètres Windows › Réseau › propriétés du réseau › profil « Privé » (docs/fr/deploy.md §1)`)
+    log.warn(tr`Réseau marqué Public, pas d'écoute : ${list.map((i) => `${i.name} (${i.address})`).join(', ')} — si c’est un réseau de confiance : Paramètres Windows › Réseau › propriétés du réseau › profil « Privé » (docs/fr/deploy.md §1).`)
   }
   logSkipped(skipped)
-  if (!tunnel && !lan.length) log.warn(tr`ni réseau local ni tunnel : écoute en loopback seule`)
+  if (!tunnel && !lan.length) log.warn(tr`Ni réseau local ni tunnel : écoute en loopback seule.`)
 
   // Le réseau vit sa vie : tunnel coupé puis rétabli, Wi-Fi de la maison puis
   // du bureau. Le daemon suit, sans jamais s'arrêter — les shims du poste ont
@@ -322,15 +322,15 @@ export async function startDaemon(config) {
     rebinding = rebinding.then(async () => {
       const was = previous?.tunnel
       if (next.tunnel && (!was || was.address !== next.tunnel.address)) {
-        log.info(was ? tr`tunnel changé : ${next.tunnel.name} (${next.tunnel.address}, ${next.tunnel.how})` : tr`tunnel apparu : ${next.tunnel.name} (${next.tunnel.address}, ${next.tunnel.how})`)
-      } else if (!next.tunnel && was) log.warn(tr`tunnel ${was.name} disparu`)
+        log.info(was ? tr`Tunnel changé : ${next.tunnel.name} (${next.tunnel.address}, ${next.tunnel.how}).` : tr`Tunnel apparu : ${next.tunnel.name} (${next.tunnel.address}, ${next.tunnel.how}).`)
+      } else if (!next.tunnel && was) log.warn(tr`Tunnel ${was.name} disparu.`)
       logSkipped(next.skipped)
       try {
         const { opened, closed } = await servers.setAddresses(next.addresses)
-        for (const a of closed) log.info(tr`écoute ${a} fermée`)
+        for (const a of closed) log.info(tr`Écoute ${a} fermée.`)
         for (const a of opened) announce(a)
       } catch (err) {
-        log.warn(tr`écoute impossible : ${err.message}`)
+        log.warn(tr`Écoute impossible : ${err.message}`)
       }
       machine.urls = publicUrls()
       hub.broadcast({ type: 'machine', ...machine.describe() })
@@ -350,31 +350,31 @@ export async function startDaemon(config) {
   // et son échéance surveillée : un certificat expiré, c'est une PWA qui ne
   // s'ouvre plus du tout.
   const tlsWatch = config.tls ? watchTls({ config, servers }) : null
-  log.info(backend.ownsQueue ? tr`injection : backend ${backend.name} (file tenue par le shim)` : tr`injection : backend ${backend.name}`)
-  if (backend.name === 'uia' || backend.name === 'auto') log.warn(tr`backend ${backend.name} expérimental : le texte du mobile est tapé au clavier dans Zed`)
+  log.info(backend.ownsQueue ? tr`Injection : backend ${backend.name} (file tenue par le shim).` : tr`Injection : backend ${backend.name}`)
+  if (backend.name === 'uia' || backend.name === 'auto') log.warn(tr`Backend ${backend.name} expérimental : le texte du mobile est tapé au clavier dans Zed.`)
   if (driver.enabled) {
-    log.info(tr`pilotage de Zed : backend clavier ${driver.runner?.name ?? '?'}`)
-    const recipes = Object.keys(driver.recipes).filter((k) => driver.has(k)).join(', ') || tr`aucune`
-    log.warn(driver.dryRun ? tr`pilotage de Zed au clavier ACTIVÉ (simulation, aucune touche envoyée) — recettes : ${recipes}` : tr`pilotage de Zed au clavier ACTIVÉ — recettes : ${recipes}`)
+    log.info(tr`Pilotage de Zed : backend clavier ${driver.runner?.name ?? '?'}`)
+    const recipes = Object.keys(driver.recipes).filter((k) => driver.has(k)).join(', ') || tr`Aucune`
+    log.warn(driver.dryRun ? tr`Pilotage de Zed au clavier ACTIVÉ (simulation, aucune touche envoyée) — recettes : ${recipes}` : tr`Pilotage de Zed au clavier ACTIVÉ — recettes : ${recipes}`)
   } else {
-    log.info(tr`pilotage de Zed désactivé : new_thread et réouverture de threads indisponibles`)
+    log.info(tr`Pilotage de Zed désactivé : new_thread et réouverture de threads indisponibles.`)
     if (backend.name === 'uia' || backend.name === 'auto') {
-      log.warn(tr`backend ${backend.name} sans pilotage de Zed : l'injection clavier échouera (zedControl.enabled)`)
+      log.warn(tr`Backend ${backend.name} sans pilotage de Zed : l'injection clavier échouera (zedControl.enabled).`)
     }
   }
-  if (!config.serveStatic) log.info(tr`statiques désactivées : le client est servi ailleurs`)
-  log.info(tr`origines autorisées : ${servers.allowedOrigins.join(', ') || tr`(aucune — seuls les clients non-navigateur pourront se connecter)`}`)
+  if (!config.serveStatic) log.info(tr`Statiques désactivées : le client est servi ailleurs.`)
+  log.info(tr`Origines autorisées : ${servers.allowedOrigins.join(', ') || tr`(aucune — seuls les clients non-navigateur pourront se connecter).`}`)
   if (pairing) {
-    log.info(tr`appairage : ${pairing.clients.length} appareil(s) appairé(s) — code : npm run pair`)
+    log.info(tr`Appairage : ${pairing.clients.length} appareil(s) appairé(s) — code : npm run pair.`)
     // Le code va sur le terminal seulement, jamais dans un journal (service).
-    if (process.stdout.isTTY) console.log(tr`\n  code d'appairage : ${pairing.display}\n`)
+    if (process.stdout.isTTY) console.log(tr`\n  Code d'appairage : ${pairing.display}\n`)
   } else {
-    log.warn(tr`appairage désactivé (auth.required: false) : tout client du réseau local pilote ce poste`)
+    log.warn(tr`Appairage désactivé (auth.required: false) : tout client du réseau local pilote ce poste.`)
   }
   // Derrière un reverse proxy HTTPS (docs/fr/deploy.md §4.1), le daemon parle HTTP
   // mais la PWA est servie en HTTPS : rien ne manque, rien à signaler.
   if (!servers.secure && !servers.allowedOrigins.some((o) => o.startsWith('https://'))) {
-    log.warn(tr`HTTP sans reverse proxy HTTPS : la PWA ne s’installe pas et ne marche pas hors ligne (docs/fr/deploy.md §4.1)`)
+    log.warn(tr`HTTP sans reverse proxy HTTPS : la PWA ne s’installe pas et ne marche pas hors ligne (docs/fr/deploy.md §4.1).`)
   }
 
   return {
@@ -406,8 +406,8 @@ function checkExpiry(tls) {
   if (!tls?.validTo) return
   const days = Math.floor((tls.validTo.getTime() - Date.now()) / 86_400_000)
   const names = tls.names.join(', ') || 'certificat'
-  if (days < 0) log.error(tr`${names} : certificat EXPIRÉ depuis ${-days} j — la PWA ne s'ouvrira plus en HTTPS`)
-  else if (days < TLS_WARN_DAYS) log.warn(tr`${names} : certificat valable encore ${days} j — le renouveler (docs/fr/deploy.md)`)
+  if (days < 0) log.error(tr`${names} : certificat EXPIRÉ depuis ${-days} j — la PWA ne s'ouvrira plus en HTTPS.`)
+  else if (days < TLS_WARN_DAYS) log.warn(tr`${names} : certificat valable encore ${days} j — le renouveler (docs/fr/deploy.md).`)
   else log.info(tr`${names} : certificat valable jusqu'au ${tls.validTo.toISOString().slice(0, 10)}`)
 }
 
@@ -424,10 +424,10 @@ function watchTls({ config, servers, intervalMs = 30_000 }) {
     pending = setTimeout(async () => {
       try {
         const tls = await servers.reloadTls()
-        log.info(tr`certificat rechargé`)
+        log.info(tr`Certificat rechargé`)
         checkExpiry(tls)
       } catch (err) {
-        log.warn(tr`certificat illisible, l'ancien reste en place : ${err.message}`)
+        log.warn(tr`Certificat illisible, l'ancien reste en place : ${err.message}`)
       }
     }, 2000)
     pending.unref?.()
@@ -462,14 +462,14 @@ function pairAdmin({ pairing, hub }) {
     }
     if (url.pathname === '/pair/rotate' && req.method === 'POST') {
       pairing.rotate()
-      log.info(tr`nouveau code d'appairage (appairage ouvert)`)
+      log.info(tr`Nouveau code d'appairage (appairage ouvert).`)
       json(res, 200, { code: pairing.display })
       return true
     }
     if (url.pathname === '/pair/revoke' && req.method === 'POST') {
       const id = url.searchParams.get('id')
       const ok = hub.revoke(id)
-      if (ok) log.info(tr`appareil ${id} révoqué`)
+      if (ok) log.info(tr`Appareil ${id} révoqué`)
       json(res, ok ? 200 : 404, { revoked: ok })
       return true
     }

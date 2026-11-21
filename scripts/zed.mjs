@@ -37,7 +37,7 @@ function parseArgs(argv) {
     else if (a === '--window') out.window = rest[++i]
     else if (a === '--project') out.project = rest[++i]
     else if (a === '--steps') out.steps = JSON.parse(rest[++i])
-    else throw new Error(tr`option inconnue : ${a}`)
+    else throw new Error(tr`Option inconnue : ${a}`)
   }
   return out
 }
@@ -73,21 +73,21 @@ async function main() {
 
   if (opts.command === 'probe') {
     const res = await runner.run({ op: 'probe' })
-    if (!res.windows?.length) return console.log(tr`aucune fenêtre Zed ouverte`)
+    if (!res.windows?.length) return console.log(tr`Aucune fenêtre Zed ouverte.`)
     for (const w of res.windows) {
-      console.log(tr`« ${w.title} » (pid ${w.pid}) — arbre UIA : ${w.uiaDescendants} élément(s)` +
-        (w.uiaDescendants === 0 ? tr` → pilotage au clavier uniquement` : ''))
+      console.log(tr`« ${w.title} » (pid ${w.pid}) — arbre UIA : ${w.uiaDescendants} élément(s).` +
+        (w.uiaDescendants === 0 ? tr` → pilotage au clavier uniquement.` : ''))
     }
     return
   }
 
   if (opts.command === 'recipes') {
-    console.log(zc.enabled ? tr`pilotage ACTIVÉ dans le daemon (zedControl.enabled)\n` : tr`pilotage désactivé dans le daemon (zedControl.enabled)\n`)
+    console.log(zc.enabled ? tr`Pilotage ACTIVÉ dans le daemon (zedControl.enabled)\n` : tr`Pilotage désactivé dans le daemon (zedControl.enabled)\n`)
     for (const [name, steps] of Object.entries(recipes)) {
       console.log(`${name}${zc.recipes?.[name] !== undefined ? '  (zra.config.json)' : ''}`)
-      console.log(steps ? steps.map((s) => `  ${JSON.stringify(s)}`).join('\n') : tr`  — non établie`)
+      console.log(steps ? steps.map((s) => `  ${JSON.stringify(s)}`).join('\n') : tr`  — non établie.`)
     }
-    console.log(tr`\npistes candidates (--candidate) :`)
+    console.log(tr`\nPistes candidates (--candidate) :`)
     for (const [name, steps] of Object.entries(CANDIDATE_RECIPES)) {
       console.log(name)
       console.log(steps.map((s) => `  ${JSON.stringify(s)}`).join('\n'))
@@ -99,10 +99,10 @@ async function main() {
     let steps = opts.steps
     let name = 'ad hoc'
     if (!steps) {
-      if (!opts.recipe) throw new Error(tr`recette à essayer : try <recette>, ou --steps`)
+      if (!opts.recipe) throw new Error(tr`Recette à essayer : try <recette>, ou --steps.`)
       name = opts.recipe
       steps = opts.candidate ? CANDIDATE_RECIPES[name] : recipes[name]
-      if (!steps) throw new Error(opts.candidate ? tr`recette « ${name} » sans piste candidate` : tr`recette « ${name} » non établie (essayer --candidate)`)
+      if (!steps) throw new Error(opts.candidate ? tr`Recette « ${name} » sans piste candidate.` : tr`Recette « ${name} » non établie (essayer --candidate).`)
     }
     // `--project` doit être un dossier existant : passé brut à la CLI de Zed,
     // un chemin relatif (ou une faute de frappe) ouvre un BUFFER NON SAUVEGARDÉ
@@ -113,9 +113,9 @@ async function main() {
     }
     const project = projectDir ? projectWindow([projectDir]) : null
     const expanded = expandRecipe(checkRecipe(name, steps), {
-      text: tr`message de test ZRA`, title: '', agent: '', agentName: '', project: project ?? '', ...opts.vars,
+      text: tr`Message de test ZRA`, title: '', agent: '', agentName: '', project: project ?? '', ...opts.vars,
     })
-    console.log(project ? tr`recette ${name} dans le projet « ${project} » :` : tr`recette ${name} :`)
+    console.log(project ? tr`Recette ${name} dans le projet « ${project} » :` : tr`Recette ${name} :`)
     for (const s of expanded) console.log(`  ${JSON.stringify(s)}`)
 
     const where = project
@@ -123,11 +123,11 @@ async function main() {
       : { window: opts.window ?? zc.window }
     const request = { op: 'run', steps: expanded, ...where, stepDelayMs: zc.stepDelayMs }
     const dry = await runner.run({ ...request, dryRun: true })
-    console.log(tr`\n✓ ${dry.log[0]} — touches résolues`)
-    if (!opts.apply) return console.log(tr`simulation : rien envoyé. Relancer avec --apply pour envoyer les touches.`)
+    console.log(tr`\n✓ ${dry.log[0]} — touches résolues.`)
+    if (!opts.apply) return console.log(tr`Simulation : rien envoyé. Relancer avec --apply pour envoyer les touches.`)
 
     for (let n = 3; n > 0; n--) {
-      process.stdout.write(tr`\renvoi dans ${n} s — lâcher clavier et souris…`)
+      process.stdout.write(tr`\rEnvoi dans ${n} s — lâcher clavier et souris…`)
       await sleep(1000)
     }
     process.stdout.write('\n')

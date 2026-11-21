@@ -34,7 +34,7 @@ test('défauts : gardés s’ils collent au schéma, ignorés sinon (comme Zed)'
 
 test('requis et facultatifs : un champ vide facultatif ne part pas', () => {
   const s = schema({ nom: { type: 'string', title: 'Nom' }, note: { type: 'string' } }, ['nom'])
-  assert.deepEqual(validate(s, {}).errors, { nom: 'Nom : réponse requise' })
+  assert.deepEqual(validate(s, {}).errors, { nom: 'Nom : réponse requise.' })
   assert.deepEqual(validate(s, { nom: 'Ada', note: '' }), { content: { nom: 'Ada' }, errors: {} })
 })
 

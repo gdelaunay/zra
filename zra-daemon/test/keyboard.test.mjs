@@ -42,9 +42,9 @@ test('parseChord : accords valides, dans le vocabulaire de keyboard.ps1', () => 
 })
 
 test('parseChord : touche inconnue et accord mal formé sont refusés AVANT toute frappe', () => {
-  assert.throws(() => parseChord('ctrl+touche-imaginaire'), /touche inconnue/)
-  assert.throws(() => parseChord('ctrl++p'), /accord mal formé/)
-  assert.throws(() => parseChord('+'), /accord mal formé/)
+  assert.throws(() => parseChord('ctrl+touche-imaginaire'), /Touche inconnue/)
+  assert.throws(() => parseChord('ctrl++p'), /Accord mal formé/)
+  assert.throws(() => parseChord('+'), /Accord mal formé/)
   assert.throws(() => parseChord('ctrl+enter+p'), /plusieurs touches/)
 })
 
@@ -55,7 +55,7 @@ test('toX11Keysym : ce que `xdotool key` attend', () => {
   assert.equal(toX11Keysym('backspace'), 'BackSpace')
   assert.equal(toX11Keysym('pageup'), 'Page_Up')
   assert.equal(toX11Keysym('win+l'), 'super+l')
-  assert.throws(() => toX11Keysym('ctrl+inconnu'), /touche inconnue/)
+  assert.throws(() => toX11Keysym('ctrl+inconnu'), /Touche inconnue/)
 })
 
 test('toX11Keysym : les touches de fonction partent en MAJUSCULES, comme les keysyms X11', () => {
@@ -136,7 +136,7 @@ test('xdotool : la cible est résolue et visée avant la première frappe', asyn
   const res = await k.execute({ op: 'run', steps: [{ keys: 'ctrl+shift+p' }, { text: 'bonjour' }, { wait: 5 }] })
   assert.equal(res.ok, true)
   assert.deepEqual(res.window, { title: 'zra — driver.js', pid: 4242, id: '111' })
-  assert.deepEqual(res.log, ['fenêtre : zra — driver.js', 'touches ctrl+shift+p', 'texte (7 caractère(s))', 'attente 5 ms'],
+  assert.deepEqual(res.log, ['Fenêtre : zra — driver.js', 'Touches ctrl+shift+p', 'Texte (7 caractère(s))', 'Attente 5 ms'],
     'mêmes libellés que keyboard.ps1')
   const order = calls.map((c) => c.slice(0, 2).join(' '))
   assert.ok(order.indexOf('xdotool windowactivate') < order.indexOf('xdotool key'), 'activation avant la première touche')
@@ -150,7 +150,7 @@ test('xdotool : dryRun résout tout et n’envoie rien', async () => {
   const { k, calls } = stubXdotool()
   const res = await k.execute({ op: 'run', dryRun: true, steps: [{ keys: 'ctrl+shift+p' }, { text: 'x' }] })
   assert.equal(res.ok, true)
-  assert.deepEqual(res.log[0], 'fenêtre : zra — driver.js')
+  assert.deepEqual(res.log[0], 'Fenêtre : zra — driver.js')
   const typed = calls.filter((c) => c[0] === 'xdotool' && ['key', 'type', 'windowactivate', 'windowfocus'].includes(c[1]))
   assert.deepEqual(typed, [], 'aucune frappe, aucune activation')
 })
@@ -159,7 +159,7 @@ test('xdotool : une étape invalide est refusée avant la résolution de la fen�
   const { k, calls } = stubXdotool()
   await assert.rejects(
     () => k.execute({ op: 'run', steps: [{ keys: 'ctrl+shift+p' }, { keys: 'ctrl+faux' }] }),
-    /touche inconnue/,
+    /Touche inconnue/,
   )
   assert.deepEqual(calls, [], 'rien n’est lancé : ni pgrep, ni xdotool')
 })
@@ -204,7 +204,7 @@ test('xdotool : le projet est reconnu sur le début du titre, comme Test-Project
 test('xdotool : aucune fenêtre Zed — erreur explicite, aucune frappe', async () => {
   const k = new XdotoolKeyboard({ timeoutMs: 2000 })
   k.exec = async (cmd) => { if (cmd === 'pgrep') throw new Error('rc=1') ; return '' }
-  await assert.rejects(() => k.execute({ op: 'run', steps: [{ keys: 'enter' }] }), /aucune fenêtre Zed ouverte/)
+  await assert.rejects(() => k.execute({ op: 'run', steps: [{ keys: 'enter' }] }), /Aucune fenêtre Zed ouverte/)
 })
 
 test('xdotool : probe liste les fenêtres, uiaDescendants à -1 (GPUI ne publie rien sous X11 non plus)', async () => {
@@ -259,7 +259,7 @@ test('LinuxKeyboard : deux recettes ne s’entrelacent pas (le clavier est une r
 test('none : refus explicite qui renvoie vers acp, probe inoffensif', async () => {
   const k = new NoneKeyboard()
   await assert.rejects(() => k.execute({ op: 'run', dryRun: true, steps: [{ keys: 'enter' }] }),
-    (e) => /backend clavier indisponible/.test(e.message) && /acp/.test(e.message))
+    (e) => /Backend clavier indisponible/.test(e.message) && /acp/.test(e.message))
   const res = await k.execute({ op: 'probe' })
   assert.equal(res.ok, true)
   assert.deepEqual(res.windows, [])
@@ -267,7 +267,7 @@ test('none : refus explicite qui renvoie vers acp, probe inoffensif', async () =
 
 test('opération inconnue : refusée, comme keyboard.ps1', async () => {
   const { k } = stubXdotool()
-  await assert.rejects(() => k.execute({ op: 'autre' }), /opération inconnue/)
+  await assert.rejects(() => k.execute({ op: 'autre' }), /Opération inconnue/)
 })
 
 // ---------------------------------------------------------------------------
@@ -275,7 +275,7 @@ test('opération inconnue : refusée, comme keyboard.ps1', async () => {
 // ---------------------------------------------------------------------------
 
 test('createKeyboard : backend inconnu refusé, les noms admis sont ceux de platform.js', async () => {
-  await assert.rejects(() => createKeyboard({ backend: 'magique' }), /backend clavier inconnu/)
+  await assert.rejects(() => createKeyboard({ backend: 'magique' }), /Backend clavier inconnu/)
   for (const b of KEYBOARD_BACKENDS) {
     const k = await createKeyboard({ backend: b, platform: 'linux', env: {} })
     assert.equal(k.constructor.name !== 'NoneKeyboard' || b === 'none', true, b)

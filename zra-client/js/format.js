@@ -11,10 +11,10 @@ export function relTime(value, now = Date.now()) {
   const d = now - t
   // Une date « dans le futur » n'est qu'une horloge de téléphone en retard de
   // quelques secondes sur celle du poste : un thread tout neuf est à l'instant.
-  if (d < 45_000) return tr`à l'instant`
+  if (d < 45_000) return tr`À l'instant`
   if (d < HOUR) return `${Math.round(d / MIN)} min`
   if (d < DAY) return `${Math.floor(d / HOUR)} h`
-  if (d < 2 * DAY) return tr`hier`
+  if (d < 2 * DAY) return tr`Hier`
   if (d < 7 * DAY) return tr`${Math.floor(d / DAY)} j`
   const date = new Date(t)
   const sameYear = new Date(now).getFullYear() === date.getFullYear()
@@ -103,7 +103,7 @@ export function shortPath(p, segments = 2) {
 
 /** Libellé lisible d'un agent : "claude-acp" -> "Claude". */
 export function agentLabel(agentId) {
-  if (!agentId) return tr`agent`
+  if (!agentId) return tr`Agent`
   const known = {
     'claude-acp': 'Claude',
     'gemini-acp': 'Gemini',
@@ -169,7 +169,7 @@ export function projectNames(groups) {
  */
 export function projectOf(folderPaths) {
   const paths = (Array.isArray(folderPaths) ? folderPaths : []).filter(Boolean)
-  if (!paths.length) return { key: '', name: tr`sans projet`, folderPaths: [] }
+  if (!paths.length) return { key: '', name: tr`Sans projet`, folderPaths: [] }
   const key = paths.map((p) => String(p).replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase()).sort().join('|')
   return { key, name: projectNames([paths])[0], folderPaths: paths }
 }

@@ -85,7 +85,7 @@ test('une URL mal encodée vaut 400, avec nosniff', async () => {
   const res = await call('GET', '/%zz')
   assert.equal(res.status, 400)
   assert.equal(res.headers['x-content-type-options'], 'nosniff')
-  assert.equal(text(res), 'URL mal encodée')
+  assert.equal(text(res), 'URL mal encodée.')
 })
 
 test('cache-control: no-cache et content-length exact sur chaque fichier servi', async () => {
@@ -115,8 +115,8 @@ test('une autre méthode vaut 405', async () => {
     const res = await call(method, '/app.js')
     assert.equal(res.status, 405, method)
     assert.equal(res.headers['content-type'], 'text/plain; charset=utf-8')
-    assert.equal(text(res), 'méthode non autorisée')
-    assert.equal(res.headers['content-length'], Buffer.byteLength('méthode non autorisée'))
+    assert.equal(text(res), 'Méthode non autorisée.')
+    assert.equal(res.headers['content-length'], Buffer.byteLength('Méthode non autorisée.'))
   }
 })
 

@@ -58,7 +58,7 @@ export class ThreadOps extends EventEmitter {
       this.renames = new Map(Object.entries(state.renames ?? {}))
       this.caps = new Map(Object.entries(state.caps ?? {}))
     } catch (err) {
-      log.warn(tr`état des threads illisible (${this.file}) :`, err.message)
+      log.warn(tr`État des threads illisible (${this.file}) :`, err.message)
     }
   }
 
@@ -75,7 +75,7 @@ export class ThreadOps extends EventEmitter {
       writeFileSync(tmp, JSON.stringify(state, null, 2))
       renameSync(tmp, this.file)
     } catch (err) {
-      log.warn(tr`état des threads non persisté :`, err.message)
+      log.warn(tr`État des threads non persisté :`, err.message)
     }
   }
 
@@ -121,8 +121,8 @@ export class ThreadOps extends EventEmitter {
 
   require(threadId) {
     const thread = this.threads?.get(threadId)
-    if (!thread) throw Object.assign(new Error(tr`thread inconnu de cet index`), { code: 'unknown_thread' })
-    if (!thread.sessionId) throw Object.assign(new Error(tr`thread sans session : opération impossible`), { code: 'no_session' })
+    if (!thread) throw Object.assign(new Error(tr`Thread inconnu de cet index.`), { code: 'unknown_thread' })
+    if (!thread.sessionId) throw Object.assign(new Error(tr`Thread sans session : opération impossible.`), { code: 'no_session' })
     return thread
   }
 
@@ -130,7 +130,7 @@ export class ThreadOps extends EventEmitter {
   async rename(threadId, title) {
     const thread = this.require(threadId)
     const clean = String(title ?? '').trim()
-    if (!clean) throw Object.assign(new Error(tr`titre vide`), { code: 'inject_failed' })
+    if (!clean) throw Object.assign(new Error(tr`Titre vide.`), { code: 'inject_failed' })
     const result = this.shims.hasSession(thread.sessionId)
       ? await this.host.command(thread.sessionId, 'set_title', { title: clean })
       : await this.loader.operate(threadId, 'session/set_title', { sessionId: thread.sessionId, title: clean }, 'title')
@@ -138,7 +138,7 @@ export class ThreadOps extends EventEmitter {
     this.renames.set(thread.sessionId, stored)
     this.save()
     this.threads.refresh({ force: true })
-    log.info(tr`thread ${threadId} renommé : « ${stored} »`)
+    log.info(tr`Thread ${threadId} renommé : « ${stored} ».`)
     return { title: stored }
   }
 
@@ -153,7 +153,7 @@ export class ThreadOps extends EventEmitter {
     this.renames.delete(thread.sessionId)
     this.save()
     this.threads.refresh({ force: true })
-    log.info(tr`thread ${threadId} supprimé (session ${thread.sessionId})`)
+    log.info(tr`Thread ${threadId} supprimé (session ${thread.sessionId}).`)
   }
 
   /**

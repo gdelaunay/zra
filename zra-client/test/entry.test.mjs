@@ -56,15 +56,15 @@ test('renderEntry() marque l’entrée : classe, id et révision', () => {
 test('un type d’entrée inconnu s’affiche en brut, pas en trou', () => {
   const { inner } = render(entry({ type: 'zra/mystère', payload: { a: 1 } }))
   assert.equal(inner.classList.contains('raw'), true)
-  assert.match(q(inner, '.raw__head').textContent, /événement non reconnu : zra\/mystère/)
+  assert.match(q(inner, '.raw__head').textContent, /Événement non reconnu : zra\/mystère/)
   assert.match(q(inner, '.raw__body').textContent, /"a": 1/)
 })
 
 test('un notice devient une ligne de système, avertie si level=warn', () => {
-  const info = render(entry({ type: 'notice', text: 'tour interrompu', level: 'info' })).inner
+  const info = render(entry({ type: 'notice', text: 'Tour interrompu.', level: 'info' })).inner
   assert.equal(info.className.includes('sysline'), true)
   assert.equal(info.className.includes('warn'), false)
-  assert.equal(info.textContent, 'tour interrompu')
+  assert.equal(info.textContent, 'Tour interrompu.')
 
   const warn = render(entry({ type: 'notice', text: 'shim parti', level: 'warn' })).inner
   assert.equal(warn.className.includes('warn'), true)
@@ -89,7 +89,7 @@ test('message en attente est estompé, message non envoyé le dit', () => {
 
   const failed = render(entry({ type: 'user', failed: true, blocks: [text('x')] })).inner
   assert.equal(failed.className.includes('is-failed'), true)
-  assert.equal(q(failed, '.msg__status').textContent, 'non envoyé')
+  assert.equal(q(failed, '.msg__status').textContent, 'Non envoyé.')
 })
 
 test('message agent : pas de curseur de frappe (absent du panel agent de Zed)', () => {
@@ -310,7 +310,7 @@ test('tool call simple : emplacements, sortie, et le brut en en-têtes mono', ()
   assert.match(locs[0].textContent, /app\.js:12$/)
   assert.equal(locs[1].textContent.includes(':'), false, 'pas de ligne, pas de :')
   assert.equal(node.textContent.includes('fait'), true)
-  assert.deepEqual(qa(node, '.io-header').map((n) => n.textContent), ['entrée brute', 'sortie brute'])
+  assert.deepEqual(qa(node, '.io-header').map((n) => n.textContent), ['Entrée brute', 'Sortie brute'])
   assert.match(node.textContent, /"path": "app.js"/)
 })
 
@@ -318,15 +318,15 @@ test('tool call carte : le brut est repliable (View Raw Input)', () => {
   const { node } = render(tool({ rawInput: { path: 'app.js' } }))
   const raw = q(node, '.raw-input')
   assert.ok(raw, 'une carte porte son entrée brute repliable')
-  assert.match(q(raw, '.io-header').textContent, /entrée brute/)
+  assert.match(q(raw, '.io-header').textContent, /Entrée brute/)
   click(q(raw, '.ri-toggle'))
   assert.equal(raw.className.includes('is-open'), true)
 })
 
 test('tool call sans sortie : « en attente… » tant que pending, « aucune sortie » sinon', () => {
-  assert.match(render(tool({ status: 'pending', content: [] })).node.textContent, /en attente…/)
-  assert.match(render(tool({ status: 'completed', content: [] })).node.textContent, /aucune sortie/)
-  assert.match(render(tool({ content: null, locations: null })).node.textContent, /aucune sortie/)
+  assert.match(render(tool({ status: 'pending', content: [] })).node.textContent, /En attente…/)
+  assert.match(render(tool({ status: 'completed', content: [] })).node.textContent, /Aucune sortie/)
+  assert.match(render(tool({ content: null, locations: null })).node.textContent, /Aucune sortie/)
 })
 
 test('tool call : un diff est rendu sans gouttière, avec ses compteurs en tête', () => {
@@ -348,7 +348,7 @@ test('tool call : un diff trop gros pour être aligné le dit, au lieu de calcul
   const oldText = Array.from({ length: n }, (_, i) => `avant ${i}`).join('\n')
   const newText = Array.from({ length: n }, (_, i) => `après ${i}`).join('\n')
   const { node } = render(tool({ content: [{ type: 'diff', path: 'big.txt', oldText, newText }] }))
-  assert.match(node.textContent, /fichier trop gros : diff non aligné/)
+  assert.match(node.textContent, /Fichier trop gros : diff non aligné/)
   assert.equal(q(node, '.diffstat .add').textContent, `+${n}`)
   assert.equal(q(node, '.diffstat .del').textContent, `−${n}`)
 })
@@ -379,12 +379,12 @@ test('tool call : terminal en cours, réussi, en échec, interrompu, et inconnu'
   timeline.terminals.set('term-1', { output: 'raté', exitStatus: { exitCode: 2 } })
   const ko = render(tool({ content: block }), { timeline }).node
   assert.ok(q(ko, '.term__failed'), 'échec : croix rouge')
-  assert.equal(q(ko, '.term__failed').getAttribute('title'), 'code de sortie 2', 'le code en infobulle, comme Zed')
+  assert.equal(q(ko, '.term__failed').getAttribute('title'), 'Code de sortie 2', 'le code en infobulle, comme Zed')
 
   timeline.terminals.set('term-1', { output: '', exitStatus: { exitCode: null, signal: 'SIGINT' } })
   const sig = render(tool({ content: block }), { timeline }).node
   assert.ok(q(sig, '.term__failed'), 'un signal est un échec, même sans code')
-  assert.equal(q(sig, '.term__failed').getAttribute('title'), 'interrompu par un signal')
+  assert.equal(q(sig, '.term__failed').getAttribute('title'), 'Interrompu par un signal.')
 
   const orphan = render(tool({ content: [{ type: 'terminal', terminalId: 'autre' }] }), { timeline }).node
   assert.ok(q(orphan, '.term-row svg.spin'), 'terminal jamais vu : toujours en cours')
@@ -401,7 +401,7 @@ test('tool call : terminal — cwd de l’agent, sinon le projet, sinon généri
   assert.equal(q(withProject, '.cwd').textContent, 'C:\\Users\\Goulwen\\Documents\\Dev\\zra', 'claude-agent-acp : le projet du thread')
 
   const generic = render(tool({ content: block }), { timeline }).node
-  assert.equal(q(generic, '.cwd').textContent, 'répertoire courant', 'le repli de Zed')
+  assert.equal(q(generic, '.cwd').textContent, 'Répertoire courant', 'le repli de Zed')
 })
 
 test('tool call : terminal — durée figée à la fin, live en cours, rien sous 10 s', () => {
@@ -447,9 +447,9 @@ test('plan : pas dans le fil, comme Zed (au-dessus du composer)', () => {
 
 test('plan : résumé sur l’étape en cours, liste dépliée à la demande', () => {
   let toggled = 0
-  const plan = entry({ type: 'plan', items: [{ content: 'fait', status: 'completed' }, { content: 'en cours', status: 'in_progress' }] })
+  const plan = entry({ type: 'plan', items: [{ content: 'fait', status: 'completed' }, { content: 'En cours', status: 'in_progress' }] })
   const closed = planPanel(plan, { onToggle: () => toggled++ })
-  assert.match(q(closed, '.act-summary').textContent, /en cours/)
+  assert.match(q(closed, '.act-summary').textContent, /En cours/)
   assert.equal(q(closed, '.plan-list'), null, 'replié par défaut, comme Zed')
   assert.doesNotMatch(closed.textContent, /null/, 'rien d’autre que le résumé')
   click(q(closed, '.act-summary'))
@@ -461,7 +461,7 @@ test('plan : progression, statut de chaque étape, priorité haute', () => {
     type: 'plan',
     items: [
       { content: 'fait', status: 'completed' },
-      { content: 'en cours', status: 'in_progress', priority: 'high' },
+      { content: 'En cours', status: 'in_progress', priority: 'high' },
       { content: 'à venir', status: 'pending' },
       { content: 'sans statut' },
     ],
@@ -473,7 +473,7 @@ test('plan : progression, statut de chaque étape, priorité haute', () => {
   assert.equal(qa(node, '.plan__prio').length, 1)
   assert.equal(qa(node, '.plan__prio')[0].textContent, '!')
   assert.ok(q(items[1], 'svg.spin'), 'l’étape en cours tourne')
-  assert.deepEqual(items.map((li) => li.textContent.replace(/!$/, '')), ['fait', 'en cours', 'à venir', 'sans statut'])
+  assert.deepEqual(items.map((li) => li.textContent.replace(/!$/, '')), ['fait', 'En cours', 'à venir', 'sans statut'])
 })
 
 test('plan vide : 0/0, pas d’erreur', () => {
@@ -546,7 +546,7 @@ test('une permission tranchée ne se rejoue pas, même sur l’option choisie', 
 
 test('permission tranchée par une option absente : la note donne le verdict', () => {
   const { node } = permRender({ pendingOptionId: 'autre', resolved: true, outcome: 'cancelled' }, { canRespond: true })
-  assert.equal(q(node, '.perm__note').textContent, 'réponse : cancelled')
+  assert.equal(q(node, '.perm__note').textContent, 'Réponse : cancelled')
   assert.deepEqual(qa(node, '.perm button').map((b) => b.disabled), [true, true])
 })
 
@@ -555,8 +555,8 @@ test('permission sur thread injoignable : lecture seule et note explicite', () =
   const { node } = permRender({}, { canRespond: false, onPermission: () => { calls++ } })
   const [allow] = qa(node, '.perm button')
   assert.equal(allow.disabled, true)
-  assert.equal(allow.getAttribute('title'), 'thread injoignable : à traiter sur le poste')
-  assert.equal(q(node, '.perm__note').textContent, 'thread injoignable — à traiter sur le poste')
+  assert.equal(allow.getAttribute('title'), 'Thread injoignable : à traiter sur le poste.')
+  assert.equal(q(node, '.perm__note').textContent, 'Thread injoignable — à traiter sur le poste.')
   click(allow)
   assert.equal(calls, 0, 'un bouton désactivé ne répond pas au clic')
 })
@@ -564,7 +564,7 @@ test('permission sur thread injoignable : lecture seule et note explicite', () =
 test('permission sans options : la note porte le verdict', () => {
   const { node } = permRender({ options: [], pendingOptionId: 'x', resolved: true, outcome: 'selected' }, { canRespond: true })
   assert.equal(qa(node, '.perm button').length, 0)
-  assert.equal(q(node, '.perm__note').textContent, 'réponse : selected')
+  assert.equal(q(node, '.perm__note').textContent, 'Réponse : selected')
 })
 
 test('permission : l’heure de la demande est affichée', () => {

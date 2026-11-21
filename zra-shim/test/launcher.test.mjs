@@ -69,7 +69,7 @@ test('launcher : l\'agent tourne enveloppé, sans NODE_OPTIONS en cascade, args 
 })
 
 test('launcher : fail-open si le launcher a disparu (ZRA supprimé)', async () => {
-  const r = await run({ NODE_OPTIONS: payloadFor(join(TMP, 'absent', 'launcher.mjs')) })
+  const r = await run({ NODE_OPTIONS: payloadFor(join(TMP, 'Absent', 'launcher.mjs')) })
   assert.equal(r.code, 42)
   const agent = seen(r.stdout)
   assert.equal(agent.shimmed, null, 'l\'agent tourne sans ZRA')

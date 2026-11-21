@@ -163,7 +163,7 @@ function start({ port, machine, host }) {
     socket.on('error', bye)
 
     link.connect()
-    log(port, '·', tr`client ${id} connecté`)
+    log(port, '·', tr`Client ${id} connecté.`)
   })
 
   server.listen(port, host, () => {

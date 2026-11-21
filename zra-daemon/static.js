@@ -37,7 +37,7 @@ export function createStaticHandler(dir) {
 
   return async function serve(req, res) {
     if (req.method !== 'GET' && req.method !== 'HEAD') {
-      return send(res, 405, 'text/plain; charset=utf-8', tr`méthode non autorisée`)
+      return send(res, 405, 'text/plain; charset=utf-8', tr`Méthode non autorisée.`)
     }
 
     const url = new URL(req.url, 'http://localhost')
@@ -45,7 +45,7 @@ export function createStaticHandler(dir) {
     try {
       path = decodeURIComponent(url.pathname)
     } catch {
-      return send(res, 400, 'text/plain; charset=utf-8', tr`URL mal encodée`)
+      return send(res, 400, 'text/plain; charset=utf-8', tr`URL mal encodée.`)
     }
     if (path === '/' || path === '') path = '/index.html'
 

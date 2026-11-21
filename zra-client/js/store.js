@@ -152,7 +152,7 @@ function handle(machine, msg) {
       // Jeton refusé (révoqué, poste réinstallé) : il ne sert plus à rien.
       if (tokenFor(machine.url)) setToken(machine.url, null)
       machine.status = 'locked'
-      machine.error = tr`appairage requis`
+      machine.error = tr`Appairage requis.`
       if (msg.name && (machine.implicit || !machine.label)) machine.label = msg.name
       emit('machines')
       break
@@ -299,7 +299,12 @@ function handle(machine, msg) {
       }
       if (k) {
         const st = ensureState(k)
-        if (st.historyPending) { st.historyPending = false; st.historyError = msg.message }
+        if (msg.details) {
+          // Refus de l'agent avec détail ACP : callout au-dessus du composer,
+          // pas un toast générique (le `error` global part quand même, pour
+          // clore une réouverture en cours).
+          setAgentError(k, { message: msg.message, code: msg.details.code ?? null, data: msg.details.data ?? null, prompt: msg.prompt ?? null, at: Date.now() })
+        } else if (st.historyPending) { st.historyPending = false; st.historyError = msg.message; st.historyErrorCode = msg.code ?? null }
         failEchoes(k, st)
         emit(`state:${k}`, st)
       }
@@ -319,10 +324,71 @@ function handle(machine, msg) {
 }
 
 function applyToTimeline(k, update, meta) {
+  // Avis d'erreur d'injection : callout (render_any_thread_error), pas une
+  // ligne du fil — le détail ACP et le prompt refusé voyagent avec l'avis.
+  if (update?.sessionUpdate === 'zra/notice' && update.error) {
+    setAgentError(k, { ...update.error, prompt: update.prompt ?? null, at: meta?.at })
+    return
+  }
   const tl = ensureTimeline(k)
   const changes = tl.apply(update, meta || {})
   reconcileLocalEcho(k, tl, update)
   if (changes.length) emit(`timeline:${k}`, { changes })
+}
+
+/**
+ * Erreur d'agent : callout unique au-dessus du composer. La saisie refusée
+ * revient dans le brouillon (comme une écriture abandonnée), retry la renvoie.
+ */
+function setAgentError(k, err) {
+  const st = ensureState(k)
+  st.agentError = err
+  failEchoes(k, st)
+  const text = typeof err.prompt === 'string' ? err.prompt : blocksText(err.prompt)
+  if (text.trim()) {
+    const draft = getDraft(k)
+    setDraft(k, draft ? `${draft}\n${text}` : text)
+    emit(`draft:${k}`, getDraft(k))
+  }
+  emit(`state:${k}`, st)
+}
+
+/** Ferme le callout d'erreur d'agent. */
+export function dismissAgentError(k) {
+  const st = state.threadStates.get(k)
+  if (!st?.agentError) return
+  st.agentError = null
+  emit(`state:${k}`, st)
+}
+
+/** Retry du callout : renvoie le prompt refusé. */
+export function retryAgentError(k) {
+  const st = state.threadStates.get(k)
+  const prompt = st?.agentError?.prompt
+  if (!prompt) return
+  const text = typeof prompt === 'string' ? prompt : blocksText(prompt)
+  st.agentError = null
+  emit(`state:${k}`, st)
+  sendMessage(k, text)
+}
+
+/** Ferme le callout d'erreur d'historique. */
+export function clearHistoryError(k) {
+  const st = state.threadStates.get(k)
+  if (!st?.historyError) return
+  st.historyError = null
+  st.historyErrorCode = null
+  emit(`state:${k}`, st)
+}
+
+/** Ferme le callout d'un avis warn/error (l'entrée reste dans la timeline, marquée dismissée). */
+export function dismissNotice(k, id) {
+  const tl = state.timelines.get(k)
+  const entry = tl?.entries.find((e) => e.id === id)
+  if (!entry || entry.dismissed) return
+  entry.dismissed = true
+  entry.rev++
+  emit(`timeline:${k}`, { changes: [{ op: 'update', entry }] })
 }
 
 /** Texte d'écho réduit pour la comparaison : liens de mention → leur nom,
@@ -431,6 +497,10 @@ export function ensureState(k) {
       historyPending: false,
       historyComplete: false,
       historyError: null,
+      /** Code du protocole accompagnant l'erreur d'historique (titre du callout). */
+      historyErrorCode: null,
+      /** Erreur d'injection de l'agent (callout, render_any_thread_error) : { message, code, data, prompt, at }. */
+      agentError: null,
       /** `seq` jusqu'auquel la timeline est à jour, `null` si inconnu (`subscribe.since`). */
       seq: null,
       buffer: [],
@@ -536,6 +606,8 @@ export function sendMessage(k, text, mode = 'queue') {
 
   const { entry } = tl.push({ type: 'user', local: true, pending: true, blocks: [{ type: 'text', text: trimmed }] })
   st.localEchoes.push(entry)
+  st.agentError = null
+  emit(`state:${k}`, st)
   emit(`timeline:${k}`, { changes: [{ op: 'add', entry }] })
 
   m.link.send({ type: 'send', threadId: splitKey(k).threadId, text: trimmed, mode })
@@ -663,7 +735,7 @@ export function refreshAll() {
 /** Nom de l'appareil, tel que `npm run pair` le listera : « Android · Chrome ». */
 function deviceLabel() {
   const ua = globalThis.navigator?.userAgent || ''
-  const os = /Android/.test(ua) ? 'Android' : /iPhone|iPad/.test(ua) ? 'iOS' : /Windows/.test(ua) ? 'Windows' : /Mac/.test(ua) ? 'macOS' : /Linux/.test(ua) ? 'Linux' : tr`appareil`
+  const os = /Android/.test(ua) ? 'Android' : /iPhone|iPad/.test(ua) ? 'iOS' : /Windows/.test(ua) ? 'Windows' : /Mac/.test(ua) ? 'macOS' : /Linux/.test(ua) ? 'Linux' : tr`Appareil`
   const browser = /Edg\//.test(ua) ? 'Edge' : /Firefox\//.test(ua) ? 'Firefox' : /Chrome\//.test(ua) ? 'Chrome' : /Safari\//.test(ua) ? 'Safari' : null
   return browser ? `${os} · ${browser}` : os
 }

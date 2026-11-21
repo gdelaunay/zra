@@ -37,7 +37,7 @@ test('commande de relevé : shell de connexion interactif, cd dans le projet, co
 test('sortie bavarde du shell : l’environnement est retrouvé derrière le repère', () => {
   const env = parseCapture('Bienvenue !\n{faux}\n__ZRA_ENV__{"PATH":"/a:/b","X":"{1}"}')
   assert.deepEqual(env, { PATH: '/a:/b', X: '{1}' })
-  assert.throws(() => parseCapture('rien'), /aucun environnement/)
+  assert.throws(() => parseCapture('rien'), /Aucun environnement/)
 })
 
 test('relevé réel avec /bin/sh : variables du shell, dossier du projet', { skip: process.platform === 'win32' && 'pas de /bin/sh sous Windows' }, async (t) => {

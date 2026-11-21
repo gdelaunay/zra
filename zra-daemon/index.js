@@ -37,7 +37,7 @@ function parseArgs(argv) {
     else if (a === '--zed-control-dry-run') out.zedControl = { enabled: true, dryRun: true }
     else if (a === '--verbose') setLevel('debug')
     else if (a === '--help' || a === '-h') { usage(); process.exit(0) }
-    else { console.error(tr`option inconnue : ${a}`); usage(); process.exit(2) }
+    else { console.error(tr`Option inconnue : ${a}`); usage(); process.exit(2) }
   }
   return out
 }
@@ -85,12 +85,12 @@ for (const signal of ['SIGINT', 'SIGTERM']) {
   process.on(signal, async () => {
     if (stopping) return
     stopping = true
-    log.info(tr`arrêt…`)
+    log.info(tr`Arrêt…`)
     await daemon.close()
     process.exit(0)
   })
 }
 
 // Fail-open jusqu'au bout : une erreur isolée ne doit pas tuer le service.
-process.on('unhandledRejection', (err) => log.error(tr`promesse rejetée :`, err?.stack || err))
-process.on('uncaughtException', (err) => log.error(tr`exception non rattrapée :`, err?.stack || err))
+process.on('unhandledRejection', (err) => log.error(tr`Promesse rejetée :`, err?.stack || err))
+process.on('uncaughtException', (err) => log.error(tr`Exception non rattrapée :`, err?.stack || err))

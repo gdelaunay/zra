@@ -272,7 +272,7 @@ export function composerCompletion({ input, getCommands, getFiles = () => [], on
     }
     clear(menu)
     if (mode === 'mention') {
-      menu.setAttribute('aria-label', tr`fichiers du projet`)
+      menu.setAttribute('aria-label', tr`Fichiers du projet`)
       items.forEach(({ entry, match }, i) => {
         menu.append(h('button.menu__item', {
           role: 'option',
@@ -285,7 +285,7 @@ export function composerCompletion({ input, getCommands, getFiles = () => [], on
         ))
       })
     } else {
-      menu.setAttribute('aria-label', tr`commandes de l'agent`)
+      menu.setAttribute('aria-label', tr`Commandes de l'agent`)
       // En-tête de groupe : masqué dès qu'un argument est saisi (Zed).
       if (parsed.argument === null) menu.append(h('div.menu__label', { text: tr`Commandes` }))
       items.forEach(({ cmd, match }, i) => {

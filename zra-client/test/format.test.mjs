@@ -20,7 +20,7 @@ test('projet : même dossier quelle que soit l’écriture, plusieurs dossiers �
   assert.equal(both.name, 'zra, notes')
   assert.notEqual(both.key, projectOf(['D:/src/zra']).key)
 
-  assert.deepEqual(projectOf([]), { key: '', name: 'sans projet', folderPaths: [] })
+  assert.deepEqual(projectOf([]), { key: '', name: 'Sans projet', folderPaths: [] })
   assert.equal(projectOf(undefined).key, '')
 })
 

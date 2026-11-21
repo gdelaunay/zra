@@ -343,7 +343,7 @@ test('interrupt coupe le tour et rend la main sur l’acquittement', async (t) =
   assert.equal(bridge.sessions.get(zed.sessionId).turn, 'idle')
   assert.equal((await turn).stopReason, 'cancelled')
   // Acquittement réel ⇒ l'avis nominal, et lui seul (protocole §7).
-  assert.deepEqual(notices.map((n) => n.text), ['tour interrompu'])
+  assert.deepEqual(notices.map((n) => n.text), ['Tour interrompu.'])
 
   // Tour déjà à l'arrêt : ne rien faire (protocole §3 `interrupt`).
   assert.deepEqual(await bridge.cancel(zed.sessionId), { interrupted: false })

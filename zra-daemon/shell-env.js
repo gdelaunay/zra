@@ -43,7 +43,7 @@ export async function projectEnvironment(dir, { platform = process.platform, she
     Object.assign(env, await direnv(dir, env, timeoutMs))
     for (const [k, v] of Object.entries(env)) if (v === null) delete env[k]
   } catch (err) {
-    log.warn(tr`environnement du projet non relevé (${dir}) :`, err.message)
+    log.warn(tr`Environnement du projet non relevé (${dir}) :`, err.message)
     env = {}
   }
   cache.set(dir, { at: Date.now(), env })
@@ -78,7 +78,7 @@ export function captureCommand(shell, dir, node = process.execPath) {
 /** Extrait l'environnement d'une sortie de shell, bavarde ou non. */
 export function parseCapture(output) {
   const at = output.lastIndexOf(MARK)
-  if (at < 0) throw new Error(tr`aucun environnement dans la sortie du shell`)
+  if (at < 0) throw new Error(tr`Aucun environnement dans la sortie du shell.`)
   const rest = output.slice(at + MARK.length)
   const end = rest.lastIndexOf('}')
   return JSON.parse(rest.slice(0, end + 1))
@@ -90,7 +90,7 @@ const quoteFish = (s) => `'${String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'
 function captureShell(shell, dir, timeoutMs) {
   const cmd = captureCommand(shell, dir)
   if (!cmd) {
-    log.debug(tr`shell non pris en charge pour le relevé d'environnement : ${shell}`)
+    log.debug(tr`Shell non pris en charge pour le relevé d'environnement : ${shell}`)
     return Promise.resolve({})
   }
   return run(cmd.command, cmd.args, { cwd: dir, env: process.env, timeoutMs }).then(({ stdout }) => parseCapture(stdout))
@@ -122,7 +122,7 @@ function run(command, args, { cwd, env, timeoutMs }) {
     child.stderr.on('data', (c) => { stderr += c })
     const timer = setTimeout(() => {
       try { process.kill(-child.pid, 'SIGKILL') } catch { child.kill('SIGKILL') }
-      reject(new Error(tr`délai dépassé (${command})`))
+      reject(new Error(tr`Délai dépassé (${command})`))
     }, timeoutMs)
     child.on('error', (err) => { clearTimeout(timer); reject(err) })
     child.on('close', (code) => {

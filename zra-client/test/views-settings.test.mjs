@@ -124,7 +124,7 @@ test('Postes : une adresse vide ou déjà enregistrée est refusée, sans rien a
   input.value = ''
   click(section(sheet, 'Postes').querySelector('button.btn'))
   assert.equal(store.state.machines.size, avant)
-  assert.ok(toasts().some((t) => t.includes('adresse invalide')))
+  assert.ok(toasts().some((t) => t.includes('Adresse invalide.')))
 
   input.value = settingsModule.settings.machines[0]?.url ?? 'http://10.0.0.9:7777'
   settingsModule.addMachine('10.0.0.11')
@@ -181,11 +181,11 @@ test('Postes : un poste explicite se retire après confirmation', () => {
 })
 
 test('Postes : un poste implicite porte un badge, pas un bouton Retirer', () => {
-  store.addMachine({ id: 'origin', url: 'http://localhost:7777', label: 'ce poste', implicit: true })
+  store.addMachine({ id: 'origin', url: 'http://localhost:7777', label: 'Ce poste', implicit: true })
   store.state.mock = false
   try {
     const postes = section(open(), 'Postes')
-    const row = [...postes.querySelectorAll('.row')].find((r) => r.textContent.includes('ce poste'))
+    const row = [...postes.querySelectorAll('.row')].find((r) => r.textContent.includes('Ce poste'))
     assert.ok(row, 'le poste implicite est listé')
     assert.equal(row.querySelector('.thread-row__badge').textContent, 'local')
     assert.equal(row.querySelector('button[title="Retirer"]'), null, 'on ne retire pas le poste qui nous sert')
@@ -244,7 +244,7 @@ test('Affichage : les cases reflètent les réglages et les écrivent', () => {
     'Toujours déplier les réflexions',
     'Déplier tous les outils',
     'Notifications (fin de tour)',
-    'non supporté par ce navigateur',
+    'Non supporté par ce navigateur.',
     'Mode mock (daemon simulé)',
   ])
   assert.equal(boxes[0].checked, settingsModule.settings.alwaysShowThoughts)

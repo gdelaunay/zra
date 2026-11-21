@@ -59,7 +59,7 @@ export class KeyboardRunner {
   }
 
   run(request) {
-    if (UNDER_TEST && !request?.dryRun) return refuseUnderTest(tr`clavier réel`)
+    if (UNDER_TEST && !request?.dryRun) return refuseUnderTest(tr`Clavier réel`)
     const job = this.chain.then(() => this.exec(request))
     this.chain = job.catch(() => {})
     return job
@@ -78,7 +78,7 @@ export class KeyboardRunner {
       let failed = false
       const timer = setTimeout(() => {
         child.kill()
-        reject(new ZedControlError('zed_control_failed', tr`pilotage de Zed : pas de réponse en ${this.timeoutMs} ms`))
+        reject(new ZedControlError('zed_control_failed', tr`Pilotage de Zed : pas de réponse en ${this.timeoutMs} ms.`))
       }, this.timeoutMs)
       child.stdout.on('data', (c) => { out += c })
       child.stderr.on('data', (c) => { err += c })
@@ -91,7 +91,7 @@ export class KeyboardRunner {
           this.exec(request, 'powershell').then(resolve, reject)
           return
         }
-        reject(new ZedControlError('zed_control_failed', tr`pilotage de Zed : ${shell} non lançable (${e.message})`))
+        reject(new ZedControlError('zed_control_failed', tr`Pilotage de Zed : ${shell} non lançable (${e.message}).`))
       })
       child.on('close', (code) => {
         if (failed) return
@@ -103,11 +103,11 @@ export class KeyboardRunner {
         } catch {
           // Tout ce qu'on sait, pour diagnostiquer à distance : quel PowerShell,
           // son code de sortie, et ce qu'il a écrit à la place du JSON.
-          const said = (err.trim().split(/\r?\n/).at(-1) || out.trim().slice(0, 200) || tr`sortie vide`)
-          reject(new ZedControlError('zed_control_failed', tr`pilotage de Zed : réponse illisible (${shell}, code ${code}) — ${said}`))
+          const said = (err.trim().split(/\r?\n/).at(-1) || out.trim().slice(0, 200) || tr`Sortie vide.`)
+          reject(new ZedControlError('zed_control_failed', tr`Pilotage de Zed : réponse illisible (${shell}, code ${code}) — ${said}`))
           return
         }
-        if (!res.ok) reject(new ZedControlError('zed_control_failed', res.error || tr`échec du pilotage de Zed`))
+        if (!res.ok) reject(new ZedControlError('zed_control_failed', res.error || tr`Échec du pilotage de Zed.`))
         else resolve(res)
       })
       child.stdin.on('error', () => {}) // shell absent : EPIPE, déjà traité par `error`
@@ -144,14 +144,14 @@ const MODIFIERS = new Set(['ctrl', 'control', 'shift', 'alt', 'win', 'super'])
 export function parseChord(spec) {
   const tokens = String(spec).toLowerCase().split('+')
   for (const t of tokens) {
-    if (!t) throw new ZedControlError('zed_control_failed', tr`accord mal formé : « ${spec} »`)
+    if (!t) throw new ZedControlError('zed_control_failed', tr`Accord mal formé : « ${spec} ».`)
     if (KEY_NAMES.has(t)) continue
     if (t.length === 1 && /[a-z0-9\-./,;'"`[\]\\<>?|!@#$%^&*()_+=:~{}]/.test(t)) continue
-    throw new ZedControlError('zed_control_failed', tr`touche inconnue : « ${t} »`)
+    throw new ZedControlError('zed_control_failed', tr`Touche inconnue : « ${t} ».`)
   }
   const mods = tokens.filter((t) => MODIFIERS.has(t))
   const rest = tokens.filter((t) => !MODIFIERS.has(t))
-  if (rest.length > 1) throw new ZedControlError('zed_control_failed', tr`accord avec plusieurs touches : « ${spec} »`)
+  if (rest.length > 1) throw new ZedControlError('zed_control_failed', tr`Accord avec plusieurs touches : « ${spec} ».`)
   return { tokens, mods, key: rest[0] ?? null }
 }
 
@@ -229,7 +229,7 @@ class LinuxKeyboard {
   get canTargetWindows() { return false }
 
   run(request) {
-    if (UNDER_TEST && !request?.dryRun) return refuseUnderTest(tr`clavier réel`)
+    if (UNDER_TEST && !request?.dryRun) return refuseUnderTest(tr`Clavier réel`)
     const job = this.chain.then(() => this.execute(request))
     this.chain = job.catch(() => {})
     return job
@@ -237,7 +237,7 @@ class LinuxKeyboard {
 
   async execute(request) {
     if (request?.op === 'probe') return this.probe(request)
-    if (request?.op !== 'run') throw this.fail(tr`opération inconnue : ${request?.op}`)
+    if (request?.op !== 'run') throw this.fail(tr`Opération inconnue : ${request?.op}`)
 
     const dry = Boolean(request.dryRun)
     const delay = Number(request.stepDelayMs) > 0 ? Number(request.stepDelayMs) : 120
@@ -249,7 +249,7 @@ class LinuxKeyboard {
       if (step?.keys !== undefined) return { kind: 'keys', label: step.keys, args: this.chordArgs(step.keys) }
       if (step?.text !== undefined) return { kind: 'text', text: String(step.text), args: this.textArgs(String(step.text), delay) }
       if (step?.wait !== undefined) return { kind: 'wait', ms: Number(step.wait) }
-      throw this.fail(tr`étape inconnue : ${JSON.stringify(step)}`)
+      throw this.fail(tr`Étape inconnue : ${JSON.stringify(step)}`)
     })
 
     const target = await this.target(request, { dry, log })
@@ -257,11 +257,11 @@ class LinuxKeyboard {
 
     for (const p of plan) {
       if (p.kind === 'wait') {
-        log.push(`attente ${p.ms} ms`)
+        log.push(`Attente ${p.ms} ms`)
         if (!dry) await sleep(p.ms)
         continue
       }
-      log.push(p.kind === 'keys' ? tr`touches ${p.label}` : tr`texte (${p.text.length} caractère(s))`)
+      log.push(p.kind === 'keys' ? tr`Touches ${p.label}` : tr`Texte (${p.text.length} caractère(s))`)
       if (dry) continue
       // Garde-fou : la fenêtre visée doit toujours être au premier plan.
       await this.assertTarget(target)
@@ -272,11 +272,11 @@ class LinuxKeyboard {
   }
 
   /** Traduit un accord en arguments de l'outil. */
-  chordArgs(_spec) { throw new Error(tr`à implémenter par le backend`) }
+  chordArgs(_spec) { throw new Error(tr`À implémenter par le backend.`) }
   /** Traduit un texte en arguments de l'outil. */
-  textArgs(_text, _delay) { throw new Error(tr`à implémenter par le backend`) }
+  textArgs(_text, _delay) { throw new Error(tr`À implémenter par le backend.`) }
   /** Lance l'outil. Surchargeable en test — c'est le seul point de sortie. */
-  async tool(..._args) { throw new Error(tr`à implémenter par le backend`) }
+  async tool(..._args) { throw new Error(tr`À implémenter par le backend.`) }
   /** Fenêtre visée, ou null si le backend ne sait pas viser. */
   async target(_request, _opts) { return null }
   async focus(_target) {}
@@ -300,7 +300,7 @@ class LinuxKeyboard {
         // touche qu'il ne connaît pas en se contentant de l'écrire sur stderr.
         const dropped = xdotoolDroppedKey(stderr)
         if (dropped) {
-          reject(this.fail(tr`${cmd} : touche inconnue de X11 « ${dropped} », aucune frappe envoyée pour elle`))
+          reject(this.fail(tr`${cmd} : touche inconnue de X11 « ${dropped} », aucune frappe envoyée pour elle.`))
           return
         }
         resolve(String(stdout ?? ''))
@@ -414,12 +414,12 @@ export class XdotoolKeyboard extends LinuxKeyboard {
     }
     if (!win) {
       throw this.fail(request.project
-        ? tr`aucune fenêtre Zed pour le projet « ${request.project} »`
+        ? tr`Aucune fenêtre Zed pour le projet « ${request.project} ».`
         : request.window
-          ? tr`aucune fenêtre Zed dont le titre contient « ${request.window} »`
-          : tr`aucune fenêtre Zed ouverte`)
+          ? tr`Aucune fenêtre Zed dont le titre contient « ${request.window} ».`
+          : tr`Aucune fenêtre Zed ouverte.`)
     }
-    log.unshift(tr`fenêtre : ${win.title}`)
+    log.unshift(tr`Fenêtre : ${win.title}`)
     return { title: win.title, pid: win.pid, id: win.id }
   }
 
@@ -451,7 +451,7 @@ export class XdotoolKeyboard extends LinuxKeyboard {
     if (active && active !== String(target.id)) {
       let other = active
       try { other = (await this.tool('getwindowname', active)).trim() || active } catch { /* fenêtre close */ }
-      throw this.fail(tr`la fenêtre Zed n'est plus au premier plan (« ${other} ») : arrêt, aucune frappe envoyée ailleurs`)
+      throw this.fail(tr`La fenêtre Zed n'est plus au premier plan (« ${other} ») : arrêt, aucune frappe envoyée ailleurs.`)
     }
   }
 
@@ -488,11 +488,11 @@ export class NoneKeyboard extends LinuxKeyboard {
     // diagnostiquer pourquoi aucun backend n'a été retenu.
     if (request?.op === 'probe') return this.probe(request)
     throw this.fail(
-      tr`backend clavier indisponible : xdotool absent. Installez-le (sudo apt install xdotool) ou passez au backend acp (injection: "acp", le défaut), qui n'a pas besoin du clavier.`)
+      tr`Backend clavier indisponible : xdotool absent. Installez-le (sudo apt install xdotool) ou passez au backend acp (injection: "acp", le défaut), qui n'a pas besoin du clavier.`)
   }
 
   async probe() {
-    return { ok: true, windows: [], note: tr`backend none : aucune injection clavier possible` }
+    return { ok: true, windows: [], note: tr`Backend none : aucune injection clavier possible.` }
   }
 }
 
@@ -529,9 +529,9 @@ export async function createKeyboard({ backend = 'auto', platform = process.plat
 
   if (backend !== 'auto') {
     const Ctor = named[backend]
-    if (!Ctor) throw new ZedControlError('zed_control_failed', tr`backend clavier inconnu : « ${backend} » (${Object.keys(named).join(', ')})`)
+    if (!Ctor) throw new ZedControlError('zed_control_failed', tr`Backend clavier inconnu : « ${backend} » (${Object.keys(named).join(', ')}).`)
     if (backend === 'powershell' && platform !== 'win32') {
-      log?.warn(tr`backend clavier powershell imposé hors Windows : keyboard.ps1 ne tournera pas`)
+      log?.warn(tr`Backend clavier powershell imposé hors Windows : keyboard.ps1 ne tournera pas.`)
     }
     return new Ctor(backend === 'powershell' ? { timeoutMs } : opts)
   }
@@ -540,11 +540,11 @@ export async function createKeyboard({ backend = 'auto', platform = process.plat
 
   // Linux : xdotool partout (X11 natif, ou Wayland + XWayland pour Zed).
   if (await installed('xdotool')) {
-    log?.info(tr`backend clavier : xdotool (autodétecté)`)
+    log?.info(tr`Backend clavier : xdotool (autodétecté).`)
     return new XdotoolKeyboard(opts)
   }
 
-  log?.warn(tr`aucun backend clavier utilisable : xdotool absent — injection \`uia\` indisponible, \`acp\` reste le défaut`)
+  log?.warn(tr`Aucun backend clavier utilisable : xdotool absent — injection \`uia\` indisponible, \`acp\` reste le défaut.`)
   return new NoneKeyboard(opts)
 }
 

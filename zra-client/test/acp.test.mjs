@@ -259,7 +259,7 @@ test('tool_call_update inconnu : appel en échec, comme Zed', () => {
   tl.apply({ sessionUpdate: 'tool_call_update', toolCallId: 'fantome', status: 'completed', title: 'x' })
   const tool = tl.entries.find((e) => e.type === 'tool')
   assert.equal(tool.status, 'failed')
-  assert.equal(tool.title, 'appel d’outil introuvable'.replace('’', "'"))
+  assert.equal(tool.title, 'Appel d’outil introuvable.'.replace('’', "'"))
 })
 
 test('messageId différent : nouveau message, même sans autre entrée entre deux', () => {

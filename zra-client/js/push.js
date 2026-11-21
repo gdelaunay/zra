@@ -27,9 +27,9 @@ function sameKey(buffer, key) {
 
 /** Demande la permission puis s'abonne. @returns {Promise<{ok:boolean, reason?:string}>} */
 export async function enablePush() {
-  if (!pushSupported()) return { ok: false, reason: tr`notifications non supportées par ce navigateur` }
+  if (!pushSupported()) return { ok: false, reason: tr`Notifications non supportées par ce navigateur.` }
   const permission = await Notification.requestPermission()
-  if (permission !== 'granted') return { ok: false, reason: tr`notifications refusées dans le navigateur` }
+  if (permission !== 'granted') return { ok: false, reason: tr`Notifications refusées dans le navigateur.` }
   update({ notifications: true })
   await syncPush()
   return { ok: true }

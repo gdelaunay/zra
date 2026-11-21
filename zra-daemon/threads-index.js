@@ -147,7 +147,7 @@ export class ThreadsIndex extends EventEmitter {
   open() {
     if (this.db) return true
     if (!existsSync(this.file)) {
-      this.degrade(tr`base introuvable : ${this.file}`)
+      this.degrade(tr`Base introuvable : ${this.file}`)
       return false
     }
     try {
@@ -163,14 +163,14 @@ export class ThreadsIndex extends EventEmitter {
       const missing = REQUIRED.filter((c) => !this.columns.includes(c))
       if (missing.length) {
         this.close()
-        this.degrade(tr`schéma sidebar_threads inattendu — colonnes manquantes : ${missing.join(', ')}. Une mise à jour de Zed a probablement changé la table. Dégradation en « live seul ».`)
+        this.degrade(tr`Schéma sidebar_threads inattendu — colonnes manquantes : ${missing.join(', ')}. Une mise à jour de Zed a probablement changé la table. Dégradation en « live seul ».`)
         return false
       }
       this.degraded = null
       return true
     } catch (err) {
       this.close()
-      this.degrade(tr`ouverture impossible : ${err.message}`)
+      this.degrade(tr`Ouverture impossible : ${err.message}`)
       return false
     }
   }
@@ -209,13 +209,13 @@ export class ThreadsIndex extends EventEmitter {
       rows = this.db.prepare(`select ${cols.join(', ')} from sidebar_threads`).all()
     } catch (err) {
       // Base remplacée sous nos pieds (mise à jour de Zed) : on rouvre une fois.
-      log.debug(tr`relecture après erreur SQLite :`, err.message)
+      log.debug(tr`Relecture après erreur SQLite :`, err.message)
       this.close()
       if (!this.open()) return []
       try {
         rows = this.db.prepare(`select ${cols.join(', ')} from sidebar_threads`).all()
       } catch (err2) {
-        this.degrade(tr`lecture impossible : ${err2.message}`)
+        this.degrade(tr`Lecture impossible : ${err2.message}`)
         return []
       }
     }
@@ -343,7 +343,7 @@ export class ThreadsIndex extends EventEmitter {
       return [...projects.values()]
     } catch (err) {
       // Schéma d'une autre version de Zed : on ne sait pas, on ne devine pas.
-      log.debug(tr`projets ouverts illisibles :`, err.message)
+      log.debug(tr`Projets ouverts illisibles :`, err.message)
       this.noWorkspaces = true
       return null
     }
@@ -364,7 +364,7 @@ export class ThreadsIndex extends EventEmitter {
   start() {
     this.refresh({ force: true })
     this.timer = setInterval(() => {
-      try { this.refresh() } catch (err) { log.warn(tr`poll :`, err.message) }
+      try { this.refresh() } catch (err) { log.warn(tr`Poll :`, err.message) }
     }, this.pollMs)
     this.timer.unref?.()
     return this

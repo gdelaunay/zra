@@ -59,7 +59,7 @@ modules ne chargent pas : `.js → text/javascript`, `.css → text/css`,
    Les réveils automatiques (refocus, réseau) préservent le backoff ; seul le
    bouton « réessayer » le remet à zéro. Après trois échecs consécutifs, un GET
    sur l'adresse du poste diagnostique la cause (réseau coupé, proxy sans poste,
-   refus 403) et le message s'affiche à la place de « connexion impossible ».
+   refus 403) et le message s'affiche à la place de « Connexion impossible. ».
 4. Toutes les 15 s, et au retour au premier plan, la PWA envoie `ping`. Sans
    aucune trame en retour (6 s, 3 s au premier plan), elle tient la connexion
    pour morte et reconnecte : sur mobile, une socket peut rester ouverte sans

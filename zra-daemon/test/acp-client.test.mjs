@@ -135,22 +135,22 @@ test('l’agent qui pose une requête reçoit une réponse explicite : permissio
 
   assert.deepEqual(result.permission, { outcome: { outcome: 'cancelled' } }, 'personne devant l’écran : rien n’est autorisé')
   assert.equal(result.fs.startsWith('-32601:'), true)
-  assert.match(result.fs, /méthode non supportée par ce client de relecture : fs\/read_text_file/)
+  assert.match(result.fs, /Méthode non supportée par ce client de relecture : fs\/read_text_file/)
 })
 
 test('l’agent meurt en cours de route : la requête en vol échoue, le client se ferme', async (t) => {
   const client = boot(t, { mode: 'exit', env: { ZRA_TEST_EXIT_CODE: '7' } })
   await assert.rejects(() => client.initialize(), (err) => {
-    assert.match(err.message, /agent terminé \(code=7, signal=—\)/)
+    assert.match(err.message, /Agent terminé \(code=7, signal=—\)/)
     return true
   })
   assert.equal(client.closed, true)
-  assert.match(client.exitReason, /agent terminé \(code=7, signal=—\)/)
+  assert.match(client.exitReason, /Agent terminé \(code=7, signal=—\)/)
 })
 
 test('une requête après la mort de l’agent échoue immédiatement', async (t) => {
   const client = boot(t, { mode: 'exit' })
-  await assert.rejects(() => client.initialize(), /agent terminé/)
+  await assert.rejects(() => client.initialize(), /Agent terminé/)
   const reason = client.exitReason
   await assert.rejects(() => client.loadSession({ sessionId: 'x', cwd: CWD }), (err) => {
     assert.equal(err.message, reason)
@@ -161,7 +161,7 @@ test('une requête après la mort de l’agent échoue immédiatement', async (t
 test('un agent non lançable le dit, sans exception nue', async (t) => {
   const client = boot(t, { command: 'node-qui-n-existe-pas-zra', args: [] })
   await assert.rejects(() => client.initialize(), (err) => {
-    assert.match(err.message, /^agent non lançable : /)
+    assert.match(err.message, /^Agent non lançable : /)
     return true
   })
   assert.equal(client.closed, true)
@@ -184,14 +184,14 @@ test('un agent muet est tué par kill(), et la requête en vol échoue', async (
 
   client.kill()
   client.kill()                                 // idempotent
-  await assert.rejects(() => pending, /agent terminé/)
+  await assert.rejects(() => pending, /Agent terminé/)
   await exited
   assert.equal(client.closed, true)
 })
 
 test('kill() sur un agent déjà parti ne fait rien', async (t) => {
   const client = boot(t, { mode: 'exit' })
-  await assert.rejects(() => client.initialize(), /agent terminé/)
+  await assert.rejects(() => client.initialize(), /Agent terminé/)
   client.kill()
   client.kill()
   assert.equal(client.closed, true)

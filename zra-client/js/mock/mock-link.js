@@ -130,14 +130,14 @@ export class MockLink {
       }
       case 'load_history': {
         if (!t || !t.sessionId) {
-          this.push({ type: 'error', code: 'no_session', message: tr`thread sans session_id : historique indisponible`, threadId: msg.threadId })
+          this.push({ type: 'error', code: 'no_session', message: tr`Thread sans session_id : historique indisponible.`, threadId: msg.threadId })
           return
         }
         if (t.agentId === 'gemini-acp') {
           // Risque §12.2 : agent sans capacité loadSession.
           this.later(500, () => this.push({
             type: 'error', code: 'no_load_session',
-            message: tr`historique indisponible pour cet agent (capacité loadSession absente)`,
+            message: tr`Historique indisponible pour cet agent (capacité loadSession absente).`,
             threadId: msg.threadId,
           }))
           return
@@ -152,7 +152,7 @@ export class MockLink {
         const st = this.turnOf(msg.threadId)
         if (msg.mode === 'interrupt' && st.turn === 'busy') {
           this.cancel(msg.threadId)
-          this.pushEvent(msg.threadId, { sessionUpdate: 'zra/notice', text: tr`tour interrompu`, level: 'warn' })
+          this.pushEvent(msg.threadId, { sessionUpdate: 'zra/notice', text: tr`Tour interrompu.`, level: 'warn' })
           // L'envoi différé est suivi comme le reste du tour : un nouveau scénario
           // lancé entre-temps doit pouvoir l'annuler.
           st.timers.push(this.later(200, () => this.deliver(msg.threadId, msg.text)))
@@ -169,7 +169,7 @@ export class MockLink {
         const st = this.turnOf(msg.threadId)
         if (st.turn !== 'busy') return
         this.cancel(msg.threadId)
-        this.pushEvent(msg.threadId, { sessionUpdate: 'zra/notice', text: tr`tour interrompu`, level: 'warn' })
+        this.pushEvent(msg.threadId, { sessionUpdate: 'zra/notice', text: tr`Tour interrompu.`, level: 'warn' })
         break
       }
 
@@ -220,7 +220,7 @@ export class MockLink {
         this.pushEvent(msg.threadId, msg.key === 'mode'
           ? { sessionUpdate: 'current_mode_update', currentModeId: msg.value }
           : msg.key === 'model'
-            ? { sessionUpdate: 'zra/notice', text: tr`modèle : ${MODELS.find((m) => m.id === msg.value)?.name || msg.value}` }
+            ? { sessionUpdate: 'zra/notice', text: tr`Modèle : ${MODELS.find((m) => m.id === msg.value)?.name || msg.value}` }
             : { sessionUpdate: 'zra/notice', text: `${msg.key} : ${String(msg.value)}` })
         break
       }
@@ -230,7 +230,7 @@ export class MockLink {
       case 'respond_permission': {
         const perm = this.pendingPerms.get(msg.requestId)
         if (!perm) {
-          this.push({ type: 'error', code: 'permission_expired', message: tr`demande déjà tranchée`, threadId: msg.threadId })
+          this.push({ type: 'error', code: 'permission_expired', message: tr`Demande déjà tranchée.`, threadId: msg.threadId })
           return
         }
         this.pendingPerms.delete(msg.requestId)
@@ -250,7 +250,7 @@ export class MockLink {
       case 'respond_elicitation': {
         const q = this.pendingQuestions.get(msg.requestId)
         if (!q) {
-          this.push({ type: 'error', code: 'elicitation_expired', message: tr`question inconnue ou déjà répondue`, threadId: msg.threadId })
+          this.push({ type: 'error', code: 'elicitation_expired', message: tr`Question inconnue ou déjà répondue.`, threadId: msg.threadId })
           return
         }
         this.pendingQuestions.delete(msg.requestId)
@@ -269,7 +269,7 @@ export class MockLink {
         break
       }
       default:
-        this.push({ type: 'error', code: 'unknown_message', message: tr`message inconnu : ${msg.type}` })
+        this.push({ type: 'error', code: 'unknown_message', message: tr`Message inconnu : ${msg.type}.` })
     }
   }
 
@@ -349,11 +349,24 @@ export class MockLink {
       case 'unknown': this.play(id, unknownScenario()); break
       case 'mentions': this.play(id, mentionScenario()); break
       case 'error':
-        this.push({ type: 'error', code: 'inject_failed', message: tr`injection refusée par l'agent (repli UIA disponible)`, threadId: id })
+        this.push({
+          type: 'error', code: 'inject_failed', threadId: id,
+          message: tr`L'agent a refusé le message, et le repli clavier a échoué : Internal error.`,
+          details: { code: -32603, data: { error: '403 Access to model denied. Please make sure you are eligible for using the model.' } },
+          prompt: [{ type: 'text', text: tr`Message refusé (simulé).` }],
+        })
+        break
+      case 'refusal':
+        this.pushEvent(id, {
+          sessionUpdate: 'zra/notice', level: 'error',
+          text: tr`L'agent a refusé le message : Internal error.`,
+          error: { message: 'Internal error', code: -32603, data: '403 Access to model denied. Please make sure you are eligible for using the model.' },
+          prompt: [{ type: 'text', text: tr`Message refusé (simulé).` }],
+        })
         break
       case 'offline':
         this.setStatus('offline')
-        this.lastError = tr`poste injoignable (simulé)`
+        this.lastError = tr`Poste injoignable (simulé).`
         this.later(4000, () => { this.lastError = null; this.setStatus('online'); this.pushThreads() })
         break
       case 'shim-lost': {
@@ -361,7 +374,7 @@ export class MockLink {
         if (t) { t.state = 'closed'; this.turnOf(id).queue = [] }
         this.pushThreads()
         this.pushState(id)
-        this.pushEvent(id, { sessionUpdate: 'zra/notice', level: 'warn', text: tr`Zed a fermé l'agent : file d'attente perdue` })
+        this.pushEvent(id, { sessionUpdate: 'zra/notice', level: 'warn', text: tr`Zed a fermé l'agent : file d'attente perdue.` })
         break
       }
       case 'shim-back': {

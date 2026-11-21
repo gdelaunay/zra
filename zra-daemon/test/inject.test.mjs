@@ -100,7 +100,7 @@ test('createBackend() choisit le backend nommé', () => {
 })
 
 test('createBackend() refuse un backend inconnu', () => {
-  assert.throws(() => createBackend('clavier-magique', ctx()), /backend d'injection inconnu/)
+  assert.throws(() => createBackend('clavier-magique', ctx()), /Backend d'injection inconnu/)
 })
 
 test('acp, uia et auto laissent la file au shim ; mock la tient ici', () => {
@@ -183,11 +183,11 @@ test('acp : le code du shim est conservé, une erreur nue devient inject_failed'
     return true
   })
 
-  c.host.failWith = new Error('shim injoignable')          // pas de code
-  await assert.rejects(() => b.send(T1, 'x'), { code: 'inject_failed', message: 'shim injoignable' })
+  c.host.failWith = new Error('Shim injoignable.')          // pas de code
+  await assert.rejects(() => b.send(T1, 'x'), { code: 'inject_failed', message: 'Shim injoignable.' })
 
   c.host.failWith = shimError('inject_failed', '')          // pas de message
-  await assert.rejects(() => b.send(T1, 'x'), { code: 'inject_failed', message: 'injection refusée' })
+  await assert.rejects(() => b.send(T1, 'x'), { code: 'inject_failed', message: 'Injection refusée.' })
 
   const original = new InjectionError('permission_expired', 'déjà tranchée')
   c.host.failWith = original
@@ -258,7 +258,7 @@ test('uia : tour occupé sans mode interrupt → refus franc, pas de double voie
   const b = new UiaBackend(c)
   await assert.rejects(() => b.send(T1, 'x'), (err) => {
     assert.equal(err.code, 'inject_failed')
-    assert.match(err.message, /tour en cours/)
+    assert.match(err.message, /Tour en cours/)
     return true
   })
   assert.deepEqual(c.control.calls, [], 'rien n’est tapé')
@@ -340,7 +340,7 @@ test('auto : refus de l’agent puis échec du clavier → un seul inject_failed
   const b = new AutoBackend(c)
   await assert.rejects(() => b.send(T1, 'x'), (err) => {
     assert.equal(err.code, 'inject_failed')
-    assert.match(err.message, /l'agent a refusé le message/)
+    assert.match(err.message, /L'agent a refusé le message/)
     assert.match(err.message, /repli clavier a échoué/)
     return true
   })
@@ -382,7 +382,7 @@ test('mock : interrupt sur un tour busy coupe la réponse en cours', async () =>
   await b.send(T1, 'coupe', 'interrupt')
   const notices = c.emitted.filter((e) => e.update.sessionUpdate === 'zra/notice')
   assert.equal(notices.length, 1)
-  assert.equal(notices[0].update.text, 'tour interrompu')
+  assert.equal(notices[0].update.text, 'Tour interrompu.')
   assert.equal(c.states.get(T1).turn, 'busy', 'le nouveau tour est en vol')
 
   await new Promise((r) => setTimeout(r, 80))

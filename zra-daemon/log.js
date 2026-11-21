@@ -109,7 +109,7 @@ export function injectionLog(file, { maxBytes = 5 * 1024 * 1024 } = {}) {
       await appendFile(file, line, 'utf8')
       size += Buffer.byteLength(line)
     } catch (err) {
-      emit('warn', 'log', tr`journal d'injections indisponible :`, err.message)
+      emit('warn', 'log', tr`Journal d'injections indisponible :`, err.message)
     }
   }
 }

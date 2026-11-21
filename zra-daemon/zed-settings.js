@@ -35,14 +35,14 @@ export function tokenize(text) {
     }
     if (c === '/' && text[i + 1] === '*') {
       const end = text.indexOf('*/', i + 2)
-      if (end === -1) throw new SettingsEditError(tr`commentaire /* non refermé`)
+      if (end === -1) throw new SettingsEditError(tr`Commentaire /* non refermé`)
       i = end + 2
       continue
     }
     if (c === '"') {
       let j = i + 1
       while (j < n && text[j] !== '"') j += text[j] === '\\' ? 2 : 1
-      if (j >= n) throw new SettingsEditError(tr`chaîne non refermée`)
+      if (j >= n) throw new SettingsEditError(tr`Chaîne non refermée.`)
       tokens.push({ t: 'str', start: i, end: j + 1, value: JSON.parse(text.slice(i, j + 1)) })
       i = j + 1
       continue
@@ -55,7 +55,7 @@ export function tokenize(text) {
     // Littéral : nombre, true, false, null.
     let j = i
     while (j < n && !' \t\r\n{}[]:,"/'.includes(text[j])) j++
-    if (j === i) throw new SettingsEditError(tr`caractère inattendu à la position ${i}`)
+    if (j === i) throw new SettingsEditError(tr`Caractère inattendu à la position ${i}`)
     tokens.push({ t: 'lit', start: i, end: j })
     i = j
   }
@@ -80,11 +80,11 @@ export function locate(text) {
 
   function value() {
     const tok = tokens[p]
-    if (!tok) throw new SettingsEditError(tr`fin de fichier inattendue`)
+    if (!tok) throw new SettingsEditError(tr`Fin de fichier inattendue.`)
     if (tok.t === '{') return object()
     if (tok.t === '[') return array()
     if (tok.t === 'str' || tok.t === 'lit') { p++; return { kind: 'scalar', start: tok.start, end: tok.end } }
-    throw new SettingsEditError(tr`valeur attendue à la position ${tok.start}`)
+    throw new SettingsEditError(tr`Valeur attendue à la position ${tok.start}`)
   }
 
   function object() {
@@ -115,8 +115,8 @@ export function locate(text) {
   }
 
   const root = value()
-  if (p !== tokens.length) throw new SettingsEditError(tr`contenu inattendu après la racine (position ${tokens[p].start})`)
-  if (root.kind !== 'object') throw new SettingsEditError(tr`la racine du settings.json n'est pas un objet`)
+  if (p !== tokens.length) throw new SettingsEditError(tr`Contenu inattendu après la racine (position ${tokens[p].start}).`)
+  if (root.kind !== 'object') throw new SettingsEditError(tr`La racine du settings.json n'est pas un objet.`)
   return root
 }
 
@@ -258,7 +258,7 @@ export function upsertAgentServer(text, key, value) {
     return { text: text.slice(0, at) + insert + (root.members.length ? '' : nl) + text.slice(at), action: 'added' }
   }
 
-  if (servers.value.kind !== 'object') throw new SettingsEditError(tr`« agent_servers » n'est pas un objet`)
+  if (servers.value.kind !== 'object') throw new SettingsEditError(tr`« agent_servers » n'est pas un objet.`)
   return upsertMember(text, servers.value, key, value)
 }
 
@@ -333,6 +333,6 @@ export function assertParsable(text) {
   try {
     return parseJsonc(text)
   } catch (err) {
-    throw new SettingsEditError(tr`le résultat ne serait plus un JSONC valide : ${err.message}`)
+    throw new SettingsEditError(tr`Le résultat ne serait plus un JSONC valide : ${err.message}`)
   }
 }

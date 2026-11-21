@@ -42,7 +42,7 @@ export const REGISTRY_DIR = PATHS.registryDir
 export class AgentCommandError extends Error {}
 
 /** Zed n'installe un agent du registry qu'à sa première utilisation. */
-const NOT_INSTALLED_HINT = tr`ouvrir une fois un thread avec cet agent dans Zed, qui l’installe à ce moment-là`
+const NOT_INSTALLED_HINT = tr`Ouvrir une fois un thread avec cet agent dans Zed, qui l’installe à ce moment-là.`
 
 /**
  * Le drapeau `NODE_OPTIONS` qui précharge le launcher du shim avant le code de
@@ -194,7 +194,7 @@ function platformKey() {
  * @returns {Promise<{ command:string, args:string[], env:object, source:string }>}
  */
 export async function resolveAgentCommand(agentId, { settingsFile = null, overrides = {}, registryDir = REGISTRY_DIR, depth = 0 } = {}) {
-  if (!agentId) throw new AgentCommandError(tr`aucun agent demandé`)
+  if (!agentId) throw new AgentCommandError(tr`Aucun agent demandé.`)
 
   const override = overrides?.[agentId]
   if (override?.command) {
@@ -210,7 +210,7 @@ export async function resolveAgentCommand(agentId, { settingsFile = null, overri
   if (isShimEntry(entry) && !isPreloadEntry(entry)) {
     const inner = wrappedAgentId(entry)
     if (!inner || inner === agentId || depth > 2) {
-      throw new AgentCommandError(tr`agent « ${agentId} » : entrée ZRA sans agent enveloppé valide (env.ZRA_AGENT_ID)`)
+      throw new AgentCommandError(tr`Agent « ${agentId} » : entrée ZRA sans agent enveloppé valide (env.ZRA_AGENT_ID).`)
     }
     const resolved = await resolveAgentCommand(inner, { settingsFile, overrides, registryDir, depth: depth + 1 })
     return { ...resolved, source: `zra→${resolved.source}`, wraps: inner }
@@ -226,7 +226,7 @@ export async function resolveAgentCommand(agentId, { settingsFile = null, overri
   const registry = await readJsonc(join(registryDir, 'registry.json'))
   const agent = Array.isArray(registry?.agents) ? registry.agents.find((a) => a?.id === agentId) : null
   if (!agent) {
-    throw new AgentCommandError(tr`agent « ${agentId} » introuvable : ni dans zra.config.json (agentCommands), ni en \`custom\` dans le settings.json de Zed, ni dans son registry`)
+    throw new AgentCommandError(tr`Agent « ${agentId} » introuvable : ni dans zra.config.json (agentCommands), ni en \`custom\` dans le settings.json de Zed, ni dans son registry.`)
   }
 
   const npx = agent.distribution?.npx
@@ -236,7 +236,7 @@ export async function resolveAgentCommand(agentId, { settingsFile = null, overri
     const pkg = await readJsonc(join(dir, 'package.json'))
     const bin = pkg ? binPath(dir, pkg, name) : null
     if (!bin || !existsSync(bin)) {
-      throw new AgentCommandError(tr`agent « ${agentId} » (${name}) pas encore installé par Zed (${dir}) — ${NOT_INSTALLED_HINT}`)
+      throw new AgentCommandError(tr`Agent « ${agentId} » (${name}) pas encore installé par Zed (${dir}) — ${NOT_INSTALLED_HINT}`)
     }
     // Les `args`/`env` du registry font partie de la commande : sans le
     // `--acp` de qwen-code, l'agent démarre en mode interactif.
@@ -254,14 +254,14 @@ export async function resolveAgentCommand(agentId, { settingsFile = null, overri
   if (binary?.cmd) {
     const file = bare(binary.cmd)
     const dir = newestVersionDir(join(registryDir, agentId), file)
-    if (!dir) throw new AgentCommandError(tr`agent « ${agentId} » pas encore installé par Zed (${join(registryDir, agentId)}) — ${NOT_INSTALLED_HINT}`)
+    if (!dir) throw new AgentCommandError(tr`Agent « ${agentId} » pas encore installé par Zed (${join(registryDir, agentId)}) — ${NOT_INSTALLED_HINT}`)
     const args = Array.isArray(binary.args) ? binary.args.map(String) : []
     const env = { ...(binary.env && typeof binary.env === 'object' ? binary.env : {}), ...settingsEnv }
     return { command: join(dir, file), args, env, source: 'registry/binary' }
   }
 
-  const modes = Object.keys(agent.distribution ?? {}).join(', ') || tr`aucun`
-  throw new AgentCommandError(tr`agent « ${agentId} » : mode de distribution non pris en charge (${modes}) — déclarer sa commande dans \`agentCommands\` de zra.config.json`)
+  const modes = Object.keys(agent.distribution ?? {}).join(', ') || tr`Aucun`
+  throw new AgentCommandError(tr`Agent « ${agentId} » : mode de distribution non pris en charge (${modes}) — déclarer sa commande dans \`agentCommands\` de zra.config.json.`)
 }
 
 /** Nom d’affichage d’un agent dans le registry de Zed (`Claude Agent`), ou `null`. */

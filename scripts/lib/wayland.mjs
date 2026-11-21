@@ -43,9 +43,9 @@ export function findZedDesktop() {
  * Modifie le .desktop pour forcer XWayland.
  */
 export async function patchDesktopForXWayland(apply) {
-  if (!isWayland()) return { action: 'skip', reason: tr`X11 détecté, pas besoin de forcer XWayland` }
+  if (!isWayland()) return { action: 'skip', reason: tr`X11 détecté, pas besoin de forcer XWayland.` }
   const file = findZedDesktop()
-  if (!file) return { action: 'skip', reason: tr`.desktop de Zed introuvable` }
+  if (!file) return { action: 'skip', reason: tr`.desktop de Zed introuvable.` }
 
   const original = await readFile(file, 'utf8')
   // Déjà patché ?
@@ -60,7 +60,7 @@ export async function patchDesktopForXWayland(apply) {
   )
 
   if (patched === original) {
-    return { action: 'skip', reason: tr`aucune ligne Exec= trouvée dans le .desktop` }
+    return { action: 'skip', reason: tr`Aucune ligne Exec= trouvée dans le .desktop.` }
   }
 
   if (!apply) {
@@ -87,7 +87,7 @@ export async function patchDesktopForXWayland(apply) {
  */
 export async function unpatchDesktop(apply) {
   const file = findZedDesktop()
-  if (!file) return { action: 'skip', reason: tr`.desktop de Zed introuvable` }
+  if (!file) return { action: 'skip', reason: tr`.desktop de Zed introuvable.` }
 
   const original = await readFile(file, 'utf8')
   // Pas patché ?

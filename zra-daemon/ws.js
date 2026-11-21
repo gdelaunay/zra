@@ -103,7 +103,7 @@ export function createDecoder({ maxMessage = MAX_MESSAGE } = {}) {
       let len = buf[1] & 0x7f
       let off = 2
 
-      if (rsv !== 0) { out.push({ error: tr`bits RSV non supportés`, code: 1002 }); break }
+      if (rsv !== 0) { out.push({ error: tr`Bits RSV non supportés.`, code: 1002 }); break }
 
       if (len === 126) {
         if (buf.length < 4) break
@@ -112,13 +112,13 @@ export function createDecoder({ maxMessage = MAX_MESSAGE } = {}) {
       } else if (len === 127) {
         if (buf.length < 10) break
         const big = buf.readBigUInt64BE(2)
-        if (big > BigInt(limit)) { out.push({ error: tr`trame trop grande`, code: 1009 }); break }
+        if (big > BigInt(limit)) { out.push({ error: tr`Trame trop grande.`, code: 1009 }); break }
         len = Number(big)
         off = 10
       }
 
       // RFC 6455 §5.1 : un client DOIT masquer.
-      if (!masked) { out.push({ error: tr`trame client non masquée`, code: 1002 }); break }
+      if (!masked) { out.push({ error: tr`Trame client non masquée.`, code: 1002 }); break }
       if (buf.length < off + 4 + len) break
 
       const mask = buf.subarray(off, off + 4)
@@ -128,7 +128,7 @@ export function createDecoder({ maxMessage = MAX_MESSAGE } = {}) {
 
       // Trames de contrôle : jamais fragmentées, charge ≤ 125 octets.
       if (opcode >= 0x8) {
-        if (!fin || len > 125) { out.push({ error: tr`trame de contrôle invalide`, code: 1002 }); break }
+        if (!fin || len > 125) { out.push({ error: tr`Trame de contrôle invalide.`, code: 1002 }); break }
         if (opcode === OP.CLOSE) {
           out.push({ close: true, code: len >= 2 ? body.readUInt16BE(0) : 1005 })
           break
@@ -139,16 +139,16 @@ export function createDecoder({ maxMessage = MAX_MESSAGE } = {}) {
       }
 
       if (opcode === OP.CONT) {
-        if (fragmentOp === null) { out.push({ error: tr`continuation sans début`, code: 1002 }); break }
+        if (fragmentOp === null) { out.push({ error: tr`Continuation sans début.`, code: 1002 }); break }
         fragments.push(body)
       } else {
-        if (fragmentOp !== null) { out.push({ error: tr`nouvelle trame en pleine fragmentation`, code: 1002 }); break }
+        if (fragmentOp !== null) { out.push({ error: tr`Nouvelle trame en pleine fragmentation.`, code: 1002 }); break }
         fragmentOp = opcode
         fragments = [body]
       }
 
       const total = fragments.reduce((n, f) => n + f.length, 0)
-      if (total > limit) { out.push({ error: tr`message trop grand`, code: 1009 }); break }
+      if (total > limit) { out.push({ error: tr`Message trop grand.`, code: 1009 }); break }
 
       if (fin) {
         const full = fragments.length === 1 ? fragments[0] : Buffer.concat(fragments)
@@ -200,14 +200,14 @@ export class WsConnection extends EventEmitter {
       // (`zra-shim/daemon-link.js`). La PWA se reconnecte et rejoue
       // l'historique (protocole §6).
       if (this.plugged) {
-        this.log?.warn?.(tr`client ${this.id} : tampon d'écriture saturé, connexion coupée`)
+        this.log?.warn?.(tr`Client ${this.id} : tampon d'écriture saturé, connexion coupée.`)
         this.destroy()
         return false
       }
       if (flushed === false) this.plugged = true
       return true
     } catch (err) {
-      this.log?.debug(tr`client ${this.id} : écriture impossible`, err.message)
+      this.log?.debug(tr`Client ${this.id} : écriture impossible.`, err.message)
       this.destroy()
       return false
     }
@@ -299,24 +299,24 @@ export function attachWebSocket(server, {
   server.on('upgrade', (req, socket) => {
     const url = (req.url || '').split('?')[0].replace(/\/+$/, '') || '/'
     const route = table.find((r) => (r.path || '/ws') === url)
-    if (!route) return refuse(socket, 404, tr`chemin inconnu`)
+    if (!route) return refuse(socket, 404, tr`Chemin inconnu.`)
 
     const key = req.headers['sec-websocket-key']
     const version = req.headers['sec-websocket-version']
-    if (!key || String(version) !== '13') return refuse(socket, 400, tr`handshake invalide`)
+    if (!key || String(version) !== '13') return refuse(socket, 400, tr`Handshake invalide.`)
 
     const ip = req.socket.remoteAddress || '?'
     const counted = route.unpaired === true
     if (counted && ((unpairedByIp.get(ip) ?? 0) >= unpairedPerIp || unpairedCount >= unpairedTotal)) {
-      log?.warn(tr`upgrade refusé (trop de connexions non appairées) ip=${ip}`)
-      return refuse(socket, 429, tr`trop de connexions non appairées`)
+      log?.warn(tr`Upgrade refusé (trop de connexions non appairées) ip=${ip}`)
+      return refuse(socket, 429, tr`Trop de connexions non appairées.`)
     }
 
     const origin = req.headers.origin || null
     const verdict = route.verify ? route.verify({ req, origin }) : true
     if (verdict !== true) {
-      const { status = 403, reason = tr`refusé` } = verdict || {}
-      log?.warn(tr`upgrade refusé (${reason}) origin=${origin ?? '—'} ip=${ip}`)
+      const { status = 403, reason = tr`Refusé` } = verdict || {}
+      log?.warn(tr`Upgrade refusé (${reason}) origin=${origin ?? '—'} ip=${ip}`)
       return refuse(socket, status, reason)
     }
 
@@ -352,7 +352,7 @@ export function attachWebSocket(server, {
       }
       authTimer = setTimeout(() => {
         if (conn.authenticated) return release()
-        log?.info(tr`client ${conn.id} : appairage non terminé après ${Math.round(unpairedTimeoutMs / 1000)} s, connexion coupée`)
+        log?.info(tr`Client ${conn.id} : appairage non terminé après ${Math.round(unpairedTimeoutMs / 1000)} s, connexion coupée.`)
         release()
         conn.close(4401)
       }, unpairedTimeoutMs)
@@ -373,7 +373,7 @@ export function attachWebSocket(server, {
         if (ev.pong) continue
         if (!ev.text) continue
         let msg
-        try { msg = JSON.parse(ev.text) } catch { log?.debug(tr`client ${conn.id} : trame illisible`); continue }
+        try { msg = JSON.parse(ev.text) } catch { log?.debug(tr`Client ${conn.id} : trame illisible.`); continue }
         if (!msg || typeof msg !== 'object' || typeof msg.type !== 'string') continue
         conn.emit('message', msg)
       }
@@ -396,7 +396,7 @@ export function attachWebSocket(server, {
     const now = Date.now()
     for (const conn of [...clients]) {
       if (now - conn.lastSeen > pongTimeoutMs) {
-        log?.info(tr`client ${conn.id} : muet depuis ${Math.round((now - conn.lastSeen) / 1000)} s, connexion coupée`)
+        log?.info(tr`Client ${conn.id} : muet depuis ${Math.round((now - conn.lastSeen) / 1000)} s, connexion coupée.`)
         clients.delete(conn)
         conn.destroy()
         continue

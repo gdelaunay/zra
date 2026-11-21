@@ -67,7 +67,7 @@ test('findTunnel : nom configuré, puis plage, puis motif connu', () => {
   assert.equal(findTunnel({ bindInterface: 'zra' }, FAKE_IFACES).address, '10.7.0.2')
   assert.equal(findTunnel({ bindCidr: '10.7.0.0/24' }, FAKE_IFACES).address, '10.7.0.2')
   assert.equal(findTunnel({}, FAKE_IFACES).address, '10.7.0.2')
-  assert.equal(findTunnel({ bindInterface: 'absent' }, FAKE_IFACES), null)
+  assert.equal(findTunnel({ bindInterface: 'Absent' }, FAKE_IFACES), null)
 })
 
 test('findTunnel : le Wi-Fi n’est jamais pris pour le tunnel', () => {
@@ -206,7 +206,7 @@ test('ws : fragmentation réassemblée', () => {
 })
 
 test('ws : trame non masquée refusée, close et ping reconnus', () => {
-  assert.equal(createDecoder()(encodeFrame('coucou'))[0].error, 'trame client non masquée')
+  assert.equal(createDecoder()(encodeFrame('coucou'))[0].error, 'Trame client non masquée.')
   const ping = createDecoder()(clientFrame('hop', { opcode: 0x9 }))
   assert.equal(ping[0].ping, true)
   assert.equal(createDecoder()(clientFrame('', { opcode: 0x8 }))[0].close, true)
@@ -565,7 +565,7 @@ test('agent-commands : les args et env du registry font partie de la commande', 
   const bin = await resolveAgentCommand('faux-bin', { registryDir })
   assert.equal(bin.command, join(binDir, 'agent.exe'))
   assert.deepEqual(bin.args, ['acp'])
-  await assert.rejects(() => resolveAgentCommand('pas-installe', { registryDir }), /ouvrir une fois un thread/)
+  await assert.rejects(() => resolveAgentCommand('pas-installe', { registryDir }), /Ouvrir une fois un thread/)
 
   // L'`env` de l'entrée `registry` des réglages s'ajoute, et l'emporte (comme Zed).
   const settingsFile = join(FIXTURES, 'settings-env.json')

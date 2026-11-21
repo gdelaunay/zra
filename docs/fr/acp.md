@@ -139,3 +139,37 @@ Conséquences : `resource_link` est le dénominateur commun (MUST spec) ;
 l'embarqué garantit l'arrivée du contenu (qwen/gemini jettent les fichiers
 ignorés/hors workspace en lien ; goose jette les non-UTF-8). Dossiers : best
 effort selon l'agent (`docs/fr/limitations.md`).
+
+## Erreurs de `session/prompt`
+
+Spec : `_upstream/acp/docs/protocol/v1/error.mdx` (v1.15.1). Une requête refusée
+rend un objet d'erreur JSON-RPC : `code` (entier), `message` (court), `data`
+(optionnel, forme libre selon le code). Un prompt refusé par l'agent (ex.
+mauvais modèle → 403) arrive typiquement en `-32603` « Internal error » avec
+le détail réel dans `data`.
+
+Côté Zed (1.28.1, sources lues) :
+
+- `ProtocolErrorInfo` (`crates/acp_thread/src/connection.rs`) extrait
+  `code`/`message`/`data` de l'erreur de protocole ; le message affiché est la
+  chaîne complète `format!("{:#}", error)` (`ThreadError::Other`,
+  `crates/agent_ui/src/conversation_view.rs`).
+- Rendu : callout « An Error Happened » au-dessus du composer
+  (`thread_view.rs` `render_any_thread_error`) — description markdown muted,
+  retry si le tour peut reprendre (`can_retry`), copier, fermer.
+
+Côté ZRA :
+
+- Transport complet shim → daemon → PWA : `settle`/`confirm`
+  (`zra-shim/acp.js`) gardent `code`/`data` (`ShimError.details`) et le prompt
+  refusé ; avis `inject_failed` (chemin file) et `error` du protocole (chemin
+  `auto`, repli clavier compris — `zra-daemon/inject/`, `hub.js`) portent
+  `details` + `prompt`.
+- Rendu : le même callout que les états de connexion (`zra-client/js/callout.js`,
+  `views/thread.js` `paintCallout`) — titre « Une erreur est survenue »,
+  description markdown (message + `data`), retry du prompt refusé, copier,
+  fermer ; la saisie refusée revient dans le brouillon. Plus d'avis legacy
+  dans le fil pour ces erreurs.
+
+Agents : tout agent peut refuser un `session/prompt` ; constat réel qwen-code
+(poste Windows, 0.5.3) : `-32603` + détail 403 dans `data`.

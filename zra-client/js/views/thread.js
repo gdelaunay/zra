@@ -13,6 +13,7 @@ import { settings, onSettings } from '../settings.js'
 import { openSettings } from './settings.js'
 import { tr, locale } from '../i18n.js'
 import { composerCompletion, validateSlash } from '../completion.js'
+import { renderCallout } from '../callout.js'
 import { editable } from '../editor.js'
 
 /**
@@ -46,7 +47,7 @@ export function ThreadView({ key, navigate }) {
   const machine = store.machineOf(key)
   if (!machine) {
     return {
-      el: h('div.empty', {}, h('div', { text: tr`poste inconnu` }),
+      el: h('div.empty', {}, h('div', { text: tr`Poste inconnu.` }),
         button('btn', { onclick: () => navigate('#/') }, tr`Retour`)),
       destroy() {},
     }
@@ -69,7 +70,7 @@ export function ThreadView({ key, navigate }) {
 
   // « Revenir en bas » : icône seule dans un carré, apparence bouton Zed.
   const jump = button('jump.hidden', {
-    title: tr`Dernier message`, 'aria-label': tr`dernier message`,
+    title: tr`Dernier message`, 'aria-label': tr`Dernier message`,
     onclick: () => { stick = true; scrollToEnd(); revealSb(); jump.classList.add('hidden') },
   }, icon('arrow-down', 'icon--sm'))
 
@@ -84,7 +85,10 @@ export function ThreadView({ key, navigate }) {
   let spinMode = 'dots'
   const spinT0 = performance.now()
 
-  const banner = h('div.banner.hidden')
+  // Callout unique au-dessus du composer (callout.rs) : états machine/thread,
+  // réouverture, erreur de commande — arbitré par `paintCallout`, pas d'empilage.
+  const calloutSlot = h('div.callout-slot')
+  let cmdError = null
   // Le titre est lui-même un input subtil (`render_title_view` de Zed) :
   // Entrée ou blur valide le renommage (ACP), Échap annule.
   const displayedTitle = () => {
@@ -93,7 +97,7 @@ export function ThreadView({ key, navigate }) {
     return (!summary.titleOverridden && info.title) || summary.title || tr`Nouveau Thread d'Agent`
   }
   const title = h('input.header__title-input.truncate', {
-    'aria-label': tr`titre du thread`,
+    'aria-label': tr`Titre du thread`,
     // Comme Zed : cliquer le titre sélectionne tout, il n'y a qu'à taper.
     onfocus: () => title.select(),
     oninput: () => { title.size = Math.max(4, title.value.length + 1) },
@@ -109,7 +113,7 @@ export function ThreadView({ key, navigate }) {
     },
   })
   const dot = h('span.dot')
-  const lock = h('span.lock-dot.hidden', { title: tr`lecture seule : créé hors ZRA, répondre dans Zed` }, icon('lock', 'icon--sm'))
+  const lock = h('span.lock-dot.hidden', { title: tr`Lecture seule : créé hors ZRA, répondre dans Zed.` }, icon('lock', 'icon--sm'))
   const agentSlot = h('span.header__agent')
   const pathLabel = h('span.path.truncate')
 
@@ -129,7 +133,7 @@ export function ThreadView({ key, navigate }) {
     },
     onSend: (text, mode) => {
       // Répondre à un thread fermé : Zed le rouvre au clavier, ce qui prend
-      // quelques secondes. Le bandeau le dit jusqu'au retour du thread (ou l'échec).
+      // quelques secondes. Le callout le dit jusqu'au retour du thread (ou l'échec).
       if (st.state === 'closed') startReopen()
       // Envoyer, c'est vouloir lire la réponse : le fil se recolle en bas et
       // suit le stream, même si on était remonté dans l'historique. Toujours —
@@ -139,6 +143,8 @@ export function ThreadView({ key, navigate }) {
       store.sendMessage(key, text, mode)
     },
     onStop: stopTurn,
+    calloutSlot,
+    onCommandError: (err) => { cmdError = err; paintCallout() },
   })
 
   /** Zed est en train de rouvrir ce thread : `null`, ou l'instant de la demande. */
@@ -178,7 +184,6 @@ export function ThreadView({ key, navigate }) {
         button('icon-btn icon-btn--sm', { title: tr`Réglages`, onclick: () => openSettings() }, icon('settings', 'icon--sm')),
       ),
     ),
-    banner,
     h('div.thread__wrap', {}, feed, jump),
     activityWrap,
     composer.el,
@@ -219,7 +224,7 @@ export function ThreadView({ key, navigate }) {
           onclick: () => { stick = false; node?.scrollIntoView?.({ block: 'center' }); revealSb() },
         },
           icon('alert-triangle', 'icon--sm'),
-          h('span', { text: pending.length > 1 ? tr`En attente de confirmation (${pending.length})` : tr`En attente de confirmation` }),
+          h('span', { text: pending.length > 1 ? tr`En attente de confirmation (${pending.length}).` : tr`En attente de confirmation` }),
           h('span.spacer'),
           node ? icon(node.getBoundingClientRect().top < feed.getBoundingClientRect().top ? 'arrow-up' : 'arrow-down', 'icon--sm') : null),
         h('div.md.awaiting-title', { html: inlineTitle(first.toolCall?.title || 'action') }),
@@ -273,6 +278,8 @@ export function ThreadView({ key, navigate }) {
     const tl = store.ensureTimeline(key)
     const c = ctx()
     tl.entries.forEach((entry, i) => {
+      // Avis warn/error : rendus en callout (paintCallout), pas montés dans le fil.
+      if (entry.type === 'notice' && entry.level !== 'info') return
       const node = renderEntry(entry, { ...c, isLast: i === tl.entries.length - 1 })
       node._zraLen = textLength(entry.blocks)
       nodes.set(entry.id, node)
@@ -314,12 +321,12 @@ export function ThreadView({ key, navigate }) {
   function paintStatusLines() {
     const tl = store.ensureTimeline(key)
     feed.querySelector('.thread__status')?.remove()
+    // Les avis warn/error et les états d'historique vivent en callout, pas dans le fil.
+    const visible = tl.entries.filter((e) => !(e.type === 'notice' && e.level !== 'info'))
     let text = null
-    if (st.historyPending) text = tr`chargement de l’historique (session/load)…`
-    else if (st.historyError) text = st.historyError
-    else if (!tl.entries.length) text = st.state === 'live'
-      ? tr`thread live, aucun événement pour l’instant`
-      : tr`aucun historique`
+    if (!visible.length) text = st.state === 'live'
+      ? tr`Thread live, aucun événement pour l’instant.`
+      : tr`Aucun historique.`
     if (text) feed.append(h('div.empty.thread__status', {}, h('span', { text })))
   }
 
@@ -393,6 +400,8 @@ export function ThreadView({ key, navigate }) {
   }
 
   function patch(change) {
+    // Avis warn/error : callout, pas de nœud dans le fil.
+    if (change.entry.type === 'notice' && change.entry.level !== 'info') return
     const tl = store.ensureTimeline(key)
     const c = ctx()
     const isLast = tl.entries[tl.entries.length - 1]?.id === change.entry.id
@@ -429,7 +438,7 @@ export function ThreadView({ key, navigate }) {
 
   // Les événements sont peints par lot, une fois par frame, sans en perdre un seul.
   const onTimeline = rafBatch((batch) => {
-    if (batch.some((p) => !p || p.reset)) { paintAll(); syncMeta(); return }
+    if (batch.some((p) => !p || p.reset)) { paintAll(); syncMeta(); paintCallout(); return }
     const tl = store.ensureTimeline(key)
     let meta = false
     for (const payload of batch) {
@@ -445,11 +454,12 @@ export function ThreadView({ key, navigate }) {
         patch(change)
       }
     }
-    if (tl.entries.length) feed.querySelector('.thread__status')?.remove()
+    if (nodes.size) feed.querySelector('.thread__status')?.remove()
     if (meta) syncMeta()
     syncTurn()
     scrollToEnd()
     syncActivity()
+    paintCallout()
   })
 
   /** Ce qui dépend de l'état annoncé par l'agent : titre, date, consommation. */
@@ -514,17 +524,95 @@ export function ThreadView({ key, navigate }) {
 
     const m = store.machineOf(key)
     if (st.state === 'live') endReopen()
-    let msg = null, level = ''
-    if (m.status === 'locked') { msg = tr`${m.label} : appairage requis — depuis la liste des threads`; level = 'banner--error' }
-    else if (m.status !== 'online') { msg = tr`${m.label} hors ligne — ${m.error || tr`reconnexion automatique`}`; level = 'banner--error' }
-    else if (reopening !== null) msg = tr`Zed rouvre le thread…`
-    else if (store.foreignAgent(key)) msg = tr`lecture seule : thread créé hors ZRA — répondre dans Zed`
-    else if (st.state === 'closed') msg = tr`thread fermé — ta réponse le rouvrira dans Zed`
-    else if (st.state === 'unknown') msg = tr`thread sans session : lecture et écriture indisponibles`
-    banner.className = `banner ${level} ${msg ? '' : 'hidden'}`.trim()
-    clear(banner)
-    const waiting = reopening !== null && m.status === 'online'
-    if (msg) banner.append(icon(waiting ? 'load_circle' : 'alert-triangle', waiting ? 'icon--sm spin' : 'icon--sm'), h('span', { text: msg }))
+    paintCallout()
+  }
+
+  /**
+   * Un seul callout à la fois, par priorité : état du poste (appairage, hors
+   * ligne) > réouverture > erreur d'agent > erreur de commande > état du thread.
+   * Les erreurs priment sur les infos de thread : retour direct de l'envoi.
+   */
+  function paintCallout() {
+    const m = store.machineOf(key)
+    let spec = null
+    let notice = null
+    if (m.status === 'locked') spec = { severity: 'error', title: tr`Appairage requis`, desc: tr`${m.label} doit être appairé depuis la liste des threads.` }
+    else if (m.status !== 'online') spec = { severity: 'error', title: tr`${m.label} hors ligne`, desc: m.error || tr`Reconnexion automatique.` }
+    else if (reopening !== null) spec = { severity: 'info', title: tr`Zed rouvre le thread…`, spinner: true }
+    else if (st.agentError) spec = agentErrorSpec(st.agentError)
+    else if (cmdError) spec = commandErrorSpec(cmdError)
+    else if (st.historyError) spec = historyErrorSpec()
+    else if ((notice = lastNotice())) spec = noticeSpec(notice)
+    else if (st.historyPending) spec = { severity: 'info', title: tr`Chargement de l'historique (session/load)…`, spinner: true }
+    else if (store.foreignAgent(key)) spec = { severity: 'info', title: tr`Lecture seule`, desc: tr`Thread créé hors ZRA — répondre dans Zed.` }
+    else if (st.state === 'closed') spec = { severity: 'info', title: tr`Thread fermé`, desc: tr`Ta réponse le rouvrira dans Zed.` }
+    else if (st.state === 'unknown') spec = { severity: 'warning', title: tr`Thread sans session`, desc: tr`Lecture et écriture indisponibles.` }
+    clear(calloutSlot)
+    if (spec) calloutSlot.append(renderCallout(spec))
+  }
+
+  /** Dernier avis warn/error non fermé : callout (SessionNotice de Zed), pas une ligne du fil. */
+  function lastNotice() {
+    const tl = store.ensureTimeline(key)
+    for (let i = tl.entries.length - 1; i >= 0; i--) {
+      const e = tl.entries[i]
+      if (e.type === 'notice' && e.level !== 'info' && !e.dismissed) return e
+    }
+    return null
+  }
+
+  function noticeSpec(entry) {
+    return {
+      severity: entry.level === 'error' ? 'error' : 'warning',
+      title: entry.level === 'error' ? tr`Une erreur est survenue` : tr`Avertissement`,
+      desc: entry.text,
+      close: () => store.dismissNotice(key, entry.id),
+    }
+  }
+
+  /** Échec de chargement/relance — render_load_error : retry (recharger), copier, fermer. */
+  function historyErrorSpec() {
+    const launch = st.historyErrorCode === 'new_thread_failed' || st.historyErrorCode === 'inject_failed'
+    return {
+      severity: 'error',
+      title: launch ? tr`Échec du lancement` : tr`Échec du chargement`,
+      desc: st.historyError,
+      actions: [{ label: tr`Réessayer`, onclick: () => store.loadHistory(key) }],
+      copy: () => copy(st.historyError),
+      close: () => store.clearHistoryError(key),
+    }
+  }
+
+  /** Erreur d'agent — render_any_thread_error : titre, description markdown
+   * (message + `data` ACP), retry si le prompt est connu, copier, fermer. */
+  function agentErrorSpec(err) {
+    let desc = err.message || tr`Erreur inconnue.`
+    if (err.data != null) {
+      desc += typeof err.data === 'string' ? `\n\n${err.data}` : `\n\n\`\`\`json\n${JSON.stringify(err.data, null, 2)}\n\`\`\``
+    }
+    const canRetry = Boolean(err.prompt)
+    return {
+      severity: 'error', title: tr`Une erreur est survenue`, desc, markdown: true,
+      actions: canRetry ? [{ label: tr`Réessayer`, onclick: () => store.retryAgentError(key) }] : [],
+      copy: () => copy(desc),
+      close: () => store.dismissAgentError(key),
+    }
+  }
+
+  /** Erreur de validation des commandes — render_any_thread_error : titre, description, copier + fermer. */
+  function commandErrorSpec(err) {
+    const agent = agentLabel(st.summary?.agentId)
+    const list = err.available.length ? err.available.join(', ') : tr`Aucune`
+    const msg = [
+      tr`/${err.command} n'est pas une commande reconnue de ${agent}. Les messages commençant par / sont interprétés comme des commandes.`,
+      tr`Pour envoyer un message et non lancer une commande, précédez le / d'un espace.`,
+      tr`Commandes disponibles pour ${agent} : ${list}`,
+    ].join('\n\n')
+    return {
+      severity: 'error', title: tr`Une erreur est survenue`, desc: msg,
+      copy: () => copy(msg),
+      close: () => { cmdError = null; paintCallout() },
+    }
   }
 
   /**
@@ -555,7 +643,7 @@ export function ThreadView({ key, navigate }) {
   }
 
   function choose(optKey, value) {
-    if (st.turn === 'busy') toast(tr`changement appliqué après le tour en cours`, { level: 'warn' })
+    if (st.turn === 'busy') toast(tr`Changement appliqué après le tour en cours.`, { level: 'warn' })
     store.setOption(key, optKey, value)
   }
 
@@ -568,7 +656,7 @@ export function ThreadView({ key, navigate }) {
     const options = (st.options || []).filter((o) => o.type === 'boolean' || o.type === 'select')
     if (options.length > INLINE_OPTIONS) {
       optionsSlot.append(button('pill', {
-        title: tr`Autres réglages`, 'aria-label': tr`autres réglages`, onclick: moreMenu,
+        title: tr`Autres réglages`, 'aria-label': tr`Autres réglages`, onclick: moreMenu,
       }, icon('more', 'icon--sm')))
       return
     }
@@ -727,8 +815,8 @@ function preserveOpen(oldNode, newNode) {
 
 function copy(text) {
   navigator.clipboard?.writeText(text).then(
-    () => toast(tr`copié`),
-    () => toast(tr`copie impossible`, { level: 'error' }),
+    () => toast(tr`Copié`),
+    () => toast(tr`Copie impossible.`, { level: 'error' }),
   )
 }
 
@@ -748,7 +836,7 @@ export function dictate(input, { onChange, onActive } = {}) {
   const Rec = window.SpeechRecognition || window.webkitSpeechRecognition
   if (!Rec) {
     input.focus()
-    toast(tr`utilise le micro du clavier de ton téléphone`, { level: 'warn' })
+    toast(tr`Utilise le micro du clavier de ton téléphone.`, { level: 'warn' })
     return
   }
   const rec = new Rec()
@@ -764,7 +852,7 @@ export function dictate(input, { onChange, onActive } = {}) {
     onChange?.()
   }
   rec.onend = () => onActive?.(false)
-  rec.onerror = () => { onActive?.(false); toast(tr`dictée indisponible`, { level: 'error' }) }
+  rec.onerror = () => { onActive?.(false); toast(tr`Dictée indisponible.`, { level: 'error' }) }
   rec.start()
 }
 
@@ -775,7 +863,7 @@ export function dictate(input, { onChange, onActive } = {}) {
  * jauge de tokens, sélecteurs, stop et envoi. Pas de « follow agent » (Zed ne
  * peut pas nous montrer le fichier que l'agent modifie).
  */
-function Composer({ key, agentName, selectors, onSend, onStop, getCommands = () => [] }) {
+function Composer({ key, agentName, selectors, onSend, onStop, getCommands = () => [], calloutSlot, onCommandError }) {
   // Contenteditable (D2) avec façade textarea (editor.js) : brouillon texte,
   // offsets de sélection, collage texte brut ; le hint et l'ancrage au caret
   // du menu deviennent possibles. Les puces de mention arrivent en 5b-2.
@@ -785,7 +873,7 @@ function Composer({ key, agentName, selectors, onSend, onStop, getCommands = () 
     'aria-multiline': 'true',
     enterkeyhint: 'send',
     autocapitalize: 'sentences',
-    oninput: () => { store.setDraft(key, input.value); syncSend(); hideError(); completion.update() },
+    oninput: () => { store.setDraft(key, input.value); syncSend(); onCommandError(null); completion.update() },
     // Entrée envoie ; Maj+Entrée et Ctrl+Entrée sautent une ligne.
     // Pendant une composition (IME, accents morts), Entrée appartient à la saisie.
     // Le menu de complétion, s'il est ouvert, consomme Entrée/Tab/↑↓/Échap.
@@ -818,43 +906,19 @@ function Composer({ key, agentName, selectors, onSend, onStop, getCommands = () 
   const offFiles = store.on(`files:${key}`, () => completion.update())
   let lastCmds = null
 
-  // Callout d'erreur de validation des commandes — render_any_thread_error :
-  // severity Error, titre, description markdown muted, copier + fermer.
-  const errDesc = h('div.callout__desc')
-  const errCopy = button('icon-btn icon-btn--sm', { title: tr`Copier`, 'aria-label': tr`copier` }, icon('copy', 'icon--sm'))
-  const errCallout = h('div.callout.callout--error.hidden', { role: 'alert' },
-    icon('x-circle', 'icon--sm'),
-    h('div.callout__body', {}, h('div.callout__title', { text: tr`Une erreur est survenue` }), errDesc),
-    h('div.callout__actions', {}, errCopy,
-      button('icon-btn icon-btn--sm', { title: tr`Fermer`, 'aria-label': tr`fermer`, onclick: hideError }, icon('x', 'icon--sm'))),
-  )
-  function hideError() { errCallout.classList.add('hidden') }
-  function showError(err) {
-    const agent = agentName()
-    const list = err.available.length ? err.available.join(', ') : tr`aucune`
-    const msg = [
-      tr`/${err.command} n'est pas une commande reconnue de ${agent}. Les messages commençant par / sont interprétés comme des commandes.`,
-      tr`Pour envoyer un message et non lancer une commande, précédez le / d'un espace.`,
-      tr`Commandes disponibles pour ${agent} : ${list}`,
-    ].join('\n\n')
-    errDesc.textContent = msg
-    errCopy.onclick = () => copy(msg)
-    errCallout.classList.remove('hidden')
-  }
-
   // Ajout de contexte : présent mais désactivé, pas d'envoi de fichier pour l'instant.
   const plusBtn = button('icon-btn icon-btn--sm', {
-    disabled: true, title: tr`Ajouter du contexte — pas encore disponible`, 'aria-label': tr`ajouter du contexte`,
+    disabled: true, title: tr`Ajouter du contexte — pas encore disponible.`, 'aria-label': tr`Ajouter du contexte`,
   }, icon('plus', 'icon--sm'))
 
   // Envoyer ne change jamais : pendant un tour, le message part en file d'attente.
   // Désactivé quand il n'y a rien à envoyer, comme Zed.
-  const sendBtn = button('send-btn', { onclick: () => send('queue'), title: tr`Envoyer (Entrée — Maj+Entrée pour aller à la ligne)`, 'aria-label': tr`envoyer` },
+  const sendBtn = button('send-btn', { onclick: () => send('queue'), title: tr`Envoyer (Entrée — Maj+Entrée pour aller à la ligne).`, 'aria-label': tr`Envoyer` },
     icon('send'))
   // Stop n'apparaît que pendant un tour, à gauche d'Envoyer.
   const stopBtn = button('send-btn send-btn--stop hidden', {
-    onclick: stop, title: tr`Interrompre le tour (la file attend le prochain envoi)`,
-    'aria-label': tr`interrompre`,
+    onclick: stop, title: tr`Interrompre le tour (la file attend le prochain envoi).`,
+    'aria-label': tr`Interrompre`,
   }, icon('stop', 'icon--sm'))
 
   // Consommation du contexte : anneau comme Zed, ou « 27k » sans maximum connu.
@@ -888,7 +952,7 @@ function Composer({ key, agentName, selectors, onSend, onStop, getCommands = () 
     // début de message → refus, callout au-dessus du composer. Le texte brut
     // est validé : un espace devant le / échappe à la règle, comme Zed.
     const err = validateSlash(input.value, getCommands())
-    if (err) { showError(err); return }
+    if (err) { onCommandError(err); return }
     onSend(text, mode)
     input.value = ''
     store.setDraft(key, '')
@@ -913,8 +977,8 @@ function Composer({ key, agentName, selectors, onSend, onStop, getCommands = () 
     // des commandes.
     const cmds = getCommands()
     input.placeholder = foreign ? ''
-      : cmds.length ? tr`Message ${agentName()} — @ pour inclure du contexte, / pour les commandes`
-        : tr`Message ${agentName()} — @ pour inclure du contexte`
+      : cmds.length ? tr`Message ${agentName()} — @ pour inclure du contexte, / pour les commandes.`
+        : tr`Message ${agentName()} — @ pour inclure du contexte.`
     if (cmds !== lastCmds) { lastCmds = cmds; completion.update() }
   }
 
@@ -927,8 +991,8 @@ function Composer({ key, agentName, selectors, onSend, onStop, getCommands = () 
     const cost = formatCost(u.cost)
     const n = (v) => v.toLocaleString(locale)
     const detail = [
-      tr`contexte : ${n(u.used) + (u.size ? ` / ${n(u.size)}` : '')} tokens${ratio !== null ? ` (${Math.round(ratio * 100)} %)` : ''}`,
-      cost ? tr`coût de la session : ${cost}` : null,
+      tr`Contexte : ${n(u.used) + (u.size ? ` / ${n(u.size)}` : '')} tokens${ratio !== null ? ` (${Math.round(ratio * 100)} %)` : ''}`,
+      cost ? tr`Coût de la session : ${cost}` : null,
     ].filter(Boolean).join('\n')
     if (u.size) {
       // Anneau 16 px, trait 2 : circonférence 2π × 6 ≈ 37.7 ; orange dès 85 %.
@@ -944,7 +1008,7 @@ function Composer({ key, agentName, selectors, onSend, onStop, getCommands = () 
     }
   }
 
-  return { el: h('div.composer-block', {}, errCallout, el), sync, setUsage, focus: () => input.focus(), destroy: () => { completion.close(); input.destroy(); offFiles() }, refreshDraft() {
+  return { el: h('div.composer-block', {}, calloutSlot, el), sync, setUsage, focus: () => input.focus(), destroy: () => { completion.close(); input.destroy(); offFiles() }, refreshDraft() {
     const d = store.getDraft(key)
     if (input.value !== d) { input.value = d; syncSend(); completion.update() }
   } }

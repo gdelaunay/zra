@@ -13,7 +13,7 @@ export function openPairSheet(machine) {
   openSheet(tr`Appairer ${machine.label || machine.url}`, (body, { close }) => {
     const input = h('input.input.pair__code', {
       type: 'text', inputmode: 'numeric', autocomplete: 'one-time-code', maxlength: '7',
-      placeholder: '000 000', 'aria-label': tr`code d'appairage`,
+      placeholder: '000 000', 'aria-label': tr`Code d'appairage`,
       oninput: () => {
         // Six chiffres saisis : on envoie, pas besoin de chercher le bouton.
         if (input.value.replace(/\D/g, '').length === 6) submit()

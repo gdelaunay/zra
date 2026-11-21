@@ -62,7 +62,7 @@ export class Timeline {
         this.closeOpenMessage()
         return [this.push({
           type: 'notice',
-          text: [update.title, update.description].filter(Boolean).join(' — ') || tr`avis de l'agent`,
+          text: [update.title, update.description].filter(Boolean).join(' — ') || tr`Avis de l'agent`,
           level: update.severity === 'warning' || update.severity === 'error' ? 'warn' : 'info',
           at: meta.at,
         })]
@@ -236,7 +236,7 @@ export class Timeline {
     const added = this.push({
       type: 'tool',
       toolCallId: u.toolCallId ?? u.id ?? nextId(),
-      title: u.title || u.name || tr`outil`,
+      title: u.title || u.name || tr`Outil`,
       kind: TOOL_KINDS.includes(u.kind) ? u.kind : 'other',
       status: TOOL_STATUSES.includes(u.status) ? u.status : 'pending',
       content: u.content || [],
@@ -254,7 +254,7 @@ export class Timeline {
     const id = u.toolCallId ?? u.id
     const entry = this.byToolCall.get(id)
     // Update orphelin : Zed matérialise un appel en échec (`tool_call_index_for_update`).
-    if (!entry) return this.toolCall({ toolCallId: id, title: tr`appel d'outil introuvable`, status: 'failed' }, meta)
+    if (!entry) return this.toolCall({ toolCallId: id, title: tr`Appel d'outil introuvable.`, status: 'failed' }, meta)
     if (u.title !== undefined) entry.title = u.title
     if (u.kind !== undefined && TOOL_KINDS.includes(u.kind)) entry.kind = u.kind
     if (u.status !== undefined && TOOL_STATUSES.includes(u.status)) entry.status = u.status

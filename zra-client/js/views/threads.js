@@ -66,7 +66,7 @@ export function ThreadsView({ navigate }) {
   const list = h('div.scroll')
   const search = h('input.searchbar__input', {
     type: 'search', placeholder: tr`Rechercher dans tous les threads…`, value: query,
-    'aria-label': tr`rechercher dans tous les threads`,
+    'aria-label': tr`Rechercher dans tous les threads.`,
     oninput: debounce((ev) => { query = ev.target.value.toLowerCase(); paint() }, 120),
   })
 
@@ -140,7 +140,7 @@ export function ThreadsView({ navigate }) {
       }
       if (m.status !== 'online') {
         section.append(h('div.empty', { style: { padding: '12px' } },
-          h('span', { text: m.status === 'connecting' ? tr`connexion…` : (m.error || tr`poste injoignable`) }),
+          h('span', { text: m.status === 'connecting' ? tr`Connexion…` : (m.error || tr`Poste injoignable.`) }),
           m.status === 'offline'
             ? button('btn.btn--sm', { onclick: () => m.link.wake?.(true) }, icon('refresh', 'icon--sm'), tr`Réessayer`)
             : null))
@@ -151,7 +151,7 @@ export function ThreadsView({ navigate }) {
       // Filtré, un projet du sidebar sans thread correspondant disparaît.
       const zed = query || filter !== 'all' ? groups.zed.filter((g) => g.threads.length) : groups.zed
       if (!zed.length && !recent.length) {
-        section.append(h('div.empty', { style: { padding: '12px' }, text: tr`aucun thread` }))
+        section.append(h('div.empty', { style: { padding: '12px' }, text: tr`Aucun thread` }))
         continue
       }
       const projectGroup = (parent, group) => {
@@ -162,7 +162,7 @@ export function ThreadsView({ navigate }) {
         projectSection.append(projectHead(m, group.project, open, () => { toggleProject(m, group.project); paint() }, group.state ?? projectState(group.threads), group.threads))
         if (!open) return
         for (const t of group.threads) projectSection.append(threadRow(m, t, navigate))
-        if (!group.threads.length) projectSection.append(h('div.project__empty', { text: tr`aucun thread` }))
+        if (!group.threads.length) projectSection.append(h('div.project__empty', { text: tr`Aucun thread` }))
       }
       for (const group of zed) projectGroup(section, group)
       if (!recent.length) continue
@@ -185,7 +185,7 @@ export function ThreadsView({ navigate }) {
     }
 
     if (!total && query) {
-      list.append(h('div.empty', {}, icon('search', 'icon--lg'), h('div', { text: tr`aucun thread pour « ${query} »` })))
+      list.append(h('div.empty', {}, icon('search', 'icon--lg'), h('div', { text: tr`Aucun thread pour « ${query} ».` })))
     }
   }
 
@@ -229,9 +229,9 @@ function header({ navigate }) {
 
 /** Ligne de titre d'un poste : toute la ligne replie/déplie, comme un projet. */
 function machineHead(m, open, onToggle) {
-  const status = m.status === 'online' ? tr`en ligne`
-    : m.status === 'connecting' ? tr`connexion…`
-      : m.status === 'locked' ? tr`appairage requis` : tr`hors ligne`
+  const status = m.status === 'online' ? tr`En ligne`
+    : m.status === 'connecting' ? tr`Connexion…`
+      : m.status === 'locked' ? tr`Appairage requis.` : tr`Hors ligne`
   const server = icon('server', `icon--sm group__icon${m.status === 'online' ? ' group__icon--online' : ''}`)
   server.setAttribute('title', status)
   return button('group__head', { 'aria-expanded': String(open), onclick: onToggle },
@@ -303,8 +303,8 @@ function projectIcon(state) {
   const el = icon('folder', `icon--sm project__icon${state ? ` project__icon--${state}` : ''}`)
   if (state) {
     el.setAttribute('title', state === 'live'
-      ? tr`ouvert dans Zed`
-      : tr`fermé dans Zed : il s’ouvrira à la demande`)
+      ? tr`Ouvert dans Zed`
+      : tr`Fermé dans Zed : il s’ouvrira à la demande.`)
   }
   return el
 }
@@ -323,8 +323,8 @@ function projectHead(m, project, open, onToggle, state = null, threads = []) {
       projectIcon(state),
       h('span.project__name.truncate', { text: project.name }),
       icon(open ? 'chevron-down' : 'chevron-right', 'icon--sm project__chevron'),
-      waiting ? h('span.project__activity.project__activity--waiting', { title: tr`en attente de confirmation`, text: `${waiting}` }) : null,
-      busy ? h('span.project__activity', { title: tr`en cours`, text: `${busy}` }) : null,
+      waiting ? h('span.project__activity.project__activity--waiting', { title: tr`En attente de confirmation`, text: `${waiting}` }) : null,
+      busy ? h('span.project__activity', { title: tr`En cours`, text: `${busy}` }) : null,
     ),
     project.folderPaths.length
       ? newSessionButton({ machineId: m.id, project: () => project, title: tr`Nouveau thread dans ${project.name}` })
@@ -363,11 +363,11 @@ function threadRow(m, t, navigate) {
         renaming?.key === k
           ? renameInput(k, t)
           : h('span.thread-row__title.truncate', { text: t.title || tr`Nouveau Thread d'Agent` })),
-      t.archived ? h('span.thread-row__badge', { text: tr`archivé` }) : null,
+      t.archived ? h('span.thread-row__badge', { text: tr`Archivé` }) : null,
       // Boîte 18 px comme le « + » des projets : pastille / cadenas alignés dessus.
       h('span.thread-row__status', {},
         readOnly
-          ? h('span.lock-dot', { title: tr`lecture seule : créé hors ZRA, répondre dans Zed` }, icon('lock', 'icon--sm'))
+          ? h('span.lock-dot', { title: tr`Lecture seule : créé hors ZRA, répondre dans Zed.` }, icon('lock', 'icon--sm'))
           : h(`span.dot.dot--${t.state}`)),
       threadActions(k, t),
     ),
@@ -396,13 +396,13 @@ function threadActions(k, t) {
   return h('span.thread-row__actions', {},
     h('span.thread-row__fade', { 'aria-hidden': 'true' }),
     t.canRename !== false
-      ? button('icon-btn icon-btn--sm', { title: tr`Renommer`, 'aria-label': tr`renommer le thread`, onclick: (ev) => { stop(ev); beginRename(k, t) } }, icon('pencil', 'icon--sm'))
+      ? button('icon-btn icon-btn--sm', { title: tr`Renommer`, 'aria-label': tr`Renommer le thread`, onclick: (ev) => { stop(ev); beginRename(k, t) } }, icon('pencil', 'icon--sm'))
       : null,
     t.turn === 'busy'
-      ? button('icon-btn icon-btn--sm thread-row__stop', { title: tr`Stopper la génération`, 'aria-label': tr`stopper la génération`, onclick: (ev) => { stop(ev); store.interrupt(k) } }, icon('stop', 'icon--sm'))
+      ? button('icon-btn icon-btn--sm thread-row__stop', { title: tr`Stopper la génération`, 'aria-label': tr`Stopper la génération`, onclick: (ev) => { stop(ev); store.interrupt(k) } }, icon('stop', 'icon--sm'))
       : null,
     t.canDelete !== false
-      ? button('icon-btn icon-btn--sm thread-row__delete', { title: tr`Supprimer`, 'aria-label': tr`supprimer le thread`, onclick: (ev) => { stop(ev); confirmDelete(k, t) } }, icon('trash', 'icon--sm'))
+      ? button('icon-btn icon-btn--sm thread-row__delete', { title: tr`Supprimer`, 'aria-label': tr`Supprimer le thread`, onclick: (ev) => { stop(ev); confirmDelete(k, t) } }, icon('trash', 'icon--sm'))
       : null,
   )
 }
@@ -449,7 +449,7 @@ function beginRename(k, t) {
 function renameInput(k, t) {
   const input = h('input.thread-row__rename', {
     value: renaming.value,
-    'aria-label': tr`renommer le thread`,
+    'aria-label': tr`Renommer le thread`,
     onclick: (ev) => ev.stopPropagation(),
     onpointerdown: (ev) => ev.stopPropagation(),
     oninput: (ev) => {
@@ -511,16 +511,16 @@ function confirmDelete(k, t) {
 function stateIcon(m, t) {
   if (t.waiting) {
     const el = icon('alert-triangle', 'icon--xs thread-row__icon--waiting')
-    el.setAttribute('title', tr`attend une confirmation`)
+    el.setAttribute('title', tr`Attend une confirmation.`)
     return h('span.thread-row__icon.thread-row__icon--waiting', {}, el)
   }
   if (t.turn === 'busy') {
     const el = icon('load_circle', 'icon--sm spin')
-    el.setAttribute('title', tr`en cours`)
+    el.setAttribute('title', tr`En cours`)
     return h('span.thread-row__icon', {}, el)
   }
   if (store.ensureState(store.key(m.id, t.threadId)).unseen) {
-    return h('span.thread-row__icon.thread-row__icon--unseen', { title: tr`tour terminé, pas encore lu` },
+    return h('span.thread-row__icon.thread-row__icon--unseen', { title: tr`Tour terminé, pas encore lu.` },
       icon('circle', 'icon--sm'))
   }
   return h('span.thread-row__icon', {}, agentIcon(t.agentId, 'icon--sm'))

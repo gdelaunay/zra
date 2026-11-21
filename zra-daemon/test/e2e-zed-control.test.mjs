@@ -236,15 +236,15 @@ test('keyboard.ps1 : recette résolue en simulation, touche inconnue refusée av
   const runner = new KeyboardRunner({ timeoutMs: 60_000 })
   await assert.rejects(
     () => runner.run({ op: 'run', dryRun: true, steps: [{ keys: 'ctrl+enter' }, { keys: 'ctrl+touche-imaginaire' }] }),
-    /touche inconnue/,
+    /Touche inconnue/,
   )
   // Zed ouvert ou non sur la machine de test : les deux issues sont légitimes,
   // mais aucune ne doit envoyer de touche (dryRun).
   try {
     const res = await runner.run({ op: 'run', dryRun: true, steps: [{ keys: 'ctrl+shift+p' }, { text: 'é\nà' }, { wait: 1 }] })
-    assert.deepEqual(res.log.slice(1), ['touches ctrl+shift+p', 'texte (3 caractère(s))', 'attente 1 ms'])
+    assert.deepEqual(res.log.slice(1), ['Touches ctrl+shift+p', 'Texte (3 caractère(s))', 'Attente 1 ms'])
   } catch (err) {
-    assert.match(err.message, /aucune fenêtre Zed/)
+    assert.match(err.message, /Aucune fenêtre Zed/)
   }
 })
 
@@ -361,7 +361,7 @@ test('new_thread : un projet inconnu du poste est refusé, sans une touche', asy
   client.send({ type: 'new_thread', agentId: 'fake-zra', folderPaths: ['C:/Windows/System32'] })
   const err = await client.until((m) => m.type === 'error', { label: 'erreur' })
   assert.equal(err.code, 'new_thread_failed')
-  assert.match(err.message, /projet inconnu/)
+  assert.match(err.message, /Projet inconnu/)
   assert.equal(keyboard.calls.length, 0)
   assert.equal(cli.calls.length, 0)
 })
@@ -559,7 +559,7 @@ test('acp : un refus de l’agent arrive en avis inject_failed', async (t) => {
   const client = await Client.open(t)
   await client.until(live(VIVANT), { label: 'live' })
   client.send({ type: 'subscribe', threadId: VIVANT })
-  client.send({ type: 'send', threadId: VIVANT, text: 'refusé', mode: 'queue' })
+  client.send({ type: 'send', threadId: VIVANT, text: 'Refusé', mode: 'queue' })
   const notice = await client.until(
     (m) => m.type === 'acp_event' && m.update.sessionUpdate === 'zra/notice' && /refusé/.test(m.update.text),
     { label: 'avis de refus' },

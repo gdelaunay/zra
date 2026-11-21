@@ -211,10 +211,10 @@ test('openSheet() : titre, bouton fermer, et un corps construit par l’appelant
   assert.equal(sheet.getAttribute('aria-modal'), 'true')
   assert.equal(sheet.querySelector('.sheet__title span').textContent, 'Nouveau thread')
   assert.ok(sheet.querySelector('.sheet__title svg'), 'l’icône de titre est rendue')
-  assert.equal(sheet.querySelector('button[aria-label="fermer"]') !== null, true)
+  assert.equal(sheet.querySelector('button[aria-label="Fermer"]') !== null, true)
   assert.equal(sheet.querySelectorAll('p').length, 1)
 
-  click(sheet.querySelector('button[aria-label="fermer"]'))
+  click(sheet.querySelector('button[aria-label="Fermer"]'))
   assert.equal(sheets().length, 0)
 })
 

@@ -121,7 +121,7 @@ export function openSheet(title, build, { titleIcon } = {}) {
     titleIcon ? icon(titleIcon, 'icon--sm') : null,
     h('span', { text: title }),
     h('span.spacer'),
-    button('icon-btn', { onclick: close, 'aria-label': tr`fermer` }, icon('x', 'icon--sm')),
+    button('icon-btn', { onclick: close, 'aria-label': tr`Fermer` }, icon('x', 'icon--sm')),
   ))
   const body = h('div')
   sheet.append(body)

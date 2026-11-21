@@ -265,30 +265,30 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 async function status(opts, config, ctx = {}) {
   const s = autostartState(ctx)
   if (!s.installed) {
-    console.log(tr`entrée « ${DESKTOP} » : ✗ absente — \`npm run service -- install\` pour voir ce qui serait créé`)
+    console.log(tr`Entrée « ${DESKTOP} » : ✗ absente — \`npm run service -- install\` pour voir ce qui serait créé.`)
   } else {
-    console.log(tr`entrée « ${DESKTOP} » : ✓ installée (${s.desktop})`)
-    console.log(tr`  lanceur : ${s.launcherPath}` + (s.launcher ? '' : tr` — ✗ absent`))
+    console.log(tr`Entrée « ${DESKTOP} » : ✓ installée (${s.desktop}).`)
+    console.log(tr`  Lanceur : ${s.launcherPath}` + (s.launcher ? '' : tr` — ✗ absent.`))
     console.log(s.running
-      ? tr`  processus : ✓ lancé, pid ${s.pid}`
-      : tr`  processus : ✗ arrêté`)
-    if (s.stalePid) console.log(tr`  pidfile périmé (pid ${s.stalePid} mort ou recyclé) — \`stop\` le nettoiera`)
-    console.log(tr`  au démarrage : à l’ouverture de session (autostart XDG, sans sudo)`)
-    console.log(tr`  ⚠ pas de supervision : aucun équivalent à Restart=on-failure, un daemon planté reste arrêté`)
-    console.log(tr`  ⚠ pas d’équivalent à loginctl enable-linger : arrêt à la fermeture de session`)
+      ? tr`  Processus : ✓ lancé, pid ${s.pid}`
+      : tr`  Processus : ✗ arrêté.`)
+    if (s.stalePid) console.log(tr`  Pidfile périmé (pid ${s.stalePid} mort ou recyclé) — \`stop\` le nettoiera.`)
+    console.log(tr`  Au démarrage : à l’ouverture de session (autostart XDG, sans sudo).`)
+    console.log(tr`  ⚠ pas de supervision : aucun équivalent à Restart=on-failure, un daemon planté reste arrêté.`)
+    console.log(tr`  ⚠ pas d’équivalent à loginctl enable-linger : arrêt à la fermeture de session.`)
   }
 
   const d = await daemonStatus(config.port)
   if (d.ok) {
     const t = d.threads ?? {}
-    console.log(tr`daemon 127.0.0.1:${config.port} : ✓ ${d.scheme}, depuis ${d.startedAt}, ${t.live ?? 0} live / ${t.closed ?? 0} fermé(s), ${d.shims?.length ?? 0} shim(s), ${d.clients ?? 0} client(s)`)
+    console.log(tr`Daemon 127.0.0.1:${config.port} : ✓ ${d.scheme}, depuis ${d.startedAt}, ${t.live ?? 0} live / ${t.closed ?? 0} fermé(s), ${d.shims?.length ?? 0} shim(s), ${d.clients ?? 0} client(s).`)
   } else {
-    console.log(tr`daemon 127.0.0.1:${config.port} : ✗ injoignable (${d.reason})`)
+    console.log(tr`Daemon 127.0.0.1:${config.port} : ✗ injoignable (${d.reason}).`)
   }
 
   const last = tailLog(s.paths.log, 5) ?? tailLog(s.paths.serviceLog, 5)
-  if (last) console.log(tr`journal :\n  ${last.join('\n  ')}`)
-  else console.log(tr`journal : pas encore écrit (${s.paths.log})`)
+  if (last) console.log(tr`Journal :\n  ${last.join('\n  ')}`)
+  else console.log(tr`Journal : pas encore écrit (${s.paths.log}).`)
 }
 
 async function install(opts, config, ctx = {}) {
@@ -296,14 +296,14 @@ async function install(opts, config, ctx = {}) {
   const env = ctx.env ?? process.env
   const launcher = buildLauncher({ node: ctx.node, env, ...p })
   const desktop = buildDesktop({ launcher: p.launcher })
-  console.log(tr`entrée « ${DESKTOP} » pour ${env.USER || tr`l’utilisateur courant`} : à l'ouverture de session, sans élévation, dans la session graphique`)
+  console.log(tr`Entrée « ${DESKTOP} » pour ${env.USER || tr`L’utilisateur courant`} : à l'ouverture de session, sans élévation, dans la session graphique.`)
   console.log(`  node ${process.execPath}`)
-  console.log(tr`  journal ${p.log} (et ${p.serviceLog} pour les crashs au démarrage)`)
-  console.log(tr`  fichiers ${p.desktop}\n           ${p.launcher}`)
+  console.log(tr`  Journal ${p.log} (et ${p.serviceLog} pour les crashs au démarrage).`)
+  console.log(tr`  Fichiers ${p.desktop}\n           ${p.launcher}`)
   console.log(tr`\n--- lanceur ---\n` + launcher.split(/\r?\n/).map((l) => `  │ ${l}`).join('\n'))
   console.log(tr`\n--- entrée .desktop ---\n` + desktop.split(/\r?\n/).map((l) => `  │ ${l}`).join('\n'))
   if (!opts.apply) {
-    console.log(tr`\nsimulation : rien créé. Relancer avec --apply pour écrire l’entrée et le lanceur.`)
+    console.log(tr`\nSimulation : rien créé. Relancer avec --apply pour écrire l’entrée et le lanceur.`)
     return
   }
   await mkdir(dirname(p.launcher), { recursive: true })
@@ -312,21 +312,21 @@ async function install(opts, config, ctx = {}) {
   chmodSync(p.launcher, 0o755)
   await mkdir(dirname(p.desktop), { recursive: true })
   await writeFile(p.desktop, desktop, 'utf8')
-  console.log(tr`\n✓ lanceur et entrée écrits. L’entrée prend effet à la prochaine ouverture de session ; tout de suite : npm run service -- start`)
-  console.log(tr`  (que la session la lise vraiment ne se vérifie qu’en se déconnectant/reconnectant)`)
+  console.log(tr`\n✓ lanceur et entrée écrits. L’entrée prend effet à la prochaine ouverture de session ; tout de suite : npm run service -- start.`)
+  console.log(tr`  (que la session la lise vraiment ne se vérifie qu’en se déconnectant/reconnectant).`)
 }
 
 async function uninstall(opts, config, ctx = {}) {
   const s = autostartState(ctx)
-  if (!s.installed && !s.launcher && !s.stalePid) return console.log(tr`entrée « ${DESKTOP} » : déjà absente`)
+  if (!s.installed && !s.launcher && !s.stalePid) return console.log(tr`Entrée « ${DESKTOP} » : déjà absente.`)
   if (!opts.apply) {
-    return console.log(tr`simulation : le daemon serait arrêté, puis ${s.desktop} et ${s.launcherPath} supprimés. Relancer avec --apply.`)
+    return console.log(tr`Simulation : le daemon serait arrêté, puis ${s.desktop} et ${s.launcherPath} supprimés. Relancer avec --apply.`)
   }
   const stopped = await stopDaemon(s)
   rmSync(s.desktop, { force: true })
   rmSync(s.launcherPath, { force: true })
   rmSync(s.pidFile, { force: true })
-  console.log(stopped ? tr`✓ entrée et lanceur supprimés (daemon arrêté) — le journal reste dans .zra/logs/` : tr`✓ entrée et lanceur supprimés — le journal reste dans .zra/logs/`)
+  console.log(stopped ? tr`✓ entrée et lanceur supprimés (daemon arrêté) — le journal reste dans .zra/logs/.` : tr`✓ entrée et lanceur supprimés — le journal reste dans .zra/logs/.`)
 }
 
 /** Arrête le processus du pidfile, s'il est bien le nôtre. Renvoie true si tué. */
@@ -355,10 +355,10 @@ async function stopDaemon(s) {
 
 async function start(opts, config, ctx = {}) {
   const s = autostartState(ctx)
-  if (!s.installed || !s.launcher) throw new Error(tr`entrée « ${DESKTOP} » absente : npm run service -- install --apply`)
+  if (!s.installed || !s.launcher) throw new Error(tr`Entrée « ${DESKTOP} » absente : npm run service -- install --apply.`)
   const already = await daemonStatus(config.port)
-  if (already.ok) return console.log(tr`un daemon répond déjà sur 127.0.0.1:${config.port} (dev ?) : rien lancé`)
-  if (s.pid) return console.log(tr`le lanceur tourne déjà (pid ${s.pid}) mais le daemon ne répond pas : npm run service -- logs`)
+  if (already.ok) return console.log(tr`Un daemon répond déjà sur 127.0.0.1:${config.port} (dev ?) : rien lancé.`)
+  if (s.pid) return console.log(tr`Le lanceur tourne déjà (pid ${s.pid}) mais le daemon ne répond pas : npm run service -- logs.`)
   // Détaché : le lanceur doit survivre à la fin de `npm run service`.
   const child = spawn(s.launcherPath, ['--now'], { detached: true, stdio: 'ignore', cwd: s.paths.root })
   child.unref()
@@ -370,18 +370,18 @@ async function start(opts, config, ctx = {}) {
       return console.log(tr`✓ daemon lancé (${`${d.scheme}://127.0.0.1:${config.port}${pid ? `, pid ${pid}` : ''}`})`)
     }
   }
-  console.log(tr`lanceur parti, mais le daemon ne répond pas encore : npm run service -- logs`)
+  console.log(tr`Lanceur parti, mais le daemon ne répond pas encore : npm run service -- logs.`)
 }
 
 async function stop(opts, config, ctx = {}) {
   const s = autostartState(ctx)
-  if (!s.installed) return console.log(tr`entrée « ${DESKTOP} » absente`)
+  if (!s.installed) return console.log(tr`Entrée « ${DESKTOP} » absente.`)
   if (s.stalePid) {
     rmSync(s.pidFile, { force: true })
-    console.log(tr`pidfile périmé nettoyé (pid ${s.stalePid} n’était pas le daemon)`)
+    console.log(tr`Pidfile périmé nettoyé (pid ${s.stalePid} n’était pas le daemon).`)
   }
-  if (!s.pid) return console.log(tr`daemon : déjà arrêté`)
-  console.log(await stopDaemon(s) ? tr`✓ daemon arrêté (pid ${s.pid})` : tr`✗ impossible d’arrêter le pid ${s.pid}`)
+  if (!s.pid) return console.log(tr`Daemon : déjà arrêté.`)
+  console.log(await stopDaemon(s) ? tr`✓ daemon arrêté (pid ${s.pid}).` : tr`✗ impossible d’arrêter le pid ${s.pid}`)
 }
 
 function logs(opts, config, ctx = {}) {
@@ -389,9 +389,9 @@ function logs(opts, config, ctx = {}) {
   const fromDaemon = tailLog(p.log, opts.lines)
   if (fromDaemon) return console.log(fromDaemon.join('\n'))
   const fromService = tailLog(p.serviceLog, opts.lines)
-  if (fromService) return console.log(tr`(${p.log} vide, lu depuis ${p.serviceLog})` + `\n${fromService.join('\n')}`)
-  console.log(tr`pas de journal : ${p.log} et ${p.serviceLog} absents ou vides`)
-  console.log(tr`(pas de journalctl ici : cette machine n’a pas systemd comme init)`)
+  if (fromService) return console.log(tr`(${p.log} vide, lu depuis ${p.serviceLog}).` + `\n${fromService.join('\n')}`)
+  console.log(tr`Pas de journal : ${p.log} et ${p.serviceLog} absents ou vides.`)
+  console.log(tr`(pas de journalctl ici : cette machine n’a pas systemd comme init).`)
 }
 
 /** Les six verbes de la CLI, mêmes noms que les deux autres backends. */

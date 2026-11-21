@@ -90,21 +90,21 @@ export function validate(schema, values) {
     switch (kind) {
       case 'text': {
         const v = raw === undefined || raw === null ? '' : String(raw)
-        result = !v ? (isRequired ? { error: tr`${title} : réponse requise` } : {})
+        result = !v ? (isRequired ? { error: tr`${title} : réponse requise.` } : {})
           : check(validateString(title, prop, v), v)
         break
       }
       case 'select': {
         const v = raw === undefined || raw === null || raw === '' ? null : String(raw)
-        if (v === null) result = isRequired ? { error: tr`${title} : réponse requise` } : {}
-        else if (!options(prop).some((o) => o.value === v)) result = { error: tr`${title} : choisir une des options proposées` }
+        if (v === null) result = isRequired ? { error: tr`${title} : réponse requise.` } : {}
+        else if (!options(prop).some((o) => o.value === v)) result = { error: tr`${title} : choisir une des options proposées.` }
         else result = check(validateString(title, prop, v), v)
         break
       }
       case 'number':
       case 'integer': {
         const v = raw === undefined || raw === null ? '' : String(raw).trim()
-        if (!v) result = isRequired ? { error: tr`${title} : réponse requise` } : {}
+        if (!v) result = isRequired ? { error: tr`${title} : réponse requise.` } : {}
         else result = validateNumber(title, prop, v, kind === 'integer')
         break
       }
@@ -117,8 +117,8 @@ export function validate(schema, values) {
         const chosen = new Set(Array.isArray(raw) ? raw.map(String) : [])
         const v = (options(prop) || []).map((o) => o.value).filter((x) => chosen.has(x)).sort()
         if (!v.length && !isRequired) result = {}
-        else if (prop.minItems !== undefined && v.length < prop.minItems) result = { error: tr`${title} : choisir davantage d’options` }
-        else if (prop.maxItems !== undefined && v.length > prop.maxItems) result = { error: tr`${title} : trop d’options choisies` }
+        else if (prop.minItems !== undefined && v.length < prop.minItems) result = { error: tr`${title} : choisir davantage d’options.` }
+        else if (prop.maxItems !== undefined && v.length > prop.maxItems) result = { error: tr`${title} : trop d’options choisies.` }
         else result = { value: v }
         break
       }
@@ -134,7 +134,7 @@ const check = (error, value) => (error ? { error } : { value })
 function validateNumber(title, prop, v, integer) {
   const ok = integer ? /^[+-]?\d+$/.test(v) : /^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$/.test(v)
   const n = Number(v)
-  if (!ok || !Number.isFinite(n)) return { error: integer ? tr`${title} : nombre entier attendu` : tr`${title} : nombre attendu` }
+  if (!ok || !Number.isFinite(n)) return { error: integer ? tr`${title} : nombre entier attendu.` : tr`${title} : nombre attendu.` }
   if (prop.minimum !== undefined && n < prop.minimum) return { error: tr`${title} : au moins ${prop.minimum}` }
   if (prop.maximum !== undefined && n > prop.maximum) return { error: tr`${title} : au plus ${prop.maximum}` }
   return { value: n }
@@ -143,35 +143,35 @@ function validateNumber(title, prop, v, integer) {
 /** Longueur, motif et format d'un texte (`validate_string_value`). */
 function validateString(title, prop, v) {
   const length = [...v].length
-  if (prop.minLength !== undefined && length < prop.minLength) return tr`${title} : trop court`
-  if (prop.maxLength !== undefined && length > prop.maxLength) return tr`${title} : trop long`
+  if (prop.minLength !== undefined && length < prop.minLength) return tr`${title} : trop court.`
+  if (prop.maxLength !== undefined && length > prop.maxLength) return tr`${title} : trop long.`
   const format = FORMATS[prop.format]
   if (prop.pattern === undefined && !format) return null
   let ok = true
   if (prop.pattern !== undefined) {
-    if (String(prop.pattern).length > MAX_PATTERN_BYTES) return tr`${title} : motif de validation invalide`
-    if (v.length > MAX_PATTERN_INPUT_BYTES) return tr`${title} : trop long pour être vérifié`
+    if (String(prop.pattern).length > MAX_PATTERN_BYTES) return tr`${title} : motif de validation invalide.`
+    if (v.length > MAX_PATTERN_INPUT_BYTES) return tr`${title} : trop long pour être vérifié.`
     let re
-    try { re = new RegExp(prop.pattern, 'u') } catch { return tr`${title} : motif de validation invalide` }
+    try { re = new RegExp(prop.pattern, 'u') } catch { return tr`${title} : motif de validation invalide.` }
     ok = re.test(v)
   }
   if (ok && format && !format.test(v)) ok = false
   if (ok) return null
-  if (prop.pattern !== undefined) return format ? tr`${title} : ne respecte pas les contraintes demandées` : tr`${title} : ne respecte pas le motif demandé`
+  if (prop.pattern !== undefined) return format ? tr`${title} : ne respecte pas les contraintes demandées.` : tr`${title} : ne respecte pas le motif demandé.`
   return format.message(title)
 }
 
 /** Formats reconnus par Zed (`string_format_json_name`), vérifiés comme JSON Schema. */
 const FORMATS = {
-  email: { test: (v) => /^[^\s@]+@[^\s@]+$/.test(v), message: (t) => tr`${t} : adresse e-mail attendue` },
-  uri: { test: (v) => /^[a-z][a-z0-9+.-]*:\S*$/i.test(v) && canParseUrl(v), message: (t) => tr`${t} : URI attendue` },
-  date: { test: (v) => isDate(v), message: (t) => tr`${t} : date attendue (AAAA-MM-JJ)` },
+  email: { test: (v) => /^[^\s@]+@[^\s@]+$/.test(v), message: (t) => tr`${t} : adresse e-mail attendue.` },
+  uri: { test: (v) => /^[a-z][a-z0-9+.-]*:\S*$/i.test(v) && canParseUrl(v), message: (t) => tr`${t} : URI attendue.` },
+  date: { test: (v) => isDate(v), message: (t) => tr`${t} : date attendue (AAAA-MM-JJ).` },
   'date-time': {
     test: (v) => {
       const m = /^(\d{4}-\d{2}-\d{2})[Tt ](\d{2}):(\d{2}):(\d{2})(\.\d+)?([Zz]|[+-]\d{2}:\d{2})$/.exec(v)
       return Boolean(m) && isDate(m[1]) && Number(m[2]) < 24 && Number(m[3]) < 60 && Number(m[4]) < 61
     },
-    message: (t) => tr`${t} : date et heure attendues`,
+    message: (t) => tr`${t} : date et heure attendues.`,
   },
 }
 

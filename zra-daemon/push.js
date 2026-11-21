@@ -56,7 +56,7 @@ export class PushNotifier {
     let state = null
     if (this.file && existsSync(this.file)) {
       try { state = JSON.parse(readFileSync(this.file, 'utf8')) } catch (err) {
-        log.warn(tr`état push illisible (${this.file}) :`, err.message)
+        log.warn(tr`État push illisible (${this.file}) :`, err.message)
       }
     }
     if (state?.vapid?.privateKey && state?.vapid?.publicKey) {
@@ -64,7 +64,7 @@ export class PushNotifier {
         this.privateKey = createPrivateKey({ key: Buffer.from(state.vapid.privateKey, 'base64'), format: 'der', type: 'pkcs8' })
         this.publicKey = state.vapid.publicKey
       } catch (err) {
-        log.warn(tr`clé VAPID illisible, régénérée :`, err.message)
+        log.warn(tr`Clé VAPID illisible, régénérée :`, err.message)
       }
     }
     if (!this.privateKey) {
@@ -90,7 +90,7 @@ export class PushNotifier {
       writeFileSync(tmp, JSON.stringify(state, null, 2))
       renameSync(tmp, this.file)
     } catch (err) {
-      log.warn(tr`état push non persisté :`, err.message)
+      log.warn(tr`État push non persisté :`, err.message)
     }
   }
 
@@ -106,7 +106,7 @@ export class PushNotifier {
       machineId, clientId,
     })
     this.save()
-    log.info(tr`abonnement push enregistré (${this.subscriptions.size})`)
+    log.info(tr`Abonnement push enregistré (${this.subscriptions.size})`)
     return true
   }
 
@@ -167,10 +167,10 @@ export class PushNotifier {
     if (res.status === 404 || res.status === 410) {
       this.subscriptions.delete(sub.endpoint)
       this.save()
-      log.info(tr`abonnement push expiré, retiré`)
+      log.info(tr`Abonnement push expiré, retiré.`)
       return false
     }
-    if (!res.ok) throw new Error(tr`service de push : HTTP ${res.status}`)
+    if (!res.ok) throw new Error(tr`Service de push : HTTP ${res.status}`)
     return true
   }
 
@@ -186,7 +186,7 @@ export class PushNotifier {
       try {
         if (await this.send(sub, { title, body, tag, url })) sent++
       } catch (err) {
-        log.warn(tr`push non envoyé :`, err.message)
+        log.warn(tr`Push non envoyé :`, err.message)
       }
     }))
     return sent

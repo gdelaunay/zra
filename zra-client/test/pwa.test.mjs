@@ -97,7 +97,7 @@ test('écran 2 : ouverture du thread live, flux ACP rendu', async () => {
   assert.match(headerTitle(), /Refactor du lecteur/)
 
   // le tour lancé à la connexion produit réflexion, plan, outils, diff, terminal, markdown
-  await until(() => $('.thought'), 6000, 'réflexion')
+  await until(() => $('.thought'), 6000, 'Réflexion')
   await until(() => $('.plan'), 6000, 'plan')
   await until(() => $$('.tool').length >= 2, 8000, 'tool calls')
   await until(() => $('.diff'), 8000, 'diff')
@@ -117,7 +117,7 @@ test('consommation et titre annoncés par l’agent : à leur place, pas dans le
   await until(() => $('.tokens') && !$('.tokens').classList.contains('hidden'), 3000, 'consommation affichée')
   // En fin de tour : coût et nouveau titre (session_info_update).
   await until(() => /31\s842 \/ 1\s000\s000 tokens \(3 %\)/.test($('.tokens').title), 9000, 'consommation de fin de tour')
-  assert.match($('.tokens').title, /coût de la session : 0,09/)
+  assert.match($('.tokens').title, /Coût de la session : 0,09/)
   assert.ok($('.tokens .ring .fg'), 'anneau comme Zed')
   await until(() => /en lecture seule/.test(headerTitle()), 2000, 'titre annoncé par l’agent')
   assert.ok(!$$('.raw').some((n) => /usage_update|session_info_update/.test(n.textContent)), 'aucun bloc brut')
@@ -177,9 +177,9 @@ test('les réglages du thread ouvrent la feuille globale', async () => {
 })
 
 test('le retour à la liste se fait depuis la bottombar', async () => {
-  const back = $('.bottombar [aria-label="liste des threads"]')
+  const back = $('.bottombar [aria-label="Liste des threads"]')
   assert.ok(back)
-  const agent = $('.bottombar [aria-label="discussion"]')
+  const agent = $('.bottombar [aria-label="Discussion"]')
   assert.ok(agent, 'bouton agent à gauche de la liste')
   // Sur l'écran thread : agent actif (icône accent), liste inactive.
   assert.ok(agent.classList.contains('is-active'))
@@ -187,7 +187,7 @@ test('le retour à la liste se fait depuis la bottombar', async () => {
   assert.ok($('.composer .pill'), 'les sélecteurs mode/modèle sont dans le composer')
   click(back)
   await until(() => $('.searchbar'), 2000, 'écran liste')
-  assert.ok($('.bottombar [aria-label="liste des threads"]').classList.contains('is-active'), 'liste active sur l’écran liste')
+  assert.ok($('.bottombar [aria-label="Liste des threads"]').classList.contains('is-active'), 'liste active sur l’écran liste')
   ZRA.navigate('#/t/mock-desk/a1f39c0b')
   await until(() => /Refactor/.test(headerTitle()), 3000)
 })
@@ -212,9 +212,9 @@ test('réglages génériques : en ligne s’ils sont peu nombreux, sinon dans «
   const link = ZRA.store.state.machines.get('mock-desk').link
   const extra = { id: 'verbose', name: 'Verbeux', type: 'boolean', category: null, currentValue: false }
   link.push({ type: 'thread_state', threadId: 'a1f39c0b', options: [...st.options, extra] })
-  await until(() => $('.composer [aria-label="autres réglages"]'), 3000, 'bouton ⋯')
+  await until(() => $('.composer [aria-label="Autres réglages"]'), 3000, 'bouton ⋯')
   assert.equal($$('.composer__options .pill').length, 1)
-  click($('.composer [aria-label="autres réglages"]'))
+  click($('.composer [aria-label="Autres réglages"]'))
   const items = $$('.menu__item').map((n) => n.textContent.trim())
   assert.deepEqual(items, ['Fast mode', 'Verbeux', 'Default', 'Low', 'Medium', 'High'])
   click($$('.menu__item').find((n) => n.textContent.trim() === 'Verbeux'))
@@ -222,7 +222,7 @@ test('réglages génériques : en ligne s’ils sont peu nombreux, sinon dans «
 
   // On rend l'état du mock pour les tests suivants.
   link.push({ type: 'thread_state', threadId: 'a1f39c0b', options: st.options.filter((o) => o.id !== 'verbose') })
-  await until(() => !$('.composer [aria-label="autres réglages"]'), 3000, 'retour en ligne')
+  await until(() => !$('.composer [aria-label="Autres réglages"]'), 3000, 'retour en ligne')
 })
 
 test('pendant un tour, Stop apparaît à gauche d’Envoyer, sans le remplacer', async () => {
@@ -481,7 +481,7 @@ test('« envoyer maintenant » pendant un tour : le tour est coupé puis le mess
 
   click($('.queue-row .icon-btn[title="Envoyer maintenant"]'))
   await until(() => ZRA.store.ensureTimeline(key).entries.some(
-    (e) => e.type === 'notice'), 3000, 'tour interrompu')
+    (e) => e.type === 'notice'), 3000, 'Tour interrompu.')
   await until(() => ZRA.store.ensureState(key).queue.length === 0, 3000, 'file vidée')
   await until(() => ZRA.store.ensureTimeline(key).entries.some(
     (e) => e.type === 'user' && !e.local && /autre chose/.test(JSON.stringify(e.blocks))), 4000, 'message envoyé')
@@ -553,7 +553,7 @@ test('thread fermé : historique chargé via session/load', async () => {
   await until(() => /encodage/.test(headerTitle()), 3000, 'thread fermé ouvert')
   await until(() => $$('.user-msg').length >= 1 && $('.tool'), 6000, 'replay')
   assert.match(headerTitle(), /encodage/i)
-  assert.ok($('.banner') && !$('.banner').classList.contains('hidden'), 'bandeau « thread fermé »')
+  assert.ok(/Thread fermé/.test($('.callout')?.textContent || ''), 'callout « thread fermé »')
   // L'historique rejoue aussi la consommation : 86 % du contexte, anneau orange.
   await until(() => /862/.test($('.tokens')?.title || ''), 2000, 'consommation de l’historique')
   assert.ok($('.tokens .fg.warn'), 'orange à partir de 85 %, comme Zed')
@@ -695,7 +695,7 @@ test('un projet se replie sur sa ligne de titre, et le reste après un rendu', a
   assert.equal(rowsUnder(projectHead('DESK-ZED', 'zra')).length, 3, 'déplié à nouveau')
 })
 
-test('thread créé hors ZRA : cadenas dans la liste, bandeau et composer en lecture seule', async () => {
+test('thread créé hors ZRA : cadenas dans la liste, callout et composer en lecture seule', async () => {
   ZRA.navigate('#/')
   const row = await until(() => $$('.thread-row').find((n) => /avant ZRA/.test(n.textContent)), 3000, 'thread hors ZRA')
   assert.ok(row.querySelector('.lock-dot'), 'cadenas à la place de la pastille')
@@ -704,7 +704,7 @@ test('thread créé hors ZRA : cadenas dans la liste, bandeau et composer en lec
   assert.ok(!zraRow.querySelector('.lock-dot'), 'un thread ZRA fermé garde sa pastille')
 
   ZRA.navigate('#/t/mock-laptop/bb88cc11')
-  await until(() => /lecture seule/.test($('.banner')?.textContent || ''), 3000, 'bandeau lecture seule')
+  await until(() => /Lecture seule/.test($('.callout')?.textContent || ''), 3000, 'callout lecture seule')
   assert.ok($('.header__right .lock-dot:not(.hidden)'), 'cadenas dans la top bar')
   assert.ok($('.header__right .dot').classList.contains('hidden'), 'à la place de la pastille')
   assert.ok($('.composer__input').disabled)
@@ -729,11 +729,11 @@ test('un poste se replie sur sa ligne de titre, et le reste après un rendu', as
 })
 
 test('pas de « + » global : la liste n’en a qu’un par projet', () => {
-  assert.ok(!$('.header [aria-label="nouvelle session"]'), 'plus de + dans la top bar de la liste')
+  assert.ok(!$('.header [aria-label="Nouvelle session"]'), 'plus de + dans la top bar de la liste')
   const heads = $$('.project__head')
-  assert.ok(heads.every((n) => n.querySelector('[aria-label="nouvelle session"]')), 'chaque projet a son +')
+  assert.ok(heads.every((n) => n.querySelector('[aria-label="Nouvelle session"]')), 'chaque projet a son +')
   // Le + est le dernier élément de la ligne, tout à droite.
-  assert.ok(heads.every((n) => n.lastElementChild.getAttribute('aria-label') === 'nouvelle session'))
+  assert.ok(heads.every((n) => n.lastElementChild.getAttribute('aria-label') === 'Nouvelle session'))
 })
 
 test('le + d’un projet ouvre la session dans ce projet', async () => {
@@ -744,7 +744,7 @@ test('le + d’un projet ouvre la session dans ce projet', async () => {
   const send = link.send.bind(link)
   link.send = (msg) => { sent.push(msg); return send(msg) }
   try {
-    click(head.querySelector('[aria-label="nouvelle session"]'))
+    click(head.querySelector('[aria-label="Nouvelle session"]'))
     await until(() => $('.menu'), 2000, 'menu des agents')
     assert.match($('.menu__label').textContent, /Nouveau thread · uia/)
     const items = [...doc.querySelectorAll('.menu__item')].map((n) => n.textContent.trim())
@@ -768,7 +768,7 @@ test('le + d’un projet ouvre la session dans ce projet', async () => {
 test('le + d’un thread ouvre la session dans le projet de ce thread', async () => {
   ZRA.navigate('#/t/mock-laptop/aa77bb00')
   await until(() => /Notes de release/.test(headerTitle()), 3000)
-  click($('.header [aria-label="nouvelle session"]'))
+  click($('.header [aria-label="Nouvelle session"]'))
   await until(() => $('.menu'), 2000, 'menu des agents')
   assert.match($('.menu__label').textContent, /Nouveau thread · zra, notes/)
   ZRA.navigate('#/t/mock-desk/a1f39c0b')
@@ -827,7 +827,7 @@ test('appairage : poste verrouillé, code saisi, jeton gardé, poste déverrouil
   try {
     // Le daemon ne reconnaît pas ce téléphone.
     m.link.emit('message', { type: 'auth_required', name: 'LAPTOP-ZED' })
-    await until(() => /appairage requis/.test(doc.body.textContent), 2000, 'poste verrouillé')
+    await until(() => /Appairage requis/.test(doc.body.textContent), 2000, 'poste verrouillé')
     assert.ok(!$$('.thread-row__title').some((n) => /Portage du daemon/.test(n.textContent)), 'ses threads ne s’affichent plus')
 
     click($$('.btn').find((b) => /Saisir le code/.test(b.textContent)))
@@ -848,7 +848,7 @@ test('appairage : poste verrouillé, code saisi, jeton gardé, poste déverrouil
     await until(() => $$('.thread-row__title').some((n) => /Portage du daemon/.test(n.textContent)), 2000, 'threads de retour')
 
     // Jeton refusé plus tard (révoqué) : oublié, le poste redemande le code.
-    m.link.emit('message', { type: 'auth_required', name: 'LAPTOP-ZED', reason: 'jeton inconnu ou révoqué' })
+    m.link.emit('message', { type: 'auth_required', name: 'LAPTOP-ZED', reason: 'Jeton inconnu ou révoqué.' })
     await until(() => ZRA.settings.tokens[m.url] === undefined, 2000, 'jeton oublié')
   } finally {
     m.link.send = send

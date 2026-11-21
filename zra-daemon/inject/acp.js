@@ -35,8 +35,8 @@ export class AcpBackend {
   /** @returns {string} le `session_id` ACP d'un thread, ou une erreur du protocole. */
   session(threadId) {
     const thread = this.threads.get(threadId)
-    if (!thread) throw new InjectionError('unknown_thread', tr`thread inconnu de cet index`)
-    if (!thread.sessionId) throw new InjectionError('no_session', tr`thread sans session : impossible d'y écrire`)
+    if (!thread) throw new InjectionError('unknown_thread', tr`Thread inconnu de cet index.`)
+    if (!thread.sessionId) throw new InjectionError('no_session', tr`Thread sans session : impossible d'y écrire.`)
     return thread.sessionId
   }
 
@@ -47,7 +47,7 @@ export class AcpBackend {
       return await this.host.command(sessionId, cmd, payload)
     } catch (err) {
       if (err instanceof InjectionError) throw err
-      throw new InjectionError(err?.code || 'inject_failed', err?.message || tr`injection refusée`)
+      throw new InjectionError(err?.code || 'inject_failed', err?.message || tr`Injection refusée.`, err?.details ?? null)
     }
   }
 

@@ -19,7 +19,7 @@ import { tr } from '../i18n.js'
  */
 export function BottomBar({ navigate, active }) {
   const agentBtn = button('icon-btn icon-btn--sm', {
-    title: tr`Discussion`, 'aria-label': tr`discussion`,
+    title: tr`Discussion`, 'aria-label': tr`Discussion`,
     onclick: () => {
       const last = settings.lastThread
       if (!last) return
@@ -29,7 +29,7 @@ export function BottomBar({ navigate, active }) {
   }, icon('zed_assistant', 'icon--sm'))
 
   const threadsBtn = button('icon-btn icon-btn--sm', {
-    title: tr`Liste des threads`, 'aria-label': tr`liste des threads`,
+    title: tr`Liste des threads`, 'aria-label': tr`Liste des threads`,
     onclick: () => navigate('#/'),
   })
 

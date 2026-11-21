@@ -96,7 +96,7 @@ export class DaemonLink {
     // Borner le handshake. S'il aboutit, `onopen` l'annule ;
     // sinon `lost()` relance le `scheduleRetry` normal (et donc le plateau §1).
     clearTimeout(this.connectTimer)
-    this.connectTimer = setTimeout(() => this.lost(ws, tr`délai de connexion dépassé`), CONNECT_TIMEOUT_MS)
+    this.connectTimer = setTimeout(() => this.lost(ws, tr`Délai de connexion dépassé.`), CONNECT_TIMEOUT_MS)
 
     ws.onopen = () => {
       console.debug(`[link] ${this.id} : socket ouverte en ${Date.now() - t0} ms`)
@@ -132,7 +132,7 @@ export class DaemonLink {
 
     ws.onerror = () => {
       console.debug(`[link] ${this.id} : erreur socket après ${Date.now() - t0} ms (état=${ws.readyState})`)
-      this.lastError = this.diag || tr`connexion impossible`
+      this.lastError = this.diag || tr`Connexion impossible.`
     }
 
     ws.onclose = (ev) => {
@@ -178,8 +178,8 @@ export class DaemonLink {
     if (ws?.readyState !== WebSocket.OPEN) return
     this.probing = true
     clearTimeout(this.pongTimer)
-    this.pongTimer = setTimeout(() => this.lost(ws, tr`le poste ne répond plus`), timeout)
-    try { ws.send(JSON.stringify({ type: 'ping' })) } catch { this.lost(ws, tr`connexion coupée`) }
+    this.pongTimer = setTimeout(() => this.lost(ws, tr`Le poste ne répond plus.`), timeout)
+    try { ws.send(JSON.stringify({ type: 'ping' })) } catch { this.lost(ws, tr`Connexion coupée.`) }
   }
 
   flush() {
@@ -227,12 +227,12 @@ export class DaemonLink {
     let msg
     try {
       const res = await fetch(this.url, { cache: 'no-store', signal: AbortSignal.timeout(5000) })
-      if (res.status === 403) msg = tr`accès refusé (403) — origine ou IP non autorisée (proxy, allowedOrigins)`
-      else if (res.status === 502 || res.status === 503 || res.status === 504) msg = tr`le proxy répond mais pas le poste — machine éteinte ou daemon arrêté ?`
-      else if (!res.ok) msg = tr`le serveur répond ${res.status} — configuration à vérifier`
-      else msg = tr`le poste répond, mais le WebSocket échoue — réessai en cours`
+      if (res.status === 403) msg = tr`Accès refusé (403) — origine ou IP non autorisée (proxy, allowedOrigins).`
+      else if (res.status === 502 || res.status === 503 || res.status === 504) msg = tr`Le proxy répond mais pas le poste — machine éteinte ou daemon arrêté ?`
+      else if (!res.ok) msg = tr`Le serveur répond ${res.status} — configuration à vérifier.`
+      else msg = tr`Le poste répond, mais le WebSocket échoue — réessai en cours.`
     } catch {
-      msg = tr`poste injoignable — réseau ou VPN coupé ?`
+      msg = tr`Poste injoignable — réseau ou VPN coupé ?`
     }
     if (this.status === 'online') return
     this.diag = msg

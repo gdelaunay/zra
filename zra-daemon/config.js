@@ -233,7 +233,7 @@ export async function loadConfig({ file = process.env.ZRA_CONFIG || (UNDER_TEST 
   cfg.pushFile = cfg.pushFile ? abs(cfg.pushFile) : null
 
   if (cfg.zedChannel != null && !ZED_CHANNELS.includes(cfg.zedChannel)) {
-    throw new Error(tr`zedChannel inconnu : ${cfg.zedChannel} (${ZED_CHANNELS.join(', ')})`)
+    throw new Error(tr`zedChannel inconnu : ${cfg.zedChannel} (${ZED_CHANNELS.join(', ')}).`)
   }
   cfg.zedChannel ??= PATHS.channel
   cfg.zedDb = abs(cfg.zedDb) || zedPaths({ channel: cfg.zedChannel }).db
@@ -254,18 +254,18 @@ export async function loadConfig({ file = process.env.ZRA_CONFIG || (UNDER_TEST 
 
 function validate(cfg) {
   if (!Number.isInteger(cfg.port) || cfg.port < 1 || cfg.port > 65535) {
-    throw new Error(tr`port invalide : ${cfg.port}`)
+    throw new Error(tr`Port invalide : ${cfg.port}`)
   }
   if (cfg.tls && (!cfg.tls.cert || !cfg.tls.key)) {
-    throw new Error(tr`tls : "cert" et "key" sont requis ensemble`)
+    throw new Error(tr`tls : "cert" et "key" sont requis ensemble.`)
   }
   if (!['mock', 'acp', 'uia', 'auto'].includes(cfg.injection)) {
-    throw new Error(tr`injection inconnue : ${cfg.injection}`)
+    throw new Error(tr`Injection inconnue : ${cfg.injection}`)
   }
   if (cfg.zedControl?.recipes && typeof cfg.zedControl.recipes !== 'object') {
-    throw new Error(tr`zedControl.recipes : objet attendu`)
+    throw new Error(tr`zedControl.recipes : objet attendu.`)
   }
   if (cfg.zedControl && !['auto', ...KEYBOARD_BACKENDS].includes(cfg.zedControl.keyboard)) {
-    throw new Error(tr`zedControl.keyboard inconnu : ${cfg.zedControl.keyboard} (auto, ${KEYBOARD_BACKENDS.join(', ')})`)
+    throw new Error(tr`zedControl.keyboard inconnu : ${cfg.zedControl.keyboard} (auto, ${KEYBOARD_BACKENDS.join(', ')}).`)
   }
 }

@@ -83,12 +83,12 @@ export class Hub {
     const client = { conn, clientId: null, subs: new Set(), authed: trusted, pairedId: null }
     if (trusted) conn.authenticate?.()
     this.clients.set(conn, client)
-    log.info(tr`client ${conn.id} connecté (origin=${conn.origin ?? '—'}, ip=${conn.remoteAddress})`)
+    log.info(tr`Client ${conn.id} connecté (origin=${conn.origin ?? '—'}, ip=${conn.remoteAddress}).`)
 
     conn.on('message', (msg) => {
       const failed = (err) => {
         // Un message malformé ne doit jamais faire tomber le daemon.
-        log.warn(tr`client ${conn.id} : ${msg?.type} a échoué —`, err.message)
+        log.warn(tr`Client ${conn.id} : ${msg?.type} a échoué —`, err.message)
         this.error(conn, err instanceof InjectionError ? err.code : 'internal_error', err.message, msg?.threadId)
       }
       try {
@@ -102,7 +102,7 @@ export class Hub {
       this.clients.delete(conn)
       // Le code de fermeture WS, quand le client en a envoyé un : 1001 = il part
       // (onglet fermé, reconnexion), absence = TCP mort sans adieu (à creuser).
-      log.info(conn.closeCode ? tr`client ${conn.id} déconnecté (code ${conn.closeCode})` : tr`client ${conn.id} déconnecté (sans code — coupure TCP)`)
+      log.info(conn.closeCode ? tr`Client ${conn.id} déconnecté (code ${conn.closeCode}).` : tr`Client ${conn.id} déconnecté (sans code — coupure TCP).`)
     })
   }
 
@@ -180,10 +180,10 @@ export class Hub {
 
       case 'zra/trigger':
         // Marqueur explicite : un daemon réel n'a pas de scénarios à déclencher.
-        return this.error(conn, 'unknown_message', tr`déclencheur de scénario refusé : ce daemon n’est pas un bouchon`)
+        return this.error(conn, 'unknown_message', tr`Déclencheur de scénario refusé : ce daemon n’est pas un bouchon.`)
 
       default:
-        return this.error(conn, 'unknown_message', tr`message inconnu : ${msg.type}`)
+        return this.error(conn, 'unknown_message', tr`Message inconnu : ${msg.type}.`)
     }
   }
 
@@ -203,24 +203,24 @@ export class Hub {
       client.clientId = typeof msg.clientId === 'string' ? msg.clientId : null
       const paired = this.pairing.verify(msg.token)
       if (paired) return this.admit(client, paired)
-      conn.send({ type: 'auth_required', name: this.machine.name, reason: msg.token ? tr`jeton inconnu ou révoqué` : null })
+      conn.send({ type: 'auth_required', name: this.machine.name, reason: msg.token ? tr`Jeton inconnu ou révoqué.` : null })
       return
     }
     if (msg.type === 'pair') {
       try {
         const label = typeof msg.label === 'string' && msg.label ? msg.label : (client.clientId ?? 'appareil')
         const { token, client: paired } = this.pairing.pair(msg.code, { label, address: conn.remoteAddress })
-        log.info(tr`client ${conn.id} appairé (« ${paired.label} », ${conn.remoteAddress}) — nouveau code : ${this.pairing.display}`)
+        log.info(tr`Client ${conn.id} appairé (« ${paired.label} », ${conn.remoteAddress}) — nouveau code : ${this.pairing.display}`)
         conn.send({ type: 'paired', token, clientId: paired.id })
         this.admit(client, paired)
       } catch (err) {
         if (!(err instanceof AuthError)) throw err
-        log.warn(tr`appairage refusé (${err.code}) depuis ${conn.remoteAddress}`)
+        log.warn(tr`Appairage refusé (${err.code}) depuis ${conn.remoteAddress}`)
         this.error(conn, err.code, err.message)
       }
       return
     }
-    log.debug(tr`client ${conn.id} non appairé : ${msg.type} ignoré`)
+    log.debug(tr`Client ${conn.id} non appairé : ${msg.type} ignoré.`)
   }
 
   admit(client, paired) {
@@ -260,7 +260,7 @@ export class Hub {
    */
   subscribe(client, threadId, since) {
     const thread = this.threads.get(threadId)
-    if (!thread) return this.error(client.conn, 'unknown_thread', tr`thread inconnu de cet index`, threadId)
+    if (!thread) return this.error(client.conn, 'unknown_thread', tr`Thread inconnu de cet index.`, threadId)
     client.subs.add(threadId)
     client.conn.send(this.states.snapshot(threadId, { state: thread.state }))
     const events = Number.isSafeInteger(since) ? this.rings.since(threadId, since) : this.rings.read(threadId)
@@ -278,9 +278,9 @@ export class Hub {
    */
   async loadHistory(conn, threadId) {
     const thread = this.threads.get(threadId)
-    if (!thread) return this.error(conn, 'unknown_thread', tr`thread inconnu de cet index`, threadId)
+    if (!thread) return this.error(conn, 'unknown_thread', tr`Thread inconnu de cet index.`, threadId)
     if (!thread.sessionId) {
-      return this.error(conn, 'no_session', tr`thread sans session : historique indisponible`, threadId)
+      return this.error(conn, 'no_session', tr`Thread sans session : historique indisponible.`, threadId)
     }
 
     // Thread vivant : tout ce que l'agent a émis est passé par le shim, donc
@@ -299,7 +299,7 @@ export class Hub {
 
     if (!this.loader) {
       return this.error(conn, 'history_unavailable',
-        tr`historique indisponible : ce poste ne sait pas relire une session fermée`, threadId)
+        tr`Historique indisponible : ce poste ne sait pas relire une session fermée.`, threadId)
     }
     // `until` : ce que le ring contenait au lancement de la relecture est dans
     // le replay. La PWA écarte ces événements s'ils lui sont aussi parvenus en
@@ -330,13 +330,13 @@ export class Hub {
       const agent = this.machine.agents?.find((a) => a.id === thread.agentId)
       if (!agent?.wraps) {
         return this.error(conn, 'not_zra_thread',
-          tr`thread ouvert avec « ${thread.agentId ?? '?'} », hors ZRA : lecture seule depuis le mobile. Répondre dans Zed, ou ouvrir un thread ZRA`,
+          tr`Thread ouvert avec « ${thread.agentId ?? '?'} », hors ZRA : lecture seule depuis le mobile. Répondre dans Zed, ou ouvrir un thread ZRA.`,
           msg.threadId)
       }
       try {
         await this.zed.reopen(thread)
       } catch (err) {
-        log.warn(tr`réouverture de ${thread.threadId} impossible :`, err.message)
+        log.warn(tr`Réouverture de ${thread.threadId} impossible :`, err.message)
         return this.error(conn, 'inject_failed', err.message, msg.threadId)
       }
     }
@@ -355,7 +355,7 @@ export class Hub {
     await this.inject(conn, msg.threadId, async () => {
       const blocks = await this.promptBlocks(thread, text)
       return this.backend.send(msg.threadId, text, mode, { blocks })
-    })
+    }, { prompt: text })
   }
 
   /**
@@ -374,7 +374,7 @@ export class Hub {
   /** Fichiers et dossiers du projet pour les mentions @ (D5). */
   async files(conn, msg) {
     const thread = this.threads.get(msg.threadId)
-    if (!thread) return this.error(conn, 'unknown_thread', tr`thread inconnu`, msg.threadId)
+    if (!thread) return this.error(conn, 'unknown_thread', tr`Thread inconnu.`, msg.threadId)
     try {
       const { entries, truncated } = await listFiles(thread.folderPaths ?? [])
       conn.send({ type: 'files', threadId: msg.threadId, entries, truncated })
@@ -400,7 +400,7 @@ export class Hub {
   async respondPermission(conn, msg) {
     if (!this.backend.respondPermission) {
       return this.error(conn, 'permission_expired',
-        tr`aucune demande de permission en attente sur ce poste`, msg.threadId)
+        tr`Aucune demande de permission en attente sur ce poste.`, msg.threadId)
     }
     try {
       const result = await this.backend.respondPermission(msg.threadId, msg.requestId, msg.optionId)
@@ -419,7 +419,7 @@ export class Hub {
   /** Réponse à une question de l'agent : même course que `respondPermission`, arbitrée par le shim. */
   async respondElicitation(conn, msg) {
     if (!this.backend.respondElicitation) {
-      return this.error(conn, 'elicitation_expired', tr`aucune question en attente sur ce poste`, msg.threadId)
+      return this.error(conn, 'elicitation_expired', tr`Aucune question en attente sur ce poste.`, msg.threadId)
     }
     try {
       const result = await this.backend.respondElicitation(msg.threadId, msg.requestId, msg.action, msg.content)
@@ -461,7 +461,7 @@ export class Hub {
     const thread = this.requireWritable(conn, msg.threadId)
     if (!thread) return
     if (!this.ops) {
-      return this.error(conn, 'capability_missing', tr`renommer indisponible sur ce poste`, msg.threadId)
+      return this.error(conn, 'capability_missing', tr`Renommer indisponible sur ce poste.`, msg.threadId)
     }
     try {
       await this.ops.rename(msg.threadId, msg.title)
@@ -480,7 +480,7 @@ export class Hub {
     const thread = this.requireWritable(conn, msg.threadId)
     if (!thread) return
     if (!this.ops) {
-      return this.error(conn, 'capability_missing', tr`supprimer indisponible sur ce poste`, msg.threadId)
+      return this.error(conn, 'capability_missing', tr`Supprimer indisponible sur ce poste.`, msg.threadId)
     }
     try {
       await this.ops.delete(msg.threadId)
@@ -489,14 +489,15 @@ export class Hub {
     }
   }
 
-  /** Enveloppe commune : une erreur de backend devient un `error` du protocole. */
-  async inject(conn, threadId, run) {
+  /** Enveloppe commune : une erreur de backend devient un `error` du protocole.
+   * `extra` : détail ACP (`details`) et prompt refusé (`prompt`), pour le callout. */
+  async inject(conn, threadId, run, extra = null) {
     try {
       await run()
     } catch (err) {
       const code = err instanceof InjectionError ? err.code : 'inject_failed'
-      log.warn(tr`injection refusée sur ${threadId} :`, err.message)
-      this.error(conn, code, err.message, threadId)
+      log.warn(tr`Injection refusée sur ${threadId} :`, err.message)
+      this.error(conn, code, err.message, threadId, { ...extra, ...(err.details ? { details: err.details } : {}) })
     }
   }
 
@@ -508,22 +509,25 @@ export class Hub {
       const blocks = thread ? await this.promptBlocks(thread, entry.text) : null
       await this.backend.send(threadId, entry.text, 'queue', { blocks })
     } catch (err) {
-      log.warn(tr`file d'attente : envoi impossible sur ${threadId} :`, err.message)
-      this.broadcastToSubs(threadId, {
+      log.warn(tr`File d'attente : envoi impossible sur ${threadId} :`, err.message)
+      const msg = {
         type: 'error', code: 'inject_failed', threadId,
-        message: tr`message en attente non envoyé : ${err.message}`,
-      })
+        message: tr`Message en attente non envoyé : ${err.message}`,
+        prompt: entry.text,
+      }
+      if (err.details) msg.details = err.details
+      this.broadcastToSubs(threadId, msg)
     }
   }
 
   requireWritable(conn, threadId) {
     const thread = this.threads.get(threadId)
     if (!thread) {
-      this.error(conn, 'unknown_thread', tr`thread inconnu de cet index`, threadId)
+      this.error(conn, 'unknown_thread', tr`Thread inconnu de cet index.`, threadId)
       return null
     }
     if (!thread.sessionId) {
-      this.error(conn, 'no_session', tr`thread sans session : impossible d'y écrire`, threadId)
+      this.error(conn, 'no_session', tr`Thread sans session : impossible d'y écrire.`, threadId)
       return null
     }
     return thread
@@ -537,15 +541,15 @@ export class Hub {
   async newThread(conn, { agentId, folderPaths }) {
     if (!this.zed?.enabled) {
       return this.error(conn, 'new_thread_failed',
-        tr`ouverture de session indisponible : pilotage de Zed désactivé sur ce poste (zedControl.enabled)`)
+        tr`Ouverture de session indisponible : pilotage de Zed désactivé sur ce poste (zedControl.enabled).`)
     }
     if (typeof agentId !== 'string' || !agentId) {
-      return this.error(conn, 'new_thread_failed', tr`agent non précisé`)
+      return this.error(conn, 'new_thread_failed', tr`Agent non précisé.`)
     }
     let project = null
     if (folderPaths !== undefined && folderPaths !== null) {
       project = this.knownProject(folderPaths)
-      if (!project) return this.error(conn, 'new_thread_failed', tr`projet inconnu de ce poste : aucun thread ne porte ces dossiers`)
+      if (!project) return this.error(conn, 'new_thread_failed', tr`Projet inconnu de ce poste : aucun thread ne porte ces dossiers.`)
     }
     try {
       // La CLI (`--classic`) retrouve la fenêtre du projet ou lui en ouvre une :
@@ -558,7 +562,7 @@ export class Hub {
       if (project && cwd && !samePath(cwd, project[0])) {
         this.publish(thread.threadId, {
           sessionUpdate: 'zra/notice', level: 'warn',
-          text: tr`session ouverte dans ${cwd}, pas dans ${project[0]}`,
+          text: tr`Session ouverte dans ${cwd}, pas dans ${project[0]}`,
         })
       }
     } catch (err) {
@@ -585,13 +589,13 @@ export class Hub {
 
   pushSubscribe(client, msg) {
     if (!this.push) {
-      return this.error(client.conn, 'internal_error', tr`notifications indisponibles sur ce poste`)
+      return this.error(client.conn, 'internal_error', tr`Notifications indisponibles sur ce poste.`)
     }
     const ok = this.push.subscribe(msg.subscription ?? {}, {
       machineId: typeof msg.machineId === 'string' ? msg.machineId : null,
       clientId: client.clientId,
     })
-    if (!ok) return this.error(client.conn, 'internal_error', tr`abonnement push invalide`)
+    if (!ok) return this.error(client.conn, 'internal_error', tr`Abonnement push invalide.`)
     client.conn.send({ type: 'push_subscribed', endpoint: msg.subscription.endpoint })
   }
 
@@ -616,9 +620,9 @@ export class Hub {
     this.push.notify({
       threadId,
       title: thread.title || tr`Nouveau Thread d'Agent`,
-      body: body || tr`Réponse reçue`,
+      body: body || tr`Réponse reçue.`,
       tag: threadId,
-    }).catch((err) => log.warn(tr`push :`, err.message))
+    }).catch((err) => log.warn(tr`Push :`, err.message))
   }
 
   // ---- sortie --------------------------------------------------------------
@@ -680,7 +684,7 @@ export class Hub {
     if (requestId) this.resolvedPermissions.add(requestId)
     this.broadcastToSubs(threadId, {
       type: 'error', code: 'permission_expired', threadId,
-      message: tr`la demande de permission a expiré : l'agent n'attend plus de réponse`,
+      message: tr`La demande de permission a expiré : l'agent n'attend plus de réponse.`,
     })
   }
 
@@ -722,13 +726,14 @@ export class Hub {
     this.pendingOptions.delete(threadId)
     for (const { key, value } of list) {
       Promise.resolve(this.backend.setOption(threadId, key, value))
-        .catch((err) => log.warn(tr`option ${key} non appliquée :`, err.message))
+        .catch((err) => log.warn(tr`Option ${key} non appliquée :`, err.message))
     }
   }
 
-  error(conn, code, message, threadId) {
+  error(conn, code, message, threadId, extra = null) {
     const msg = { type: 'error', code, message }
     if (threadId) msg.threadId = threadId
+    if (extra) Object.assign(msg, extra)
     conn.send(msg)
   }
 

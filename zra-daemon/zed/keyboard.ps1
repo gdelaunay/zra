@@ -126,14 +126,14 @@ for ($i = 1; $i -le 12; $i++) { $named["f$i"] = 0x6F + $i }
 function Resolve-Chord([string]$spec) {
   $vks = New-Object System.Collections.Generic.List[uint16]
   foreach ($part in ($spec.ToLowerInvariant() -split '\+')) {
-    if ($part -eq '') { throw (T "accord mal formé : « $spec »" "malformed chord: `"$spec`"") }
+    if ($part -eq '') { throw (T "Accord mal formé : « $spec »." "Malformed chord: `"$spec`"") }
     if ($named.ContainsKey($part)) { $vks.Add([uint16]$named[$part]); continue }
     if ($part.Length -eq 1) {
       $c = $part[0]
       if ($c -match '[a-z0-9]') { $vks.Add([uint16][char]$c.ToString().ToUpperInvariant()); continue }
       # Ponctuation : la touche dépend de la disposition du clavier.
       $scan = [ZraKeyboard]::VkKeyScanW($c)
-      if ($scan -eq -1) { throw (T "touche introuvable sur ce clavier : « $part »" "key not found on this keyboard: `"$part`"") }
+      if ($scan -eq -1) { throw (T "Touche introuvable sur ce clavier : « $part »." "Key not found on this keyboard: `"$part`"") }
       $mods = ($scan -shr 8) -band 0xFF
       if ($mods -band 1) { $vks.Add(0x10) }
       if ($mods -band 2) { $vks.Add(0x11) }
@@ -141,7 +141,7 @@ function Resolve-Chord([string]$spec) {
       $vks.Add([uint16]($scan -band 0xFF))
       continue
     }
-    throw (T "touche inconnue : « $part »" "unknown key: `"$part`"")
+    throw (T "Touche inconnue : « $part »." "Unknown key: `"$part`"")
   }
   return , $vks.ToArray()
 }
@@ -176,7 +176,7 @@ function Assert-Foreground($win) {
   $fg = [ZraKeyboard]::GetForegroundWindow()
   if ($fg -ne $win.handle) {
     $other = [ZraKeyboard]::Title($fg)
-    throw (T "la fenêtre Zed n'est plus au premier plan (« $other ») : arrêt, aucune frappe envoyée ailleurs" "the Zed window is no longer in front (`"$other`"): stopping, no keystroke sent elsewhere")
+    throw (T "La fenêtre Zed n'est plus au premier plan (« $other ») : arrêt, aucune frappe envoyée ailleurs." "The Zed window is no longer in front (`"$other`"): stopping, no keystroke sent elsewhere")
   }
 }
 
@@ -229,7 +229,7 @@ try {
       if ($null -ne $step.keys) { $plan += @{ kind = 'keys'; label = $step.keys; vks = (Resolve-Chord $step.keys) } }
       elseif ($null -ne $step.text) { $plan += @{ kind = 'text'; text = [string]$step.text } }
       elseif ($null -ne $step.wait) { $plan += @{ kind = 'wait'; ms = [int]$step.wait } }
-      else { throw (T "étape inconnue : $($step | ConvertTo-Json -Compress)" "unknown step: $($step | ConvertTo-Json -Compress)") }
+      else { throw (T "Étape inconnue : $($step | ConvertTo-Json -Compress)" "Unknown step: $($step | ConvertTo-Json -Compress)") }
     }
 
     $win = Find-ZedWindow $request.window $request.project
@@ -243,24 +243,24 @@ try {
       }
     }
     if (-not $win) {
-      $what = if ($request.project) { T "aucune fenêtre Zed pour le projet « $($request.project) »" "no Zed window for project `"$($request.project)`"" } elseif ($request.window) { T "aucune fenêtre Zed dont le titre contient « $($request.window) »" "no Zed window whose title contains `"$($request.window)`"" } else { T 'aucune fenêtre Zed ouverte' 'no Zed window open' }
+      $what = if ($request.project) { T "Aucune fenêtre Zed pour le projet « $($request.project) »" "No Zed window for project `"$($request.project)`"" } elseif ($request.window) { T "Aucune fenêtre Zed dont le titre contient « $($request.window) »" "No Zed window whose title contains `"$($request.window)`"" } else { T 'Aucune fenêtre Zed ouverte.' 'No Zed window open.' }
       throw $what
     }
     $result.window = @{ title = $win.title; pid = $win.pid }
-    $log.Add((T "fenêtre : $($win.title)" "window: $($win.title)"))
+    $log.Add((T "Fenêtre : $($win.title)" "Window: $($win.title)"))
 
     if (-not $dry) { Focus-Window $win }
 
     foreach ($p in $plan) {
       switch ($p.kind) {
-        'wait' { $log.Add((T "attente $($p.ms) ms" "wait $($p.ms) ms")); if (-not $dry) { Start-Sleep -Milliseconds $p.ms } }
+        'wait' { $log.Add((T "Attente $($p.ms) ms" "Wait $($p.ms) ms")); if (-not $dry) { Start-Sleep -Milliseconds $p.ms } }
         'keys' {
-          $log.Add((T "touches $($p.label)" "keys $($p.label)"))
+          $log.Add((T "Touches $($p.label)" "Keys $($p.label)"))
           if (-not $dry) { Assert-Foreground $win; [ZraKeyboard]::Chord($p.vks); Start-Sleep -Milliseconds $delay }
         }
         'text' {
           $lines = $p.text -split "`r?`n"
-          $log.Add((T "texte ($($p.text.Length) caractère(s))" "text ($($p.text.Length) character(s))"))
+          $log.Add((T "Texte ($($p.text.Length) caractère(s))" "Text ($($p.text.Length) character(s))"))
           if (-not $dry) {
             for ($i = 0; $i -lt $lines.Count; $i++) {
               Assert-Foreground $win
@@ -275,7 +275,7 @@ try {
     $result.ok = $true
   }
   else {
-    throw (T "opération inconnue : $($request.op)" "unknown operation: $($request.op)")
+    throw (T "Opération inconnue : $($request.op)" "Unknown operation: $($request.op)")
   }
 }
 catch {

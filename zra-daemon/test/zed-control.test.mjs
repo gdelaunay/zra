@@ -418,7 +418,7 @@ test('reopen : la recette qui échoue le dit, sans attendre', async () => {
   const thread = { threadId: 't1', sessionId: 'sess-1', title: 'fil' }
   await assert.rejects(() => ctx.control.reopen(thread), (err) => {
     assert.equal(err.code, 'inject_failed')
-    assert.match(err.message, /impossible de rouvrir le thread dans Zed : fenêtre introuvable/)
+    assert.match(err.message, /Impossible de rouvrir le thread dans Zed : fenêtre introuvable/)
     return true
   })
   assert.equal(ctx.host.listenerCount('session'), 0)

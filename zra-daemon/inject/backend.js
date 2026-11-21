@@ -17,10 +17,12 @@ import { tr } from '../i18n.js'
 
 /** Erreur d'injection portant un code du protocole (§4 `error`). */
 export class InjectionError extends Error {
-  constructor(code, message) {
+  constructor(code, message, details = null) {
     super(message)
     this.name = 'InjectionError'
     this.code = code
+    /** Détails structurés de l'erreur ACP (`code`, `data`), jusqu'à la PWA. */
+    this.details = details
   }
 }
 
@@ -39,6 +41,6 @@ export function createBackend(kind, ctx) {
     case 'auto':
       return new AutoBackend(ctx)
     default:
-      throw new Error(tr`backend d'injection inconnu : ${kind}`)
+      throw new Error(tr`Backend d'injection inconnu : ${kind}`)
   }
 }

@@ -753,6 +753,22 @@ button { cursor: pointer; }
 .sysline::before, .sysline::after { content: ""; height: 1px; background: var(--border-variant); flex: 1; }
 .sysline.warn { color: var(--warning); }
 
+/* Ligne de compaction — render_context_compaction : [filet][bouton][filet] gap 4,
+ * px 20 ; corps déplié sous la ligne, chevron pivoté. */
+.session-sep { display: flex; align-items: center; gap: var(--sp-2); padding: 0 calc(var(--sp-5) + var(--sp-4)); }
+.session-sep .divider-h { flex: 1; height: 1px; background: var(--border-variant); }
+.session-sep__btn {
+  display: flex; align-items: center; gap: var(--sp-2); flex: none;
+  font-size: var(--fs-sm); color: var(--text-muted);
+  padding: var(--sp-1) var(--sp-2); border-radius: var(--radius);
+}
+.session-sep__btn:hover { background: var(--ghost-element-hover); }
+.session-sep__btn .icon { transition: transform .15s; }
+.compaction.warn .session-sep__btn { color: var(--warning); }
+.compaction__body { display: none; padding: 0 calc(var(--sp-5) + var(--sp-4)); }
+.compaction.is-open .compaction__body { display: block; }
+.compaction.is-open .session-sep__btn .icon:last-child { transform: rotate(180deg); }
+
 /* ---------- composer (render_message_editor) ----------
  * py 8, fond editor_background, bordure haute border ; intérieur max 850 px 8 ;
  * éditeur police buffer 12, 4 lignes min ; barre : gauche gap 2, droite gap 4. */
@@ -866,21 +882,6 @@ button { cursor: pointer; }
 }
 .jump:hover { background: var(--ghost-element-hover); color: var(--icon); }
 
-/* ---------- callout (bandeau de connexion / notification) ----------
- * callout.rs : p 8 gap 8, bordure haute, fond par sévérité, titre 12, desc 12 muted. */
-.banner {
-  display: flex; align-items: flex-start; gap: var(--sp-4);
-  padding: var(--sp-4); font-size: var(--fs-sm);
-  border-bottom: 1px solid var(--border);
-  background: color-mix(in srgb, var(--warning-background) 20%, transparent);
-  color: var(--text);
-}
-.banner .icon { color: var(--warning); margin-top: var(--sp-1); }
-.banner--error { background: color-mix(in srgb, var(--error) 8%, transparent); }
-.banner--error .icon { color: var(--error); }
-.banner--info { background: color-mix(in srgb, var(--info-background) 10%, transparent); }
-.banner--info .icon { color: var(--info); }
-
 /* ---------- overlays : menus, toasts, reglages ---------- */
 
 .overlays { position: fixed; inset: 0; pointer-events: none; z-index: 50; }
@@ -932,19 +933,28 @@ button { cursor: pointer; }
 }
 .completion-aside__body { padding: 0 var(--sp-4); max-height: calc(12 * var(--fs-buffer) * var(--lh)); overflow-y: auto; white-space: pre-wrap; }
 
-/* Callout d'erreur — callout.rs / render_any_thread_error : filet haut, fond
-   teinté par sévérité, p 8 gap 8, icône 14, titre 12, description 12 muted. */
+/* Callout — callout.rs / galerie zed-ui section 11 : filet haut, fond teinté
+   par sévérité (info 10 %, warning 20 %, error 8 %), p 8 gap 8, icône sur la
+   hauteur de ligne, titre + actions, description muted scrollable (max 128 px). */
 .composer-block { display: contents; }
+.callout-slot { display: contents; }
 .callout {
   display: flex; align-items: flex-start; gap: var(--sp-4); flex: none;
   padding: var(--sp-4); border-top: 1px solid var(--border);
-  background: color-mix(in srgb, var(--error) 8%, transparent);
   font-size: var(--fs-sm);
 }
-.callout > .icon { color: var(--error); margin-top: var(--sp-1); flex: none; }
+.callout--info { background: color-mix(in srgb, var(--info-background) 10%, transparent); }
+.callout--warning { background: color-mix(in srgb, var(--warning-background) 20%, transparent); }
+.callout--error { background: color-mix(in srgb, var(--error) 8%, transparent); }
+.callout__icon { display: flex; align-items: center; min-height: calc(var(--fs-sm) * var(--lh)); flex: none; color: var(--text-muted); }
+.callout--warning .callout__icon { color: var(--warning); }
+.callout--error .callout__icon { color: var(--error); }
 .callout__body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
-.callout__desc { color: var(--text-muted); white-space: pre-wrap; word-break: break-word; }
-.callout__actions { display: flex; gap: var(--sp-1); flex: none; }
+.callout__title-row { display: flex; flex-wrap: wrap; gap: var(--sp-2); justify-content: space-between; align-items: center; }
+.callout__title { flex: 1; min-width: 0; }
+.callout__actions { display: flex; gap: var(--sp-1); align-items: center; flex: none; }
+.callout__desc { color: var(--text-muted); white-space: pre-wrap; word-break: break-word; max-height: 128px; overflow-y: auto; }
+.callout__desc.md { font-size: var(--fs-sm); line-height: var(--lh); white-space: normal; }
 .menu__item--on .icon { color: var(--icon); }
 .menu__sep { height: 1px; background: var(--border-variant); margin: var(--sp-3) 0; }
 

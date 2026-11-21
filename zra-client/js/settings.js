@@ -79,8 +79,8 @@ export function normalizeUrl(input, pageProtocol = globalThis.location?.protocol
 
 export function addMachine(input, label) {
   const url = normalizeUrl(input)
-  if (!url) return { error: tr`adresse invalide` }
-  if (settings.machines.some((m) => m.url === url)) return { error: tr`poste déjà enregistré` }
+  if (!url) return { error: tr`Adresse invalide.` }
+  if (settings.machines.some((m) => m.url === url)) return { error: tr`Poste déjà enregistré.` }
   const machine = { id: `m${Date.now().toString(36)}`, url, label: label || hostLabel(url) }
   update({ machines: [...settings.machines, machine] })
   return { machine }
@@ -147,7 +147,7 @@ export function originMachine() {
   return {
     id: 'origin',
     url: `${location.protocol}//${location.hostname}:7777`,
-    label: local ? tr`ce poste` : location.hostname,
+    label: local ? tr`Ce poste` : location.hostname,
     implicit: true,
   }
 }

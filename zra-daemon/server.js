@@ -78,7 +78,7 @@ export async function readTls(tls) {
       .filter((n) => n && !n.includes('*'))
     validTo = new Date(x509.validTo)
   } catch (err) {
-    log.warn(tr`certificat illisible pour l'inspection (${err.message}) : noms et échéance inconnus`)
+    log.warn(tr`Certificat illisible pour l'inspection (${err.message}) : noms et échéance inconnus.`)
   }
   return { cert, key, names, validTo }
 }
@@ -134,17 +134,17 @@ export async function createServers({ config, addresses, onConnection, onShim, s
     // 127.0.0.1 et lire les routes locales. Le `Host` qu'elle envoie reste le
     // domaine tiers : on ne répond qu'aux nôtres.
     if (!allowedHosts.has(String(req.headers.host || '').toLowerCase())) {
-      log.warn(tr`HTTP refusé : hôte ${req.headers.host || tr`absent`} non autorisé`)
+      log.warn(tr`HTTP refusé : hôte ${req.headers.host || tr`Absent`} non autorisé.`)
       res.writeHead(403, { 'content-type': 'text/plain; charset=utf-8' })
-      res.end(tr`hôte non autorisé`)
+      res.end(tr`Hôte non autorisé.`)
       return
     }
     // CSRF : une page du poste peut poster vers 127.0.0.1 avec un `Host`
     // légitime ; son `Origin`, lui, est celui de la page tierce.
     if (!checkOrigin(req.headers.origin || null, httpOrigins)) {
-      log.warn(tr`HTTP refusé : origine ${req.headers.origin} non autorisée`)
+      log.warn(tr`HTTP refusé : origine ${req.headers.origin} non autorisée.`)
       res.writeHead(403, { 'content-type': 'text/plain; charset=utf-8' })
-      res.end(tr`origine non autorisée`)
+      res.end(tr`Origine non autorisée.`)
       return
     }
     // Routes locales : loopback **et** sans en-tête de proxy — un tunnel local
@@ -167,7 +167,7 @@ export async function createServers({ config, addresses, onConnection, onShim, s
       return
     }
     serveStatic(req, res).catch((err) => {
-      log.warn(tr`statique :`, err.message)
+      log.warn(tr`Statique :`, err.message)
       if (!res.headersSent) res.writeHead(500)
       res.end()
     })
@@ -189,8 +189,8 @@ export async function createServers({ config, addresses, onConnection, onShim, s
           unpaired: true,
           verify: ({ req, origin }) => {
             if (!checkOrigin(origin, allowed)) {
-              log.warn(tr`WebSocket refusé : origine ${origin} non autorisée (allowedOrigins)`)
-              return { ok: false, status: 403, reason: tr`origine non autorisée` }
+              log.warn(tr`WebSocket refusé : origine ${origin} non autorisée (allowedOrigins).`)
+              return { ok: false, status: 403, reason: tr`Origine non autorisée.` }
             }
             return true
           },
@@ -203,10 +203,10 @@ export async function createServers({ config, addresses, onConnection, onShim, s
           path: '/shim',
           verify: ({ req }) => {
             if (!isLoopback(req.socket.remoteAddress)) {
-              return { ok: false, status: 403, reason: tr`canal des shims réservé au poste local` }
+              return { ok: false, status: 403, reason: tr`Canal des shims réservé au poste local.` }
             }
             if (req.headers.origin) {
-              return { ok: false, status: 403, reason: tr`origine interdite sur le canal des shims` }
+              return { ok: false, status: 403, reason: tr`Origine interdite sur le canal des shims.` }
             }
             return true
           },
@@ -224,11 +224,11 @@ export async function createServers({ config, addresses, onConnection, onShim, s
     await new Promise((resolve, reject) => {
       server.once('error', (err) => {
         if (err.code === 'EADDRINUSE') {
-          const e = new Error(tr`port ${config.port} déjà pris sur ${address} : un autre zra-daemon tourne-t-il déjà ? (npm run service -- status)`)
+          const e = new Error(tr`Port ${config.port} déjà pris sur ${address} : un autre zra-daemon tourne-t-il déjà ? (npm run service -- status).`)
           e.code = 'port_in_use'
           reject(e)
         } else if (err.code === 'EADDRNOTAVAIL') {
-          const e = new Error(tr`adresse ${address} indisponible : l'interface a disparu avant l'écoute`)
+          const e = new Error(tr`Adresse ${address} indisponible : l'interface a disparu avant l'écoute.`)
           e.code = 'address_gone'
           reject(e)
         } else reject(err)
@@ -236,7 +236,7 @@ export async function createServers({ config, addresses, onConnection, onShim, s
       server.listen(config.port, address, () => {
         server.removeAllListeners('error')
         // Une écoute qui casse plus tard (interface retirée) ne doit pas tuer le daemon.
-        server.on('error', (err) => log.warn(tr`écoute ${address} :`, err.message))
+        server.on('error', (err) => log.warn(tr`Écoute ${address} :`, err.message))
         resolve()
       })
     })

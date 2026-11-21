@@ -58,10 +58,10 @@ function parseArgs(argv) {
     if (a === '--apply') out.apply = true
     else if (a === '--lines') out.lines = Number(rest[++i])
     else if (a === '--help' || a === '-h') out.command = 'help'
-    else throw new Error(tr`option inconnue : ${a}`)
+    else throw new Error(tr`Option inconnue : ${a}`)
   }
   if (!['status', 'install', 'uninstall', 'start', 'stop', 'logs', 'help'].includes(out.command)) {
-    throw new Error(tr`commande inconnue : ${out.command}`)
+    throw new Error(tr`Commande inconnue : ${out.command}`)
   }
   return out
 }
@@ -178,7 +178,7 @@ function currentUser() {
   const exe = join(process.env.SystemRoot || 'C:/Windows', 'System32', 'whoami.exe')
   const res = spawnSync(exe, [], { encoding: 'utf8', windowsHide: true })
   const user = res.stdout?.trim()
-  if (res.status !== 0 || !user) throw new Error(tr`whoami : utilisateur courant introuvable`)
+  if (res.status !== 0 || !user) throw new Error(tr`whoami : utilisateur courant introuvable.`)
   return user
 }
 
@@ -203,36 +203,36 @@ function tail(file, lines) {
 async function status(opts, config) {
   const q = queryTask()
   if (!q) {
-    console.log(tr`tâche « ${TASK} » : ✗ absente — \`npm run service -- install\` pour voir ce qui serait créé`)
+    console.log(tr`Tâche « ${TASK} » : ✗ absente — \`npm run service -- install\` pour voir ce qui serait créé.`)
   } else {
-    console.log(tr`tâche « ${TASK} » : ✓ installée`)
-    console.log(tr`  état : ${field(q, 'statut', 'status', 'état')}`)
-    console.log(tr`  dernière exécution : ${field(q, 'heure de la dernière exécution', 'last run time')} (résultat ${field(q, 'dernier résultat', 'last result')})`)
+    console.log(tr`Tâche « ${TASK} » : ✓ installée.`)
+    console.log(tr`  État : ${field(q, 'statut', 'status', 'état')}`)
+    console.log(tr`  Dernière exécution : ${field(q, 'heure de la dernière exécution', 'last run time')} (résultat ${field(q, 'dernier résultat', 'last result')}).`)
   }
 
   const d = await daemonStatus(config.port)
   if (d.ok) {
     const t = d.threads ?? {}
-    console.log(tr`daemon 127.0.0.1:${config.port} : ✓ ${d.scheme}, depuis ${d.startedAt}, ${t.live ?? 0} live / ${t.closed ?? 0} fermé(s), ${d.shims?.length ?? 0} shim(s), ${d.clients ?? 0} client(s)`)
+    console.log(tr`Daemon 127.0.0.1:${config.port} : ✓ ${d.scheme}, depuis ${d.startedAt}, ${t.live ?? 0} live / ${t.closed ?? 0} fermé(s), ${d.shims?.length ?? 0} shim(s), ${d.clients ?? 0} client(s).`)
   } else {
-    console.log(tr`daemon 127.0.0.1:${config.port} : ✗ injoignable (${d.reason})`)
+    console.log(tr`Daemon 127.0.0.1:${config.port} : ✗ injoignable (${d.reason}).`)
   }
 
   const last = tail(LOG, 5)
-  if (last) console.log(tr`journal ${LOG} :\n  ${last.join('\n  ')}`)
-  else console.log(tr`journal ${LOG} : pas encore écrit`)
+  if (last) console.log(tr`Journal ${LOG} :\n  ${last.join('\n  ')}`)
+  else console.log(tr`Journal ${LOG} : pas encore écrit.`)
 }
 
 async function install(opts) {
-  if (!existsSync(LAUNCHER)) throw new Error(tr`lanceur introuvable : ${LAUNCHER}`)
+  if (!existsSync(LAUNCHER)) throw new Error(tr`Lanceur introuvable : ${LAUNCHER}`)
   const user = currentUser()
   const xml = buildTaskXml({ user })
-  console.log(tr`tâche « ${TASK} » pour ${user} : à l'ouverture de session (+15 s), sans fenêtre, sans élévation`)
+  console.log(tr`Tâche « ${TASK} » pour ${user} : à l'ouverture de session (+15 s), sans fenêtre, sans élévation.`)
   console.log(`  powershell.exe → ${LAUNCHER}`)
   console.log(`  node ${process.execPath}`)
-  console.log(tr`  journal ${LOG}`)
+  console.log(tr`  Journal ${LOG}`)
   if (!opts.apply) {
-    console.log(tr`\nsimulation : rien créé. Relancer avec --apply pour créer la tâche.`)
+    console.log(tr`\nSimulation : rien créé. Relancer avec --apply pour créer la tâche.`)
     return
   }
   // Task Scheduler attend un XML en UTF-16 : on l'écrit comme tel, BOM compris.
@@ -240,23 +240,23 @@ async function install(opts) {
   await writeFile(XML_FILE, Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from(xml, 'utf16le')]))
   const res = schtasks(['/Create', '/TN', TASK, '/XML', XML_FILE, '/F'])
   if (!res.ok) throw new Error(tr`schtasks /Create a échoué : ${res.out}`)
-  console.log(tr`✓ tâche créée. Elle démarrera à la prochaine ouverture de session ; tout de suite : npm run service -- start`)
+  console.log(tr`✓ tâche créée. Elle démarrera à la prochaine ouverture de session ; tout de suite : npm run service -- start.`)
 }
 
 function uninstall(opts) {
-  if (!queryTask()) return console.log(tr`tâche « ${TASK} » : déjà absente`)
-  if (!opts.apply) return console.log(tr`simulation : la tâche « ${TASK} » serait arrêtée puis supprimée. Relancer avec --apply.`)
+  if (!queryTask()) return console.log(tr`Tâche « ${TASK} » : déjà absente.`)
+  if (!opts.apply) return console.log(tr`Simulation : la tâche « ${TASK} » serait arrêtée puis supprimée. Relancer avec --apply.`)
   schtasks(['/End', '/TN', TASK])
   killTaskDaemon()
   const res = schtasks(['/Delete', '/TN', TASK, '/F'])
   if (!res.ok) throw new Error(tr`schtasks /Delete a échoué : ${res.out}`)
-  console.log(tr`✓ tâche supprimée (le journal reste dans .zra/logs/)`)
+  console.log(tr`✓ tâche supprimée (le journal reste dans .zra/logs/).`)
 }
 
 async function start(config) {
-  if (!queryTask()) throw new Error(tr`tâche « ${TASK} » absente : npm run service -- install --apply`)
+  if (!queryTask()) throw new Error(tr`Tâche « ${TASK} » absente : npm run service -- install --apply.`)
   const already = await daemonStatus(config.port)
-  if (already.ok) return console.log(tr`un daemon répond déjà sur 127.0.0.1:${config.port} (dev ?) : rien lancé`)
+  if (already.ok) return console.log(tr`Un daemon répond déjà sur 127.0.0.1:${config.port} (dev ?) : rien lancé.`)
   const res = schtasks(['/Run', '/TN', TASK])
   if (!res.ok) throw new Error(tr`schtasks /Run a échoué : ${res.out}`)
   for (let i = 0; i < 40; i++) {
@@ -264,7 +264,7 @@ async function start(config) {
     const d = await daemonStatus(config.port, { timeoutMs: 500 })
     if (d.ok) return console.log(tr`✓ daemon lancé (${`${d.scheme}://127.0.0.1:${config.port}`})`)
   }
-  console.log(tr`tâche lancée, mais le daemon ne répond pas encore : npm run service -- logs`)
+  console.log(tr`Tâche lancée, mais le daemon ne répond pas encore : npm run service -- logs.`)
 }
 
 /**
@@ -284,16 +284,16 @@ function killTaskDaemon() {
 }
 
 function stop() {
-  if (!queryTask()) return console.log(tr`tâche « ${TASK} » absente`)
+  if (!queryTask()) return console.log(tr`Tâche « ${TASK} » absente.`)
   const res = schtasks(['/End', '/TN', TASK])
   const killed = killTaskDaemon()
-  console.log(res.ok ? tr`✓ tâche arrêtée` : `schtasks /End : ${res.out}`)
-  if (killed.length) console.log(tr`  daemon de la tâche terminé (pid ${killed.join(', ')})`)
+  console.log(res.ok ? tr`✓ tâche arrêtée.` : `schtasks /End : ${res.out}`)
+  if (killed.length) console.log(tr`  Daemon de la tâche terminé (pid ${killed.join(', ')}).`)
 }
 
 function logs(opts) {
   const last = tail(LOG, opts.lines)
-  if (!last) return console.log(tr`pas de journal : ${LOG}`)
+  if (!last) return console.log(tr`Pas de journal : ${LOG}`)
   console.log(last.join('\n'))
 }
 
@@ -308,7 +308,7 @@ async function main() {
   const linux = { systemd: systemdCommands, autostart: autostartCommands }[serviceBackend()]
   if (linux) {
     const run = linux[opts.command]
-    if (!run) throw new Error(tr`commande inconnue : ${opts.command}`)
+    if (!run) throw new Error(tr`Commande inconnue : ${opts.command}`)
     return run(opts, config)
   }
 

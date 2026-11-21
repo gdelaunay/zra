@@ -75,7 +75,7 @@ test('push : le navigateur déchiffre la notification, le JWT VAPID est valide',
   const sub = subscription()
   assert.ok(push.subscribe(sub, { machineId: 'mock-desk', clientId: 'c1' }))
 
-  const n = await push.notify({ threadId: 't42', title: 'Mon thread', body: 'Réponse reçue', tag: 't42' })
+  const n = await push.notify({ threadId: 't42', title: 'Mon thread', body: 'Réponse reçue.', tag: 't42' })
   assert.equal(n, 1)
   assert.equal(sent.length, 1)
   assert.equal(sent[0].url, sub.endpoint)
@@ -83,7 +83,7 @@ test('push : le navigateur déchiffre la notification, le JWT VAPID est valide',
   checkVapid(sent[0].opts.headers.Authorization, push, sub.endpoint)
 
   const payload = decrypt(sent[0].opts.body, sub)
-  assert.deepEqual(payload, { title: 'Mon thread', body: 'Réponse reçue', tag: 't42', url: '#/t/mock-desk/t42' })
+  assert.deepEqual(payload, { title: 'Mon thread', body: 'Réponse reçue.', tag: 't42', url: '#/t/mock-desk/t42' })
 })
 
 test('push : un abonnement expiré (410) est retiré', async () => {

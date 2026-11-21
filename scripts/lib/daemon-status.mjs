@@ -24,7 +24,7 @@ function call(request, port, path, method, timeoutMs) {
         resolve({ status: res.statusCode, body: json })
       })
     })
-    req.on('timeout', () => req.destroy(Object.assign(new Error(tr`délai dépassé`), { code: 'ETIMEDOUT' })))
+    req.on('timeout', () => req.destroy(Object.assign(new Error(tr`Délai dépassé.`), { code: 'ETIMEDOUT' })))
     req.on('error', reject)
     req.end()
   })

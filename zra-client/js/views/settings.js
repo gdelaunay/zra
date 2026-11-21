@@ -48,7 +48,7 @@ function machinesSection(api) {
     if (res.error) return toast(res.error, { level: 'error' })
     store.addMachine(res.machine)
     input.value = ''
-    toast(tr`poste ${res.machine.label} ajouté`)
+    toast(tr`Poste ${res.machine.label} ajouté`)
     api.rebuild?.()
   }
   input.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') add() })
@@ -101,7 +101,7 @@ const TEXT_SCALES = [
   { value: 0.85, label: tr`Petite` },
   { value: 1, label: tr`Normale` },
   { value: 1.15, label: tr`Grande` },
-  { value: 1.3, label: tr`Très grande` },
+  { value: 1.3, label: tr`Très grande.` },
 ]
 const scaleLabel = (s) => `${s.label} (${Math.round(TEXT_BASE_PX * s.value)} px)`
 
@@ -189,7 +189,7 @@ function notificationsToggle() {
   return h('label.row', { style: { cursor: supported ? 'pointer' : 'default' } },
     input,
     h('span', { text: tr`Notifications (fin de tour)` }),
-    !supported ? h('span.muted', { style: { fontSize: 'var(--fs-sm)' }, text: tr`non supporté par ce navigateur` }) : null,
+    !supported ? h('span.muted', { style: { fontSize: 'var(--fs-sm)' }, text: tr`Non supporté par ce navigateur.` }) : null,
   )
 }
 

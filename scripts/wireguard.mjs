@@ -53,11 +53,11 @@ export function hostAt(subnet, n) {
   const bits = Number(bitsRaw)
   const parts = base.split('.').map(Number)
   if (parts.length !== 4 || parts.some((p) => !Number.isInteger(p) || p < 0 || p > 255) || !(bits >= 16 && bits <= 30)) {
-    throw new Error(tr`plage invalide : ${subnet} (attendu : a.b.c.d/16 à /30)`)
+    throw new Error(tr`Plage invalide : ${subnet} (attendu : a.b.c.d/16 à /30).`)
   }
   const int = ((parts[0] << 24) | (parts[1] << 16) | (parts[2] << 8) | parts[3]) >>> 0
   const net = (int & ((0xffffffff << (32 - bits)) >>> 0)) >>> 0
-  if (n < 1 || n >= 2 ** (32 - bits) - 1) throw new Error(tr`plus d'adresse libre dans ${subnet}`)
+  if (n < 1 || n >= 2 ** (32 - bits) - 1) throw new Error(tr`Plus d'adresse libre dans ${subnet}`)
   const ip = (net + n) >>> 0
   return [ip >>> 24, (ip >>> 16) & 255, (ip >>> 8) & 255, ip & 255].join('.')
 }
@@ -65,7 +65,7 @@ export function hostAt(subnet, n) {
 /** `hôte`, `hôte:port`, `[v6]:port` → `hôte:port`. */
 export function normalizeEndpoint(input, port = 51820) {
   const s = String(input || '').trim()
-  if (!s) throw new Error(tr`--endpoint requis : l’adresse par laquelle le téléphone joint ce poste (IP publique, nom DNS, IP du réseau local)`)
+  if (!s) throw new Error(tr`--endpoint requis : l’adresse par laquelle le téléphone joint ce poste (IP publique, nom DNS, IP du réseau local).`)
   if (/^\[.*\](:\d+)?$/.test(s)) return /\]:\d+$/.test(s) ? s : `${s}:${port}`
   if (/^[^:]+:\d+$/.test(s)) return s
   if (s.includes(':')) return `[${s}]:${port}`
@@ -74,7 +74,7 @@ export function normalizeEndpoint(input, port = 51820) {
 
 const safeName = (name) => {
   if (!/^[A-Za-z0-9_=+.-]{1,15}$/.test(name)) {
-    throw new Error(tr`nom « ${name} » : 1 à 15 caractères parmi lettres, chiffres, _=+.- (contrainte de WireGuard pour Windows)`)
+    throw new Error(tr`Nom « ${name} » : 1 à 15 caractères parmi lettres, chiffres, _=+.- (contrainte de WireGuard pour Windows).`)
   }
   return name
 }
@@ -130,8 +130,8 @@ export function newState({ endpoint, subnet = '10.77.0.0/24', port = 51820, name
 
 export function addDevice(state, name) {
   safeName(name)
-  if (name === state.name) throw new Error(tr`« ${name} » est déjà le nom du tunnel du poste`)
-  if (state.devices.some((d) => d.name === name)) throw new Error(tr`appareil « ${name} » déjà présent`)
+  if (name === state.name) throw new Error(tr`« ${name} » est déjà le nom du tunnel du poste.`)
+  if (state.devices.some((d) => d.name === name)) throw new Error(tr`Appareil « ${name} » déjà présent.`)
   const used = new Set([state.host.address, ...state.devices.map((d) => d.address)])
   let n = 2
   while (used.has(hostAt(state.subnet, n))) n++
@@ -164,7 +164,7 @@ function showQr(state, device) {
   const conf = deviceConfig(state, device)
   console.log(tr`\n${device.name} — à scanner dans l'appli WireGuard (+ › Scanner un QR code) :\n`)
   console.log(qrToTerminal(encodeQr(conf)))
-  console.log(tr`\nmême QR en image : ${join(DIR, `${device.name}.svg`)}`)
+  console.log(tr`\nMême QR en image : ${join(DIR, `${device.name}.svg`)}`)
 }
 
 function nextSteps(state, config) {
@@ -210,9 +210,9 @@ function parseArgs(argv) {
     else if (a === '--device') out.device = rest[++i]
     else if (a === '--force') out.force = true
     else if (a === '--help' || a === '-h') out.command = 'help'
-    else throw new Error(tr`option inconnue : ${a}`)
+    else throw new Error(tr`Option inconnue : ${a}`)
   }
-  if (!['status', 'init', 'add', 'qr', 'help'].includes(out.command)) throw new Error(tr`commande inconnue : ${out.command}`)
+  if (!['status', 'init', 'add', 'qr', 'help'].includes(out.command)) throw new Error(tr`Commande inconnue : ${out.command}`)
   return out
 }
 
@@ -242,22 +242,22 @@ async function main() {
 
   if (opts.command === 'init') {
     if (state && !opts.force) {
-      throw new Error(tr`configuration déjà générée dans ${DIR} : \`npm run wireguard -- add <appareil>\` pour un appareil de plus, --force pour tout régénérer (les appareils existants devront rescanner)`)
+      throw new Error(tr`Configuration déjà générée dans ${DIR} : \`npm run wireguard -- add <appareil>\` pour un appareil de plus, --force pour tout régénérer (les appareils existants devront rescanner).`)
     }
     state = newState({ endpoint: opts.endpoint, subnet: opts.subnet, port: opts.port, name: opts.name })
     const device = addDevice(state, opts.device || 'telephone')
     await save(state)
     console.log(tr`✓ tunnel « ${state.name} » : poste ${state.host.address}, ${device.name} ${device.address}, joignable par ${state.endpoint}`)
-    console.log(tr`  fichiers dans ${DIR}`)
+    console.log(tr`  Fichiers dans ${DIR}`)
     showQr(state, device)
     nextSteps(state, config)
     return
   }
 
   if (!state) {
-    console.log(tr`aucune configuration WireGuard générée — npm run wireguard -- init --endpoint <hôte>`)
+    console.log(tr`Aucune configuration WireGuard générée — npm run wireguard -- init --endpoint <hôte>.`)
   } else if (opts.command === 'add') {
-    if (!opts.device) throw new Error(tr`nom de l’appareil : npm run wireguard -- add <appareil>`)
+    if (!opts.device) throw new Error(tr`Nom de l’appareil : npm run wireguard -- add <appareil>.`)
     const device = addDevice(state, opts.device)
     await save(state)
     console.log(tr`✓ ${device.name} : ${device.address}. Le poste a un pair de plus : réimporter son tunnel —`)
@@ -267,19 +267,19 @@ async function main() {
     return
   } else if (opts.command === 'qr') {
     const device = opts.device ? state.devices.find((d) => d.name === opts.device) : state.devices[0]
-    if (!device) throw new Error(tr`appareil inconnu : ${opts.device} (connus : ${state.devices.map((d) => d.name).join(', ')})`)
+    if (!device) throw new Error(tr`Appareil inconnu : ${opts.device} (connus : ${state.devices.map((d) => d.name).join(', ')}).`)
     showQr(state, device)
     return
   } else {
-    console.log(tr`tunnel « ${state.name} » : poste ${state.host.address}, port UDP ${state.port}, joignable par ${state.endpoint}`)
+    console.log(tr`Tunnel « ${state.name} » : poste ${state.host.address}, port UDP ${state.port}, joignable par ${state.endpoint}`)
     for (const d of state.devices) console.log(`  ${d.name} : ${d.address}`)
     const leftovers = readdirSync(DIR).filter((f) => /\.(conf|svg)$/.test(f) && f !== `${state.name}.conf`)
-    if (leftovers.length) console.log(tr`  ⚠ clés d'appareils encore sur le disque : ${leftovers.join(', ')} — à supprimer une fois scannées`)
+    if (leftovers.length) console.log(tr`  ⚠ clés d'appareils encore sur le disque : ${leftovers.join(', ')} — à supprimer une fois scannées.`)
   }
 
   const tunnel = findTunnel(config, listInterfaces())
-  if (tunnel) console.log(tr`interface du tunnel : ✓ ${tunnel.name} (${tunnel.address}, ${tunnel.how})`)
-  else console.log(config.bindInterface ? tr`interface du tunnel : ✗ aucune nommée « ${config.bindInterface} » — tunnel pas encore monté ?` : tr`interface du tunnel : ✗ aucune — tunnel pas encore monté ?`)
+  if (tunnel) console.log(tr`Interface du tunnel : ✓ ${tunnel.name} (${tunnel.address}, ${tunnel.how}).`)
+  else console.log(config.bindInterface ? tr`Interface du tunnel : ✗ aucune nommée « ${config.bindInterface} » — tunnel pas encore monté ?` : tr`Interface du tunnel : ✗ aucune — tunnel pas encore monté ?`)
 
 }
 

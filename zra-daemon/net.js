@@ -78,14 +78,14 @@ export function findTunnel(cfg, interfaces = listInterfaces()) {
   if (cfg.bindInterface) {
     const wanted = cfg.bindInterface.toLowerCase()
     const hit = interfaces.find((i) => i.name.toLowerCase() === wanted)
-    return hit ? { ...hit, how: tr`nom configuré` } : null
+    return hit ? { ...hit, how: tr`Nom configuré` } : null
   }
   if (cfg.bindCidr) {
     const hit = interfaces.find((i) => inCidr(i.address, cfg.bindCidr))
-    return hit ? { ...hit, how: tr`plage ${cfg.bindCidr}` } : null
+    return hit ? { ...hit, how: tr`Plage ${cfg.bindCidr}` } : null
   }
   const hit = interfaces.find((i) => TUNNEL_NAME.test(i.name))
-  return hit ? { ...hit, how: tr`nom reconnu` } : null
+  return hit ? { ...hit, how: tr`Nom reconnu` } : null
 }
 
 /**
@@ -111,8 +111,8 @@ export class TunnelMissingError extends Error {
   constructor(interfaces) {
     const seen = interfaces.length
       ? interfaces.map((i) => `${i.name} (${i.address})`).join(', ')
-      : tr`aucune interface externe`
-    super(tr`aucune interface de tunnel trouvée, et requireTunnel l'exige : le daemon refuse de démarrer.
+      : tr`Aucune interface externe.`
+    super(tr`Aucune interface de tunnel trouvée, et requireTunnel l'exige : le daemon refuse de démarrer.
   interfaces vues : ${seen}
   → renseigner "bindInterface" ou "bindCidr" dans zra.config.json,
     ou "requireTunnel": false (réseau local et loopback suffisent).`)
@@ -133,7 +133,7 @@ export function bindAddresses(cfg, tunnel, lan = []) {
   for (const i of lan) add(i.address)
   if (tunnel) add(tunnel.address)
   for (const a of addresses) {
-    if (WILDCARD.has(a)) throw new Error(tr`écoute sur ${a || tr`(vide)`} interdite`)
+    if (WILDCARD.has(a)) throw new Error(tr`Écoute sur ${a || tr`(vide)`} interdite.`)
   }
   return addresses
 }
@@ -153,7 +153,7 @@ export function resolveNetwork(cfg, interfaces = listInterfaces()) {
 export function resolveBinds(cfg, interfaces = listInterfaces()) {
   const net = resolveNetwork(cfg, interfaces)
   if (!net.tunnel && cfg.requireTunnel && !cfg.waitTunnel) throw new TunnelMissingError(interfaces)
-  if (!net.addresses.length) throw new Error(tr`aucune adresse d’écoute : activer bindLoopback, bindLan ou un tunnel`)
+  if (!net.addresses.length) throw new Error(tr`Aucune adresse d’écoute : activer bindLoopback, bindLan ou un tunnel.`)
   return net
 }
 

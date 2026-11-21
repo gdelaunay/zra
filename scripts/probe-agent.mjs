@@ -42,7 +42,7 @@ try {
   console.error(`✗ ${err.message}`)
   process.exit(1)
 }
-console.log(tr`commande résolue (${agent.source}) :\n  ${`${agent.command} ${agent.args.join(' ')}`}\n`)
+console.log(tr`Commande résolue (${agent.source}) :\n  ${`${agent.command} ${agent.args.join(' ')}`}\n`)
 
 // Le shim est lancé comme Zed le lancerait, sans daemon en face : c'est aussi
 // une vérification du fail-open (le lien local n'existe pas, tout doit marcher).
@@ -53,7 +53,7 @@ const shim = spawn(process.execPath, [SHIM], {
 
 const framer = createFramer()
 const timer = setTimeout(() => {
-  console.error(tr`\n✗ aucune réponse à \`initialize\` en 30 s — voir le journal du shim ci-dessus`)
+  console.error(tr`\n✗ aucune réponse à \`initialize\` en 30 s — voir le journal du shim ci-dessus.`)
   shim.kill()
   process.exit(1)
 }, 30_000)
@@ -70,11 +70,11 @@ shim.stdout.on('data', (chunk) => {
     }
     const caps = msg.result?.agentCapabilities ?? {}
     const info = msg.result?.agentInfo
-    console.log(tr`✓ poignée de main relayée par le shim`)
+    console.log(tr`✓ poignée de main relayée par le shim.`)
     console.log(`  agent            : ${info ? `${info.name} ${info.version ?? ''}`.trim() : '—'}`)
     console.log(`  protocolVersion  : ${msg.result?.protocolVersion}`)
-    console.log(`  loadSession      : ${caps.loadSession ? tr`oui` : tr`non — historique indisponible`}`)
-    console.log(tr`  capacités        : ${Object.keys(caps).join(', ') || '—'}`)
+    console.log(`  loadSession      : ${caps.loadSession ? tr`Oui` : tr`Non — historique indisponible.`}`)
+    console.log(tr`  Capacités        : ${Object.keys(caps).join(', ') || '—'}`)
     shim.kill()
     process.exit(0)
   }
@@ -83,7 +83,7 @@ shim.stdout.on('data', (chunk) => {
 shim.on('exit', (code) => {
   clearTimeout(timer)
   if (code) {
-    console.error(tr`✗ le shim s'est arrêté (code ${code})`)
+    console.error(tr`✗ le shim s'est arrêté (code ${code}).`)
     process.exit(code)
   }
 })

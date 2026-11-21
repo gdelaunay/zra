@@ -17,6 +17,7 @@ const TRIGGERS = [
   ['unknown', tr`Événement ACP inconnu`, 'hash'],
   ['mentions', tr`Mentions @`, 'file-text'],
   ['error', tr`Erreur daemon`, 'alert-triangle'],
+  ['refusal', tr`Refus de l'agent (callout)`, 'x-circle'],
   ['offline', tr`Poste hors ligne 4 s`, 'plug'],
   ['shim-lost', tr`Zed ferme l’agent`, 'x'],
   ['shim-back', tr`Zed rouvre le thread`, 'check'],
@@ -34,7 +35,7 @@ export function DevBar({ currentKey }) {
 
   const fire = (name) => {
     const t = target()
-    if (!t) return toast(tr`aucun thread live`, { level: 'warn' })
+    if (!t) return toast(tr`Aucun thread live.`, { level: 'warn' })
     const machine = store.state.machines.get(t.machineId)
     machine?.link.send({ type: 'zra/trigger', name, threadId: t.threadId })
   }

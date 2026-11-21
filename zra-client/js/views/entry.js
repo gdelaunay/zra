@@ -85,7 +85,7 @@ function userMsg(entry) {
   }).join('')
   return h('div.user-msg', { class: entry.pending ? 'is-pending' : entry.failed ? 'is-failed' : '' },
     h('div.bubble', { html }),
-    entry.failed ? h('div.msg__status', { text: tr`non envoyé` }) : null,
+    entry.failed ? h('div.msg__status', { text: tr`Non envoyé.` }) : null,
   )
 }
 
@@ -117,7 +117,7 @@ function thoughtMsg(entry, ctx = {}) {
   },
     h('span.thought__start', {},
       icon('lightbulb', 'icon--sm'),
-      h('span.thought__name', { text: tr`réflexion` })),
+      h('span.thought__name', { text: tr`Réflexion` })),
     icon('chevron-right', 'thought__chevron thought__disclosure icon--sm'),
   )
   const body = h('div.thought__body', {},
@@ -275,10 +275,10 @@ function toolCall(entry, ctx) {
       else root.append(h('div.card-output', {}, h('div.md', { html: blocksHtml([c?.type === 'content' ? c.content : c]) })))
     }
     if (!contents.length) {
-      root.append(h('div.card-output', { text: entry.status === 'pending' ? tr`en attente…` : tr`aucune sortie` }))
+      root.append(h('div.card-output', { text: entry.status === 'pending' ? tr`En attente…` : tr`Aucune sortie.` }))
     }
-    if (entry.rawInput !== undefined) root.append(rawInputBlock(tr`entrée brute`, entry.rawInput))
-    if (entry.rawOutput !== undefined) root.append(rawInputBlock(tr`sortie brute`, entry.rawOutput))
+    if (entry.rawInput !== undefined) root.append(rawInputBlock(tr`Entrée brute`, entry.rawInput))
+    if (entry.rawOutput !== undefined) root.append(rawInputBlock(tr`Sortie brute`, entry.rawOutput))
   } else {
     const out = h('div.tool-output.first')
     if (entry.locations?.length) {
@@ -289,10 +289,10 @@ function toolCall(entry, ctx) {
       out.append(h('div.md', { html: blocksHtml([c?.type === 'content' ? c.content : c]) }))
     }
     if (!contents.length && !entry.locations?.length) {
-      out.append(h('div', { text: entry.status === 'pending' ? tr`en attente…` : tr`aucune sortie` }))
+      out.append(h('div', { text: entry.status === 'pending' ? tr`En attente…` : tr`Aucune sortie.` }))
     }
-    if (entry.rawInput !== undefined) out.append(ioBlock(tr`entrée brute`, entry.rawInput))
-    if (entry.rawOutput !== undefined) out.append(ioBlock(tr`sortie brute`, entry.rawOutput))
+    if (entry.rawInput !== undefined) out.append(ioBlock(tr`Entrée brute`, entry.rawInput))
+    if (entry.rawOutput !== undefined) out.append(ioBlock(tr`Sortie brute`, entry.rawOutput))
     root.append(out)
     root.append(h('div.tool-collapse', {},
       button('btn btn--outlined btn--full', {
@@ -355,7 +355,7 @@ function diffBlock(c) {
     root.append(h(`div.ln${l.type === 'add' ? '.add' : l.type === 'del' ? '.del' : ''}`,
       { text: l.text || ' ' }))
   }
-  if (truncated) root.append(h('div.ln.skip', { text: tr`fichier trop gros : diff non aligné` }))
+  if (truncated) root.append(h('div.ln.skip', { text: tr`Fichier trop gros : diff non aligné.` }))
   return root
 }
 
@@ -376,7 +376,7 @@ function terminalCard(entry, c, ctx, { open, failed }) {
   const signal = term.exitStatus?.signal ?? null
   const finished = Boolean(term.exitStatus)
   const cmdFailed = finished && ((code !== null && code !== 0) || Boolean(signal))
-  const cwd = term.cwd || ctx.folderPaths?.[0] || tr`répertoire courant`
+  const cwd = term.cwd || ctx.folderPaths?.[0] || tr`Répertoire courant`
   const startedAt = toMs(term.startedAt)
   const elapsed = startedAt !== null ? (toMs(term.endedAt) ?? Date.now()) - startedAt : null
   const root = h(`div.tool.term${failed ? '.failed' : ''}.tool--${entry.status}`, { class: open ? 'is-open' : '' })
@@ -391,7 +391,7 @@ function terminalCard(entry, c, ctx, { open, failed }) {
   if (!finished) statusEl = icon('load_circle', 'icon--sm spin')
   else if (cmdFailed) {
     statusEl = icon('x', 'icon--sm term__failed')
-    statusEl.setAttribute('title', code !== null ? tr`code de sortie ${code}` : tr`interrompu par un signal`)
+    statusEl.setAttribute('title', code !== null ? tr`Code de sortie ${code}` : tr`Interrompu par un signal.`)
   }
   const head = h('div.term-head', {},
     h('div.term-row', {},
@@ -481,7 +481,7 @@ function permissionOptions(entry, ctx) {
       // second appui renverrait une écriture que le daemon refuserait en
       // `permission_expired`. La coche/le spinner disent le verdict.
       disabled: locked,
-      title: ctx.canRespond ? '' : tr`thread injoignable : à traiter sur le poste`,
+      title: ctx.canRespond ? '' : tr`Thread injoignable : à traiter sur le poste.`,
       onclick: () => ctx.onPermission?.(entry, o),
     },
       chosen && sent ? icon('loader', 'icon--sm spin') : chosen && entry.resolved ? icon('check', 'icon--sm') : ic,
@@ -493,8 +493,8 @@ function permissionOptions(entry, ctx) {
   // réponse, ou si le thread est injoignable.
   let note = null
   if (entry.resolved) {
-    if (!(entry.options || []).some((o) => o.optionId === entry.pendingOptionId)) note = tr`réponse : ${entry.outcome}`
-  } else if (!sent && !ctx.canRespond) note = tr`thread injoignable — à traiter sur le poste`
+    if (!(entry.options || []).some((o) => o.optionId === entry.pendingOptionId)) note = tr`Réponse : ${entry.outcome}`
+  } else if (!sent && !ctx.canRespond) note = tr`Thread injoignable — à traiter sur le poste.`
   return { options, note }
 }
 
@@ -556,17 +556,17 @@ function elicitationCard(entry, ctx) {
   return h('div.elicit',
     h('div.elicit__head', {},
       icon('message', 'icon--sm'),
-      h('span.truncate', { text: tr`Saisie demandée par ${ctx.agentName || tr`l'agent`}` }),
+      h('span.truncate', { text: tr`Saisie demandée par ${ctx.agentName || tr`L'agent`}` }),
       h('span.spacer'),
       h('span.muted', { text: tr`En attente de réponse` })),
     h('div.elicit__body', {},
       entry.message ? h('div.md', { html: blocksHtml([{ type: 'text', text: entry.message }]) }) : null,
       isUrl ? urlSummary(entry.url) : form,
       isUrl ? h('div.perm__note', { text: tr`À ouvrir sur le poste, dans Zed : la connexion revient au poste et n’aboutirait pas depuis le téléphone.` }) : null,
-      !ctx.canRespond ? h('div.perm__note', { text: tr`thread injoignable — à traiter sur le poste` }) : null),
+      !ctx.canRespond ? h('div.perm__note', { text: tr`Thread injoignable — à traiter sur le poste.` }) : null),
     h('div.elicit__actions', {},
       isUrl
-        ? button('btn', { disabled: true, title: tr`à ouvrir sur le poste, dans Zed` }, icon('link', 'icon--sm'), tr`Ouvrir`)
+        ? button('btn', { disabled: true, title: tr`À ouvrir sur le poste, dans Zed.` }, icon('link', 'icon--sm'), tr`Ouvrir`)
         : actionBtn('accept', tr`Envoyer`, '.btn--accent'),
       actionBtn('decline', tr`Refuser`, '.btn--danger'),
       actionBtn('cancel', tr`Annuler`, '')),
@@ -652,6 +652,8 @@ function sysLine(text, level = 'info') {
 }
 
 /** Comme Zed (`render_context_compaction`) : libellé selon le statut, résumé replié. */
+/** Ligne de compaction — render_context_compaction : [filet][bouton icône + libellé + chevron][filet],
+ * px 20 ; le corps (blocs, erreur) se déplie sous la ligne. */
 function compactionLine(entry) {
   const label = {
     in_progress: tr`Compaction du contexte…`,
@@ -659,11 +661,16 @@ function compactionLine(entry) {
     failed: tr`Échec de la compaction`,
     cancelled: tr`Compaction annulée`,
   }[entry.status] ?? tr`Compaction du contexte`
-  if (!entry.blocks.length && !entry.error) return sysLine(label, entry.status === 'failed' ? 'warn' : 'info')
-  return collapsible(label, h('div', {},
+  const expandable = Boolean(entry.blocks.length || entry.error)
+  const root = h('div.compaction', { class: entry.status === 'failed' ? 'warn' : '' })
+  const btn = button('session-sep__btn', expandable ? { 'aria-expanded': 'false' } : { tabIndex: -1 },
+    icon('compact', 'icon--sm'), h('span', { text: label }), expandable ? icon('chevron-down', 'icon--sm') : null)
+  if (expandable) btn.onclick = () => { root.classList.toggle('is-open'); btn.setAttribute('aria-expanded', String(root.classList.contains('is-open'))) }
+  root.append(h('div.session-sep', {}, h('span.divider-h'), btn, h('span.divider-h')))
+  if (expandable) root.append(h('div.compaction__body', {},
     entry.blocks.length ? h('div.md', { html: blocksHtml(entry.blocks) }) : null,
-    entry.error ? h('div.sysline.warn', {}, h('span', { text: entry.error })) : null,
-  ))
+    entry.error ? h('div.sysline.warn', {}, h('span', { text: entry.error })) : null))
+  return root
 }
 
 function rawCard(entry) {
@@ -671,18 +678,8 @@ function rawCard(entry) {
   root.append(
     button('raw__head', { onclick: () => root.classList.toggle('is-open') },
       icon('chevron-right', 'icon--sm'),
-      h('span.truncate', { text: tr`événement non reconnu : ${entry.kind}` })),
+      h('span.truncate', { text: tr`Événement non reconnu : ${entry.kind}` })),
     h('div.raw__body', {}, h('pre', {}, h('code', { text: jsonString(entry.payload) }))),
-  )
-  return root
-}
-
-function collapsible(label, node) {
-  const root = h('div.raw')
-  root.append(
-    button('raw__head', { onclick: () => root.classList.toggle('is-open') },
-      icon('chevron-right', 'icon--sm'), h('span', { text: label })),
-    h('div.raw__body', {}, node),
   )
   return root
 }

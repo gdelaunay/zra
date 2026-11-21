@@ -77,7 +77,9 @@ async function boot() {
   store.init({ mock: mock ? (await import('./mock/mock-link.js')).MockLink : null })
 
   store.on('error', (err) => {
-    toast(err.message || err.code || tr`erreur daemon`, { level: 'error' })
+    // Erreur d'agent détaillée : le callout du thread la rend, pas un toast.
+    if (err.details) return
+    toast(err.message || err.code || tr`Erreur daemon.`, { level: 'error' })
   })
 
   // Un poste passe en ligne : (ré)abonnement push si l'utilisateur l'a activé.
@@ -99,8 +101,8 @@ async function boot() {
     const pre = btn.closest('.codeblock')?.querySelector('pre')
     if (!pre) return
     navigator.clipboard?.writeText(pre.textContent).then(
-      () => toast(tr`copié`),
-      () => toast(tr`copie impossible`, { level: 'error' }),
+      () => toast(tr`Copié`),
+      () => toast(tr`Copie impossible.`, { level: 'error' }),
     )
   })
 

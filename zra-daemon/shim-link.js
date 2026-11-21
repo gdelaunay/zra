@@ -78,13 +78,13 @@ export class ShimHost extends EventEmitter {
   attach(conn) {
     const entry = { conn, shimId: null }
     this.conns.set(conn, entry)
-    log.info(tr`shim ${conn.id} connecté`)
+    log.info(tr`Shim ${conn.id} connecté.`)
 
     conn.on('message', (msg) => {
       try {
         this.handle(entry, msg)
       } catch (err) {
-        log.warn(tr`shim ${conn.id} : ${msg?.type} a échoué —`, err.message)
+        log.warn(tr`Shim ${conn.id} : ${msg?.type} a échoué —`, err.message)
       }
     })
 
@@ -98,7 +98,7 @@ export class ShimHost extends EventEmitter {
     const sessions = shim ? [...shim.sessions] : []
     this.byShim.delete(entry.shimId)
     this.shims.unregister(entry.shimId)
-    log.info(tr`shim ${entry.shimId} déconnecté (${sessions.length} session(s))`)
+    log.info(tr`Shim ${entry.shimId} déconnecté (${sessions.length} session(s)).`)
     for (const sessionId of sessions) this.release(sessionId, tr`Zed a fermé l'agent`)
 
     // Les commandes encore en vol vers ce shim n'auront jamais d'accusé.
@@ -106,7 +106,7 @@ export class ShimHost extends EventEmitter {
       if (waiter.shimId !== entry.shimId) continue
       this.pending.delete(id)
       clearTimeout(waiter.timer)
-      waiter.reject(Object.assign(new Error(tr`le shim s'est arrêté avant de répondre`), { code: 'inject_failed' }))
+      waiter.reject(Object.assign(new Error(tr`Le shim s'est arrêté avant de répondre.`), { code: 'inject_failed' }))
     }
   }
 
@@ -126,7 +126,7 @@ export class ShimHost extends EventEmitter {
     if (lost) {
       this.emit('update', {
         threadId: thread.threadId,
-        update: { sessionUpdate: 'zra/notice', level: 'warn', text: tr`${why} : ${lost} message(s) en attente perdu(s)` },
+        update: { sessionUpdate: 'zra/notice', level: 'warn', text: tr`${why} : ${lost} message(s) en attente perdu(s).` },
         at: new Date().toISOString(),
       })
     }
@@ -135,7 +135,7 @@ export class ShimHost extends EventEmitter {
   /** Zed a fermé la session (`session/close`) : le thread n'est plus `live`. */
   sessionClosed(entry, msg) {
     if (!this.shims.removeSession(entry.shimId, msg.sessionId)) return
-    log.info(tr`shim ${entry.shimId} : session ${msg.sessionId} fermée par Zed`)
+    log.info(tr`Shim ${entry.shimId} : session ${msg.sessionId} fermée par Zed.`)
     this.release(msg.sessionId, tr`Zed a fermé la session`)
   }
 
@@ -151,7 +151,7 @@ export class ShimHost extends EventEmitter {
       const owner = this.shims.bySession.get(msg.sessionId)
       const mine = owner === entry.shimId
       if (!entry.shimId || (msg.type === 'session' ? owner && !mine : !mine)) {
-        log.warn(owner ? tr`shim ${entry.shimId ?? entry.conn.id} : ${msg.type} ignoré, session ${msg.sessionId} tenue par ${owner}` : tr`shim ${entry.shimId ?? entry.conn.id} : ${msg.type} ignoré, session ${msg.sessionId} non revendiquée`)
+        log.warn(owner ? tr`Shim ${entry.shimId ?? entry.conn.id} : ${msg.type} ignoré, session ${msg.sessionId} tenue par ${owner}` : tr`Shim ${entry.shimId ?? entry.conn.id} : ${msg.type} ignoré, session ${msg.sessionId} non revendiquée.`)
         return
       }
     }
@@ -170,7 +170,7 @@ export class ShimHost extends EventEmitter {
       case 'ack': return this.ack(msg)
       default:
         // Ajouter un message ne doit jamais casser l'autre bout (protocole §2).
-        log.debug(tr`shim ${entry.shimId ?? entry.conn.id} : message ignoré (${msg.type})`)
+        log.debug(tr`Shim ${entry.shimId ?? entry.conn.id} : message ignoré (${msg.type}).`)
     }
   }
 
@@ -194,7 +194,7 @@ export class ShimHost extends EventEmitter {
     // Session déjà tenue par un autre shim : ni reprise, ni état, ni émission.
     const holder = this.shims.bySession.get(msg.sessionId)
     if (holder && holder !== entry.shimId) {
-      log.warn(tr`shim ${entry.shimId ?? entry.conn.id} : session ${msg.sessionId} tenue par ${holder}, annonce ignorée`)
+      log.warn(tr`Shim ${entry.shimId ?? entry.conn.id} : session ${msg.sessionId} tenue par ${holder}, annonce ignorée.`)
       return
     }
     if (msg.source === 'new') this.whole.add(msg.sessionId)
@@ -272,14 +272,17 @@ export class ShimHost extends EventEmitter {
     this.emit('elicitation_expired', { threadId: thread.threadId, requestId: msg.requestId })
   }
 
-  /** Un avis du shim, rendu dans le fil comme n'importe quel événement (protocole §5). */
+  /** Un avis du shim, rendu dans le fil comme n'importe quel événement (protocole §5).
+   * Les avis d'erreur d'injection portent le détail ACP (`message`, `code`, `data`)
+   * et le prompt refusé : la PWA les rend en callout, pas en ligne du fil. */
   notice(msg) {
     if (!msg.sessionId) return
-    this.update({
-      sessionId: msg.sessionId,
-      at: msg.at,
-      update: { sessionUpdate: 'zra/notice', text: msg.text, level: msg.level ?? 'info' },
-    })
+    const update = { sessionUpdate: 'zra/notice', text: msg.text, level: msg.level ?? 'info' }
+    if (msg.message) {
+      update.error = { message: msg.message, code: msg.details?.code ?? null, data: msg.details?.data ?? null }
+      update.prompt = msg.prompt ?? null
+    }
+    this.update({ sessionId: msg.sessionId, at: msg.at, update })
   }
 
   // ---- sessions pas encore dans l'index ------------------------------------
@@ -324,7 +327,7 @@ export class ShimHost extends EventEmitter {
     const conn = shim ? this.byShim.get(shim.shimId) : null
     if (!shim || !conn) {
       throw Object.assign(
-        new Error(tr`ce thread n'est pas ouvert dans Zed : aucun agent ne l'écoute`),
+        new Error(tr`Ce thread n'est pas ouvert dans Zed : aucun agent ne l'écoute.`),
         { code: 'inject_failed' },
       )
     }
@@ -344,14 +347,14 @@ export class ShimHost extends EventEmitter {
       const id = `c${this.nextCommandId++}`
       const timer = setTimeout(() => {
         this.pending.delete(id)
-        reject(Object.assign(new Error(tr`le shim n'a pas répondu à temps`), { code: 'inject_failed' }))
+        reject(Object.assign(new Error(tr`Le shim n'a pas répondu à temps.`), { code: 'inject_failed' }))
       }, this.commandTimeoutMs)
       timer.unref?.()
       this.pending.set(id, { resolve, reject, timer, shimId })
       if (!conn.send({ type: 'cmd', id, cmd, sessionId, ...payload })) {
         this.pending.delete(id)
         clearTimeout(timer)
-        reject(Object.assign(new Error(tr`shim injoignable`), { code: 'inject_failed' }))
+        reject(Object.assign(new Error(tr`Shim injoignable.`), { code: 'inject_failed' }))
       }
     })
   }
@@ -362,7 +365,7 @@ export class ShimHost extends EventEmitter {
     this.pending.delete(msg.id)
     clearTimeout(waiter.timer)
     if (msg.ok) waiter.resolve(msg.result ?? null)
-    else waiter.reject(Object.assign(new Error(msg.message || tr`échec`), { code: msg.code || 'inject_failed' }))
+    else waiter.reject(Object.assign(new Error(msg.message || tr`Échec.`), { code: msg.code || 'inject_failed', ...(msg.details ? { details: msg.details } : {}) }))
   }
 
   close() {

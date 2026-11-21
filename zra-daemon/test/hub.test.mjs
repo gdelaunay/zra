@@ -196,7 +196,7 @@ test('message inconnu → error unknown_message, le daemon tient', () => {
   const ctx = boot()
   const conn = pairedClient(ctx)
   conn.emit('message', { type: 'teleporter' })
-  assert.deepEqual(conn.last(), { type: 'error', code: 'unknown_message', message: 'message inconnu : teleporter' })
+  assert.deepEqual(conn.last(), { type: 'error', code: 'unknown_message', message: 'Message inconnu : teleporter.' })
   conn.emit('message', { type: 'ping' })
   assert.deepEqual(conn.last(), { type: 'pong' })
 })
@@ -272,7 +272,7 @@ test('subscribe sur un thread inconnu → unknown_thread, sans abonnement', () =
   const ctx = boot()
   const conn = pairedClient(ctx)
   conn.emit('message', { type: 'subscribe', threadId: 'thread-fantôme' })
-  assert.deepEqual(conn.last(), { type: 'error', code: 'unknown_thread', message: 'thread inconnu de cet index', threadId: 'thread-fantôme' })
+  assert.deepEqual(conn.last(), { type: 'error', code: 'unknown_thread', message: 'Thread inconnu de cet index.', threadId: 'thread-fantôme' })
   ctx.hub.publish('thread-fantôme', { sessionUpdate: 'x' })
   assert.equal(conn.only('acp_event').length, 0)
 })
@@ -509,7 +509,7 @@ test('send refusé par le backend : l’erreur devient un error du protocole', a
   const conn = pairedClient(ctx)
   conn.emit('message', { type: 'send', threadId: A, text: 'x' })
   await tick()
-  assert.deepEqual(conn.last(), { type: 'error', code: 'shim_offline', message: 'le shim est parti', threadId: A })
+  assert.deepEqual(conn.last(), { type: 'error', code: 'shim_offline', message: 'le shim est parti', threadId: A, prompt: 'x' })
 })
 
 test('send : une erreur sans code du backend devient inject_failed', async () => {
@@ -587,7 +587,7 @@ test('dépilage impossible : les abonnés du thread sont prévenus', async () =>
   const err = conn.only('error')[0]
   assert.equal(err.code, 'inject_failed')
   assert.equal(err.threadId, A)
-  assert.match(err.message, /message en attente non envoyé : agent parti/)
+  assert.match(err.message, /Message en attente non envoyé : agent parti/)
 })
 
 test('cancel_queued : backend à file → commande, backend local → retrait du miroir', async () => {
@@ -757,7 +757,7 @@ test('question : même requestId sur un autre thread, toujours en attente', () =
 
 test('respond_elicitation refusé par le shim : le code remonte', async () => {
   const ctx = boot()
-  ctx.backend.fail = Object.assign(new Error('question inconnue ou déjà répondue'), { code: 'elicitation_expired' })
+  ctx.backend.fail = Object.assign(new Error('Question inconnue ou déjà répondue.'), { code: 'elicitation_expired' })
   const conn = pairedClient(ctx)
   conn.emit('message', { type: 'respond_elicitation', threadId: A, requestId: 'number:9', action: 'decline' })
   await tick()
@@ -868,7 +868,7 @@ test('un backend sans permission (mock) le dit explicitement', async () => {
   conn.emit('message', { type: 'respond_permission', threadId: A, requestId: 'req-7', optionId: 'allow' })
   await tick()
   assert.equal(conn.last().code, 'permission_expired')
-  assert.match(conn.last().message, /aucune demande de permission en attente/)
+  assert.match(conn.last().message, /Aucune demande de permission en attente/)
 })
 
 test('le jeu des permissions résolues est borné', () => {
@@ -1123,7 +1123,7 @@ test('new_thread : projet inconnu du poste → refus, Zed n’est pas piloté', 
     conn.emit('message', { type: 'new_thread', agentId: 'claude-zra', folderPaths })
     await tick()
     assert.equal(conn.last().code, 'new_thread_failed', JSON.stringify(folderPaths))
-    assert.match(conn.last().message, /projet inconnu/)
+    assert.match(conn.last().message, /Projet inconnu/)
   }
   assert.deepEqual(zed.calls, [])
 })
@@ -1134,7 +1134,7 @@ test('new_thread sans agent, ou pilotage désactivé → refus', async () => {
   conn.emit('message', { type: 'new_thread' })
   await tick()
   assert.equal(conn.last().code, 'new_thread_failed')
-  assert.match(conn.last().message, /agent non précisé/)
+  assert.match(conn.last().message, /Agent non précisé/)
 
   const off = boot({ zed: fakeZedControl({ enabled: false }) })
   const c2 = pairedClient(off)
@@ -1277,7 +1277,7 @@ test('hello avec un jeton inconnu → auth_required et la raison', () => {
   const ctx = boot({ pairing })
   const conn = client(ctx)
   conn.emit('message', { type: 'hello', token: 'x'.repeat(32) })
-  assert.deepEqual(conn.last(), { type: 'auth_required', name: 'poste-test', reason: 'jeton inconnu ou révoqué' })
+  assert.deepEqual(conn.last(), { type: 'auth_required', name: 'poste-test', reason: 'Jeton inconnu ou révoqué.' })
 })
 
 test('pair avec le bon code : jeton rendu, puis bootstrap', () => {

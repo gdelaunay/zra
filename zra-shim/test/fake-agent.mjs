@@ -181,7 +181,7 @@ async function runPrompt(session, text, promptId) {
       status: allowed ? 'completed' : 'failed',
       content: allowed
         ? [{ type: 'diff', path: 'app.js', oldText: 'a\n', newText: 'b\n' }]
-        : [{ type: 'content', content: { type: 'text', text: 'refusé' } }],
+        : [{ type: 'content', content: { type: 'text', text: 'Refusé' } }],
     })
     return { stopReason: 'end_turn' }
   }
@@ -299,7 +299,7 @@ async function handle(msg) {
       const session = sessions.get(params.sessionId)
       if (!session) return fail(id, 'session inconnue', -32002)
       const title = String(params.title ?? '').trim()
-      if (!title) return fail(id, 'titre vide', -32602)
+      if (!title) return fail(id, 'Titre vide.', -32602)
       session.title = title
       update(params.sessionId, { sessionUpdate: 'session_info_update', title })
       return reply(id, { title })

@@ -70,12 +70,12 @@ export function parseArgs(argv) {
     else if (a === '--help' || a === '-h') out.command = 'help'
     // Mot nu : un agent. npm transmet toujours les mots nus, jamais `--agent x`.
     else if (!a.startsWith('-')) out.agents.push(a)
-    else throw new Error(tr`option inconnue : ${a}`)
+    else throw new Error(tr`Option inconnue : ${a}`)
   }
   if (!['status', 'install', 'uninstall', 'xwayland', 'help'].includes(out.command)) {
-    throw new Error(tr`commande inconnue : ${out.command}`)
+    throw new Error(tr`Commande inconnue : ${out.command}`)
   }
-  if (out.name && out.agents.length > 1) throw new Error(tr`--name ne vaut que pour un seul agent`)
+  if (out.name && out.agents.length > 1) throw new Error(tr`--name ne vaut que pour un seul agent.`)
   return out
 }
 
@@ -204,7 +204,7 @@ export function lineDiff(before, after) {
 // ---------------------------------------------------------------------------
 
 async function readSettings(file) {
-  if (!existsSync(file)) throw new Error(tr`settings.json de Zed introuvable : ${file} — ZRA supporte l'installation native de Zed (pas Flatpak/Snap) ; chemins personnalisables via zedDb/zedSettings dans zra.config.json`)
+  if (!existsSync(file)) throw new Error(tr`settings.json de Zed introuvable : ${file} — ZRA supporte l'installation native de Zed (pas Flatpak/Snap) ; chemins personnalisables via zedDb/zedSettings dans zra.config.json.`)
   const text = await readFile(file, 'utf8')
   let parsed
   try {
@@ -225,7 +225,7 @@ async function writeZedFile(file, before, next) {
   const name = basename(file)
   const exists = existsSync(file)
   if ((exists ? statSync(file).mtimeMs : null) !== before.mtimeMs) {
-    throw new Error(tr`${name} modifié pendant l’opération (par Zed ?) : rien écrit, relancer la commande`)
+    throw new Error(tr`${name} modifié pendant l’opération (par Zed ?) : rien écrit, relancer la commande.`)
   }
   assertParsable(next)
   let backup = null
@@ -240,7 +240,7 @@ async function writeZedFile(file, before, next) {
   const written = await readFile(file, 'utf8')
   if (written !== next) {
     if (backup) await copyFile(backup, file)
-    throw new Error(backup ? tr`relecture différente de l’écriture : fichier restauré depuis la sauvegarde` : tr`relecture différente de l’écriture`)
+    throw new Error(backup ? tr`Relecture différente de l’écriture : fichier restauré depuis la sauvegarde.` : tr`Relecture différente de l’écriture.`)
   }
   return backup
 }
@@ -279,7 +279,7 @@ async function status(opts, config) {
   const keys = readZraKeys((await readKeymap(config.zedKeymap)).text ?? '')
 
   if (!zra.length) {
-    console.log(tr`  ✗ aucune entrée ZRA — \`npm run setup -- install\` pour voir ce qui serait ajouté`)
+    console.log(tr`  ✗ aucune entrée ZRA — \`npm run setup -- install\` pour voir ce qui serait ajouté.`)
   }
   for (const [id, entry] of zra) {
     const preload = isPreloadEntry(entry)
@@ -287,31 +287,31 @@ async function status(opts, config) {
     const upToDate = preload
       ? hasPreload(entry.env?.NODE_OPTIONS, ROOT)
       : entry.command === expected.command && entry.args?.[0] === expected.args[0]
-    const what = preload ? tr`(registry) → shim par preload node` : tr`→ enveloppe « ${entry.env?.ZRA_AGENT_ID ?? '?'} »`
+    const what = preload ? tr`(registry) → shim par preload node.` : tr`→ enveloppe « ${entry.env?.ZRA_AGENT_ID ?? '?'} ».`
     console.log(tr`  ✓ entrée « ${id} » ${what}` +
-      (entry.env?.ZRA_RECORD === '1' ? tr`, enregistrement des trames (débogage : relancer install sans --record pour l’arrêter)` : '') +
-      (upToDate ? '' : tr`  ⚠ chemins différents de ce dépôt : relancer install`))
+      (entry.env?.ZRA_RECORD === '1' ? tr`, enregistrement des trames (débogage : relancer install sans --record pour l’arrêter).` : '') +
+      (upToDate ? '' : tr`  ⚠ chemins différents de ce dépôt : relancer install.`))
     console.log(keys.has(id)
-      ? tr`      nouveau thread : ${keys.get(id)} (keymap.json)`
-      : tr`      ⚠ pas de touche dans keymap.json : le mobile ouvrirait le dernier agent utilisé — relancer install`)
+      ? tr`      Nouveau thread : ${keys.get(id)} (keymap.json).`
+      : tr`      ⚠ pas de touche dans keymap.json : le mobile ouvrirait le dernier agent utilisé — relancer install.`)
   }
 
   // Tous les agents du poste : enveloppés ou pas, lançables ou pas.
   const wrapped = new Set(zra.map(([, e]) => e.env?.ZRA_AGENT_ID))
   for (const a of await discoverAgents({ settingsFile: file, overrides: config.agentCommands })) {
-    const tag = wrapped.has(a.id) ? tr`via ZRA` : a.ok ? tr`sans ZRA — \`install\` l’ajouterait` : tr`non lançable`
-    console.log(tr`agent « ${a.id} » : ${a.ok ? a.source : '✗ ' + a.reason} (${tag})`)
+    const tag = wrapped.has(a.id) ? tr`Via ZRA` : a.ok ? tr`Sans ZRA — \`install\` l’ajouterait.` : tr`Non lançable.`
+    console.log(tr`Agent « ${a.id} » : ${a.ok ? a.source : '✗ ' + a.reason} (${tag}).`)
   }
 
   const port = opts.port ?? config.port
   const d = await daemonStatus(port)
   if (!d.ok) {
-    console.log(tr`daemon 127.0.0.1:${port} : ✗ injoignable (${d.reason}) — \`npm run daemon:dev\``)
+    console.log(tr`Daemon 127.0.0.1:${port} : ✗ injoignable (${d.reason}) — \`npm run daemon:dev\`.`)
     return
   }
-  console.log(tr`daemon 127.0.0.1:${port} : ✓ v${d.version}, injection ${d.injection}, Zed ${d.zedRunning ? tr`lancé` : tr`fermé`}`)
-  console.log(tr`  threads : ${d.threads.live} live · ${d.threads.closed} fermés · ${d.threads.unknown} inconnus`)
-  if (!d.shims.length) console.log(tr`  shims   : aucun — ouvrir un thread avec l’agent ZRA dans Zed`)
+  console.log(tr`Daemon 127.0.0.1:${port} : ✓ v${d.version}, injection ${d.injection}, Zed ${d.zedRunning ? tr`Lancé` : tr`Fermé`}`)
+  console.log(tr`  Threads : ${d.threads.live} live · ${d.threads.closed} fermés · ${d.threads.unknown} inconnus.`)
+  if (!d.shims.length) console.log(tr`  Shims   : aucun — ouvrir un thread avec l’agent ZRA dans Zed.`)
   for (const s of d.shims) {
     console.log(`  shim ${s.shimId} : ${s.agentId ?? '—'}, ${s.sessions.length} session(s)${s.loadSession ? ', loadSession' : ''}`)
   }
@@ -322,7 +322,7 @@ async function status(opts, config) {
     if (desktopFile) {
       const content = await readFile(desktopFile, 'utf8')
       const patched = /^Exec=env WAYLAND_DISPLAY= /m.test(content)
-      console.log(patched ? tr`.desktop de Zed : ✓ XWayland forcé` : tr`.desktop de Zed : ✗ XWayland non forcé — \`install --apply\` pour activer le pilotage clavier`)
+      console.log(patched ? tr`.desktop de Zed : ✓ XWayland forcé.` : tr`.desktop de Zed : ✗ XWayland non forcé — \`install --apply\` pour activer le pilotage clavier.`)
     }
   }
 }
@@ -332,7 +332,7 @@ async function install(opts, config) {
   const before = await readSettings(file)
   const servers = before.parsed?.agent_servers ?? {}
 
-  if (!existsSync(SHIM)) throw new Error(tr`shim introuvable : ${SHIM}`)
+  if (!existsSync(SHIM)) throw new Error(tr`Shim introuvable : ${SHIM}`)
   const resolveOpts = { settingsFile: file, overrides: config.agentCommands }
 
   // Quels agents envelopper. Nommés : chacun doit être lançable, sinon Zed
@@ -351,7 +351,7 @@ async function install(opts, config) {
     agents = found.filter((x) => x.ok)
     if (!agents.length) {
       throw new Error(
-        tr`aucun agent lançable sur ce poste. Ouvrir une fois un thread avec l’agent voulu dans Zed (Zed l’installe à ce moment-là), ou le déclarer dans agentCommands de zra.config.json`,
+        tr`Aucun agent lançable sur ce poste. Ouvrir une fois un thread avec l’agent voulu dans Zed (Zed l’installe à ce moment-là), ou le déclarer dans agentCommands de zra.config.json.`,
       )
     }
   }
@@ -370,13 +370,13 @@ async function install(opts, config) {
     // d'installer et de mettre à jour l'agent, et tous les threads de cet
     // agent — anciens compris — deviennent pilotables.
     if (viaNode) {
-      if (opts.name) throw new Error(tr`--name ne s'applique pas à un agent shimé par preload : l'entrée est celle d'origine (${id})`)
+      if (opts.name) throw new Error(tr`--name ne s'applique pas à un agent shimé par preload : l'entrée est celle d'origine (${id}).`)
       const old = existing.get(id)
       if (old) {
         text = removeAgentServer(text, old).text
         delete servers[old]
         dropped.push([old, id])
-        console.log(tr`  – ${old} retirée : l'entrée d'origine « ${id} » passe par le shim`)
+        console.log(tr`  – ${old} retirée : l'entrée d'origine « ${id} » passe par le shim.`)
       }
       if (!servers[id]) {
         text = upsertAgentServer(text, id, { type: 'registry' }).text
@@ -385,7 +385,7 @@ async function install(opts, config) {
       const patch = buildPreloadEnv({ agent: id, record: opts.record, existing: servers[id].env?.NODE_OPTIONS })
       const res = upsertAgentServerEnv(text, id, patch)
       text = res.text
-      console.log(`  ${res.action === 'unchanged' ? '✓' : '+'} ${id} → shim par preload (${source})${res.action === 'unchanged' ? tr` — déjà à jour` : ''}`)
+      console.log(`  ${res.action === 'unchanged' ? '✓' : '+'} ${id} → shim par preload (${source})${res.action === 'unchanged' ? tr` — déjà à jour.` : ''}`)
       if (res.action !== 'unchanged') changes.push(id)
       continue
     }
@@ -402,8 +402,8 @@ async function install(opts, config) {
       console.log(tr`  ↻ ${old} renommé en ${name}`)
     }
     if (servers[name] && !isShimEntry(servers[name])) {
-      const msg = tr`« ${name} » existe déjà dans agent_servers et n'est pas une entrée ZRA`
-      if (opts.name) throw new Error(tr`${msg} : choisir un autre --name`)
+      const msg = tr`« ${name} » existe déjà dans agent_servers et n'est pas une entrée ZRA.`
+      if (opts.name) throw new Error(tr`${msg} : choisir un autre --name.`)
       console.log(tr`  – ${id} ignoré : ${msg}`)
       continue
     }
@@ -412,7 +412,7 @@ async function install(opts, config) {
     carryStartSettings(entry, carried ?? servers[name])
     const res = upsertAgentServer(text, name, entry)
     text = res.text
-    console.log(`  ${res.action === 'unchanged' ? '✓' : '+'} ${name} → ${id} (${source})${res.action === 'unchanged' ? tr` — déjà à jour` : ''}`)
+    console.log(`  ${res.action === 'unchanged' ? '✓' : '+'} ${name} → ${id} (${source})${res.action === 'unchanged' ? tr` — déjà à jour.` : ''}`)
     if (res.action !== 'unchanged') changes.push(name)
   }
   const kmFile = config.zedKeymap
@@ -431,24 +431,24 @@ async function install(opts, config) {
     console.log(lineDiff(before.text, text))
   }
   if (kmChanged) {
-    console.log(kmBefore.text === null ? tr`\nraccourcis « nouveau thread » dans ${kmFile} (créé) :\n` : tr`\nraccourcis « nouveau thread » dans ${kmFile} :\n`)
+    console.log(kmBefore.text === null ? tr`\nRaccourcis « nouveau thread » dans ${kmFile} (créé) :\n` : tr`\nRaccourcis « nouveau thread » dans ${kmFile} :\n`)
     console.log(lineDiff(kmBefore.text ?? '', km.text))
   }
   if (!opts.apply) {
-    console.log(tr`\nsimulation : rien n’a été écrit. Relancer avec --apply (ou « apply » tout court) pour appliquer.`)
+    console.log(tr`\nSimulation : rien n’a été écrit. Relancer avec --apply (ou « apply » tout court) pour appliquer.`)
     return
   }
   if ((renamed.length || dropped.length) && !opts.yes) {
     console.log(tr`
 ⚠ Ces entrées changent d'id ou disparaissent : les threads déjà créés avec leur ancien nom ne se rouvriront plus dans Zed.`)
     for (const [from, to] of renamed) console.log(`  ${from} → ${to}`)
-    for (const [from, to] of dropped) console.log(tr`  ${from} → supprimée (l'entrée d'origine « ${to} » passe par le shim)`)
-    if (!process.stdin.isTTY) throw new Error(tr`confirmation impossible hors terminal : relancer avec « yes » (npm run setup install apply yes)`)
+    for (const [from, to] of dropped) console.log(tr`  ${from} → supprimée (l'entrée d'origine « ${to} » passe par le shim).`)
+    if (!process.stdin.isTTY) throw new Error(tr`Confirmation impossible hors terminal : relancer avec « yes » (npm run setup install apply yes).`)
     const rl = createInterface({ input: process.stdin, output: process.stdout })
     const answer = (await rl.question(tr`Continuer ? [o/N] `)).trim().toLowerCase()
     rl.close()
     if (!/^(o|oui|y|yes)$/.test(answer)) {
-      console.log(tr`annulé : rien n’a été écrit.`)
+      console.log(tr`Annulé : rien n’a été écrit.`)
       return
     }
   }
@@ -481,7 +481,7 @@ async function xwayland(opts) {
   } else if (desktop.action === 'dry-run') {
     console.log(tr`.desktop de Zed : forcer XWayland (simulation) :\n`)
     console.log(lineDiff(desktop.original, desktop.patched))
-    console.log(tr`\nsimulation : rien n’a été écrit. Relancer avec --apply pour appliquer.`)
+    console.log(tr`\nSimulation : rien n’a été écrit. Relancer avec --apply pour appliquer.`)
   } else if (desktop.action === 'unchanged') {
     console.log(tr`✓ ${desktop.file} déjà patché : rien à faire.`)
   } else {
@@ -498,7 +498,7 @@ async function uninstall(opts, config) {
   const removedEntries = []
   for (const name of names) {
     const entry = servers[name]
-    if (!isShimEntry(entry)) throw new Error(tr`« ${name} » n'est pas une entrée ZRA : on n'y touche pas`)
+    if (!isShimEntry(entry)) throw new Error(tr`« ${name} » n'est pas une entrée ZRA : on n'y touche pas.`)
     if (isPreloadEntry(entry)) {
       // L'entrée registry est à Zed/l'utilisateur : on ne retire que l'env ZRA.
       // Un NODE_OPTIONS de l'utilisateur, s'il y en a un, reste.
@@ -529,19 +529,19 @@ async function uninstall(opts, config) {
   const kmChanged = km.action === 'removed' || km.action === 'replaced'
 
   if (!names.length && !kmChanged) {
-    console.log(tr`✓ aucune entrée ZRA dans settings.json ni dans keymap.json : rien à retirer`)
+    console.log(tr`✓ aucune entrée ZRA dans settings.json ni dans keymap.json : rien à retirer.`)
     return
   }
   if (names.length) {
-    console.log(tr`\nretrait de ZRA dans ${file} :\n`)
+    console.log(tr`\nRetrait de ZRA dans ${file} :\n`)
     console.log(lineDiff(before.text, text))
   }
   if (kmChanged) {
-    console.log(tr`\nraccourcis ZRA dans ${kmFile} :\n`)
+    console.log(tr`\nRaccourcis ZRA dans ${kmFile} :\n`)
     console.log(lineDiff(kmBefore.text, km.text))
   }
   if (!opts.apply) {
-    console.log(tr`\nsimulation : rien n’a été écrit. Relancer avec --apply (ou « apply » tout court) pour appliquer.`)
+    console.log(tr`\nSimulation : rien n’a été écrit. Relancer avec --apply (ou « apply » tout court) pour appliquer.`)
     return
   }
   if (names.length) {
@@ -564,7 +564,7 @@ async function uninstall(opts, config) {
   } else if (desktop.action === 'dry-run') {
     console.log(tr`\n.desktop de Zed : retirer le forçage XWayland (simulation) :\n`)
     console.log(lineDiff(desktop.original, desktop.restored))
-    console.log(tr`\nsimulation : le .desktop n'a pas été restauré. Relancer avec --apply pour appliquer.`)
+    console.log(tr`\nSimulation : le .desktop n'a pas été restauré. Relancer avec --apply pour appliquer.`)
   }
 }
 

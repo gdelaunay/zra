@@ -357,7 +357,7 @@ test('interrupt coupe le tour sans rien envoyer (§3 interrupt)', async (t) => {
   client.send({ type: 'interrupt', threadId: VIVANT })
   // Le fil dit ce qui s'est passé (protocole §3 `interrupt`, §5 `zra/notice`).
   await client.until(
-    (m) => m.type === 'acp_event' && m.update.sessionUpdate === 'zra/notice' && m.update.text === 'tour interrompu',
+    (m) => m.type === 'acp_event' && m.update.sessionUpdate === 'zra/notice' && m.update.text === 'Tour interrompu.',
     { label: 'avis d’interruption' },
   )
   await client.until((m) => m.type === 'thread_state' && m.turn === 'idle', { label: 'tour coupé' })
@@ -633,9 +633,9 @@ test('shim installé : journal dans un fichier, trames enregistrées, /status à
 
   await wait(150)
   const log = readFileSync(logFile, 'utf8')
-  assert.match(log, /daemon connecté/)
-  assert.match(log, /initialize : .*loadSession=oui/)
-  assert.match(log, new RegExp(`session ouverte : ${SESSION_VIVANT}`))
+  assert.match(log, /Daemon connecté/)
+  assert.match(log, /Initialize : .*loadSession=Oui/)
+  assert.match(log, new RegExp(`Session ouverte : ${SESSION_VIVANT}`))
 
   const [record] = readdirSync(join(dir, 'records'))
   const frames = readFileSync(join(dir, 'records', record), 'utf8').trim().split('\n').map((l) => JSON.parse(l))

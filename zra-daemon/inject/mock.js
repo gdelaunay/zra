@@ -24,7 +24,7 @@ export class MockBackend {
   assertAddressable(threadId) {
     const thread = this.threads?.get(threadId)
     if (thread && !thread.sessionId) {
-      throw new InjectionError('no_session', tr`thread sans session : impossible d'y écrire`)
+      throw new InjectionError('no_session', tr`Thread sans session : impossible d'y écrire.`)
     }
     return thread
   }
@@ -33,7 +33,7 @@ export class MockBackend {
     this.assertAddressable(threadId)
     if (mode === 'interrupt' && this.states.get(threadId).turn === 'busy') {
       this.stop(threadId)
-      this.emit(threadId, { sessionUpdate: 'zra/notice', text: tr`tour interrompu`, level: 'warn' })
+      this.emit(threadId, { sessionUpdate: 'zra/notice', text: tr`Tour interrompu.`, level: 'warn' })
     }
     this.emit(threadId, { sessionUpdate: 'user_message_chunk', content: { type: 'text', text } })
     this.states.setTurn(threadId, 'busy')
@@ -57,7 +57,7 @@ export class MockBackend {
   async interrupt(threadId) {
     if (this.states.get(threadId).turn !== 'busy') return
     this.stop(threadId)
-    this.emit(threadId, { sessionUpdate: 'zra/notice', text: tr`tour interrompu`, level: 'warn' })
+    this.emit(threadId, { sessionUpdate: 'zra/notice', text: tr`Tour interrompu.`, level: 'warn' })
     this.states.setTurn(threadId, 'idle')
   }
 
