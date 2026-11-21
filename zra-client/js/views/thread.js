@@ -1,7 +1,7 @@
 // Écran 2 — un thread : flux d'événements ACP + composer, calqués sur le
 // panel agent de Zed (reference/zed-agent-panel/).
 
-import { h, button, clear, rafBatch, patchHtml } from '../dom.js'
+import { h, button, clear, rafBatch, patchHtml, scrollbarOnGestures } from '../dom.js'
 import { icon, agentIcon } from '../icons.js'
 import { baseName, agentLabel, projectOf, formatTokens, formatCost, formatDuration, terminalElapsed } from '../format.js'
 import * as store from '../store.js'
@@ -55,6 +55,9 @@ export function ThreadView({ key, navigate }) {
   store.openThread(key)
 
   const feed = h('div.scroll.thread__scroll')
+  // Scrollbar sur geste uniquement : le tail-following (scrollToEnd) ne doit
+  // pas la révéler à chaque chunk. revealSb pour les sauts initiés par l'utilisateur.
+  const revealSb = scrollbarOnGestures(feed)
   const nodes = new Map()
   let stick = true
   /** Le thread a déjà été vu dans l'index : sa disparition = suppression, on quitte. */
@@ -67,7 +70,7 @@ export function ThreadView({ key, navigate }) {
   // « Revenir en bas » : icône seule dans un carré, apparence bouton Zed.
   const jump = button('jump.hidden', {
     title: tr`Dernier message`, 'aria-label': tr`dernier message`,
-    onclick: () => { stick = true; scrollToEnd(); jump.classList.add('hidden') },
+    onclick: () => { stick = true; scrollToEnd(); revealSb(); jump.classList.add('hidden') },
   }, icon('arrow-down', 'icon--sm'))
 
   // Indicateur de tour — render_generating : spinner braille, durée du tour ;
@@ -213,7 +216,7 @@ export function ThreadView({ key, navigate }) {
     if (first && !(node && inView(node))) {
       activity.append(
         button('awaiting-head', {
-          onclick: () => { stick = false; node?.scrollIntoView?.({ block: 'center' }) },
+          onclick: () => { stick = false; node?.scrollIntoView?.({ block: 'center' }); revealSb() },
         },
           icon('alert-triangle', 'icon--sm'),
           h('span', { text: pending.length > 1 ? tr`En attente de confirmation (${pending.length})` : tr`En attente de confirmation` }),

@@ -129,3 +129,44 @@ export function patchHtml(container, pieces) {
   container._zraPieces = pieces.slice()
   container._zraGroups = groups
 }
+
+// ---- scrollbar auto-masquée (fondu dans app.css) ----
+
+const sbTimers = new WeakMap()
+/** Révèle la scrollbar d'`el` (.is-scrolling), masquée après 1 s de repos.
+ * `hold` : visible sans timer (drag du pouce), jusqu'à un appel sans hold. */
+export function revealScrollbar(el, hold = false) {
+  el.classList.add('is-scrolling')
+  clearTimeout(sbTimers.get(el))
+  if (!hold) sbTimers.set(el, setTimeout(() => el.classList.remove('is-scrolling'), 1000))
+}
+
+/**
+ * Scrollbar révélée sur geste plutôt que sur l'événement `scroll` : un fil
+ * qui suit le stream (tail-following) le déclenche à chaque chunk. Marque
+ * l'élément pour que le listener global de main.js l'ignore. Renvoie une
+ * fonction de révélation pour les scrolls programmatiques initiés par
+ * l'utilisateur (saut vers une entrée, retour en bas).
+ */
+export function scrollbarOnGestures(el) {
+  el.dataset.sbGestures = ''
+  const reveal = () => revealScrollbar(el)
+  el.addEventListener('wheel', reveal, { passive: true })
+  el.addEventListener('touchmove', reveal, { passive: true })
+  const scrollKeys = new Set(['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End'])
+  el.addEventListener('keydown', (ev) => { if (scrollKeys.has(ev.key)) reveal() })
+  // Drag du pouce ou clic dans la piste : le pointerdown tombe dans la bande
+  // de scrollbar (au-delà de clientWidth). Maintenue jusqu'au relâchement.
+  el.addEventListener('pointerdown', (ev) => {
+    if (ev.offsetX < el.clientWidth) return
+    revealScrollbar(el, true)
+    const up = () => {
+      window.removeEventListener('pointerup', up)
+      window.removeEventListener('pointercancel', up)
+      revealScrollbar(el)
+    }
+    window.addEventListener('pointerup', up)
+    window.addEventListener('pointercancel', up)
+  })
+  return reveal
+}

@@ -347,17 +347,22 @@ test('Échap ferme le menu de complétion ; il ne revient qu’à la saisie, pas
   type(input, '')
 })
 
-test('scrollbar révélée au scroll, masquée au repos ; l’indicateur de tour colle en bas du fil', async () => {
+test('scrollbar révélée sur geste, pas sur le tail-following ; masquée au repos ; l’indicateur de tour colle en bas du fil', async () => {
   ZRA.navigate('#/t/mock-desk/a1f39c0b')
   await until(() => /Refactor/.test(headerTitle()), 3000)
   const feed = $('.thread__scroll')
   feed.dispatchEvent(new win.Event('scroll'))
-  assert.ok(feed.classList.contains('is-scrolling'), 'scroll : scrollbar révélée')
+  assert.ok(!feed.classList.contains('is-scrolling'), 'scroll programmatique : scrollbar masquée')
+  feed.dispatchEvent(new win.WheelEvent('wheel', { deltaY: 10 }))
+  assert.ok(feed.classList.contains('is-scrolling'), 'molette : scrollbar révélée')
+  await until(() => !feed.classList.contains('is-scrolling'), 2000, 'repos : scrollbar masquée')
   ZRA.store.state.machines.get('mock-desk').link.send({ type: 'zra/trigger', name: 'short', threadId: 'a1f39c0b' })
   await until(() => $('.thread__scroll > .turn-wrap .generating'), 3000, 'indicateur de tour')
   assert.equal(feed.lastElementChild.className, 'entry-wrap turn-wrap',
     'indicateur en dernier : le vide de 16 px est au-dessus (CSS), pas en dessous')
-  await until(() => !feed.classList.contains('is-scrolling'), 2000, 'repos : scrollbar masquée')
+  // Le tail-following du stream ne doit pas ré-revéler la scrollbar.
+  feed.dispatchEvent(new win.Event('scroll'))
+  assert.ok(!feed.classList.contains('is-scrolling'), 'stream : scrollbar toujours masquée')
   await until(() => { const st = ZRA.store.ensureState('mock-desk/a1f39c0b'); return st.turn === 'idle' && !st.queue.length }, 6000, 'tour fini')
 })
 

@@ -1,6 +1,6 @@
 // Amorçage : thème, transport (réel ou mock), routeur.
 
-import { h, clear } from './dom.js'
+import { h, clear, revealScrollbar } from './dom.js'
 import { settings, applyTheme, applyTextScale, update as updateSettings } from './settings.js'
 import * as store from './store.js'
 import { ThreadsView } from './views/threads.js'
@@ -106,13 +106,12 @@ async function boot() {
 
   // Scrollbar auto-masquée comme Zed : révélée au scroll, retirée après 1 s
   // de repos (le fondu est en CSS). Capture : l'événement scroll ne bulle pas.
-  const scrollTimers = new WeakMap()
+  // Les éléments marqués sbGestures (fil du thread) se révèlent sur geste :
+  // leur tail-following déclenche `scroll` à chaque chunk de l'agent.
   document.addEventListener('scroll', (ev) => {
     const el = ev.target
-    if (!el || el.nodeType !== 1) return
-    el.classList.add('is-scrolling')
-    clearTimeout(scrollTimers.get(el))
-    scrollTimers.set(el, setTimeout(() => el.classList.remove('is-scrolling'), 1000))
+    if (!el || el.nodeType !== 1 || 'sbGestures' in el.dataset) return
+    revealScrollbar(el)
   }, { capture: true, passive: true })
 
   // Retour au premier plan : on réveille les liens plutôt que d'attendre le backoff.
