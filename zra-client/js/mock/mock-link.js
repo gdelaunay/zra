@@ -152,7 +152,7 @@ export class MockLink {
         const st = this.turnOf(msg.threadId)
         if (msg.mode === 'interrupt' && st.turn === 'busy') {
           this.cancel(msg.threadId)
-          this.pushEvent(msg.threadId, { sessionUpdate: 'zra/notice', text: tr`Tour interrompu.`, level: 'warn' })
+          this.pushEvent(msg.threadId, { sessionUpdate: 'zra/notice', text: tr`Tour interrompu.`, level: 'info', untilSend: true })
           // L'envoi différé est suivi comme le reste du tour : un nouveau scénario
           // lancé entre-temps doit pouvoir l'annuler.
           st.timers.push(this.later(200, () => this.deliver(msg.threadId, msg.text)))
@@ -169,7 +169,7 @@ export class MockLink {
         const st = this.turnOf(msg.threadId)
         if (st.turn !== 'busy') return
         this.cancel(msg.threadId)
-        this.pushEvent(msg.threadId, { sessionUpdate: 'zra/notice', text: tr`Tour interrompu.`, level: 'warn' })
+        this.pushEvent(msg.threadId, { sessionUpdate: 'zra/notice', text: tr`Tour interrompu.`, level: 'info', untilSend: true })
         break
       }
 

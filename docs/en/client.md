@@ -109,7 +109,7 @@ Two ZRA extensions, explicitly prefixed so as never to be confused with
 ACP:
 
 - `zra/terminal_output` — `{ terminalId, output, append?, exitStatus? }`;
-- `zra/notice` — `{ text, level }`, for daemon messages (turn interrupted,
+- `zra/notice` — `{ text, level, untilSend? }`, for daemon messages (turn interrupted,
   queue lost…).
 
 The shim emits them; the PWA only uses them if they arrive.

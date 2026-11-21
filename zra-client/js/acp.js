@@ -102,7 +102,7 @@ export class Timeline {
       case 'zra/terminal_output':
         return this.terminalOutput(update, meta)
       case 'zra/notice':
-        return [this.push({ type: 'notice', text: update.text, level: update.level || 'info', at: meta.at })]
+        return [this.push({ type: 'notice', text: update.text, level: update.level || 'info', untilSend: Boolean(update.untilSend), at: meta.at })]
       case 'zra/elicitation':
         return this.elicitation(update, meta)
       case 'zra/elicitation_resolved':

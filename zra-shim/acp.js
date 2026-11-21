@@ -638,10 +638,10 @@ export class AcpBridge extends EventEmitter {
    * seulement : comme le `user_message_chunk` synthétique, il n'est jamais
    * envoyé à Zed.
    */
-  notice(sessionId, text, level = 'info') {
+  notice(sessionId, text, level = 'info', untilSend = false) {
     this.emit('update', {
       sessionId,
-      update: { sessionUpdate: 'zra/notice', text, level },
+      update: { sessionUpdate: 'zra/notice', text, level, ...(untilSend ? { untilSend: true } : {}) },
       at: new Date().toISOString(),
     })
   }
@@ -771,7 +771,8 @@ export class AcpBridge extends EventEmitter {
       if (await this.waitIdle(sessionId, this.cancelTimeoutMs)) {
         // Le fil doit dire ce qui vient de se passer : l'agent, lui, ne produit
         // qu'un tour clos en « cancelled », que la PWA ne saurait pas nommer.
-        this.notice(sessionId, tr`Tour interrompu.`, 'warn')
+        // Info éphémère : callout discret, effacé au prochain envoi (`untilSend`).
+        this.notice(sessionId, tr`Tour interrompu.`, 'info', true)
         return true
       }
       this.log?.warn(

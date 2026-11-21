@@ -109,7 +109,7 @@ Deux extensions ZRA, explicitement préfixées pour ne jamais être confondues a
 de l'ACP :
 
 - `zra/terminal_output` — `{ terminalId, output, append?, exitStatus? }` ;
-- `zra/notice` — `{ text, level }`, pour les messages du daemon (tour interrompu,
+- `zra/notice` — `{ text, level, untilSend? }`, pour les messages du daemon (tour interrompu,
   file perdue…).
 
 Le shim les émet ; la PWA ne s'en sert que s'ils arrivent.

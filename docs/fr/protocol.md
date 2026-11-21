@@ -632,10 +632,13 @@ le bloc. La PWA repeint tous les tool calls qui référencent ce `terminalId`.
 
 ### `zra/notice`
 ```ts
-{ sessionUpdate: 'zra/notice', text: string, level?: 'info' | 'warn' }
+{ sessionUpdate: 'zra/notice', text: string, level?: 'info' | 'warn', untilSend?: boolean }
 ```
-Message du daemon inséré dans le fil : « tour interrompu », « Zed a fermé
-l'agent : file d'attente perdue »… Rendu en ligne système discrète.
+Message du daemon : « tour interrompu », « Zed a fermé l'agent : file
+d'attente perdue »… Rendu : warn/error en callout fermable, info en ligne
+système discrète. `untilSend` (info éphémère) : callout info, effacé à l'envoi
+suivant — c'est le cas de « Tour interrompu. » (interruption acquittée par
+l'agent).
 
 Un tour clos **sans** l'agent le dit aussi, avec la marche à suivre : « l'agent
 n'a pas acquitté l'interruption : tour clos. Rouvre le thread dans Zed pour

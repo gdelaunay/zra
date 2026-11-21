@@ -70,6 +70,20 @@ test('message envoyé du mobile : l’écho local cède la place au message publ
   assert.ok(!entries.some((e) => e.pending), 'plus rien « en attente »')
 })
 
+test('avis éphémère (« Tour interrompu ») : effacé à l’envoi suivant, les autres infos restent', () => {
+  const k = 'mock-desk/thread-stop'
+  store.ensureState(k).historyComplete = true
+  deliver({ type: 'acp_event', threadId: 'thread-stop', seq: 30, update: { sessionUpdate: 'zra/notice', text: 'Modèle : un', level: 'info' } })
+  deliver({ type: 'acp_event', threadId: 'thread-stop', seq: 31, update: { sessionUpdate: 'zra/notice', text: 'Tour interrompu.', level: 'info', untilSend: true } })
+  const tl = store.ensureTimeline(k)
+  const [plain, ephemeral] = tl.entries.filter((e) => e.type === 'notice')
+  assert.ok(!plain.dismissed && !ephemeral.dismissed)
+
+  store.sendMessage(k, 'autre chose')
+  assert.equal(ephemeral.dismissed, true, 'l’avis éphémère s’efface à l’envoi')
+  assert.ok(!plain.dismissed, 'une info ordinaire n’est pas touchée')
+})
+
 test('écho avec mention @ : les blocs rejoués (resource_link) prennent la place de l’écho', () => {
   const k = 'mock-desk/thread-mention'
   store.ensureState(k).historyComplete = true

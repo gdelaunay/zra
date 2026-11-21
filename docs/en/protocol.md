@@ -631,10 +631,12 @@ the block. The PWA repaints all the tool calls referencing this `terminalId`.
 
 ### `zra/notice`
 ```ts
-{ sessionUpdate: 'zra/notice', text: string, level?: 'info' | 'warn' }
+{ sessionUpdate: 'zra/notice', text: string, level?: 'info' | 'warn', untilSend?: boolean }
 ```
-Daemon message inserted in the thread: "turn interrupted", "Zed closed
-the agent: queue lost"… Rendered as a discreet system line.
+Daemon message: "turn interrupted", "Zed closed the agent: queue lost"…
+Rendering: warn/error as a dismissible callout, info as a discreet system
+line. `untilSend` (ephemeral info): info callout, cleared on the next send —
+the case of "Turn interrupted." (interrupt acknowledged by the agent).
 
 A turn closed **without** the agent says so too, with what to do: "the agent
 did not acknowledge the interrupt: turn closed. Reopen the thread in Zed to

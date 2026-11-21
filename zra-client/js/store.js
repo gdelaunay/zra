@@ -604,11 +604,21 @@ export function sendMessage(k, text, mode = 'queue') {
   const st = ensureState(k)
   const tl = ensureTimeline(k)
 
+  // Les avis éphémères (« Tour interrompu ») s'effacent à l'envoi suivant.
+  const faded = []
+  for (const e of tl.entries) {
+    if (e.type === 'notice' && e.untilSend && !e.dismissed) {
+      e.dismissed = true
+      e.rev++
+      faded.push({ op: 'update', entry: e })
+    }
+  }
+
   const { entry } = tl.push({ type: 'user', local: true, pending: true, blocks: [{ type: 'text', text: trimmed }] })
   st.localEchoes.push(entry)
   st.agentError = null
   emit(`state:${k}`, st)
-  emit(`timeline:${k}`, { changes: [{ op: 'add', entry }] })
+  emit(`timeline:${k}`, { changes: [{ op: 'add', entry }, ...faded] })
 
   m.link.send({ type: 'send', threadId: splitKey(k).threadId, text: trimmed, mode })
 }

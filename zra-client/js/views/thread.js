@@ -16,6 +16,10 @@ import { composerCompletion, validateSlash } from '../completion.js'
 import { renderCallout } from '../callout.js'
 import { editable } from '../editor.js'
 
+/** Avis rendu en callout (pas dans le fil) : warn/error, ou info éphémère
+ * (`untilSend` — « Tour interrompu », effacé à l'envoi suivant). */
+const isCalloutNotice = (e) => e.type === 'notice' && (e.level !== 'info' || e.untilSend)
+
 /**
  * Au-delà de ce nombre de réglages hors mode/modèle, ils passent tous dans le
  * menu « ⋯ », quel que soit leur type : la barre du composer ne défile pas.
@@ -279,8 +283,8 @@ export function ThreadView({ key, navigate }) {
     const tl = store.ensureTimeline(key)
     const c = ctx()
     tl.entries.forEach((entry, i) => {
-      // Avis warn/error : rendus en callout (paintCallout), pas montés dans le fil.
-      if (entry.type === 'notice' && entry.level !== 'info') return
+      // Avis warn/error et infos éphémères : rendus en callout (paintCallout), pas montés dans le fil.
+      if (isCalloutNotice(entry)) return
       const node = renderEntry(entry, { ...c, isLast: i === tl.entries.length - 1 })
       node._zraLen = textLength(entry.blocks)
       nodes.set(entry.id, node)
@@ -322,8 +326,8 @@ export function ThreadView({ key, navigate }) {
   function paintStatusLines() {
     const tl = store.ensureTimeline(key)
     feed.querySelector('.thread__status')?.remove()
-    // Les avis warn/error et les états d'historique vivent en callout, pas dans le fil.
-    const visible = tl.entries.filter((e) => !(e.type === 'notice' && e.level !== 'info'))
+    // Les avis warn/error, les infos éphémères et les états d'historique vivent en callout, pas dans le fil.
+    const visible = tl.entries.filter((e) => !isCalloutNotice(e))
     let text = null
     if (!visible.length) text = st.state === 'live'
       ? tr`Thread live, aucun événement pour l’instant.`
@@ -402,7 +406,7 @@ export function ThreadView({ key, navigate }) {
 
   function patch(change) {
     // Avis warn/error : callout, pas de nœud dans le fil.
-    if (change.entry.type === 'notice' && change.entry.level !== 'info') return
+    if (isCalloutNotice(change.entry)) return
     const tl = store.ensureTimeline(key)
     const c = ctx()
     const isLast = tl.entries[tl.entries.length - 1]?.id === change.entry.id
@@ -560,17 +564,22 @@ export function ThreadView({ key, navigate }) {
     if (spec) calloutSlot.append(renderCallout(spec))
   }
 
-  /** Dernier avis warn/error non fermé : callout (SessionNotice de Zed), pas une ligne du fil. */
+  /** Dernier avis non fermé (warn/error, ou info éphémère) : callout
+   * (SessionNotice de Zed), pas une ligne du fil. */
   function lastNotice() {
     const tl = store.ensureTimeline(key)
     for (let i = tl.entries.length - 1; i >= 0; i--) {
       const e = tl.entries[i]
-      if (e.type === 'notice' && e.level !== 'info' && !e.dismissed) return e
+      if (isCalloutNotice(e) && !e.dismissed) return e
     }
     return null
   }
 
   function noticeSpec(entry) {
+    // Info éphémère : titre seul, discret — pas un « Avertissement ».
+    if (entry.level === 'info') {
+      return { severity: 'info', title: entry.text, close: () => store.dismissNotice(key, entry.id) }
+    }
     return {
       severity: entry.level === 'error' ? 'error' : 'warning',
       title: entry.level === 'error' ? tr`Une erreur est survenue` : tr`Avertissement`,

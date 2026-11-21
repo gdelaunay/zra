@@ -342,8 +342,9 @@ test('interrupt coupe le tour et rend la main sur l’acquittement', async (t) =
   assert.deepEqual(await bridge.cancel(zed.sessionId), { interrupted: true })
   assert.equal(bridge.sessions.get(zed.sessionId).turn, 'idle')
   assert.equal((await turn).stopReason, 'cancelled')
-  // Acquittement réel ⇒ l'avis nominal, et lui seul (protocole §7).
-  assert.deepEqual(notices.map((n) => n.text), ['Tour interrompu.'])
+  // Acquittement réel ⇒ l'avis nominal, et lui seul (protocole §7) : info
+  // éphémère, effacé à l'envoi suivant côté PWA.
+  assert.deepEqual(notices.map((n) => [n.text, n.level, n.untilSend]), [['Tour interrompu.', 'info', true]])
 
   // Tour déjà à l'arrêt : ne rien faire (protocole §3 `interrupt`).
   assert.deepEqual(await bridge.cancel(zed.sessionId), { interrupted: false })
