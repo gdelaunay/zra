@@ -1,31 +1,49 @@
 # ZRA — fiches ACP
 
-Fiches par méthode du protocole ACP : ce que dit la spec, comment Zed s'en sert, ce que ZRA en fait, et quels agents l'implémentent. Complète `docs/fr/zed.md` (correspondance avec Zed) et `docs/fr/protocol.md` (contrat PWA ↔ daemon).
+Les méthodes ACP utilisées par ZRA : ce que dit la spec, où ZRA les traite, où Zed les implémente — et, en fin de page, la **compatibilité par agent** (qui implémente quoi, et comment). Complète `docs/fr/zed.md` (correspondance avec Zed) et `docs/fr/protocol.md` (contrat PWA ↔ daemon).
 
-Référence spec : `_upstream/acp` (tag v1.15.1, mise en place dans `docs/fr/zed.md`) ; les méthodes unstable sont dans `schema/v1/schema.unstable.json`. ZRA parle ACP v1.
+## Référence
 
-## Renommer et supprimer un thread
+- **ZRA parle ACP v1. Spec de référence : tag `v1.15.1`** du dépôt de spécification — la version sur laquelle Zed 1.28.1 développe (crate `agent-client-protocol-schema` 1.15.1). Les chemins de cette page sont relatifs à `_upstream/acp` et valent pour ce tag ; mise en place dans `docs/fr/zed.md`.
+- Table des méthodes : `schema/v1/meta.json` ; formes exactes : `schema/v1/schema.json`. Méthodes **unstable** (`session/set_title`, `session/delete`) : `meta.unstable.json`, `schema.unstable.json`. Les fichiers spec cités dans les tableaux sont sous `docs/protocol/v1/`.
+- Pas de SDK ACP : JSON-RPC à la main (`zra-shim/framing.js`). Le shim relaie tout entre Zed et l'agent et n'interprète que les méthodes ci-dessous ; le reste (`fs/read_text_file`, `fs/write_text_file`, `terminal/create|kill|release`, `authenticate`…) passe transparentiellement.
 
-Côté Zed, tout passe par `ThreadMetadataStore` (`crates/agent_ui/src/thread_metadata_store.rs`), adossé à `sidebar_threads` : cache mémoire, écritures en file, relecture de la base **uniquement au démarrage et aux migrations** — aucun watcher de fichier, aucune invalidation externe.
+## Méthodes agent (ZRA → agent, ou observées par le shim)
 
-- **Renommer** : `title_override` (prioritaire sur le `title` généré, `set_title_override`) ; si l'agent le supporte, Zed appelle aussi `session/set_title` (`conversation_view/thread_view.rs` : `apply_renamed_title`). Le titre agent revient par le flux normal (`session_info_update` si le thread est live, `session/load` sinon).
-- **Supprimer** (vue archive, `threads_archive_view.rs` : `delete_thread`) : suppression de la ligne de métadonnées, puis `session/delete` **seulement si l'agent l'annonce** (`session_list.supports_delete()`).
-- **Archiver** : flag local `archived`, aucun équivalent ACP. ZRA ne l'utilise pas.
+| Méthode | Spec | Côté ZRA | Côté Zed |
+|---|---|---|---|
+| `initialize` | `initialization.mdx` | Le shim capture version, `agentInfo` et capacités (`zra-shim/acp.js` : `noteResponse`) : `loadSession`, `sessionCapabilities.title/.delete`, `promptCapabilities.embeddedContext`… ; le client jetable vérifie `loadSession` (`zra-daemon/session-loader.js`) | `crates/agent_servers/src/acp/v1.rs` : `connect`, `client_builder`, `client_capabilities_for_agent` |
+| `session/new` | `session-setup.mdx` | Session suivie à la réponse (`noteResponse`, `openSession`) | `acp/v1.rs` : `new_session` |
+| `session/load` | `session-setup.mdx` | Thread vivant : observé depuis Zed (`observeFromZed`). Thread fermé : client jetable, replay collecté → `history`, cache 10 min (`session-loader.js` : `load`, `replay`) | `acp/v1.rs` : `load_session` ; `crates/agent_ui/src/conversation_view.rs` : `load_session` |
+| `session/resume` | `session-setup.mdx` | Session suivie (`noteResponse`) ; Zed reprend sans rejeu un agent sans `loadSession` | `acp/v1.rs` : `resume_session` ; `conversation_view.rs` : `resume_session`, `supports_resume_session` |
+| `session/close` | `session-setup.mdx` | Le shim retire la session suivie (`closeSession`) | `acp/v1.rs` : `release_session` |
+| `session/prompt` | `prompt-turn.mdx`, `error.mdx` | File d'attente, blocs de contenu (mentions construites par `zra-daemon/mentions.js`, garde de chemin — `protocol.md` §9) ; erreur refusée : `code`/`data` gardés de bout en bout (`sendPrompt`, `settlePrompt`, `confirm`, `ShimError.details`) ; `-32603` + `data = { details }` → le texte `details` en message normal (`agentErrorSpec`, PWA) | `acp/v1.rs` : `prompt` (même exception `-32603`/`details`, workaround gemini-cli) ; callout « An Error Happened » (`thread_view.rs` : `render_any_thread_error`) |
+| `session/cancel` | `cancellation.mdx` | Coupe le tour en cours (`cancel`, `cancelAndWait` — aussi avant une suppression) | `acp/v1.rs` : `cancel` |
+| `session/set_mode` | `session-modes.mdx` | Projection et changement (`projectOptions`, `setOption`, `applyOption`) ; Zed réapplique ses `default_config_options` à chaque ouverture : le shim le note (`noteOptions`) | `acp/v1.rs` : `SetSessionModeRequest`, `AcpSessionModes` |
+| `session/set_config_option` | `session-config-options.mdx` | Idem `set_mode` | `acp/v1.rs` : `set_config_option`, `config_state` ; `crates/acp_thread/src/config_options.rs` |
+| `session/set_title` *(unstable)* | `schema.unstable.json` | Thread vivant : le shim émet (`setTitle`) ; thread fermé : client jetable (`session-loader.js` : `operate`), sans rouvrir Zed — la session n'a pas besoin d'être active. Titre rendu (éventuellement normalisé) superposé en attendant que Zed rattrape (`zra-daemon/thread-ops.js`). Gaté : `sessionCapabilities.title` | `conversation_view/thread_view.rs` : `apply_renamed_title` (+ `title_override` local, prioritaire) |
+| `session/delete` *(unstable)* | `session-delete.mdx`, `schema.unstable.json` | Mêmes chemins que `set_title` ; tour en cours coupé avant ; tombstone persisté — la ligne de Zed reste, l'index la masque (`thread-ops.js`). Gaté : `sessionCapabilities.delete` | `threads_archive_view.rs` : `delete_thread` ; `session_list.supports_delete()` |
 
-Les deux méthodes ACP sont **unstable** (`_upstream/acp/schema/v1/schema.unstable.json`), gatées par la réponse `initialize` de l'agent — `agentCapabilities.sessionCapabilities.title` et `.delete` — que le shim capture déjà (`zra-shim/acp.js` : `noteResponse`).
+## Méthodes client (agent → ZRA, reçues par le shim)
 
-- `session/set_title` : la session n'a pas besoin d'être active sur la connexion. La réponse rend le titre stocké, éventuellement normalisé (le client affiche celui-là) ; l'agent ne doit plus le remplacer par un titre généré. Titre invalide : `-32602` ; session inconnue : `-32002`.
-- `session/delete` : supprime la session de `session/list`, côté agent.
+| Méthode | Spec | Côté ZRA | Côté Zed |
+|---|---|---|---|
+| `session/update` | `prompt-turn.mdx`, `slash-commands.mdx`, `session-modes.mdx`, `session-config-options.mdx` | `noteUpdate` → état du thread : chunks, tool calls, plan, modes/options, commandes, titre. Message du mobile miroité vers Zed en `user_message_chunk` synthétique (`publishUserMessage`, `mirrorUserMessage`). Thread fermé : replay mémorisé par la PWA (`zra-client/js/acp.js`) | `acp/v1.rs` : `handle_session_notification` ; `acp_thread.rs` : `handle_session_update`, `push_user_content_block_with_protocol_id` |
+| `session/request_permission` | `tool-calls.mdx` | Le shim répond à la place de Zed (`notePermission`, `respondPermission`), puis retire l'invite de Zed (`$/cancel_request`) | `acp/v1.rs` : `handle_request_permission` ; `acp_thread.rs` : `cancel_permission_request` |
+| `elicitation/create` | `elicitation.mdx` | Publiée en `zra/elicitation` dans le thread de sa session (ou de la requête Zed citée) ; le shim répond à la place de Zed (`noteElicitation`, `respondElicitation`) puis retire son formulaire. Mode `url` : lien montré, s'ouvre sur le poste | `acp/v1.rs` : `handle_create_elicitation` ; `acp_thread.rs` : `request_elicitation_with_id` |
+| `terminal/output` | `terminals.mdx` | Sortie publiée vers le daemon (`publishTerminal`) ; autre voie : `_meta` des tool calls (`terminalMeta`, PWA) | `acp/v1.rs` : `handle_terminal_output` ; `_meta.terminal_info`, `terminal_output`, `terminal_exit` |
+| `terminal/wait_for_exit` | `terminals.mdx` | Réponse observée → `publishTerminal` | `acp/v1.rs` : traitement des terminaux (`wait_for_exit`) |
+| `$/cancel_request` | `cancellation.mdx` | Émis pour retirer l'invite/formulaire de Zed après réponse du shim ; reçu : annulations de l'agent (`noteElicitationCancelled`) | `acp_thread.rs` : `cancel_permission_request`, `cancel_elicitation` |
 
-Ce que ZRA en fait — jamais d'écriture dans la base de Zed (discipline lecture seule de `threads-index.js`) :
+## Compatibilité par agent
 
-- **Thread vivant** : le shim émet la requête sur la connexion que Zed tient (`zra-shim/acp.js` : `setTitle`, `deleteSession`). Un tour en cours est coupé avant la suppression.
-- **Thread fermé** : client jetable (`zra-daemon/session-loader.js` : `operate`), sans rouvrir Zed — la méthode porte sur la session stockée côté agent.
-- **`zra-daemon/thread-ops.js`** porte l'état persisté (`.zra/thread-ops.json`) : tombstones (la ligne de Zed reste, l'index la masque — pas de résurrection), titres rendus par l'agent superposés en attendant que Zed rattrape (un renommage fait dans Zed prime et retire la superposition), capacités par agent pour le gating (`canRename`/`canDelete` du message `threads`, absents = inconnu).
-- Zed ouvert, un thread supprimé reste dans sa sidebar (cache) jusqu'au prochain démarrage, mais ne peut plus être ouvert.
-- Côté PWA : `rename_thread` / `delete_thread` (`docs/fr/protocol.md` §3) ; erreurs `capability_missing` quand l'agent ne supporte pas la méthode.
+Constatée dans les sources des agents (installées sous `external_agents/registry`, ou web) — pas dans la spec. La source fiable au runtime reste la réponse `initialize` de chaque agent ; le shim la capture et le daemon la persiste par agent (`thread-ops.js`, `canRename`/`canDelete` du message `threads`).
 
-Compatibilité relevée dans les sources des agents (2026-11) :
+### Renommer et supprimer
+
+`session/set_title` : la réponse rend le titre stocké, éventuellement normalisé (le client affiche celui-là) ; l'agent ne doit plus le remplacer par un titre généré. Titre invalide : `-32602` ; session inconnue : `-32002`. `session/delete` : supprime la session de `session/list`, côté agent. Zed ouvert, un thread supprimé reste dans sa sidebar (cache) jusqu'au prochain démarrage, mais ne peut plus être ouvert.
+
+Sources lues 2026-11 :
 
 | Agent | `session/set_title` | `session/delete` |
 |---|---|---|
@@ -36,93 +54,22 @@ Compatibilité relevée dans les sources des agents (2026-11) :
 | kimi | non | non |
 | gemini | non | non |
 
-La matrice du registry ACP (`agentclientprotocol/registry`, `.protocol-matrix/latest.md`, 42 agents sondés) couvre `session/list`, `fork`, `resume`, `stop`, `set_model` — pas ces deux méthodes. La source fiable reste la réponse `initialize` de chaque agent.
+La matrice du registry ACP (`agentclientprotocol/registry`, `.protocol-matrix/latest.md`, 42 agents sondés) couvre `session/list`, `fork`, `resume`, `stop`, `set_model` — pas ces deux méthodes.
 
-## Commandes slash
+### Commandes slash
 
-Spec : `_upstream/acp/docs/protocol/v1/slash-commands.mdx` (v1.15.1).
+Spec : annonce par `session/update` `available_commands_update`, liste complète à chaque fois ; `name`/`description` requis, `input.hint` optionnel. Aucune méthode d'exécution dédiée : la commande part en texte (`/name args`) dans un `session/prompt` ordinaire. Côté Zed : parsing et validation à l'envoi (`completion_provider.rs` : `SlashCommandCompletion`, `message_editor.rs` : `confirm_command`, `validate_slash_commands`) — commande inconnue en début de message refusée ; la PWA porte le même comportement (`docs/fr/client.md`, fuzzy approché : `docs/fr/limitations.md`).
 
-- **Annonce** : notification `session/update` `available_commands_update`,
-  liste complète à chaque fois (l'agent peut ajouter/retirer en cours de
-  session). `AvailableCommand` : `name` et `description` requis, `input.hint`
-  optionnel (hint d'argument, texte non structuré).
-- **Exécution** : aucune méthode dédiée — la commande part en texte
-  (`/name args`) dans un `session/prompt` ordinaire ; l'agent reconnaît le
-  préfixe. Une commande peut accompagner d'autres blocs du même prompt.
+- **claude-acp** : publie ses commandes built-in, MCP (`mcp:serveur:commande`) et skills ; rejoue `available_commands_update` au `session/load` (thread fermé : menu disponible via le replay).
+- **pi-acp** : publie ses skills en commandes `skill:nom`.
+- **gemini-cli** : ne publie que `name`/`description` (pas d'`input`).
+- Autres agents : la liste vient de leur `available_commands_update`, ZRA ne présume rien.
 
-Côté Zed (1.28.1, sources lues) :
+### Mentions : `resource_link` / `resource`
 
-- Déclencheur : `/` le plus à droite en frontière de mot, pas de blanc juste
-  après (`completion_provider.rs` `SlashCommandCompletion::try_parse`) ;
-  filtre fuzzy sur le nom ; confirmation insère `/name ` en gardant l'argument
-  tapé, et **envoie** (`message_editor.rs` `confirm_command → send`), sauf si
-  la commande a un `input` et qu'aucun argument n'est saisi.
-- `input.hint` → inlay après la commande tant qu'il n'y a pas d'argument
-  (`command_hint`) ; en-tête « Commands » masqué quand un argument est saisi.
-- Validation à l'envoi (`validate_slash_commands`) : `/commande` inconnue en
-  début de message → erreur bloquante (liste vide comprise, « none ») ;
-  callout « An Error Happened » au-dessus du composer. Un espace devant le `/`
-  échappe à la règle.
+Spec (`content.mdx`) : `resource_link` `{uri, name, …}` — lien que l'agent lit lui-même, tout agent **MUST** le supporter dans un prompt ; `resource` (embedded) `{resource: {uri, text, mimeType?}}` — contenu texte dans le message, voie recommandée pour les mentions `@`, gatée par `promptCapabilities.embeddedContext`. Le format `[@nom](file:///…)` n'est **pas** le format fil : c'est la convention de sérialisation de Zed (`MentionUri::as_link`, `acp_thread/src/mention.rs` ; conversion : `message_editor.rs` : `mention_to_content_block`) et de claude-acp ; sur le fil, des blocs JSON. Construction des blocs et garde de chemin côté ZRA : `docs/fr/protocol.md` §3/§9.
 
-Ce que ZRA en fait (0.5.2, 5a) :
-
-- Le shim garde `name`, `description` et `input.hint`
-  (`zra-shim/acp.js`, `available_commands_update`) → `thread_state.commands`
-  (`docs/fr/protocol.md` §4) → menu `/` du composer
-  (`zra-client/js/completion.js`) : parsing et validation portés de Zed, fuzzy
-  approché (`docs/fr/limitations.md`), description de l'item sélectionné en
-  aparté, callout d'erreur identique. Le hint d'argument s'affiche en span
-  fantôme après `/name ` (composer contenteditable, 5b-1).
-- Thread fermé : pas de shim, mais claude-acp rejoue
-  `available_commands_update` au `session/load` → la PWA le mémorise via
-  `history` (`zra-client/js/acp.js`), le menu est disponible.
-- Agents (sources lues) : claude-acp publie ses commandes built-in, MCP
-  (`mcp:serveur:commande`) et skills ; pi-acp publie ses skills en commandes
-  `skill:nom` ; gemini-cli ne publie que `name`/`description` (pas d'`input`).
-  Les autres agents : la liste vient de leur `available_commands_update`,
-  ZRA ne présume rien.
-
-## Mentions : `resource_link` / `resource`
-
-Spec : `_upstream/acp/docs/protocol/v1/content.mdx` (v1.15.1).
-
-- **`resource_link`** `{uri, name, …}` : lien vers une ressource que l'agent
-  lit lui-même ; tout agent **MUST** le supporter dans un prompt.
-- **`resource`** (embedded) `{resource: {uri, text, mimeType?}}` : le contenu
-  texte est dans le message ; voie **recommandée** pour les mentions `@`,
-  gatée par la capacité `promptCapabilities.embeddedContext` de l'`initialize`.
-- Le format `[@nom](file:///…)` n'est **pas** le format fil : c'est la
-  convention de sérialisation de Zed (`MentionUri::as_link`) et la conversion
-  interne de claude-acp. Sur le fil, ce sont des blocs JSON.
-
-Côté Zed (1.28.1, sources lues) : `mention_to_content_block`
-(`message_editor.rs`) — fichier texte → `resource` si l'agent annonce
-`embeddedContext`, sinon `resource_link` ; dossier → toujours `resource_link`
-(URI `file:///` avec `/` final, `MentionUri::to_uri`,
-`acp_thread/src/mention.rs`). Liens du texte reparsés par
-`parse_mention_links` ; le rejeu claude-acp de `session/load` rend les messages
-utilisateur en **texte** contenant ces liens markdown, pas en blocs.
-
-Ce que ZRA en fait (0.5.2, 5b-2, conception D1/D3/D5) :
-
-- La PWA saisit les mentions en puces, sérialisées `[@nom](file:///…)` dans le
-  texte envoyé (`zra-client/js/mentions.js`, `editor.js`). Le **daemon** parse
-  les liens au départ et construit les blocs (`zra-daemon/mentions.js`) :
-  fichier texte ≤ 1 Mo et agent `embeddedContext` → `resource` (contenu lu par
-  le daemon) ; sinon `resource_link` ; dossier, binaire, non-UTF-8, > 1 Mo →
-  `resource_link`. **Garde** : le `realpath` doit être contenu dans les
-  `folderPaths` réels du thread ; hors périmètre → texte littéral (§9).
-- Listing des fichiers par le daemon (requête `files`, `docs/fr/protocol.md`
-  §3) : `git ls-files --cached --others --exclude-standard`, repli walk hors
-  git (+ `node_modules` exclu), borne 20 000, cache 30 s ; fuzzy côté PWA,
-  borne 100.
-- Le shim envoie les blocs tels quels (`sendPrompt`, `zra-shim/acp.js`) ; la
-  file d'attente garde le texte pour l'affichage et les blocs pour l'envoi.
-- Rendu PWA : puces `.mention` dans les bulles utilisateur — blocs
-  `resource_link`/`resource` **et** liens markdown du texte rejeu.
-
-Matrice agents (sources installées lues : `registry/npx/…`, vérifié ; sources
-web relues partiellement : relevé) :
+Sources installées lues (`registry/npx/…`) ; sources web relues partiellement :
 
 | Agent | `embeddedContext` | `resource_link` file:// | `resource` embedded |
 |---|---|---|---|
@@ -135,47 +82,4 @@ web relues partiellement : relevé) :
 | goose | à vérifier | **lit le fichier UTF-8 et inline le contenu** ; non-UTF-8/dossier/absent : métadonnées préservées depuis PR #11941 (09/2026) — avant : silencieusement jeté (issue #11810) | en-tête `--- Resource: …` + contenu |
 | kimi | oui (kimi-cli PR #1264 ; kimi-code 06/2026) | chemin décodé (+ ligne optionnelle) ; non-file → wrapper XML | géré |
 
-Conséquences : `resource_link` est le dénominateur commun (MUST spec) ;
-l'embarqué garantit l'arrivée du contenu (qwen/gemini jettent les fichiers
-ignorés/hors workspace en lien ; goose jette les non-UTF-8). Dossiers : best
-effort selon l'agent (`docs/fr/limitations.md`).
-
-## Erreurs de `session/prompt`
-
-Spec : `_upstream/acp/docs/protocol/v1/error.mdx` (v1.15.1). Une requête refusée
-rend un objet d'erreur JSON-RPC : `code` (entier), `message` (court), `data`
-(optionnel, forme libre selon le code). Un prompt refusé par l'agent (ex.
-mauvais modèle → 403) arrive typiquement en `-32603` « Internal error » avec
-le détail réel dans `data`.
-
-Côté Zed (1.28.1, sources lues) :
-
-- `ProtocolErrorInfo` (`crates/acp_thread/src/connection.rs`) extrait
-  `code`/`message`/`data` de l'erreur de protocole ; le message affiché est la
-  chaîne complète `format!("{:#}", error)` (`ThreadError::Other`,
-  `crates/agent_ui/src/conversation_view.rs`).
-- Exception `crates/agent_servers/src/acp/v1.rs` (prompt) : erreur `-32603`
-  avec `data = { details: "…" }` → le texte `details` remplace l'erreur
-  (affiché tel quel, sans « Internal error » ni JSON) ; les autres erreurs
-  gardent leur forme complète.
-- Rendu : callout « An Error Happened » au-dessus du composer
-  (`thread_view.rs` `render_any_thread_error`) — description markdown muted,
-  retry si le tour peut reprendre (`can_retry`), copier, fermer.
-
-Côté ZRA :
-
-- Transport complet shim → daemon → PWA : `settle`/`confirm`
-  (`zra-shim/acp.js`) gardent `code`/`data` (`ShimError.details`) et le prompt
-  refusé ; avis `inject_failed` (chemin file) et `error` du protocole (chemin
-  `auto`, repli clavier compris — `zra-daemon/inject/`, `hub.js`) portent
-  `details` + `prompt`.
-- Rendu : le même callout que les états de connexion (`zra-client/js/callout.js`,
-  `views/thread.js` `paintCallout`) — titre « Une erreur est survenue »,
-  description markdown en texte seul (message ; `data` ajouté en texte si
-  c'est une string, jamais de bloc JSON — Zed n'en rend pas), retry du prompt
-  refusé, copier, fermer ; la saisie refusée revient dans le brouillon. Comme
-  Zed, `-32603` avec `data = { details }` affiche le texte `details` en message
-  normal (`agentErrorSpec`). Plus d'avis legacy dans le fil pour ces erreurs.
-
-Agents : tout agent peut refuser un `session/prompt` ; constat réel qwen-code
-(poste Windows, 0.5.3) : `-32603` + détail 403 dans `data`.
+Conséquences : `resource_link` est le dénominateur commun (MUST spec) ; l'embarqué garantit l'arrivée du contenu (qwen/gemini jettent les fichiers ignorés/hors workspace en lien ; goose jette les non-UTF-8). Dossiers : best effort selon l'agent (`docs/fr/limitations.md`).

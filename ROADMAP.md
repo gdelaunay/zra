@@ -21,12 +21,6 @@ datés, avec le hash du commit de référence ; ROADMAP à jour ; puis commit
 
 ## Ouvert
 
-### Backfill des fiches ACP
-
-`docs/fr/acp.md` ne couvre que renommer/supprimer (0.5.1). Les fonctionnalités
-ACP déjà livrées (relais et observation, permissions, élicitation, modes et
-options, terminaux, `session/load`…) restent à y consigner, fiche par méthode.
-
 ### 0.6 — Tray natif `zra-tray`
 
 Un petit binaire Rust par plateforme, à la fois **icône de zone de
