@@ -36,10 +36,13 @@ const payloadFor = (launcher) =>
 
 /** Lance le faux agent avec ce NODE_OPTIONS ; rend { code, stdout, stderr }. */
 function run(env, args = []) {
+  // Hermétique : le shell peut porter ZRA_SHIMMED/NODE_OPTIONS (session de dev
+  // enveloppée) — chaque test pose exactement ce qu'il veut, rien n'hérite.
+  const { ZRA_SHIMMED: _shimmed, NODE_OPTIONS: _options, ...base } = process.env
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [AGENT, ...args], {
       env: {
-        ...process.env,
+        ...base,
         ZRA_LOG_FILE: join(TMP, 'shim.log'),
         // Port mort : le test ne parle à aucun daemon réel (lien fail-open).
         ZRA_DAEMON_URL: 'ws://127.0.0.1:9/shim',

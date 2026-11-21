@@ -25,10 +25,13 @@ function build(body, api) {
 function machinesSection(api) {
   const list = h('div', { style: { display: 'flex', flexDirection: 'column', gap: 'var(--sp-2)' } })
   for (const m of store.state.machines.values()) {
+    // Route relais : le sous-titre montre l'adresse du poste (ws://IP:7777),
+    // pas l'hôte du relais — le titre, lui, peut être un alias.
+    const route = /^https?:\/\/[^/]+\/to\/([^/]+)/.exec(m.url)
     list.append(h('div.row', {},
       h(`span.dot.dot--${m.status === 'online' ? 'live' : 'unknown'}`),
       h('span.truncate', { style: { flex: 1 }, text: m.info?.name || m.label }),
-      h('span.muted.truncate', { style: { fontSize: 'var(--fs-xs)' }, text: m.url.replace(/^https?:\/\//, '') }),
+      h('span.muted.truncate', { style: { fontSize: 'var(--fs-xs)' }, text: route ? `ws://${route[1]}:7777` : m.url.replace(/^https?:\/\//, '') }),
       m.implicit || store.state.mock
         ? h('span.thread-row__badge', { text: store.state.mock ? 'mock' : 'local' })
         : button('icon-btn', {
@@ -42,7 +45,7 @@ function machinesSection(api) {
     ))
   }
 
-  const input = h('input.input', { placeholder: isRelay() ? tr`10.0.0.2 — IP du poste` : tr`10.0.0.2 ou http://10.0.0.2:7777`, inputmode: 'url', autocapitalize: 'off', spellcheck: 'false' })
+  const input = h('input.input', { placeholder: isRelay() ? tr`192.168.1.20 ou 10.0.0.2 — IP du poste` : tr`192.168.1.20 ou http://192.168.1.20:7777`, inputmode: 'url', autocapitalize: 'off', spellcheck: 'false' })
   const add = () => {
     const res = settingsModule.addMachine(input.value)
     if (res.error) return toast(res.error, { level: 'error' })
