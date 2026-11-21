@@ -467,7 +467,7 @@ button { cursor: pointer; }
 .thought { display: flex; flex-direction: column; gap: var(--sp-2); margin: 0 calc(var(--sp-5) + var(--sp-4)); }
 .thought__head {
   display: flex; align-items: center; justify-content: space-between;
-  padding-right: var(--sp-2); cursor: pointer; width: 100%; text-align: left;
+  padding: 1 var(--sp-2) 1 0; cursor: pointer; width: 100%; text-align: left;
 }
 .thought__start { display: flex; align-items: center; gap: var(--sp-3); height: calc(25.9px * var(--text-scale) - 2px); color: var(--icon-muted); }
 .thought__name { font-size: var(--fs-md); color: var(--text-muted); }
