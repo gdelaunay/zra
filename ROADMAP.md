@@ -72,21 +72,6 @@ robustesse, distribution, ordre de réalisation — : `reference/conception-zra-
 
 ## Pistes
 
-### Tailscale : réseau et HTTPS sans configuration
-
-**Piste non favorisée** : le serveur de coordination de Tailscale est un SaaS
-propriétaire (compte obligatoire). Les variantes open source (Headscale,
-NetBird) n'offrent pas les certificats HTTPS automatiques — le bénéfice
-principal de la piste tombe.
-
-Joindre un poste hors du réseau local demande aujourd'hui WireGuard, un
-proxy HTTPS par poste et du routage Docker (`docs/fr/deploy.md` §3.1, §4.1). Tailscale
-donnerait tout ça d'office : IP fixe par appareil, aucun port ouvert, et des
-certificats HTTPS (`*.ts.net`, `tailscale serve` devant `:7777`), ce qui règle
-le contenu mixte sans reverse proxy. À essayer, puis à proposer dans
-`docs/fr/deploy.md` **comme une option parmi d'autres — pas comme le chemin par
-défaut** (décision).
-
 ### Homelab — la réponse retenue au problème central
 
 La réponse au problème du poste qui doit rester allumé. À formaliser en doc

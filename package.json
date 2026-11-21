@@ -19,13 +19,11 @@
     "setup": "node --no-warnings scripts/setup.mjs",
     "service": "node --no-warnings scripts/service.mjs",
     "pair": "node --no-warnings scripts/pair.mjs",
-    "wireguard": "node --no-warnings scripts/wireguard.mjs",
     "zed": "node --no-warnings scripts/zed.mjs",
     "themes": "node scripts/gen-themes.mjs",
     "file-icons": "node scripts/gen-file-icons.mjs"
   },
   "devDependencies": {
-    "jsdom": "^29.1.1",
-    "jsqr": "^1.4.0"
+    "jsdom": "^29.1.1"
   }
 }

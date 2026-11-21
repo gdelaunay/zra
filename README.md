@@ -65,7 +65,7 @@ sans agent pour les rouvrir ; ceux de l'entrée d'origine continuent de s'ouvrir
   n'écoute jamais sur un réseau marqué « Public » par Windows ; sous Linux, le
   restreindre avec `lanCidrs` dans `zra.config.json`.
 - **Trafic en clair** en HTTP : jeton et conversations sont lisibles par qui
-  écoute le réseau. Hors de chez soi : tunnel ou HTTPS (`docs/fr/deploy.md` §3-4).
+  écoute le réseau. Hors de chez soi : relais HTTPS ou tunnel (`docs/fr/deploy.md` §3-4).
 - **Appairage** : code à 6 chiffres, à usage unique, verrouillé après 10 essais
   ratés ; `npm run pair` le rouvre avec un nouveau code.
 - **Loopback** exemptée d'appairage, sauf requête relayée par un proxy local
@@ -96,9 +96,10 @@ sans agent pour les rouvrir ; ceux de l'entrée d'origine continuent de s'ouvrir
 |---|---|
 | `zra-shim/` | enveloppe l'agent dans Zed (preload de l'entrée d'origine, ou entrée `… (zra)`), observe et injecte en ACP |
 | `zra-daemon/` | serveur WebSocket du poste : index des threads, routage, appairage, pilotage clavier de Zed |
-| `zra-client/` | PWA sans build, servie par le daemon ou par n'importe quel serveur statique |
+| `zra-client/` | PWA sans build, servie par le daemon, le relais ou tout serveur statique |
+| `zra-relay/` | relais HTTPS optionnel (homelab) : sert la PWA et relaie vers les postes par leur IP privée |
 | `scripts/` | installation, service, appairage, certificat, mise au point clavier |
-| `i18n/` | traduction anglaise des messages du daemon, du shim et des scripts (`en.json`, clés : texte français du code) ; celle de la PWA : `zra-client/js/en.js` |
+| `i18n/` | traduction anglaise des messages du daemon, du shim, du relais et des scripts (`en.json`, clés : texte français du code) ; celle de la PWA : `zra-client/js/en.js` |
 
 ```sh
 npm run setup                        # état : entrées Zed, agents, daemon
@@ -106,6 +107,7 @@ npm run setup install apply          # shime les agents de Zed (preload de l'ent
 npm run setup -- uninstall --apply   # retire ZRA de Zed (env des entrées d'origine, entrées … (zra))
 npm run daemon                       # affiche l'adresse et le code d'appairage
 npm run daemon:dev                   # loopback seule
+npm run relay                        # relais HTTPS optionnel (homelab) : PWA + relais vers les postes par IP
 npm run service -- install --apply   # démarrage à l'ouverture de session (start, stop, logs, uninstall)
 npm run pair                         # code d'appairage, appareils appairés (revoke <id>)
 npm run zed -- probe | recipes | try <recette> [--apply]   # pilotage clavier
@@ -121,7 +123,7 @@ et le shim, jamais committé (propre à chaque poste).
 | Doc | Contenu |
 |---|---|
 | `docs/fr/architecture.md` | la carte : composants, échanges, flux, fragilités, décisions |
-| `docs/fr/deploy.md` | mise en service sur le téléphone : réseau local, tunnel, HTTPS, service |
+| `docs/fr/deploy.md` | mise en service sur le téléphone : réseau local, relais HTTPS, tunnel, service |
 | `docs/fr/protocol.md` | protocole PWA ↔ daemon |
 | `docs/fr/acp.md` | fiches ACP : méthodes, capacités, compatibilité des agents |
 | `docs/fr/daemon.md`, `docs/fr/shim.md`, `docs/fr/client.md` | un composant chacun : rôle, fichiers, tests |

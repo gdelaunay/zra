@@ -1,8 +1,8 @@
 # zra-client — la PWA
 
 Front de ZRA. **Zéro build** : HTML + CSS + ESM natifs, servis tels quels par
-`zra-daemon` ou par n'importe quel serveur statique (`docs/fr/deploy.md` §4.1). Aucune
-dépendance runtime, aucun bundler, aucun framework.
+`zra-daemon`, par `zra-relay` ou par n'importe quel serveur statique
+(`docs/fr/deploy.md` §4). Aucune dépendance runtime, aucun bundler, aucun framework.
 
 ```
 zra-client/
@@ -191,8 +191,16 @@ colorés). Le changement de jeu repeint le fil sans rechargement.
 
 Tout le protocole est câblé contre le vrai daemon : identité du poste, modes,
 modèles et autres réglages de l'agent, permissions (y compris la course avec le
-poste), appairage. Adresse d'un poste sans port : 7777 en `http://`, 443 en
-`https://` (derrière un reverse proxy).
+poste), appairage.
+
+Deux modes de service, détection automatique au boot (marqueur `/zra-relay`) :
+
+- **servi par le relais** : une IP saisie devient une route `/to/<ip>` sur
+  l'origine de la page (`wss://<hôte>/to/<ip>/ws`) ; le poste se nomme par son
+  IP, pas de poste implicite ;
+- **servi ailleurs** (daemon, proxy par poste, serveur statique) : comportement
+  direct — adresse d'un poste sans port : 7777 en `http://`, 443 en `https://`
+  (derrière un reverse proxy).
 
 **Web Push** : le réglage « Notifications (fin de tour) » demande la permission
 du navigateur puis s'abonne auprès du poste (`js/push.js`, clé VAPID de

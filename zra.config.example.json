@@ -28,22 +28,24 @@
   // forwarded) et doit s'appairer. false : la loopback s'appaire aussi.
   "auth": { "exemptLoopback": true },
 
-  // Client web. Le déploiement retenu (docs/fr/deploy.md) : le daemon le sert lui-même,
-  // en HTTPS sur l'IP du tunnel — même origine que le WebSocket. S'il est servi
-  // ailleurs : false, et son origine dans "allowedOrigins".
+  // Client web. Mode direct (docs/fr/deploy.md) : le daemon le sert lui-même —
+  // même origine que le WebSocket. Servi ailleurs (zra-relay, serveur statique,
+  // proxy par poste) : false. Avec zra-relay, aucune origine à déclarer : le
+  // relais se présente sans Origin.
   "serveStatic": true,
   "staticDir": "zra-client",
 
   // Origines autorisées à ouvrir le WebSocket. Le navigateur n'applique pas
   // la same-origin policy aux WebSockets : cette liste ferme le canal aux
   // pages tierces. Vide = l'origine propre du daemon seulement (ajoutée
-  // d'office quand il sert les statiques). Client servi ailleurs : son origine ici.
+  // d'office quand il sert les statiques). Proxy par poste (docs/fr/deploy.md
+  // §4.2) : l'origine du client ici. Avec zra-relay : rien.
   "allowedOrigins": [],
 
   // TLS. Absent => HTTP + ws:// : l'app fonctionne, mais le navigateur refuse
   // le service worker, l'installation sur l'écran d'accueil et le Web Push.
   // Renseigné => HTTPS + wss://, contexte sécurisé, PWA complète.
-  //   "tls": { "cert": ".zra/tls/zra.crt", "key": ".zra/tls/zra.key" }   (scripts/cert.ps1, docs/fr/deploy.md §2)
+  //   "tls": { "cert": ".zra/tls/zra.crt", "key": ".zra/tls/zra.key" }   (scripts/cert.ps1, docs/fr/deploy.md §4.4)
   // Relu à chaud au renouvellement ; ses noms DNS deviennent des origines autorisées.
   "tls": null,
 

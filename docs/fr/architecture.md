@@ -23,15 +23,18 @@ flowchart LR
     Daemon -- "frappes clavier<br/>PowerShell / xdotool" --> Zed
   end
   PWA[zra-client<br/>PWA sur le téléphone] -- "HTTP : statiques<br/>WebSocket /ws" --> Daemon
+  PWA -. "variante homelab :<br/>wss /to/<ip>/ws" .-> Relay[zra-relay<br/>optionnel, un pour le LAN]
+  Relay -. "ws /ws<br/>IP privées" .-> Daemon
 ```
 
-## Les trois composants
+## Les composants
 
 | Composant | Rôle | Durée de vie |
 |---|---|---|
 | `zra-shim/` | Proxy ACP. Zed le lance à la place de l'agent — preload node dans l'entrée `registry` d'origine (agents npx), ou entrée `… (zra)` de `agent_servers` (binaires) —, il lance le vrai agent et recopie les trames dans les deux sens. Il observe le flux, le publie au daemon, et injecte ce qui vient du mobile. | Celle du thread dans Zed |
 | `zra-daemon/` | Serveur HTTP + WebSocket du poste. Tient l'index des threads, route les messages entre shims et clients, gère l'appairage, pilote la fenêtre Zed au clavier. | Long-running, un par poste |
-| `zra-client/` | PWA en JavaScript natif, sans build. Servie par le daemon. Peut suivre plusieurs postes. | Navigateur du téléphone |
+| `zra-client/` | PWA en JavaScript natif, sans build. Servie par le daemon, par le relais ou par tout serveur statique. Peut suivre plusieurs postes. | Navigateur du téléphone |
+| `zra-relay/` | Relais HTTPS optionnel (`npm run relay`), pour le homelab : sert la PWA et relaie `wss://<hôte>/to/<ip>/ws` → `ws://<ip>:7777/ws`, en pipe transparent. IP privées littérales uniquement ; la requête vers le poste part sans `Origin` (client natif pour le daemon : rien à déclarer sur les postes). L'appairage traverse de bout en bout. HTTP derrière le proxy du homelab, ou HTTPS autonome (`ZRA_RELAY_TLS_CERT`/`KEY`, relu à chaud). | Long-running, un pour le LAN, optionnel |
 
 `scripts/` porte l'installation (`setup`), le service (`service`), l'appairage (`pair`) et la mise au point du clavier (`zed`).
 
@@ -57,6 +60,7 @@ flowchart LR
 ### PWA ↔ daemon : HTTP et WebSocket `/ws`
 
 - Même port pour tout (7777 par défaut). HTTP sert `zra-client/` (`zra-daemon/static.js`).
+- À travers `zra-relay` (optionnel) : la PWA est servie par le relais (même origine, marqueur `/zra-relay` détecté au boot) et ouvre `wss://<hôte>/to/<ip>/ws`. Le relais vise l'IP privée du poste, sans `Origin` ni en-tête de proxy : le daemon le traite en client natif, l'appairage est exigé comme en direct. Une sonde GET `/to/<ip>` (200/502/400/403) alimente le diagnostic du client (`link.js`).
 - WebSocket : protocole décrit dans `docs/fr/protocol.md`. `zra-daemon/hub.js` est le seul module qui connaît les clients.
 - Les événements ACP sont rediffusés tels quels dans des `acp_event` numérotés (`seq`). Un tampon circulaire par thread (`zra-daemon/ring-buffer.js`, 2 000 événements) permet de reprendre après une coupure.
 - Routes HTTP réservées à la loopback : `/status`, `/pair`, `/pair/rotate`, `/pair/revoke` (utilisées par `npm run setup` et `npm run pair`).
@@ -94,6 +98,7 @@ Ce que ZRA lit, écrit et imite dans Zed, avec l'endroit où le vérifier dans s
 - Écoute : loopback, IPv4 privées du poste (hors réseaux marqués « Public » sous Windows), interface de tunnel reconnue. Jamais `0.0.0.0` (`zra-daemon/net.js`).
 - `Origin` du WebSocket `/ws` : liste exacte, origines propres du daemon ajoutées d'office (`zra-daemon/server.js`).
 - Appairage hors loopback : code à 6 chiffres contre un jeton, stocké haché dans `.zra/auth.json` (`zra-daemon/auth.js`). Verrouillé après 10 échecs. La loopback en est dispensée, sauf requête relayée par un proxy local.
+- Relais (`zra-relay/relay.js`) : IP privées littérales uniquement (pas de DNS, loopback/link-local/public refusés), aucun état, aucun compte — l'appairage de bout en bout reste la barrière. L'exposition du relais est à l'utilisateur de gérer (`docs/fr/deploy.md` §4.1).
 - Pilotage clavier : activé par défaut, désactivable (`zedControl.enabled`), vérification du premier plan avant chaque étape (`zra-daemon/zed/keyboard.js`, `keyboard.ps1`).
 
 ## Dépendances externes
@@ -108,7 +113,7 @@ Ce que ZRA lit, écrit et imite dans Zed, avec l'endroit où le vérifier dans s
 | Node ≥ 24 | `node:sqlite`, `WebSocket` global | Imposé par `engines` et `.npmrc` |
 | Windows : PowerShell, `schtasks` ; Linux : `xdotool`, `pgrep`, systemd ou autostart XDG | Clavier, service | Détection centralisée dans `zra-daemon/platform.js` |
 
-Aucune dépendance npm en production. En développement : `jsdom` et `jsqr` (tests).
+Aucune dépendance npm en production. En développement : `jsdom` (tests).
 
 ## Installation et service
 
@@ -146,7 +151,7 @@ Tranchées, à ne pas rediscuter sans fait nouveau :
 - **`zedControl.enabled`** : `true` par défaut (le « + » et la réouverture en dépendent), avertissement au démarrage ; `false` reste possible.
 - **Stack** : JavaScript ESM + JSDoc, Node ≥ 24, zéro build, zéro dépendance runtime.
 - **Historique** : `session/load`, jamais de lecture d'un format propriétaire d'agent.
-- **Injection** : `acp` seul supporté ; `uia`, `auto` et `wireguard` gardés comme expérimentaux.
+- **Injection** : `acp` seul supporté ; `uia` et `auto` gardés comme expérimentaux (`mock` : bouchon de test).
 - **Enregistrement des trames** : désactivé par défaut, `npm run setup -- install --record` pour le débogage.
 - **Flatpak / Snap** : non supportés (`docs/fr/limitations.md`).
 - **`-ExecutionPolicy Bypass`** : conservé, limité au processus lancé (`docs/fr/deploy.md` §5).

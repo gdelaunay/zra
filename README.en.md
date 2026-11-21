@@ -64,7 +64,7 @@ to reopen them; those of the original entry keep opening (without ZRA).
   never listens on a network marked "Public" by Windows; on Linux,
   restrict it with `lanCidrs` in `zra.config.json`.
 - **Plain-text traffic** over HTTP: token and conversations can be read by anyone
-  listening on the network. Away from home: tunnel or HTTPS (`docs/en/deploy.md` §3-4).
+  listening on the network. Away from home: HTTPS relay or tunnel (`docs/en/deploy.md` §3-4).
 - **Pairing**: 6-digit code, single use, locked after 10 failed
   attempts; `npm run pair` reopens it with a new code.
 - **Loopback** exempt from pairing, except for a request relayed by a local proxy
@@ -95,9 +95,10 @@ to reopen them; those of the original entry keep opening (without ZRA).
 |---|---|
 | `zra-shim/` | wraps the agent in Zed (preload of the original entry, or `… (zra)` entry), observes and injects over ACP |
 | `zra-daemon/` | the machine's WebSocket server: thread index, routing, pairing, Zed keyboard control |
-| `zra-client/` | build-free PWA, served by the daemon or by any static server |
+| `zra-client/` | build-free PWA, served by the daemon, the relay or any static server |
+| `zra-relay/` | optional HTTPS relay (homelab): serves the PWA and relays to machines by their private IP |
 | `scripts/` | installation, service, pairing, certificate, keyboard tuning |
-| `i18n/` | English translation of the daemon, shim and script messages (`en.json`, keys: the French text in the code); the PWA's: `zra-client/js/en.js` |
+| `i18n/` | English translation of the daemon, shim, relay and script messages (`en.json`, keys: the French text in the code); the PWA's: `zra-client/js/en.js` |
 
 ```sh
 npm run setup                        # status: Zed entries, agents, daemon
@@ -105,6 +106,7 @@ npm run setup install apply          # shims Zed's agents (original-entry preloa
 npm run setup -- uninstall --apply   # removes ZRA from Zed (original entries' env, … (zra) entries)
 npm run daemon                       # shows the address and the pairing code
 npm run daemon:dev                   # loopback only
+npm run relay                        # optional HTTPS relay (homelab): PWA + relay to machines by IP
 npm run service -- install --apply   # start at session login (start, stop, logs, uninstall)
 npm run pair                         # pairing code, paired devices (revoke <id>)
 npm run zed -- probe | recipes | try <recipe> [--apply]   # keyboard control
@@ -119,7 +121,7 @@ at the root — read by the daemon and the shim, never committed (specific to ea
 | Doc | Content |
 |---|---|
 | `docs/en/architecture.md` | the map: components, exchanges, flows, weak spots, decisions |
-| `docs/en/deploy.md` | setting up the phone: local network, tunnel, HTTPS, service |
+| `docs/en/deploy.md` | setting up the phone: local network, HTTPS relay, tunnel, service |
 | `docs/en/protocol.md` | PWA ↔ daemon protocol |
 | `docs/en/acp.md` | ACP sheets: methods, capabilities, agent compatibility |
 | `docs/en/daemon.md`, `docs/en/shim.md`, `docs/en/client.md` | one component each: role, files, tests |

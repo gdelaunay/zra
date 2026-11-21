@@ -4,26 +4,29 @@ The **phone → machine** path, in order. ZRA scripts
 never install anything: they show what would be done, and act with
 `--apply`; the steps marked **admin** require an administrator PowerShell.
 
-## The principle: a single address, locally and remotely
+## The principle: two paths
 
 ```
- at home, at the office                   remotely
- phone ── Wi-Fi ──► machine               phone ══ wg-easy tunnel ══► homelab ──► local network ──► machine
-            http://192.168.1.20:7777                (AllowedIPs 0.0.0.0/0)
+ direct (local network)                   with the relay (homelab)
+ phone ── Wi-Fi ──► machine               phone ── https ──► zra-relay ── ws ──► machine A
+            http://192.168.1.20:7777                             └───────── ws ──► machine B
 ```
 
-The daemon listens on the machine's **local network** (its private IPv4 addresses), in addition to
-loopback. On the same Wi-Fi, the phone connects to it directly. Remotely,
-the homelab tunnel in "all traffic" mode (`AllowedIPs = 0.0.0.0/0, ::/0`,
-wg-easy's default config) brings the phone onto that same network:
-**the same address works in both cases**, nothing to switch. WireGuard is not
-ZRA's business: the tunnel is already there, the daemon only reads the
-machine's interfaces.
+- **Direct**: the daemon listens on the machine's **local network** (its
+  private IPv4 addresses), in addition to loopback, and serves the web client
+  itself — the page and the WebSocket have the same origin, no separate host.
+  On the same Wi-Fi, the phone connects to it with a single address. Remotely,
+  an "all traffic" tunnel (WireGuard, Tailscale… §3.1) brings the phone onto
+  that same network: the same address works in both cases.
+- **With the relay** (`zra-relay`, §4.1): a small server on the homelab serves
+  the PWA over HTTPS and relays to each machine by its IP. A single HTTPS
+  config, the relay's; adding a machine = typing its IP. The phone needs no
+  VPN: it reaches the relay, the relay reaches the machines.
 
 The local network is held as a trusted place, unless it is marked
 "Public": the daemon does not listen there (§1). **Each device still pairs
-once** with a code (§2). The daemon serves the web client itself: no
-separate host, the page and the WebSocket have the same origin.
+once** with a code (§2) — including through the relay: pairing is end-to-end,
+between the PWA and the daemon.
 
 ---
 
@@ -89,44 +92,58 @@ later connections happen without entering anything. The machine itself (loopback
 has nothing to pair. 5 attempts per minute from the same address, the code
 changes after 20 failures.
 
+Through the relay (§4.1), pairing is unchanged: the relay only sees frames
+passing, it does not terminate pairing and cannot read anything. Each machine
+pairs from the PWA served by the relay, just like direct.
+
 ---
 
 ## 3. The phone
 
 1. Open `http://<machine's local IP>:7777`: the machine adds itself (the
    page comes from it). Pair (§2).
-2. Remotely: turn on the wg-easy tunnel, same address.
+2. Remotely: turn on the tunnel (§3.1), same address.
 3. Another machine: Settings › Add a machine, its IP (port 7777 is
    inferred over `http://`, 443 over `https://`), then pair it.
 
+With the relay (§4.1): open the relay's URL, then Settings › Add a machine ›
+each machine's IP. That's all.
+
 A laptop that changes network (home, office) changes IP: in the PWA,
 those are two addresses, hence two machines to add — one offline when you
-are on the other network. For a single address everywhere: §3.1.
+are on the other network. For a single address everywhere: §3.1, or the relay
+(machines are targeted by their tunnel IP, fixed).
 
-### 3.1 Machine outside the local network: put it on the VPN
+### 3.1 Machine outside the local network: put it on a VPN
 
-The machine joins the **same VPN** as the phone, and you target it by its **VPN
-IP**: fixed, whatever network it is on (office, phone
-tethering). The daemon listens on the tunnel interface automatically (the log
-announces it: "listening http://10.8.0.3:7777").
+The machine joins a **VPN**, and you target it by its **VPN IP**: fixed,
+whatever network it is on (office, phone tethering). The daemon listens on the
+tunnel interface automatically (the log announces it: "listening
+http://10.8.0.3:7777").
 
-**The simplest: Tailscale** (or ZeroTier). Machine and phone in the same
-tailnet, each has its fixed `100.x` IP, without open ports or configuration. Not
-tried with ZRA.
+**The network is the user's business**: ZRA does not configure it, it reads
+the machine's interfaces. Any tunnel mounted on the machine is listened on —
+WireGuard (wg-easy…), Tailscale, ZeroTier… your pick. Two uses:
 
-**With WireGuard (wg-easy)**. In the machine's config:
+- **direct**: the phone is on the same VPN as the machine ("all traffic"
+  tunnel on the phone side, `AllowedIPs = 0.0.0.0/0, ::/0`), the same address
+  works everywhere;
+- **with the relay**: the homelab must be able to reach the machines (same
+  LAN, or same VPN). The phone itself needs no VPN.
 
-- `AllowedIPs`: the VPN subnet (`10.8.0.0/24`), plus that of the HTTPS
-  proxy if it is not in the VPN. Anything not in it is rejected, even
+**WireGuard example (wg-easy)** — the real pitfalls:
+
+- the machine's `AllowedIPs`: the VPN subnet (`10.8.0.0/24`), plus that of the
+  HTTPS proxy if it is not in the VPN. Anything not in it is rejected, even
   with a successful handshake;
-- `PersistentKeepalive = 25`: it is the proxy that opens the connection to the
-  machine, and without keepalive a machine behind a router becomes unreachable again.
-
-If wg-easy runs in Docker in `bridge` networking, `10.8.0.0/24` only exists
-inside its container: the proxy host must know how to route there (`ip route … via
-<container IP>`, to be made persistent), or wg-easy switches to
-`network_mode: host`. Test from the proxy server:
-`curl http://10.8.0.3:7777/` must answer with HTML.
+- `PersistentKeepalive = 25`: it is the relay (or the proxy) that opens the
+  connection to the machine, and without keepalive a machine behind a router
+  becomes unreachable again;
+- wg-easy in Docker `bridge` networking: `10.8.0.0/24` only exists inside its
+  container — the host must know how to route there (`ip route … via
+  <container IP>`, to be made persistent), or wg-easy switches to
+  `network_mode: host`. Test from the homelab:
+  `curl http://10.8.0.3:7777/` must answer with HTML.
 
 **Installing on the home screen** requires HTTPS (§4). Over HTTP, everything
 works (reading, sending, permissions, streaming) except installation and the
@@ -137,14 +154,99 @@ offline app.
 ## 4. HTTPS (optional): the installed app
 
 A page loaded over `https://` can only open `wss://`: it is a
-browser rule (mixed content blocked). Client over HTTPS ⇒ each daemon
-reached over HTTPS too. Two ways to get there.
+browser rule (mixed content blocked). Three paths, from simplest to most
+hands-on.
 
-### 4.1 Behind a reverse proxy (recommended with a homelab)
+### 4.1 The `zra-relay` relay (recommended with a homelab)
 
-The homelab carries HTTPS, the machines stay on HTTP on the local network or
-the tunnel. Example with Nginx Proxy Manager and a wildcard
-certificate already in place:
+A small Node server (no build, no dependencies) that serves the PWA **and**
+relays the WebSockets: `wss://<host>/to/<ip>/ws` → `ws://<ip>:7777/ws`. A
+single HTTPS config — its own. The machines keep their daemon on HTTP on the
+local network or the tunnel, **nothing more to configure**.
+
+```bash
+npm run relay               # listens http://0.0.0.0:7777 — PWA + relay
+```
+
+- the relay targets **private IPs only** (RFC 1918, tunnel ranges like
+  WireGuard/Tailscale): public IP, hostname, loopback → refused. It is not an
+  open proxy;
+- it only sees frames: pairing stays end-to-end (§2);
+- adding a machine = Settings › Add a machine › its IP. The PWA served by the
+  relay builds the route itself (automatic detection);
+- network prerequisite: the relay must be able to reach the machines (LAN or
+  VPN, §3.1). Relay down: the machines carry on, only the PWA is unreachable.
+
+**HTTPS, two forms to choose from:**
+
+1. **Behind the homelab's existing proxy** (Nginx Proxy Manager, Caddy…):
+   the relay speaks plain HTTP locally, the proxy carries the certificate.
+   With Caddy, it is three lines:
+
+   ```
+   zra.example.com {
+       reverse_proxy 127.0.0.1:7777
+   }
+   ```
+
+   With NPM: proxy host `zra.example.com` → `http://127.0.0.1:7777`,
+   **Websockets Support enabled**, SSL forced.
+
+2. **Standalone, no proxy**: the relay carries its own certificate
+   (Let's Encrypt DNS-01, §4.4):
+
+   ```bash
+   ZRA_RELAY_TLS_CERT=.zra/tls/zra.crt ZRA_RELAY_TLS_KEY=.zra/tls/zra.key npm run relay
+   ```
+
+   The certificate is reloaded live on renewal; its expiry is announced in
+   the log. `ZRA_RELAY_PORT` and `ZRA_RELAY_HOST` change the listening address
+   (7777, all interfaces by default).
+
+**Automatic startup** (Linux homelab): like any Node service, for example a
+system systemd unit:
+
+```ini
+[Unit]
+Description=ZRA relay
+After=network-online.target
+
+[Service]
+WorkingDirectory=/opt/zra
+ExecStart=/usr/bin/node zra-relay/index.js
+Environment=ZRA_RELAY_TLS_CERT=/opt/zra/.zra/tls/zra.crt
+Environment=ZRA_RELAY_TLS_KEY=/opt/zra/.zra/tls/zra.key
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+```
+
+**Exposure and security — the user's to manage.** ZRA's security is
+**pairing** (§2): without a token, no command goes through. How the relay (and
+the machines) are exposed is an architecture choice, not a ZRA feature. The
+menu, from most closed to most open:
+
+- **LAN only**: relay not exposed, phone on the same network (or VPN);
+  firewall accordingly;
+- **private VPN**: relay and machines on a VPN (WireGuard, Tailscale…), the
+  phone joins it — nothing is public;
+- **proxy with an access list**: the relay behind the homelab's proxy,
+  filtered by IP (NPM access list, Caddy rules) — only known addresses get in;
+- **public HTTPS**: the relay open on the internet (a domain, a certificate).
+  Anyone can then attempt pairing against a private IP: the 6-digit code,
+  rate-limited and locked after failures, is the barrier — just like an
+  exposed daemon. For deliberate use only.
+
+In all cases: a paired device means access to the machine (README,
+"Security"), and traffic between the relay and the machines is plain `ws://`
+on the LAN/VPN — HTTPS only covers the phone ↔ relay leg.
+
+### 4.2 A reverse proxy per machine (alternative)
+
+Without the relay: the homelab carries HTTPS, each machine has its own proxy
+entry. Example with Nginx Proxy Manager and a wildcard certificate already in
+place:
 
 > **Not on the machine itself.** A proxy or tunnel set up on the machine
 > (`cloudflared`, `tailscale serve`, `ssh -R`, local Caddy…) relays to
@@ -171,39 +273,60 @@ is, and the daemon answers "not found". The subdomain avoids the problem.
 The proxy targets a fixed IP: the machine's IP on the VPN (§3.1), so that it stays
 reachable whatever its network.
 
-### 4.2 Certificate on the daemon
+### 4.3 Certificate on the daemon (alternative)
 
 For a private IP, the workable path: a **domain name** with an
 **A** record pointing to the machine's local IP (`zra.example.com → 192.168.1.20`),
-and a **Let's Encrypt certificate through DNS-01 validation** (Let's Encrypt cannot
-reach a private IP, it checks a TXT record instead).
-
-```powershell
-Install-Module Posh-ACME -Scope CurrentUser     # once, without admin
-pwsh scripts/cert.ps1 -Domain zra.example.com -Contact me@example.com -Plugin Cloudflare -PluginArgs @{ CFToken = (Read-Host -AsSecureString) }
-```
-
-`-Plugin`: the one for your DNS host (`Get-PAPlugin`: Cloudflare, OVH,
-Gandi, Infomaniak…), or `Manual` (the TXT record to create by hand, to
-redo every 60 days). `-Staging` for a trial without quota. The certificate
-lands in `.zra/tls/`; in `zra.config.json`:
+and a **Let's Encrypt certificate through DNS-01 validation** (§4.4 — Let's
+Encrypt cannot reach a private IP, it checks a TXT record instead). The
+certificate lands in `.zra/tls/`; in `zra.config.json`:
 
 ```jsonc
 "tls": { "cert": ".zra/tls/zra.crt", "key": ".zra/tls/zra.key" }
 ```
 
-Then `https://zra.example.com:7777` on the phone. Renewal, to schedule
-once (without admin) — the daemon reloads the certificate live:
-
-```powershell
-schtasks /Create /TN "ZRA certificate" /SC DAILY /ST 12:00 /TR "pwsh -NoProfile -WindowStyle Hidden -File \"<repository>\scripts\cert.ps1\" -Renew"
-```
+Then `https://zra.example.com:7777` on the phone. The daemon reloads the
+certificate live on renewal (§4.4).
 
 Some routers filter public names that resolve to a private IP
 ("DNS rebinding protection"): allow the domain in the router if the page cannot
 be found from home.
 
+### 4.4 Certificates: DNS-01 validation
+
+For the daemon (§4.3) as well as the standalone relay (§4.1). A domain name
+with a DNS host (Cloudflare, OVH, Gandi, Infomaniak…) is required.
+
+**Windows — `scripts/cert.ps1`** (Posh-ACME, without admin):
+
+```powershell
+Install-Module Posh-ACME -Scope CurrentUser     # once
+pwsh scripts/cert.ps1 -Domain zra.example.com -Contact me@example.com -Plugin Cloudflare -PluginArgs @{ CFToken = (Read-Host -AsSecureString) }
+```
+
+`-Plugin`: the one for your DNS host (`Get-PAPlugin`), or `Manual`
+(the TXT record to create by hand, to redo every 60 days). `-Staging` for a
+trial without quota. Renewal, to schedule once (without admin):
+
+```powershell
+schtasks /Create /TN "ZRA certificate" /SC DAILY /ST 12:00 /TR "pwsh -NoProfile -WindowStyle Hidden -File \"<repository>\scripts\cert.ps1\" -Renew"
+```
+
 `scripts/cert.ps1` has not been tried for real yet.
+
+**Linux — certbot or acme.sh** (same principle, DNS-01 validation):
+
+```bash
+# Example with certbot (adapt to the DNS provider)
+certbot certonly --manual --preferred-challenges dns -d zra.example.com
+# then copy the certs:
+cp /etc/letsencrypt/live/zra.example.com/fullchain.pem .zra/tls/zra.crt
+cp /etc/letsencrypt/live/zra.example.com/privkey.pem .zra/tls/zra.key
+```
+
+Renewal: `certbot renew` (cron or systemd timer). The daemon and the relay
+reload the certificate live; a third-party static server has nothing to
+reload.
 
 ---
 
@@ -251,34 +374,11 @@ at install time: without them, neither CLIs outside `/usr/bin` nor `xdotool` wor
   the next session) and stops when the session closes. Log in
   `.zra/logs/daemon.log`.
 
----
-
-## 5.2 Linux: certificate (certbot / acme.sh)
-
-`scripts/cert.ps1` is Windows-only (Posh-ACME). On Linux, use `certbot` or
-`acme.sh` with DNS-01 validation (same principle: domain name + TXT
-record, certificate in `.zra/tls/`).
-
-```bash
-# Example with certbot (adapt to the DNS provider)
-certbot certonly --manual --preferred-challenges dns -d zra.example.com
-# then copy the certs:
-cp /etc/letsencrypt/live/zra.example.com/fullchain.pem .zra/tls/zra.crt
-cp /etc/letsencrypt/live/zra.example.com/privkey.pem .zra/tls/zra.key
-```
-
-In `zra.config.json`:
-
-```jsonc
-"tls": { "cert": ".zra/tls/zra.crt", "key": ".zra/tls/zra.key" }
-```
-
-Renewal: `certbot renew` (cron or systemd timer), then restart the
-daemon (`npm run service -- stop && start`) so that it reloads the certificate.
+The relay on the homelab: §4.1 (system systemd unit).
 
 ---
 
-## 5.3 Linux: keyboard control under Wayland
+## 5.2 Linux: keyboard control under Wayland
 
 Under X11, `xdotool` works with no setup. Under Wayland, Zed is forced under
 XWayland through `WAYLAND_DISPLAY=` in Zed's `.desktop`
@@ -305,18 +405,12 @@ keyboard control works.
 | the `… (zra)` agents no longer start in Zed, or threads are no longer drivable | repository moved or Node changed (absolute paths): `npm run setup` reports it (stale entry or preload), `npm run setup install apply` and `npm run service -- install --apply` fix it. A stale preload is silent on Zed's side (fail-open: the agent runs without ZRA) |
 | the page does not load locally | same Wi-Fi? Private network profile? firewall rule (§1)? |
 | the page does not load remotely | tunnel on? in "all traffic"? does the homelab see the machine (same network)? |
+| the relay's PWA does not load | is the relay running (`npm run relay`)? does the proxy in front answer? valid certificate (§4.4)? |
+| "address refused by the relay" | public IP or hostname: the relay only targets private IPv4 (§4.1). Machine off-LAN: put it on the homelab's VPN (§3.1) |
+| "the relay answers but not the machine" | does the homelab reach the machine? `curl http://<ip>:7777/` from the homelab; daemon running? VPN keepalive (§3.1)? |
 | "pairing required" in a loop | token revoked or `.zra/auth.json` deleted: enter a code again |
 | "wrong code" | the code changed (single use): `npm run pair` |
 | "machine unreachable" | `npm run service`: does the daemon answer? `npm run service -- logs` |
 | Zed not found at setup | native install required; Flatpak/Snap not supported → `zedDb`/`zedSettings` in `zra.config.json` (`docs/en/limitations.md`) |
-| WebSocket refused (403) | log: "origin … not allowed" → `allowedOrigins` |
+| WebSocket refused (403) | log: "origin … not allowed" → `allowedOrigins` (§4.2). With the relay: nothing to declare, it presents itself without `Origin` |
 | no installation offered | page over `http://`: no certificate (§4) |
-
----
-
-## Appendix — generating a WireGuard tunnel (experimental, untested)
-
-Without an existing tunnel: `npm run wireguard -- init --endpoint <machine address>`
-generates in `.zra/wireguard/` a machine ↔ phone tunnel (keys, configurations,
-QR) and the **admin** commands to bring it up. The phone must reach the
-machine over UDP. Full usage: at the top of `scripts/wireguard.mjs`.

@@ -23,15 +23,18 @@ flowchart LR
     Daemon -- "keystrokes<br/>PowerShell / xdotool" --> Zed
   end
   PWA[zra-client<br/>PWA on the phone] -- "HTTP: static files<br/>WebSocket /ws" --> Daemon
+  PWA -. "homelab variant:<br/>wss /to/<ip>/ws" .-> Relay[zra-relay<br/>optional, one for the LAN]
+  Relay -. "ws /ws<br/>private IPs" .-> Daemon
 ```
 
-## The three components
+## The components
 
 | Component | Role | Lifetime |
 |---|---|---|
 | `zra-shim/` | ACP proxy. Zed launches it instead of the agent — node preload in the original `registry` entry (npx agents), or `… (zra)` entry in `agent_servers` (binaries) —, it launches the real agent and copies frames both ways. It observes the stream, publishes it to the daemon, and injects what comes from the phone. | That of the thread in Zed |
 | `zra-daemon/` | The machine's HTTP + WebSocket server. Holds the thread index, routes messages between shims and clients, handles pairing, drives the Zed window with the keyboard. | Long-running, one per machine |
-| `zra-client/` | PWA in plain JavaScript, no build. Served by the daemon. Can follow several machines. | The phone's browser |
+| `zra-client/` | PWA in plain JavaScript, no build. Served by the daemon, by the relay or by any static server. Can follow several machines. | The phone's browser |
+| `zra-relay/` | Optional HTTPS relay (`npm run relay`), for the homelab: serves the PWA and relays `wss://<host>/to/<ip>/ws` → `ws://<ip>:7777/ws`, as a transparent pipe. Literal private IPs only; the request to the machine goes without `Origin` (a native client for the daemon: nothing to declare on the machines). Pairing crosses end-to-end. HTTP behind the homelab's proxy, or standalone HTTPS (`ZRA_RELAY_TLS_CERT`/`KEY`, reloaded live). | Long-running, one for the LAN, optional |
 
 `scripts/` holds installation (`setup`), the service (`service`), pairing (`pair`) and keyboard tuning (`zed`).
 
@@ -57,6 +60,7 @@ flowchart LR
 ### PWA ↔ daemon: HTTP and WebSocket `/ws`
 
 - Same port for everything (7777 by default). HTTP serves `zra-client/` (`zra-daemon/static.js`).
+- Through `zra-relay` (optional): the PWA is served by the relay (same origin, `/zra-relay` marker detected at boot) and opens `wss://<host>/to/<ip>/ws`. The relay targets the machine's private IP, without `Origin` or proxy headers: the daemon treats it as a native client, pairing is required just like direct. A GET probe `/to/<ip>` (200/502/400/403) feeds the client's diagnosis (`link.js`).
 - WebSocket: protocol described in `docs/en/protocol.md`. `zra-daemon/hub.js` is the only module that knows the clients.
 - ACP events are rebroadcast as is in numbered `acp_event`s (`seq`). A ring buffer per thread (`zra-daemon/ring-buffer.js`, 2,000 events) allows resuming after a drop.
 - HTTP routes reserved to loopback: `/status`, `/pair`, `/pair/rotate`, `/pair/revoke` (used by `npm run setup` and `npm run pair`).
@@ -94,6 +98,7 @@ Thread states: **live** (a shim holds its session: real-time stream, direct writ
 - Listening: loopback, the machine's private IPv4 addresses (except networks marked "Public" on Windows), a recognized tunnel interface. Never `0.0.0.0` (`zra-daemon/net.js`).
 - `Origin` of the `/ws` WebSocket: exact list, the daemon's own origins added automatically (`zra-daemon/server.js`).
 - Pairing outside loopback: a 6-digit code exchanged for a token, stored hashed in `.zra/auth.json` (`zra-daemon/auth.js`). Locked after 10 failures. Loopback is exempt, except for a request relayed by a local proxy.
+- Relay (`zra-relay/relay.js`): literal private IPs only (no DNS, loopback/link-local/public refused), no state, no accounts — end-to-end pairing remains the barrier. How the relay is exposed is the user's to manage (`docs/en/deploy.md` §4.1).
 - Keyboard control: enabled by default, can be disabled (`zedControl.enabled`), foreground check before each step (`zra-daemon/zed/keyboard.js`, `keyboard.ps1`).
 
 ## External dependencies
@@ -108,7 +113,7 @@ Thread states: **live** (a shim holds its session: real-time stream, direct writ
 | Node ≥ 24 | `node:sqlite`, global `WebSocket` | Enforced by `engines` and `.npmrc` |
 | Windows: PowerShell, `schtasks`; Linux: `xdotool`, `pgrep`, systemd or XDG autostart | Keyboard, service | Detection centralized in `zra-daemon/platform.js` |
 
-No npm dependency in production. In development: `jsdom` and `jsqr` (tests).
+No npm dependency in production. In development: `jsdom` (tests).
 
 ## Installation and service
 
@@ -146,7 +151,7 @@ Settled, not to be reopened without a new fact:
 - **`zedControl.enabled`**: `true` by default (the "+" and reopening depend on it), warning at startup; `false` remains possible.
 - **Stack**: JavaScript ESM + JSDoc, Node ≥ 24, zero build, zero runtime dependency.
 - **History**: `session/load`, never reading an agent's proprietary format.
-- **Injection**: only `acp` supported; `uia`, `auto` and `wireguard` kept as experimental.
+- **Injection**: only `acp` supported; `uia` and `auto` kept as experimental (`mock`: test stub).
 - **Frame recording**: disabled by default, `npm run setup -- install --record` for debugging.
 - **Flatpak / Snap**: not supported (`docs/en/limitations.md`).
 - **`-ExecutionPolicy Bypass`**: kept, limited to the launched process (`docs/en/deploy.md` §5).

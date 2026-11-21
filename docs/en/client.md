@@ -1,8 +1,8 @@
 # zra-client — the PWA
 
 ZRA's front end. **Zero build**: native HTML + CSS + ESM, served as is by
-`zra-daemon` or by any static server (`docs/en/deploy.md` §4.1). No
-runtime dependency, no bundler, no framework.
+`zra-daemon`, by `zra-relay` or by any static server
+(`docs/en/deploy.md` §4). No runtime dependency, no bundler, no framework.
 
 ```
 zra-client/
@@ -191,8 +191,16 @@ the set repaints the thread without a reload.
 
 The whole protocol is wired against the real daemon: machine identity, modes,
 models and other agent settings, permissions (including the race with the
-machine), pairing. Address of a machine without a port: 7777 over `http://`, 443 over
-`https://` (behind a reverse proxy).
+machine), pairing.
+
+Two serving modes, automatic detection at boot (`/zra-relay` marker):
+
+- **served by the relay**: a typed IP becomes a `/to/<ip>` route on the page's
+  origin (`wss://<host>/to/<ip>/ws`); the machine is named by its IP, no
+  implicit machine;
+- **served elsewhere** (daemon, per-machine proxy, static server): direct
+  behavior — address of a machine without a port: 7777 over `http://`, 443 over
+  `https://` (behind a reverse proxy).
 
 **Web Push**: the "Notifications (turn end)" setting asks for the browser's
 permission then subscribes to the machine (`js/push.js`, VAPID key from
