@@ -24,18 +24,6 @@ attente d'un poste ou d'une condition).
 
 ## À faire
 
-- **Rendu des cartes d'outils : statut permission et blocs bruts** (`à faire`).
-  Fait : sur la page agent, un tour en attente de permission affiche la
-  pastille `dot--busy` qui pulse (`views/thread.js:510`, `css/app.css:211`) ;
-  et les blocs « Entrée brute » / « Sortie brute » (`views/entry.js:280-295`,
-  alimentés par `acp.js:244-264` sur tous les `tool_call`) apparaissent sur
-  toutes les cartes — terminal, permissions, outils gérés. Effet : le statut
-  « permission en attente » se confond avec « tour en cours », et du JSON
-  technique pollue des panneaux déjà gérés. À faire : icône warning
-  (`alert-triangle`, registre `icons.js`) à la place de la pastille pulsante
-  quand le tour attend une permission ; blocs bruts réservés aux événements
-  non gérés (rendu générique), retirés des cartes gérées.
-
 - **Bouton « nouveau projet » sur la liste des threads** (`feature`). Idée :
   un bouton sur la page liste des threads (`zra-client/js/views/threads.js`)
   crée un nouveau projet et l'ouvre dans Zed. Le dossier parent est le plus

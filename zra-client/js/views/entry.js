@@ -277,8 +277,6 @@ function toolCall(entry, ctx) {
     if (!contents.length) {
       root.append(h('div.card-output', { text: entry.status === 'pending' ? tr`En attente…` : tr`Aucune sortie.` }))
     }
-    if (entry.rawInput !== undefined) root.append(rawInputBlock(tr`Entrée brute`, entry.rawInput))
-    if (entry.rawOutput !== undefined) root.append(rawInputBlock(tr`Sortie brute`, entry.rawOutput))
   } else {
     const out = h('div.tool-output.first')
     if (entry.locations?.length) {
@@ -291,8 +289,6 @@ function toolCall(entry, ctx) {
     if (!contents.length && !entry.locations?.length) {
       out.append(h('div', { text: entry.status === 'pending' ? tr`En attente…` : tr`Aucune sortie.` }))
     }
-    if (entry.rawInput !== undefined) out.append(ioBlock(tr`Entrée brute`, entry.rawInput))
-    if (entry.rawOutput !== undefined) out.append(ioBlock(tr`Sortie brute`, entry.rawOutput))
     root.append(out)
     root.append(h('div.tool-collapse', {},
       button('btn btn--outlined btn--full', {
@@ -314,26 +310,7 @@ export function inlineTitle(title) {
   return escapeHtml(String(title || '')).replace(/`([^`]+)`/g, '<code>$1</code>')
 }
 
-/** Entrée/sortie brute d'une carte : repliable, comme « View Raw Input » de Zed. */
-function rawInputBlock(label, value) {
-  const root = h('div.raw-input')
-  root.append(
-    button('ri-toggle', { onclick: () => root.classList.toggle('is-open') },
-      h('span.io-header', { text: label }),
-      icon('chevron-right', 'icon--sm')),
-    h('pre', {}, h('code', { text: jsonString(value) })),
-  )
-  return root
-}
-
-/** Entrée/sortie brute d'un outil simple : en-tête 10px mono + contenu. */
-function ioBlock(label, value) {
-  return h('div', {},
-    h('span.io-header', { text: label }),
-    h('pre', { style: { margin: 0, fontSize: 'var(--fs-xs)', fontFamily: 'var(--font-mono)', whiteSpace: 'pre-wrap', wordBreak: 'break-word' } },
-      h('code', { text: jsonString(value) })))
-}
-
+/** JSON lisible d'un événement non géré (`rawCard`). */
 function jsonString(value) {
   try { return JSON.stringify(value, null, 2) ?? 'null' } catch { return String(value) }
 }

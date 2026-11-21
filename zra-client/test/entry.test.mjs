@@ -297,7 +297,7 @@ test('tool call : diff, terminal et autorisation en attente dépliés d’office
   assert.equal(render(waiting, { timeline }).inner.className.includes('is-open'), true)
 })
 
-test('tool call simple : emplacements, sortie, et le brut en en-têtes mono', () => {
+test('tool call simple : emplacements et sortie, sans blocs bruts', () => {
   const { node } = render(tool({
     kind: 'read',
     locations: [{ path: 'C:/proj/zra/src/app.js', line: 12 }, { path: 'C:/proj/zra/README.md' }],
@@ -310,17 +310,15 @@ test('tool call simple : emplacements, sortie, et le brut en en-têtes mono', ()
   assert.match(locs[0].textContent, /app\.js:12$/)
   assert.equal(locs[1].textContent.includes(':'), false, 'pas de ligne, pas de :')
   assert.equal(node.textContent.includes('fait'), true)
-  assert.deepEqual(qa(node, '.io-header').map((n) => n.textContent), ['Entrée brute', 'Sortie brute'])
-  assert.match(node.textContent, /"path": "app.js"/)
+  // Le brut est réservé aux événements non gérés (rawCard), pas aux cartes.
+  assert.equal(qa(node, '.io-header').length, 0)
+  assert.equal(node.textContent.includes('"path": "app.js"'), false)
 })
 
-test('tool call carte : le brut est repliable (View Raw Input)', () => {
-  const { node } = render(tool({ rawInput: { path: 'app.js' } }))
-  const raw = q(node, '.raw-input')
-  assert.ok(raw, 'une carte porte son entrée brute repliable')
-  assert.match(q(raw, '.io-header').textContent, /Entrée brute/)
-  click(q(raw, '.ri-toggle'))
-  assert.equal(raw.className.includes('is-open'), true)
+test('tool call carte : pas de bloc brut (réservé aux événements non gérés)', () => {
+  const { node } = render(tool({ rawInput: { path: 'app.js' }, rawOutput: { ok: true } }))
+  assert.equal(q(node, '.raw-input'), null)
+  assert.equal(node.textContent.includes('Entrée brute'), false)
 })
 
 test('tool call sans sortie : « en attente… » tant que pending, « aucune sortie » sinon', () => {

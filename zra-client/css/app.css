@@ -419,6 +419,7 @@ button { cursor: pointer; }
 /* Cadenas à la place de la pastille (thread en lecture seule). */
 .lock-dot { flex: none; width: 7px; display: flex; justify-content: center; color: var(--text-muted); }
 .lock-dot .icon { width: 10px; height: 10px; }
+.warn-dot { color: var(--warning); }
 .thread-row__badge {
   font-size: var(--fs-xs); color: var(--text-muted);
   border: 1px solid var(--border-variant); border-radius: 3px;
@@ -586,7 +587,6 @@ button { cursor: pointer; }
 .tool-output.first { margin-top: var(--sp-3); }
 .tool-output .md { font-size: var(--fs-lg); color: var(--text-muted); }
 .tool:not(.is-open) .tool-output, .tool:not(.is-open) .tool-collapse { display: none; }
-.io-header { font-family: var(--font-mono); font-size: var(--fs-xs); line-height: var(--lh); color: var(--text-muted); }
 .tool-collapse { margin-left: 6.4px; padding: var(--sp-4) calc(var(--sp-5) + var(--sp-1)) 0; border-left: 1px solid var(--tool-card-border); }
 .tool__locations { display: flex; flex-wrap: wrap; gap: var(--sp-2); font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--text-muted); }
 
@@ -603,15 +603,11 @@ button { cursor: pointer; }
 .tool.card .tool-label.has-loc { color: var(--text); }
 .tool.card .tool-label .fade { background: linear-gradient(90deg, transparent, var(--tool-card-header-bg)); }
 .tool.card:not(.is-open) .card-output, .tool.card:not(.is-open) .diff,
-.tool.card:not(.is-open) .raw-input, .tool.card:not(.is-open) .term-body { display: none; }
+.tool.card:not(.is-open) .term-body { display: none; }
 /* Une demande en attente se montre toujours, même carte repliée. */
 .card-output { padding: var(--sp-4); font-size: var(--fs-sm); color: var(--text-muted); }
 .card-output + .card-output { border-top: 1px solid var(--tool-card-border); }
 .card-output .md { font-size: var(--fs-lg); color: var(--text-muted); }
-.raw-input { padding: var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-2); border-top: 1px solid var(--tool-card-border); }
-.raw-input .ri-toggle { display: flex; justify-content: space-between; align-items: center; gap: var(--sp-2); padding-left: var(--sp-1); border-radius: var(--sp-1); cursor: pointer; width: 100%; text-align: left; }
-.raw-input .ri-toggle:hover { background: var(--element-hover); }
-.raw-input:not(.is-open) pre { display: none; }
 .raw-input pre { margin: 0; font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--text-muted); white-space: pre-wrap; word-break: break-word; }
 
 /* Diff — render_diff_editor : police buffer 12, pas de gouttière, pas de

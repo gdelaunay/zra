@@ -114,6 +114,7 @@ export function ThreadView({ key, navigate }) {
   })
   const dot = h('span.dot')
   const lock = h('span.lock-dot.hidden', { title: tr`Lecture seule : créé hors ZRA, répondre dans Zed.` }, icon('lock', 'icon--sm'))
+  const warn = h('span.lock-dot.warn-dot.hidden', { title: tr`Permission en attente` }, icon('alert-triangle', 'icon--sm'))
   const agentSlot = h('span.header__agent')
   const pathLabel = h('span.path.truncate')
 
@@ -174,7 +175,7 @@ export function ThreadView({ key, navigate }) {
       h('div.header__title', {}, title),
       h('div.header__meta', {}, pathLabel),
       h('div.header__right', {},
-        dot, lock,
+        dot, lock, warn,
         h('span.divider-v'),
         newSessionButton({
           machineId: store.splitKey(key).machineId,
@@ -460,6 +461,7 @@ export function ThreadView({ key, navigate }) {
     scrollToEnd()
     syncActivity()
     paintCallout()
+    syncStatusDot()
   })
 
   /** Ce qui dépend de l'état annoncé par l'agent : titre, date, consommation. */
@@ -493,6 +495,16 @@ export function ThreadView({ key, navigate }) {
     syncActivity()
   }
 
+  /** Pastille d'état : cadenas si lecture seule, icône warning si une
+   * permission est en attente — la pastille pulsante « busy » ne le dit pas. */
+  function syncStatusDot() {
+    const readOnly = Boolean(store.foreignAgent(key))
+    const awaiting = store.ensureTimeline(key).pendingPermissions().length > 0
+    dot.className = `dot dot--${st.turn === 'busy' ? 'busy' : st.state || 'closed'}${readOnly || awaiting ? ' hidden' : ''}`
+    lock.classList.toggle('hidden', !readOnly)
+    warn.classList.toggle('hidden', readOnly || !awaiting)
+  }
+
   function syncHeader() {
     const summary = st.summary || {}
     // Le titre que l'agent annonce en direct devance l'index de Zed (poll 2 s),
@@ -505,10 +517,7 @@ export function ThreadView({ key, navigate }) {
     title.tabIndex = title.readOnly ? -1 : 0
     title.classList.toggle('header__title-input--readonly', title.readOnly)
     hadThread = hadThread || Boolean(st.summary)
-    // Comme dans la liste : cadenas à la place de la pastille si lecture seule.
-    const readOnly = Boolean(store.foreignAgent(key))
-    dot.className = `dot dot--${st.turn === 'busy' ? 'busy' : st.state || 'closed'}${readOnly ? ' hidden' : ''}`
-    lock.classList.toggle('hidden', !readOnly)
+    syncStatusDot()
     // Chemin projet : un seul niveau (« ../pp-runtimes »).
     const folder = summary.folderPaths?.[0]
     pathLabel.textContent = folder ? `../${baseName(folder)}` : ''
