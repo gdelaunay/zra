@@ -1,6 +1,6 @@
 # ZRA — roadmap
 
-Version actuelle : **0.5.3**. Un numéro mineur par jalon (0.4, 0.5…) ; entre deux
+Version actuelle : **0.5.4**. Un numéro mineur par jalon (0.4, 0.5…) ; entre deux
 jalons, un numéro de correctif (0.5.1…) pour un lot retenu — corrections comme
 petites fonctions — quand ce lot est fini. L'historique est dans `CHANGELOG.md`.
 
@@ -14,7 +14,7 @@ datés, avec le hash du commit de référence ; ROADMAP à jour ; puis commit
 - **0.5.1 — threads** (fait — renommer/supprimer par ACP, titre éditable, push ; voir `CHANGELOG.md`) ;
 - **0.5.2 — composer** (fait — commandes `/`, mentions `@`, icônes de fichiers ; voir `CHANGELOG.md`) ;
 - **0.5.3 — tous les threads par le shim** (fait — entrée d'origine shimée par preload node, threads anciens compris ; voir `CHANGELOG.md`) ;
-- **0.5.4 — relais HTTPS** : la PWA servie avec un relais, plus de proxy par poste ;
+- **0.5.4 — relais HTTPS** (fait — la PWA servie avec un relais, plus de proxy par poste ; voir `CHANGELOG.md`) ;
 - **0.6 — `zra-tray`** : le tray natif Rust et la distribution binaire.
 
 ---
@@ -30,30 +30,6 @@ Références visuelles de l'interface Zed : `reference/zed-ui/agent-panel.html` 
 `docs/fr/acp.md` ne couvre que renommer/supprimer (0.5.1). Les fonctionnalités
 ACP déjà livrées (relais et observation, permissions, élicitation, modes et
 options, terminaux, `session/load`…) restent à y consigner, fiche par méthode.
-
-### 0.5.4 — Relais HTTPS
-
-Si possible, pas obligatoire.
-
-Un client servi en `https://` ne peut ouvrir que des `wss://`
-(contenu mixte bloqué) : aujourd'hui, chaque poste a besoin de son propre
-proxy host HTTPS (`docs/fr/deploy.md` §4.1). Le but de départ était de taper
-seulement une IP.
-
-Idée : livrer le client **avec un relais**. Un petit serveur Node qui sert les
-statiques et relaie `wss://zra.exemple.fr/to/<ip>/ws` vers
-`ws://<ip>:7777/ws`.
-
-- une seule config HTTPS, celle du client ; un poste de plus = son IP, rien
-  d'autre ;
-- le client construit la route tout seul à partir de l'IP saisie ;
-- relais limité aux IP privées (réseau local, tunnel), sinon c'est un proxy
-  ouvert ;
-- l'appairage reste de bout en bout, entre la PWA et le daemon : le relais ne
-  voit passer que des trames.
-
-Conception détaillée — architecture, déploiement, simplification des configs,
-options écartées — : `reference/conception-relais-https.md`.
 
 ### 0.6 — Tray natif `zra-tray`
 

@@ -2,6 +2,15 @@
 
 [Français](https://forgejo.gdelaunay.fr/gdelaunay/zra/src/branch/main/CHANGELOG.md)
 
+## v0.5.4 — 2026-11-21 — HTTPS relay (`5d9583e`)
+
+- `zra-relay/`: optional Node package, no build — serves the PWA and relays `wss://<host>/to/<ip>/ws` → `ws://<ip>:7777/ws`, transparent byte-by-byte pipe (pairing, ping/pong, end-to-end closes); private IPv4 only (RFC 1918 + CGNAT), public/hostname/loopback/link-local refused; request to the machine without `Origin` → nothing to configure on the machines
+- HTTPS, two forms: homelab proxy in front (NPM/Caddy, relay in local HTTP) or standalone (`ZRA_RELAY_TLS_CERT`/`KEY`, DNS-01 cert, hot reload, expiry logged); a single HTTPS config, one more machine = its IP
+- Client: auto-detection at boot (`GET /zra-relay` marker); relay mode = type an IP, route `/to/<ip>` on the origin, title = alias or IP, subtitle `ws://IP:7777`; adapted diagnostics (502 machine off, 403 address refused, relay unreachable); served elsewhere: direct mode unchanged
+- UI: awaiting permission → warning icon in the header (instead of the pulsing dot); “Raw input/output” blocks kept for unhandled events only
+- Simplification: `scripts/wireguard.mjs`, QR lib and Tailscale track removed; `deploy.md` rewritten (relay recommended, exposure and security left to the user), architecture/client/README/config examples bilingual; hermetic launcher tests (`ZRA_SHIMMED` leak from the dev shell)
+- Real-world validation: LAN pairing through NPM (HTTPS → relay → daemon), public IP 403, relay stopped → daemon independent, relay logs silent; `npm test` green, full i18n (550 daemon texts, 251 client)
+
 ## v0.5.3 — 2026-11-21 — Every thread through the shim (`3aff3ff`)
 
 - The original entry of npx agents (`claude-acp`, `pi-acp`, `qwen-code`…) goes through the shim: it stays `registry` — Zed keeps installation and updates — and its `env` carries a node preload (`NODE_OPTIONS --import data:`, percent-encoded) that launches the shim before the agent's code. Every thread, old ones included, becomes drivable: no more lock (`not_zra_thread`) or two families of agents; the `… (zra)` entries of npx agents are removed at install (confirmation)

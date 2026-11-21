@@ -2,6 +2,15 @@
 
 [English](https://forgejo.gdelaunay.fr/gdelaunay/zra/src/branch/main/CHANGELOG.en.md)
 
+## v0.5.4 — 2026-11-21 — Relais HTTPS (`5d9583e`)
+
+- `zra-relay/` : package Node optionnel, sans build — sert la PWA et relaie `wss://<hôte>/to/<ip>/ws` → `ws://<ip>:7777/ws`, pipe transparent octet par octet (appairage, ping/pong, fermetures de bout en bout) ; IPv4 privées uniquement (RFC 1918 + CGNAT), publique/hostname/loopback/link-local refusées ; requête vers le poste sans `Origin` → rien à configurer sur les postes
+- HTTPS, deux formes : proxy du homelab devant (NPM/Caddy, relais en HTTP local) ou autonome (`ZRA_RELAY_TLS_CERT`/`KEY`, cert DNS-01, relecture à chaud, échéance au journal) ; une seule config HTTPS, un poste de plus = son IP
+- Client : détection auto au boot (marqueur `GET /zra-relay`) ; mode relais = saisir une IP, route `/to/<ip>` sur l'origine, titre = alias ou IP, sous-titre `ws://IP:7777` ; diagnostics adaptés (502 poste éteint, 403 adresse refusée, relais injoignable) ; servi ailleurs : mode direct inchangé
+- UI : permission en attente → icône warning en en-tête (au lieu de la pastille pulsante) ; blocs « Entrée/Sortie brute » réservés aux événements non gérés
+- Simplification : `scripts/wireguard.mjs`, lib QR et piste Tailscale supprimés ; `deploy.md` réécrit (relais recommandé, exposition et sécurité à l'utilisateur), architecture/client/README/config examples bilingues ; tests launcher hermétiques (fuite `ZRA_SHIMMED` du shell de dev)
+- Validation réelle : appairage LAN via NPM (HTTPS → relais → daemon), IP publique 403, relais coupé → daemon indépendant, journaux du relais muets ; `npm test` vert, i18n complet (550 textes daemon, 251 client)
+
 ## v0.5.3 — 2026-11-21 — Tous les threads par le shim (`3aff3ff`)
 
 - L'entrée d'origine des agents npx (`claude-acp`, `pi-acp`, `qwen-code`…) passe par le shim : elle reste `registry` — Zed garde l'installation et les mises à jour — et son `env` porte un preload node (`NODE_OPTIONS --import data:` percent-encodé) qui lance le shim avant le code de l'agent. Tous les threads, anciens compris, deviennent pilotables : plus de cadenas (`not_zra_thread`) ni de deux familles d'agents ; les entrées `… (zra)` des agents npx sont dégagées à l'install (confirmation)
