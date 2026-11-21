@@ -10,7 +10,7 @@
 
 ## Documentation des dépendances Zed et ACP
 
-- Toute nouvelle fonctionnalité reposant sur Zed (lecture de sa base ou de ses fichiers, pilotage clavier, imitation de son interface…) est consignée **immédiatement** dans `docs/fr/zed.md` : ligne au tableau de correspondance concerné, chemins des sources dans `_upstream/zed`, et état honnête — `vérifié` seulement si lu dans les sources de la version de référence, sinon `relevé` ou `à vérifier`.
+- Toute nouvelle fonctionnalité reposant sur un comportement ou une donnée de Zed (lecture de sa base ou de ses fichiers, pilotage clavier, reprise d'une logique de rendu ou d'interaction…) est consignée **immédiatement** dans `docs/fr/zed.md` : ligne au tableau de correspondance concerné, chemins des sources dans `_upstream/zed`, et état honnête — `vérifié` seulement si lu dans les sources de la version de référence, sinon `relevé` ou `à vérifier`. Les ajustements purement cosmétiques (épaisseur de scrollbar, couleurs, espacements…) n'y sont pas consignés : `zed.md` référence les fonctions de Zed sur lesquelles on se base, pas le journal du style.
 - Toute nouvelle fonctionnalité reposant sur ACP est consignée **immédiatement** dans `docs/fr/acp.md` : fiche par méthode (ce que dit la spec `_upstream/acp`, comment Zed s'en sert, ce que ZRA en fait, quels agents l'implémentent).
 - Traductions anglaises dans le même commit, comme toute page de doc (règle ci-dessus).
 

@@ -114,12 +114,17 @@ button, input, textarea, select {
 button { cursor: pointer; }
 :focus-visible { outline: 1px solid var(--border-focused); outline-offset: 1px; }
 
-::-webkit-scrollbar { width: 9px; height: 9px; }
+/* Scrollbar fine comme le style « Regular » de Zed (thumb 6 px), masquée au
+ * repos : `.is-scrolling` (posée par main.js) la révèle au scroll, fondu
+ * sortie 400 ms / entrée 50 ms, délai 1 s (ui/components/scrollbar.rs). */
+::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-thumb {
-  background: var(--scrollbar-thumb-background);
+  background: transparent;
   border-radius: 6px;
+  transition: background-color 400ms;
 }
-::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover-background); }
+.is-scrolling::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb-background); transition-duration: 50ms; }
+::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover-background); transition-duration: 50ms; }
 ::-webkit-scrollbar-track { background: transparent; }
 
 /* ---------- primitives (crates/ui) ---------- */
@@ -426,7 +431,12 @@ button { cursor: pointer; }
 
 /* Le fil vit sur fond panel_background ; chaque entrée est centrée, largeur
  * max max_content_width (850) — render_entries. */
-.thread__scroll { padding: 0 0 var(--sp-6); background: var(--panel-background); }
+.thread__scroll { background: var(--panel-background); }
+/* Vide de 16 px sous la dernière entrée (pb_4 du dernier message dans Zed) ;
+ * pendant un tour il passe au-dessus de l'indicateur de génération, qui reste
+ * collé en bas (render_generating : un item de liste après les entrées). */
+.thread__scroll > :last-child { padding-bottom: var(--sp-6); }
+.thread__scroll > .turn-wrap { padding-bottom: 0; margin-top: var(--sp-6); }
 .entry-wrap { display: flex; justify-content: center; width: 100%; }
 .entry-wrap > * { width: 100%; max-width: 850px; }
 

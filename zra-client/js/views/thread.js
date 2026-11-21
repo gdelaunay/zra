@@ -76,7 +76,7 @@ export function ThreadView({ key, navigate }) {
   const turnLabel = h('span')
   const turnTime = h('span.turn__time')
   const turnLine = h('div.generating', {}, h('span.slot', {}, spinEl), turnLabel, turnTime)
-  const turnWrap = h('div.entry-wrap', {}, turnLine)
+  const turnWrap = h('div.entry-wrap.turn-wrap', {}, turnLine)
   let turnTimer = null
   let spinMode = 'dots'
   const spinT0 = performance.now()

@@ -104,6 +104,17 @@ async function boot() {
     )
   })
 
+  // Scrollbar auto-masquée comme Zed : révélée au scroll, retirée après 1 s
+  // de repos (le fondu est en CSS). Capture : l'événement scroll ne bulle pas.
+  const scrollTimers = new WeakMap()
+  document.addEventListener('scroll', (ev) => {
+    const el = ev.target
+    if (!el || el.nodeType !== 1) return
+    el.classList.add('is-scrolling')
+    clearTimeout(scrollTimers.get(el))
+    scrollTimers.set(el, setTimeout(() => el.classList.remove('is-scrolling'), 1000))
+  }, { capture: true, passive: true })
+
   // Retour au premier plan : on réveille les liens plutôt que d'attendre le backoff.
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') store.refreshAll()
