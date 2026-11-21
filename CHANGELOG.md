@@ -2,6 +2,16 @@
 
 [English](https://forgejo.gdelaunay.fr/gdelaunay/zra/src/branch/main/CHANGELOG.en.md)
 
+## v0.5.2 — 2026-11-21 — Composer : commandes `/`, mentions `@` (`0224107`)
+
+- Commandes `/` : menu de complétion fuzzy ancré au caret (navigation ↑↓ stable, fermeture à l'espace), aparté de description, hint d'argument via le shim ; validation à l'envoi avec callout d'erreur ; Échap masque le menu jusqu'à la prochaine saisie
+- Composer contenteditable : façade textarea, puces de mention atomiques ; le menu `/` et les mentions `@` vivent dans le même éditeur
+- Mentions `@` : fichiers et dossiers du projet, menu fuzzy borné 100, listing daemon (git, borne 20 000, cache 30 s) ; blocs ACP resource/resource_link avec garde realpath, shim en blocs, rendu au rejeu (claude) ; écho local réconcilié, plus de doublon fantôme
+- Jeu d'icônes de fichiers au choix (défaut, Colored Zed Dark/Light vendored) : port `FileIcons::get_icon`, associations générées depuis Zed (`npm run file-icons`), réglage dans la section Thème
+- Fenêtres dupliquées corrigées : toujours `zed --classic` (MatchExact en 1.28.1) ; plomberie `newWindow` retirée
+- Interface : scrollbar 6 px auto-masquée à fondu animé (Blink), pastille d'état effacée sous les actions, top bar ouvre les réglages globaux + rechargement de l'historique en bouton dédié, loupe pour les tool calls read, blocs réflexion alignés à 20 px, hitbox des boutons icônes 28 px, espacement 6 px des barres, plus de temps relatif dans la top bar
+- Doc : fiches Zed/ACP du composer, conception (`reference/conception-composer.md`), galerie section 14 — bilingue
+
 ## v0.5.1 — 2026-11-20 — Threads : renommer, supprimer, push (`1f97b67`)
 
 - Renommer et supprimer par ACP (`session/set_title`, `session/delete`, unstable), gatés par les capacités de l'agent : le shim émet si le thread est vivant, un client jetable sinon — sans rouvrir Zed, jamais d'écriture dans sa base (tombstones persistés, titre de l'agent superposé en attendant que Zed rattrape, `thread-ops.js`)

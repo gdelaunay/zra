@@ -2,6 +2,16 @@
 
 [Français](https://forgejo.gdelaunay.fr/gdelaunay/zra/src/branch/main/CHANGELOG.md)
 
+## v0.5.2 — 2026-11-21 — Composer: `/` commands, `@` mentions (`0224107`)
+
+- `/` commands: fuzzy completion menu anchored to the caret (stable ↑↓ navigation, closes on space), description aside, argument hint via the shim; validation on send with an error callout; Escape hides the menu until the next input
+- Contenteditable composer: textarea facade, atomic mention chips; the `/` menu and `@` mentions live in the same editor
+- `@` mentions: project files and folders, fuzzy menu capped at 100, daemon listing (git, 20,000 cap, 30 s cache); ACP resource/resource_link blocks with a realpath guard, shim in blocks, replay rendering (claude); local echo reconciled, no more phantom duplicate
+- Selectable file icon set (default, vendored Colored Zed Dark/Light): `FileIcons::get_icon` port, associations generated from Zed (`npm run file-icons`), setting in the Theme section
+- Duplicate windows fixed: always `zed --classic` (MatchExact in 1.28.1); `newWindow` plumbing removed
+- UI: 6 px auto-hiding scrollbar with animated fade (Blink), status dot faded under actions, top bar opens global settings + dedicated history reload button, magnifier for read tool calls, thinking blocks aligned at 20 px, 28 px icon-button hitboxes, 6 px bar spacing, no relative time in the top bar
+- Docs: Zed/ACP composer sheets, design (`reference/conception-composer.md`), gallery section 14 — bilingual
+
 ## v0.5.1 — 2026-11-20 — Threads: rename, delete, push (`1f97b67`)
 
 - Rename and delete over ACP (`session/set_title`, `session/delete`, unstable), gated by the agent's capabilities: the shim issues them for a live thread, a disposable client otherwise — without reopening Zed, never writing to its database (persisted tombstones, agent title overlaid until Zed catches up, `thread-ops.js`)
