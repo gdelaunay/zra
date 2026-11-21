@@ -25,16 +25,19 @@ pilotage clavier exige Zed sous XWayland : `npm run setup -- xwayland --apply`
 
 0. `git clone https://forgejo.gdelaunay.fr/gdelaunay/zra.git && cd zra` — aucun
    `npm install` nécessaire pour l'utiliser.
-1. `npm run setup install apply`. Chaque agent de Zed reçoit une entrée ZRA
-   (`Claude Agent (zra)`…) : l'agent d'origine n'est pas touché. Les threads ouverts
-   avec une entrée ZRA ne se rouvriront plus dans Zed si ZRA est désinstallé.
+1. `npm run setup install apply`. Les agents npx de Zed (Claude, Codex, Gemini…)
+   passent par le shim via leur entrée d'origine — Zed garde leur installation
+   et leurs mises à jour, et tous leurs threads, anciens compris, deviennent
+   pilotables. Les agents binaires reçoivent une entrée `… (zra)` à côté.
+   Retrait propre : `npm run setup -- uninstall --apply` ; supprimer le dossier
+   ZRA sans uninstall ne casse pas les agents (preload fail-open).
 2. `npm run daemon`. Le daemon affiche son adresse (`http://192.168.x.x:7777`)
    et un code d'appairage.
 3. Sur le téléphone, même Wi-Fi : ouvrir cette adresse, puis saisir le code.
    Si la page ne charge pas : pare-feu et profil réseau (`docs/fr/deploy.md` §1).
-4. Dans Zed, ouvrir un thread avec l'agent **… (zra)** (`Claude Agent (zra)`) : il est
-   `live` sur le téléphone. Les threads des autres agents s'y lisent, mais ne
-   s'écrivent pas une fois fermés.
+4. Dans Zed, ouvrir un thread avec un agent shimé (ex. `Claude Agent`) : il est
+   `live` sur le téléphone. Les threads des agents non enveloppés s'y lisent,
+   mais ne s'écrivent pas une fois fermés.
 
 Ensuite : démarrage automatique (`npm run service -- install --apply`),
 accès à distance, HTTPS et dépannage (`docs/fr/deploy.md`).
@@ -43,13 +46,15 @@ accès à distance, HTTPS et dépannage (`docs/fr/deploy.md`).
 
 1. `npm run service -- stop`, puis `npm run service -- uninstall --apply` :
    arrête le daemon et retire le démarrage automatique.
-2. `npm run setup -- uninstall --apply` : retire les entrées ZRA et leurs
-   raccourcis dans Zed (et le forçage XWayland sous Linux), avec sauvegarde.
+2. `npm run setup -- uninstall --apply` : rend l'env des entrées d'origine,
+   retire les entrées `… (zra)` et leurs raccourcis dans Zed (et le forçage
+   XWayland sous Linux), avec sauvegarde.
 3. Supprimer `.zra/` et le dossier `zra` de `%LOCALAPPDATA%` (Linux
    `~/.local/state/zra/`) : journaux, appareils appairés, prompts.
 
-Les threads créés avec une entrée ZRA (`Claude Agent (zra)`…) restent dans la liste de
-Zed, mais sans agent pour les rouvrir.
+Les threads créés avec une entrée `… (zra)` restent dans la liste de Zed, mais
+sans agent pour les rouvrir ; ceux de l'entrée d'origine continuent de s'ouvrir
+(sans ZRA).
 
 ## Sécurité
 
@@ -89,7 +94,7 @@ Zed, mais sans agent pour les rouvrir.
 
 | Dossier | Rôle |
 |---|---|
-| `zra-shim/` | enveloppe l'agent dans Zed (entrée `Claude Agent (zra)`), observe et injecte en ACP |
+| `zra-shim/` | enveloppe l'agent dans Zed (preload de l'entrée d'origine, ou entrée `… (zra)`), observe et injecte en ACP |
 | `zra-daemon/` | serveur WebSocket du poste : index des threads, routage, appairage, pilotage clavier de Zed |
 | `zra-client/` | PWA sans build, servie par le daemon ou par n'importe quel serveur statique |
 | `scripts/` | installation, service, appairage, certificat, mise au point clavier |
@@ -97,8 +102,8 @@ Zed, mais sans agent pour les rouvrir.
 
 ```sh
 npm run setup                        # état : entrées Zed, agents, daemon
-npm run setup install apply          # une entrée ZRA par agent de Zed (Claude Agent (zra), Qwen Code (zra)…) + sa touche « nouveau thread »
-npm run setup -- uninstall --apply   # retire les entrées ZRA de Zed
+npm run setup install apply          # shime les agents de Zed (preload de l'entrée d'origine pour les npx, entrée … (zra) pour les binaires) + touche « nouveau thread »
+npm run setup -- uninstall --apply   # retire ZRA de Zed (env des entrées d'origine, entrées … (zra))
 npm run daemon                       # affiche l'adresse et le code d'appairage
 npm run daemon:dev                   # loopback seule
 npm run service -- install --apply   # démarrage à l'ouverture de session (start, stop, logs, uninstall)

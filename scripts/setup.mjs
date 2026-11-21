@@ -4,18 +4,24 @@
 //   npm run setup                       état : entrée Zed, agent, daemon
 //   npm run setup -- install            montre ce qui serait écrit, n'écrit rien
 //   npm run setup -- install --apply    écrit (sauvegarde préalable)
-//   npm run setup -- uninstall --apply  retire l'entrée, et elle seule
+//   npm run setup -- uninstall --apply  retire l'env ZRA et les entrées « … (zra) »
 //
-// Ce que fait l'installation, et rien d'autre : **une** entrée ajoutée sous
-// `agent_servers` du `settings.json` de Zed. Elle déclare un agent de plus
-// (« claude-zra ») qui lance `zra-shim`, lequel enveloppe l'agent existant
-// (`claude-acp`). L'agent d'origine n'est pas touché : ses threads continuent
-// de marcher sans ZRA, et retirer l'entrée ramène le fichier à l'identique.
+// Ce que fait l'installation :
+//  · agent npx (registry, lancé par node) : l'entrée d'origine reste `registry`
+//    — Zed garde l'installation et les mises à jour — et son `env` porte un
+//    preload node (`NODE_OPTIONS`) qui lance le shim avant le code de l'agent.
+//    Tous les threads de cet agent, anciens compris, passent par le shim.
+//    L'entrée custom « … (zra) » d'une installation précédente est retirée.
+//  · agent binaire (non-node) : une entrée custom « … (zra) » à côté —
+//    `NODE_OPTIONS` n'a pas d'effet sur un binaire.
+//  · un bloc en tête du `keymap.json` : une touche par entrée shimée
+//    (Ctrl+Alt+Shift+F1…) liée à `agent::NewExternalAgentThread`, que le daemon
+//    joue pour ouvrir un thread avec l'agent choisi sur le mobile. Encadré de
+//    deux commentaires repères, retiré tel quel par `uninstall`.
 //
-// Et **un** bloc en tête du `keymap.json` : une touche par entrée ZRA
-// (Ctrl+Alt+Shift+F1…) liée à `agent::NewExternalAgentThread`, que le daemon
-// joue pour ouvrir un thread avec l'agent choisi sur le mobile. Encadré de
-// deux commentaires repères, retiré tel quel par `uninstall`.
+// Le retrait propre est `uninstall` : il rend l'env et les entrées à leur état
+// d'origine. Supprimer le dossier ZRA sans uninstall ne casse rien : le
+// preload est fail-open (l'agent démarre sans ZRA).
 //
 // Tout ce que le shim produit reste dans le dépôt, sous `.zra/` (ignoré par
 // git) : journal, sauvegardes du settings.json, enregistrements de trames
@@ -33,8 +39,8 @@ import { fileURLToPath } from 'node:url'
 import { loadConfig } from '../zra-daemon/config.js'
 import { agentLabel } from '../zra-daemon/agents.js'
 import { parseJsonc } from '../zra-daemon/jsonc.js'
-import { discoverAgents, isShimEntry, registryAgentName, resolveAgentCommand, wrappedAgentId } from '../zra-daemon/agent-commands.js'
-import { assertParsable, removeAgentServer, upsertAgentServer } from '../zra-daemon/zed-settings.js'
+import { discoverAgents, hasPreload, isPreloadEntry, isShimEntry, preloadFlag, registryAgentName, resolveAgentCommand, stripPreload, wrappedAgentId } from '../zra-daemon/agent-commands.js'
+import { assertParsable, removeAgentServer, removeAgentServerEnv, upsertAgentServer, upsertAgentServerEnv } from '../zra-daemon/zed-settings.js'
 import { assignKeys, readZraKeys, removeZraKeymap, upsertZraKeymap } from '../zra-daemon/zed-keymap.js'
 import { npmSafeArgs } from './lib/args.mjs'
 import { daemonStatus } from './lib/daemon-status.mjs'
@@ -78,9 +84,11 @@ const USAGE = tr`zra setup — brancher ZRA dans Zed
   npm run setup [-- <commande>] [options]
 
   status               état de l'installation (défaut)
-  install [agent…]     une entrée ZRA par agent dans agent_servers. Sans agent
+  install [agent…]     shime les agents : l'entrée d'origine par preload (agents
+                       npx), une entrée « … (zra) » à côté (binaires). Sans agent
                        nommé : tous ceux que Zed sait lancer sur ce poste
-  uninstall [--name]   retire les entrées ZRA (toutes, ou celle nommée)
+  uninstall [--name]   retire l'env ZRA des entrées d'origine et les entrées
+                       « … (zra) » (toutes, ou celles nommées)
   xwayland             (Linux/Wayland) force Zed sous XWayland pour le clavier :
                        modifie le .desktop de Zed, étape séparée de l'installation
 
@@ -89,8 +97,8 @@ const USAGE = tr`zra setup — brancher ZRA dans Zed
   --agent <id>         agent à envelopper (répétable ; un mot nu suffit)
   --name <id>          nom de l'entrée dans Zed, pour un seul agent
                        (défaut : « Claude Agent (zra) », « Qwen Code (zra) »…)
-  --yes                ne pas demander confirmation avant de renommer des entrées
-                       ZRA existantes (« yes » tout court marche aussi)
+  --yes                ne pas demander confirmation avant de renommer ou retirer
+                       des entrées ZRA existantes (« yes » tout court marche aussi)
   --record             débogage : enregistre toutes les trames ACP dans
                        .zra/records/ (ZRA_RECORD), conversations comprises
 
@@ -135,6 +143,25 @@ export function buildEntry({ agent, record, nodePath = process.execPath, root = 
 
 /** Réglages de démarrage d'une entrée (`CustomAgentServerSettings`). */
 const START_SETTINGS = ['default_mode', 'default_config_options', 'favorite_config_option_values']
+
+/**
+ * L'env qui shime une entrée `registry` : preload node (`NODE_OPTIONS`), id de
+ * l'agent pour le shim, journal. Un `NODE_OPTIONS` déjà là (l'utilisateur) est
+ * conservé à la suite du nôtre ; le nôtre, s'il y est déjà (réinstallation,
+ * dépôt déplacé), est remplacé.
+ */
+export function buildPreloadEnv({ agent, record, root = ROOT, existing = null }) {
+  const env = {
+    NODE_OPTIONS: [preloadFlag(root), stripPreload(existing)].filter(Boolean).join(' '),
+    ZRA_AGENT_ID: agent,
+    ZRA_LOG_FILE: join(root, '.zra', 'logs', 'shim.log'),
+  }
+  if (record) {
+    env.ZRA_RECORD = '1'
+    env.ZRA_RECORD_DIR = join(root, '.zra', 'records')
+  }
+  return env
+}
 
 /** Recopie dans `entry` les réglages de démarrage présents dans `from`. */
 function carryStartSettings(entry, from) {
@@ -255,9 +282,13 @@ async function status(opts, config) {
     console.log(tr`  ✗ aucune entrée ZRA — \`npm run setup -- install\` pour voir ce qui serait ajouté`)
   }
   for (const [id, entry] of zra) {
-    const expected = buildEntry({ agent: entry.env?.ZRA_AGENT_ID ?? '?', record: entry.env?.ZRA_RECORD === '1', wrapped: servers[entry.env?.ZRA_AGENT_ID] })
-    const upToDate = entry.command === expected.command && entry.args?.[0] === expected.args[0]
-    console.log(tr`  ✓ entrée « ${id} » → enveloppe « ${entry.env?.ZRA_AGENT_ID ?? '?'} »` +
+    const preload = isPreloadEntry(entry)
+    const expected = preload ? null : buildEntry({ agent: entry.env?.ZRA_AGENT_ID ?? '?', record: entry.env?.ZRA_RECORD === '1', wrapped: servers[entry.env?.ZRA_AGENT_ID] })
+    const upToDate = preload
+      ? hasPreload(entry.env?.NODE_OPTIONS, ROOT)
+      : entry.command === expected.command && entry.args?.[0] === expected.args[0]
+    const what = preload ? tr`(registry) → shim par preload node` : tr`→ enveloppe « ${entry.env?.ZRA_AGENT_ID ?? '?'} »`
+    console.log(tr`  ✓ entrée « ${id} » ${what}` +
       (entry.env?.ZRA_RECORD === '1' ? tr`, enregistrement des trames (débogage : relancer install sans --record pour l’arrêter)` : '') +
       (upToDate ? '' : tr`  ⚠ chemins différents de ce dépôt : relancer install`))
     console.log(keys.has(id)
@@ -312,7 +343,7 @@ async function install(opts, config) {
     agents = []
     for (const id of opts.agents) {
       const cmd = await resolveAgentCommand(id, resolveOpts)
-      agents.push({ id, source: cmd.source })
+      agents.push({ id, source: cmd.source, viaNode: cmd.viaNode })
     }
   } else {
     const found = await discoverAgents(resolveOpts)
@@ -325,13 +356,39 @@ async function install(opts, config) {
     }
   }
 
-  // Entrée ZRA déjà posée pour un agent : on la met à jour sous son nom actuel.
-  const existing = new Map(Object.entries(servers).filter(([, v]) => isShimEntry(v)).map(([k, v]) => [wrappedAgentId(v), k]))
+  // Entrée ZRA custom déjà posée pour un agent : on la met à jour sous son nom
+  // actuel, ou on la dégage au profit du preload (agent npx).
+  const existing = new Map(Object.entries(servers).filter(([, v]) => isShimEntry(v) && !isPreloadEntry(v)).map(([k, v]) => [wrappedAgentId(v), k]))
 
   let text = before.text
   const changes = []
   const renamed = []
-  for (const { id, source } of agents) {
+  const dropped = []
+  for (const { id, source, viaNode } of agents) {
+    // Agent npx lancé par node : l'entrée d'origine elle-même passe par le
+    // shim, son env porte le preload. Elle reste `registry` : Zed continue
+    // d'installer et de mettre à jour l'agent, et tous les threads de cet
+    // agent — anciens compris — deviennent pilotables.
+    if (viaNode) {
+      if (opts.name) throw new Error(tr`--name ne s'applique pas à un agent shimé par preload : l'entrée est celle d'origine (${id})`)
+      const old = existing.get(id)
+      if (old) {
+        text = removeAgentServer(text, old).text
+        delete servers[old]
+        dropped.push([old, id])
+        console.log(tr`  – ${old} retirée : l'entrée d'origine « ${id} » passe par le shim`)
+      }
+      if (!servers[id]) {
+        text = upsertAgentServer(text, id, { type: 'registry' }).text
+        servers[id] = { type: 'registry' }
+      }
+      const patch = buildPreloadEnv({ agent: id, record: opts.record, existing: servers[id].env?.NODE_OPTIONS })
+      const res = upsertAgentServerEnv(text, id, patch)
+      text = res.text
+      console.log(`  ${res.action === 'unchanged' ? '✓' : '+'} ${id} → shim par preload (${source})${res.action === 'unchanged' ? tr` — déjà à jour` : ''}`)
+      if (res.action !== 'unchanged') changes.push(id)
+      continue
+    }
     const old = existing.get(id)
     // Une entrée au nom d'avant (`claude-zra`) prend le nom d'affichage ; un
     // nom choisi (`--name` ou à la main) reste.
@@ -381,10 +438,11 @@ async function install(opts, config) {
     console.log(tr`\nsimulation : rien n’a été écrit. Relancer avec --apply (ou « apply » tout court) pour appliquer.`)
     return
   }
-  if (renamed.length && !opts.yes) {
+  if ((renamed.length || dropped.length) && !opts.yes) {
     console.log(tr`
-⚠ Renommer ces entrées change l’id de leurs agents : les threads déjà créés avec l’ancien nom ne se rouvriront plus dans Zed.`)
+⚠ Ces entrées changent d'id ou disparaissent : les threads déjà créés avec leur ancien nom ne se rouvriront plus dans Zed.`)
     for (const [from, to] of renamed) console.log(`  ${from} → ${to}`)
+    for (const [from, to] of dropped) console.log(tr`  ${from} → supprimée (l'entrée d'origine « ${to} » passe par le shim)`)
     if (!process.stdin.isTTY) throw new Error(tr`confirmation impossible hors terminal : relancer avec « yes » (npm run setup install apply yes)`)
     const rl = createInterface({ input: process.stdin, output: process.stdout })
     const answer = (await rl.question(tr`Continuer ? [o/N] `)).trim().toLowerCase()
@@ -397,7 +455,8 @@ async function install(opts, config) {
   if (changes.length) {
     const backup = await writeZedFile(file, before, text)
     console.log(tr`\n✓ settings.json écrit. Sauvegarde : ${backup}`)
-    console.log(tr`  Zed recharge settings.json à chaud : les agents « (ZRA) » apparaissent dans le menu des nouveaux threads.`)
+    console.log(tr`  Zed recharge settings.json à chaud : les nouveaux threads, et les anciens rouverts, passent par le shim.`)
+    console.log(tr`  Retrait propre : npm run setup -- uninstall --apply. Supprimer le dossier ZRA sans uninstall ne casse pas l'agent (preload fail-open).`)
   }
   if (kmChanged) {
     const backup = await writeZedFile(kmFile, kmBefore, km.text)
@@ -436,9 +495,32 @@ async function uninstall(opts, config) {
   const servers = before.parsed?.agent_servers ?? {}
   const names = opts.name && servers[opts.name] ? [opts.name] : Object.keys(servers).filter((k) => isShimEntry(servers[k]))
   let text = before.text
+  const removedEntries = []
   for (const name of names) {
-    if (!isShimEntry(servers[name])) throw new Error(tr`« ${name} » n'est pas une entrée ZRA : on n'y touche pas`)
+    const entry = servers[name]
+    if (!isShimEntry(entry)) throw new Error(tr`« ${name} » n'est pas une entrée ZRA : on n'y touche pas`)
+    if (isPreloadEntry(entry)) {
+      // L'entrée registry est à Zed/l'utilisateur : on ne retire que l'env ZRA.
+      // Un NODE_OPTIONS de l'utilisateur, s'il y en a un, reste.
+      const rest = stripPreload(entry.env?.NODE_OPTIONS)
+      if (entry.env?.NODE_OPTIONS !== undefined) {
+        text = rest
+          ? upsertAgentServerEnv(text, name, { NODE_OPTIONS: rest }).text
+          : removeAgentServerEnv(text, name, ['NODE_OPTIONS']).text
+      }
+      const zraKeys = Object.keys(entry.env ?? {}).filter((k) => k.startsWith('ZRA_'))
+      text = removeAgentServerEnv(text, name, zraKeys).text
+      // Entrée réduite à `type: registry` : rien d'autre n'y était, on la
+      // retire — le fichier revient à son état d'avant l'installation.
+      const after = parseJsonc(text)?.agent_servers?.[name]
+      if (after && Object.keys(after).length === 1 && after.type === 'registry') {
+        text = removeAgentServer(text, name).text
+        removedEntries.push(name)
+      }
+      continue
+    }
     text = removeAgentServer(text, name).text
+    removedEntries.push(name)
   }
   // Les touches suivent les entrées qui restent ; plus aucune, plus de bloc.
   const kmFile = config.zedKeymap
@@ -451,7 +533,7 @@ async function uninstall(opts, config) {
     return
   }
   if (names.length) {
-    console.log(tr`\nretrait de ${names.map((n) => `agent_servers.${n}`).join(', ')} dans ${file} :\n`)
+    console.log(tr`\nretrait de ZRA dans ${file} :\n`)
     console.log(lineDiff(before.text, text))
   }
   if (kmChanged) {
@@ -465,7 +547,7 @@ async function uninstall(opts, config) {
   if (names.length) {
     const backup = await writeZedFile(file, before, text)
     console.log(tr`\n✓ retiré. Sauvegarde : ${backup}`)
-    console.log(tr`  Les threads ouverts avec cette entrée restent dans le sidebar de Zed, sans agent pour les rouvrir.`)
+    if (removedEntries.length) console.log(tr`  Les threads ouverts avec une entrée retirée restent dans le sidebar de Zed, sans agent pour les rouvrir.`)
   }
   if (kmChanged) {
     const backup = await writeZedFile(kmFile, kmBefore, km.text)

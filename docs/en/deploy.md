@@ -302,7 +302,7 @@ keyboard control works.
 
 | Symptom | Where to look |
 |---|---|
-| the `… (zra)` agents no longer start in Zed | repository moved or Node changed (absolute paths): `npm run setup install apply` and `npm run service -- install --apply` |
+| the `… (zra)` agents no longer start in Zed, or threads are no longer drivable | repository moved or Node changed (absolute paths): `npm run setup` reports it (stale entry or preload), `npm run setup install apply` and `npm run service -- install --apply` fix it. A stale preload is silent on Zed's side (fail-open: the agent runs without ZRA) |
 | the page does not load locally | same Wi-Fi? Private network profile? firewall rule (§1)? |
 | the page does not load remotely | tunnel on? in "all traffic"? does the homelab see the machine (same network)? |
 | "pairing required" in a loop | token revoked or `.zra/auth.json` deleted: enter a code again |

@@ -7,11 +7,11 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { locate, removeAgentServer, upsertAgentServer, SettingsEditError } from '../zed-settings.js'
+import { locate, removeAgentServer, removeAgentServerEnv, upsertAgentServer, upsertAgentServerEnv, SettingsEditError } from '../zed-settings.js'
 import { parseJsonc } from '../jsonc.js'
-import { isShimEntry, resolveAgentCommand, wrappedAgentId } from '../agent-commands.js'
+import { discoverAgents, isPreloadEntry, isShimEntry, preloadFlag, resolveAgentCommand, wrappedAgentId } from '../agent-commands.js'
 import { readAgents } from '../agents.js'
-import { buildEntry, lineDiff, parseArgs, zraName } from '../../scripts/setup.mjs'
+import { buildEntry, buildPreloadEnv, lineDiff, parseArgs, zraName } from '../../scripts/setup.mjs'
 
 const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), 'fixtures')
 
@@ -230,4 +230,101 @@ test('parseArgs : xwayland est une commande à part, simulation par défaut', ()
   assert.equal(parseArgs(['xwayland']).command, 'xwayland')
   assert.equal(parseArgs(['xwayland']).apply, false)
   assert.equal(parseArgs(['xwayland', '--apply']).apply, true)
+})
+
+// ---- preload : l'entrée registry shimée par l'env ---------------------------
+
+const PRELOAD_ENV = buildPreloadEnv({ agent: 'claude-acp', record: false, root: 'C:/zra' })
+
+test('buildPreloadEnv : NODE_OPTIONS percent-encodé, id et journal ; NODE_OPTIONS utilisateur conservé', () => {
+  assert.equal(PRELOAD_ENV.ZRA_AGENT_ID, 'claude-acp')
+  assert.match(PRELOAD_ENV.ZRA_LOG_FILE.replace(/\\/g, '/'), /^C:\/zra\/\.zra\/logs\//)
+  assert.ok(PRELOAD_ENV.NODE_OPTIONS.startsWith('--import data:text/javascript,'))
+  const payload = PRELOAD_ENV.NODE_OPTIONS.slice('--import '.length)
+  assert.ok(!/[ "]/.test(payload), 'payload sans espace ni guillemet brut : le tokenizer de NODE_OPTIONS casse dessus')
+  assert.ok(isPreloadEntry({ type: 'registry', env: PRELOAD_ENV }))
+  assert.ok(isShimEntry({ type: 'registry', env: PRELOAD_ENV }))
+  assert.equal(wrappedAgentId({ type: 'registry', env: PRELOAD_ENV }), 'claude-acp')
+  assert.ok(!isPreloadEntry({ type: 'custom', env: PRELOAD_ENV }), 'le preload ne vaut que sur une entrée registry')
+
+  // NODE_OPTIONS de l'utilisateur : conservé à la suite ; le nôtre remplacé s'il y est déjà (dépôt déplacé).
+  const avec = buildPreloadEnv({ agent: 'claude-acp', root: 'C:/zra', existing: '--max-old-space-size=4096' })
+  assert.equal(avec.NODE_OPTIONS, `${preloadFlag('C:/zra')} --max-old-space-size=4096`)
+  const deplace = buildPreloadEnv({ agent: 'claude-acp', root: 'D:/zra', existing: avec.NODE_OPTIONS })
+  assert.equal(deplace.NODE_OPTIONS, `${preloadFlag('D:/zra')} --max-old-space-size=4096`)
+
+  const record = buildPreloadEnv({ agent: 'x', record: true, root: 'C:/zra' })
+  assert.equal(record.ZRA_RECORD, '1')
+  assert.match(record.ZRA_RECORD_DIR.replace(/\\/g, '/'), /^C:\/zra\/\.zra\/records/)
+})
+
+test('upsertAgentServerEnv : ne touche qu’à l’env, le reste reste octet pour octet', () => {
+  const { text, action } = upsertAgentServerEnv(ZED_SETTINGS, 'claude-acp', PRELOAD_ENV)
+  assert.equal(action, 'added')
+  assert.deepEqual(parseJsonc(text).agent_servers['claude-acp'].env, PRELOAD_ENV)
+  // Tout ce qui précède l'insertion est identique, commentaires et virgules compris.
+  const at = ZED_SETTINGS.indexOf('"type": "registry",') + '"type": "registry",'.length
+  assert.equal(text.slice(0, at), ZED_SETTINGS.slice(0, at))
+  assert.ok(text.includes('"model": "opus[1m]",'))
+  assert.ok(text.includes('/* thème */'))
+  assert.equal(upsertAgentServerEnv(text, 'claude-acp', PRELOAD_ENV).action, 'unchanged', 'idempotent')
+
+  const moved = buildPreloadEnv({ agent: 'claude-acp', root: 'D:/zra' })
+  const r2 = upsertAgentServerEnv(text, 'claude-acp', moved)
+  assert.equal(r2.action, 'replaced')
+  assert.deepEqual(parseJsonc(r2.text).agent_servers['claude-acp'].env, moved)
+
+  // Entrée sans env : il est créé ; entrée absente : rien n'est écrit.
+  const m = upsertAgentServerEnv(ZED_SETTINGS, 'mistral-vibe', { ZRA_AGENT_ID: 'mistral-vibe' })
+  assert.deepEqual(parseJsonc(m.text).agent_servers['mistral-vibe'], { type: 'registry', env: { ZRA_AGENT_ID: 'mistral-vibe' } })
+  assert.equal(upsertAgentServerEnv(ZED_SETTINGS, 'inconnu', { X: '1' }).action, 'absent')
+
+  const crlf = upsertAgentServerEnv(ZED_SETTINGS.replace(/\n/g, '\r\n'), 'claude-acp', PRELOAD_ENV)
+  assert.ok(!/[^\r]\n/.test(crlf.text), 'aucun LF isolé introduit')
+})
+
+test('removeAgentServerEnv : install puis uninstall rend le fichier à l’identique', () => {
+  for (const src of [ZED_SETTINGS, ZED_SETTINGS.replace(/\n/g, '\r\n')]) {
+    const installed = upsertAgentServerEnv(src, 'claude-acp', PRELOAD_ENV).text
+    const { text, action } = removeAgentServerEnv(installed, 'claude-acp', Object.keys(PRELOAD_ENV))
+    assert.equal(action, 'removed')
+    assert.equal(text, src)
+  }
+  // Un env vidé par le retrait est retiré à son tour ; l'entrée, elle, reste.
+  const src = '{\n  "agent_servers": {\n    "a": { "type": "registry", "env": { "X": "1" } }\n  }\n}\n'
+  assert.equal(removeAgentServerEnv(src, 'a', ['X']).text, '{\n  "agent_servers": {\n    "a": { "type": "registry" }\n  }\n}\n')
+  assert.equal(removeAgentServerEnv(src, 'a', ['Y']).action, 'absent')
+})
+
+test('resolveAgentCommand : une entrée registry shimée se résout sans le preload ni l’env ZRA', async () => {
+  const registryDir = join(FIXTURES, 'registry-preload')
+  const pkgDir = join(registryDir, 'npx', 'faux-acp', 'node_modules', '@editeur', 'faux-agent')
+  mkdirSync(pkgDir, { recursive: true })
+  writeFileSync(join(pkgDir, 'package.json'), JSON.stringify({ bin: 'agent.js' }))
+  writeFileSync(join(pkgDir, 'agent.js'), '// agent\n')
+  writeFileSync(join(registryDir, 'registry.json'), JSON.stringify({
+    agents: [{ id: 'faux-acp', distribution: { npx: { package: '@editeur/faux-agent@1.0.0', env: { R: '1' } } } }],
+  }))
+  const settingsFile = join(FIXTURES, 'settings-preload.json')
+  const env = {
+    ...buildPreloadEnv({ agent: 'faux-acp', root: 'C:/zra' }),
+    NODE_OPTIONS: `${preloadFlag('C:/zra')} --max-old-space-size=4096`,
+    ANTHROPIC_API_KEY: '',
+  }
+  writeFileSync(settingsFile, JSON.stringify({ agent_servers: { 'faux-acp': { type: 'registry', env } } }))
+
+  const r = await resolveAgentCommand('faux-acp', { settingsFile, registryDir })
+  assert.equal(r.source, 'registry/npx')
+  assert.equal(r.viaNode, true)
+  assert.equal(r.command, process.execPath)
+  // Le preload et les ZRA_* ne partent pas dans l'agent relancé (daemon, shim) ;
+  // le NODE_OPTIONS de l'utilisateur et l'env registry, si.
+  assert.deepEqual(r.env, { R: '1', ANTHROPIC_API_KEY: '', NODE_OPTIONS: '--max-old-space-size=4096' })
+
+  const found = await discoverAgents({ settingsFile, registryDir })
+  assert.ok(found.find((a) => a.id === 'faux-acp' && a.ok && a.viaNode), 'découverte comme l’agent d’origine')
+
+  // readAgents : nom usuel, wraps pour la PWA — les threads ne sont plus cadenassés.
+  const agents = await readAgents(settingsFile)
+  assert.deepEqual(agents.find((a) => a.id === 'faux-acp'), { id: 'faux-acp', name: 'Faux', kind: 'registry', wraps: 'faux-acp' })
 })

@@ -302,7 +302,7 @@ pilotage clavier marche.
 
 | Symptôme | Où regarder |
 |---|---|
-| les agents `… (zra)` ne se lancent plus dans Zed | dépôt déplacé ou Node changé (chemins absolus) : `npm run setup install apply` et `npm run service -- install --apply` |
+| les agents `… (zra)` ne se lancent plus dans Zed, ou les threads ne sont plus pilotables | dépôt déplacé ou Node changé (chemins absolus) : `npm run setup` le signale (entrée ou preload périmé), `npm run setup install apply` et `npm run service -- install --apply` réparent. Un preload périmé est silencieux côté Zed (fail-open : l'agent tourne sans ZRA) |
 | la page ne charge pas en local | même Wi-Fi ? profil réseau Privé ? règle de pare-feu (§1) ? |
 | la page ne charge pas à distance | tunnel actif ? en « tout le trafic » ? le homelab voit-il le poste (même réseau) ? |
 | « appairage requis » en boucle | jeton révoqué ou `.zra/auth.json` effacé : ressaisir un code |

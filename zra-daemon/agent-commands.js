@@ -21,6 +21,7 @@
 import { existsSync, readdirSync, statSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 
 import { parseJsonc } from './jsonc.js'
 import { PATHS } from './platform.js'
@@ -44,11 +45,76 @@ export class AgentCommandError extends Error {}
 const NOT_INSTALLED_HINT = tr`ouvrir une fois un thread avec cet agent dans Zed, qui l’installe à ce moment-là`
 
 /**
+ * Le drapeau `NODE_OPTIONS` qui précharge le launcher du shim avant le code de
+ * l'agent. Le payload est percent-encodé dans la variable elle-même : aucun
+ * espace ni guillemet brut (le tokenizer de `NODE_OPTIONS` casse dessus), et
+ * aucune dépendance fichier au parse — ZRA supprimé, l'import dynamique échoue,
+ * le `catch` avale, l'agent démarre sans ZRA (fail-open).
+ */
+export function preloadFlag(root) {
+  const launcher = pathToFileURL(join(root, 'zra-shim', 'launcher.mjs')).href
+  const payload = `try{await import(${JSON.stringify(launcher)})}catch{}`
+  return `--import data:text/javascript,${encodeURIComponent(payload)}`
+}
+
+/** Notre drapeau dans une valeur de `NODE_OPTIONS` (chemin percent-encodé ou brut). */
+const PRELOAD_TOKEN = /zra-shim(?:%2[fF]|[/\\])launcher\.mjs/
+
+/**
+ * Entrée `registry` shimée par l'env (`setup install` d'un agent npx) : Zed
+ * installe et met à jour l'agent normalement, le preload node lance le shim.
+ */
+export function isPreloadEntry(entry) {
+  return entry?.type === 'registry' && PRELOAD_TOKEN.test(String(entry?.env?.NODE_OPTIONS ?? ''))
+}
+
+/** Notre drapeau est bien dans cette valeur de `NODE_OPTIONS`, avec le chemin de ce dépôt. */
+export function hasPreload(nodeOptions, root) {
+  const url = preloadFlag(root).slice('--import '.length)
+  return String(nodeOptions ?? '').split(/\s+/).includes(url)
+}
+
+/** Valeur de `NODE_OPTIONS` débarrassée de notre drapeau ; le reste (l'utilisateur) reste. */
+export function stripPreload(nodeOptions) {
+  const out = []
+  for (const t of String(nodeOptions ?? '').split(/\s+/).filter(Boolean)) {
+    if (PRELOAD_TOKEN.test(t)) {
+      // Notre drapeau : `--import data:…` (deux jetons) ou `--import=data:…` (un).
+      if (out.at(-1) === '--import') out.pop()
+      continue
+    }
+    out.push(t)
+  }
+  return out.join(' ')
+}
+
+/**
+ * L'env d'une entrée sans ce que ZRA y a posé : le daemon (relecture d'un
+ * thread) et le shim lancent l'agent **sans** re-preload — sinon la relecture
+ * se connecterait au daemon comme un shim live, et le preload cascaderait.
+ */
+export function withoutZraEnv(env) {
+  if (!env || typeof env !== 'object') return {}
+  const out = {}
+  for (const [k, v] of Object.entries(env)) {
+    if (k.startsWith('ZRA_')) continue
+    if (k === 'NODE_OPTIONS') {
+      const rest = stripPreload(v)
+      if (rest) out.NODE_OPTIONS = rest
+      continue
+    }
+    out[k] = v
+  }
+  return out
+}
+
+/**
  * Une entrée `agent_servers` qui lance `zra-shim` plutôt que l'agent lui-même
- * (c'est ce que pose `scripts/setup.mjs`). Reconnue à son script, pas à son nom :
- * l'utilisateur peut l'appeler comme il veut.
+ * (c'est ce que pose `scripts/setup.mjs`). Reconnue à son script ou à son
+ * preload, pas à son nom : l'utilisateur peut l'appeler comme il veut.
  */
 export function isShimEntry(entry) {
+  if (isPreloadEntry(entry)) return true
   const args = Array.isArray(entry?.args) ? entry.args : []
   return args.some((a) => /(^|[\\/])zra-shim[\\/]index\.js$/i.test(String(a)))
 }
@@ -137,10 +203,11 @@ export async function resolveAgentCommand(agentId, { settingsFile = null, overri
 
   const settings = settingsFile ? await readJsonc(settingsFile) : null
   const entry = settings?.agent_servers?.[agentId]
-  // Entrée ZRA : c'est l'agent enveloppé qu'on veut lancer, pas un shim de plus.
-  // Un shim lancé par le daemon se connecterait à lui et ferait passer `live`
-  // une session qu'il ne fait que relire.
-  if (isShimEntry(entry)) {
+  // Entrée ZRA custom : c'est l'agent enveloppé qu'on veut lancer, pas un shim
+  // de plus. Un shim lancé par le daemon se connecterait à lui et ferait passer
+  // `live` une session qu'il ne fait que relire. Une entrée registry shimée par
+  // preload, elle, se résout normalement ci-dessous — son env ZRA est filtré.
+  if (isShimEntry(entry) && !isPreloadEntry(entry)) {
     const inner = wrappedAgentId(entry)
     if (!inner || inner === agentId || depth > 2) {
       throw new AgentCommandError(tr`agent « ${agentId} » : entrée ZRA sans agent enveloppé valide (env.ZRA_AGENT_ID)`)
@@ -152,8 +219,9 @@ export async function resolveAgentCommand(agentId, { settingsFile = null, overri
     return { command: entry.command, args: entry.args ?? [], env: entry.env ?? {}, source: 'settings' }
   }
   // Entrée `registry` : son `env` s'ajoute à celui du registry, et l'emporte
-  // (`LocalRegistryNpxAgent::get_command`).
-  const settingsEnv = entry?.env && typeof entry.env === 'object' ? entry.env : {}
+  // (`LocalRegistryNpxAgent::get_command`) — sans le preload ZRA ni ses
+  // variables : on lance l'agent, pas un shim de plus.
+  const settingsEnv = withoutZraEnv(entry?.env)
 
   const registry = await readJsonc(join(registryDir, 'registry.json'))
   const agent = Array.isArray(registry?.agents) ? registry.agents.find((a) => a?.id === agentId) : null
@@ -178,7 +246,8 @@ export async function resolveAgentCommand(agentId, { settingsFile = null, overri
     if (/\.(exe|cmd|bat)$/i.test(bin)) return { command: bin, args, env, source: 'registry/npx' }
     // Node lance Node : on réutilise l'exécutable courant plutôt que de dépendre
     // d'un `npx` dans le PATH, qui rejouerait une résolution et un téléchargement.
-    return { command: process.execPath, args: [bin, ...args], env, source: 'registry/npx' }
+    // `viaNode` : l'agent tourne sous node, donc éligible au preload du shim.
+    return { command: process.execPath, args: [bin, ...args], env, source: 'registry/npx', viaNode: true }
   }
 
   const binary = agent.distribution?.binary?.[platformKey()]
@@ -215,7 +284,9 @@ export async function discoverAgents({ settingsFile = null, overrides = {}, regi
   const ids = new Set()
   const settings = settingsFile ? await readJsonc(settingsFile) : null
   for (const [id, entry] of Object.entries(settings?.agent_servers ?? {})) {
-    if (!isShimEntry(entry)) ids.add(id)
+    // Une entrée registry shimée par preload reste l'agent d'origine : on la
+    // découvre. Une entrée custom ZRA, non : c'est l'enveloppe, pas l'agent.
+    if (!isShimEntry(entry) || isPreloadEntry(entry)) ids.add(id)
   }
   for (const id of Object.keys(overrides ?? {})) ids.add(id)
 
@@ -230,7 +301,7 @@ export async function discoverAgents({ settingsFile = null, overrides = {}, regi
   for (const id of ids) {
     try {
       const cmd = await resolveAgentCommand(id, { settingsFile, overrides, registryDir })
-      out.push({ id, ok: true, source: cmd.source })
+      out.push({ id, ok: true, source: cmd.source, viaNode: cmd.viaNode })
     } catch (err) {
       out.push({ id, ok: false, reason: err.message })
     }

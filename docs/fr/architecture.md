@@ -29,7 +29,7 @@ flowchart LR
 
 | Composant | Rôle | Durée de vie |
 |---|---|---|
-| `zra-shim/` | Proxy ACP. Zed le lance à la place de l'agent (entrée `Claude Agent (zra)` de `agent_servers`), il lance le vrai agent et recopie les trames dans les deux sens. Il observe le flux, le publie au daemon, et injecte ce qui vient du mobile. | Celle du thread dans Zed |
+| `zra-shim/` | Proxy ACP. Zed le lance à la place de l'agent — preload node dans l'entrée `registry` d'origine (agents npx), ou entrée `… (zra)` de `agent_servers` (binaires) —, il lance le vrai agent et recopie les trames dans les deux sens. Il observe le flux, le publie au daemon, et injecte ce qui vient du mobile. | Celle du thread dans Zed |
 | `zra-daemon/` | Serveur HTTP + WebSocket du poste. Tient l'index des threads, route les messages entre shims et clients, gère l'appairage, pilote la fenêtre Zed au clavier. | Long-running, un par poste |
 | `zra-client/` | PWA en JavaScript natif, sans build. Servie par le daemon. Peut suivre plusieurs postes. | Navigateur du téléphone |
 

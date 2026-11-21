@@ -38,6 +38,7 @@ numbering, even if it uses the same integers.
 | File | Role |
 |---|---|
 | `index.js` | entry: agent resolution, spawn, wiring, lifecycle |
+| `launcher.mjs` | preload shell (registry entry shimmed via env): spawns the shim around the command Zed was about to launch, fail-open |
 | `framing.js` | JSON Lines splitting that preserves the bytes |
 | `proxy.js` | relay from one stream to the other, fail-open |
 | `acp.js` | everything the shim *understands*: sessions, turn, permissions, terminals, injection (`sendPrompt` in ACP blocks — mentions included) |
@@ -49,15 +50,48 @@ numbering, even if it uses the same integers.
 ## Plugging it into Zed
 
 ```bash
-npm run setup install              # shows the entries, writes nothing (named agents: install qwen-code pi-acp)
-npm run setup install apply        # adds them (backup in .zra/backups/); asks before renaming an existing entry ("yes" to skip)
-npm run setup -- uninstall --apply # removes them, and only them
+npm run setup install              # shows what would be written, writes nothing (named agents: install qwen-code pi-acp)
+npm run setup install apply        # applies it (backup in .zra/backups/); confirmation before renaming or removing an existing entry ("yes" to skip)
+npm run setup -- uninstall --apply # removes ZRA's env from the original entries and the "… (zra)" entries
 ```
 
-Per agent, **one more** `custom` entry in Zed's `settings.json`, and its
-"new thread" key in `keymap.json`. The original
-agent is left untouched. The shim then finds the real agent on its own, from
-its `id` in Zed's registry. Zed displays the entry's key: `setup` names it after the agent's name in its registry, followed by `(zra)`. What `setup` sets, in essence:
+Two cases, depending on the agent's distribution in Zed's registry:
+
+**npx agent (run by node)** — the original entry itself goes through the shim.
+It stays `type: registry`: Zed keeps installing and updating the agent, and its
+`env` carries a node preload that launches the shim before the agent's code.
+Every thread of that agent, old ones included, is drivable; a single family of
+agents. The custom "… (zra)" entry from a previous install is removed
+(confirmation: its threads no longer reopen).
+
+```jsonc
+"agent_servers": {
+  "claude-acp": {
+    "type": "registry",
+    "env": {
+      "NODE_OPTIONS": "--import data:text/javascript,try%7Bawait%20import('file%3A%2F%2F%2FC%3A%2F…%2Fzra-shim%2Flauncher.mjs')%7Dcatch%7B%7D",
+      "ZRA_AGENT_ID": "claude-acp"
+    }
+  }
+}
+```
+
+The payload is the loader's code, percent-encoded into the variable itself:
+`try { await import('file:///C:/…/zra-shim/launcher.mjs') } catch {}`. No raw
+space or quote (the `NODE_OPTIONS` tokenizer breaks on them), no file
+dependency at parse time: ZRA deleted without uninstall, the dynamic import
+fails, the `catch` swallows it, the agent starts without ZRA. A `NODE_OPTIONS`
+already there (the user's) is kept after ours. The launcher spawns the shim
+(`index.js -- <node> <agent binary> …args`), removes `NODE_OPTIONS` from the
+forwarded env — no re-preload cascade to the agent or its node subprocesses —
+and exits with the child's code. The daemon relaunching the agent to replay a
+closed thread resolves the command **without** the preload or the `ZRA_*`
+(`withoutZraEnv`): the replay does not connect as a live shim.
+
+**Binary agent (non-node)** — `NODE_OPTIONS` has no effect: one more `custom`
+"… (zra)" entry in `agent_servers`, as before. Zed displays the entry's key:
+`setup` names it after the agent's name in its registry, followed by `(zra)`.
+What `setup` sets, in essence:
 
 ```json
 "agent_servers": {
@@ -69,6 +103,15 @@ its `id` in Zed's registry. Zed displays the entry's key: `setup` names it after
   }
 }
 ```
+
+In both cases, one "new thread" key per shimmed entry in `keymap.json` (the
+original agent's id for the preload, the "… (zra)" key for the binary). The
+shim then finds the real agent on its own, from its `id` in Zed's registry.
+
+Clean removal is `uninstall`: it restores the original entries' env and removes
+the "… (zra)" entries; a registry entry reduced to `{"type":"registry"}`
+(nothing else was in it) is removed too. Zed's "Agent Registry" panel can
+regenerate a clean entry (Remove/Install).
 
 The wrapped agent is designated, in order of priority:
 
@@ -88,6 +131,7 @@ The wrapped agent is designated, in order of priority:
 | | |
 |---|---|
 | `ZRA_AGENT_ID` | id of the agent to wrap, as Zed names it |
+| `ZRA_SHIMMED` | set by the launcher in the shim's env: guard against double wrapping; `NODE_OPTIONS` is removed from that same env |
 | `ZRA_AGENT_COMMAND`, `ZRA_AGENT_ARGS` | explicit command, takes priority over the registry |
 | `ZRA_DAEMON_URL` | default `ws://127.0.0.1:<port>/shim` |
 | `ZRA_DAEMON_PORT` | daemon port if the URL is not given (default 7777) |
@@ -107,6 +151,7 @@ regression fixture — but full conversations are written in plain text.
 
 ```bash
 node --test zra-shim/test/shim.test.mjs
+node --test zra-shim/test/launcher.test.mjs   # preload: real chain, fail-open, no cascade
 npm run probe:agent claude-acp    # against the real agent, without opening a session
 ```
 

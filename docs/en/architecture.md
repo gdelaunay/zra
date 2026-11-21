@@ -29,7 +29,7 @@ flowchart LR
 
 | Component | Role | Lifetime |
 |---|---|---|
-| `zra-shim/` | ACP proxy. Zed launches it instead of the agent (`Claude Agent (zra)` entry in `agent_servers`), it launches the real agent and copies frames both ways. It observes the stream, publishes it to the daemon, and injects what comes from the phone. | That of the thread in Zed |
+| `zra-shim/` | ACP proxy. Zed launches it instead of the agent — node preload in the original `registry` entry (npx agents), or `… (zra)` entry in `agent_servers` (binaries) —, it launches the real agent and copies frames both ways. It observes the stream, publishes it to the daemon, and injects what comes from the phone. | That of the thread in Zed |
 | `zra-daemon/` | The machine's HTTP + WebSocket server. Holds the thread index, routes messages between shims and clients, handles pairing, drives the Zed window with the keyboard. | Long-running, one per machine |
 | `zra-client/` | PWA in plain JavaScript, no build. Served by the daemon. Can follow several machines. | The phone's browser |
 

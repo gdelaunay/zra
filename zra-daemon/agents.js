@@ -7,7 +7,7 @@ import { promisify } from 'node:util'
 
 import { parseJsonc } from './jsonc.js'
 import { zedProcessNames } from './platform.js'
-import { wrappedAgentId } from './agent-commands.js'
+import { isPreloadEntry, wrappedAgentId } from './agent-commands.js'
 import { logger } from './log.js'
 import { tr } from './i18n.js'
 
@@ -54,12 +54,14 @@ export async function readAgents(file) {
   if (!servers || typeof servers !== 'object') return []
 
   return Object.entries(servers).map(([id, conf]) => {
-    // Zed affiche la clé d'une entrée ZRA (« Claude Agent (zra) ») : on fait
-    // de même, à côté de « Claude », pas deux « Claude ».
+    // Zed affiche la clé d'une entrée ZRA custom (« Claude Agent (zra) ») : on
+    // fait de même, à côté de « Claude », pas deux « Claude ». Une entrée
+    // registry shimée par preload, elle, est l'agent d'origine : son nom usuel.
     const wraps = wrappedAgentId(conf)
+    const preload = isPreloadEntry(conf)
     const agent = {
       id,
-      name: wraps ? id : agentLabel(id),
+      name: wraps && !preload ? id : agentLabel(id),
       // `registry` = agent connu de Zed, `custom` = binaire déclaré à la main.
       kind: conf?.type ?? null,
     }

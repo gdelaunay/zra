@@ -25,16 +25,19 @@ keyboard control requires Zed under XWayland: `npm run setup -- xwayland --apply
 
 0. `git clone https://forgejo.gdelaunay.fr/gdelaunay/zra.git && cd zra` — no
    `npm install` needed to use it.
-1. `npm run setup install apply`. Each Zed agent gets a ZRA entry
-   (`Claude Agent (zra)`…): the original agent is left untouched. Threads opened
-   with a ZRA entry will no longer reopen in Zed if ZRA is uninstalled.
+1. `npm run setup install apply`. Zed's npx agents (Claude, Codex, Gemini…)
+   go through the shim via their original entry — Zed keeps their installation
+   and updates, and all their threads, old ones included, become drivable.
+   Binary agents get a `… (zra)` entry alongside. Clean removal:
+   `npm run setup -- uninstall --apply`; deleting the ZRA folder without
+   uninstall does not break the agents (fail-open preload).
 2. `npm run daemon`. The daemon shows its address (`http://192.168.x.x:7777`)
    and a pairing code.
 3. On the phone, same Wi-Fi: open this address, then enter the code.
    If the page does not load: firewall and network profile (`docs/en/deploy.md` §1).
-4. In Zed, open a thread with the **… (zra)** agent (`Claude Agent (zra)`): it is
-   `live` on the phone. Threads of other agents can be read there, but not
-   written to once closed.
+4. In Zed, open a thread with a shimmed agent (e.g. `Claude Agent`): it is
+   `live` on the phone. Threads of non-wrapped agents can be read there, but
+   not written to once closed.
 
 Next: automatic startup (`npm run service -- install --apply`),
 remote access, HTTPS and troubleshooting (`docs/en/deploy.md`).
@@ -43,13 +46,14 @@ remote access, HTTPS and troubleshooting (`docs/en/deploy.md`).
 
 1. `npm run service -- stop`, then `npm run service -- uninstall --apply`:
    stops the daemon and removes automatic startup.
-2. `npm run setup -- uninstall --apply`: removes the ZRA entries and their
-   shortcuts in Zed (and the XWayland override on Linux), with a backup.
+2. `npm run setup -- uninstall --apply`: restores the original entries' env,
+   removes the `… (zra)` entries and their shortcuts in Zed (and the XWayland
+   override on Linux), with a backup.
 3. Delete `.zra/` and the `zra` folder in `%LOCALAPPDATA%` (Linux
    `~/.local/state/zra/`): logs, paired devices, prompts.
 
-Threads created with a ZRA entry (`Claude Agent (zra)`…) stay in the Zed list,
-but with no agent to reopen them.
+Threads created with a `… (zra)` entry stay in the Zed list, but with no agent
+to reopen them; those of the original entry keep opening (without ZRA).
 
 ## Security
 
@@ -89,7 +93,7 @@ but with no agent to reopen them.
 
 | Folder | Role |
 |---|---|
-| `zra-shim/` | wraps the agent in Zed (`Claude Agent (zra)` entry), observes and injects over ACP |
+| `zra-shim/` | wraps the agent in Zed (preload of the original entry, or `… (zra)` entry), observes and injects over ACP |
 | `zra-daemon/` | the machine's WebSocket server: thread index, routing, pairing, Zed keyboard control |
 | `zra-client/` | build-free PWA, served by the daemon or by any static server |
 | `scripts/` | installation, service, pairing, certificate, keyboard tuning |
@@ -97,8 +101,8 @@ but with no agent to reopen them.
 
 ```sh
 npm run setup                        # status: Zed entries, agents, daemon
-npm run setup install apply          # one ZRA entry per Zed agent (Claude Agent (zra), Qwen Code (zra)…) + its "new thread" key
-npm run setup -- uninstall --apply   # removes the ZRA entries from Zed
+npm run setup install apply          # shims Zed's agents (original-entry preload for npx, … (zra) entry for binaries) + "new thread" key
+npm run setup -- uninstall --apply   # removes ZRA from Zed (original entries' env, … (zra) entries)
 npm run daemon                       # shows the address and the pairing code
 npm run daemon:dev                   # loopback only
 npm run service -- install --apply   # start at session login (start, stop, logs, uninstall)
