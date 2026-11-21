@@ -333,6 +333,20 @@ test('menu slash : ↑↓ déplace la sélection sans la remettre à zéro, l’
   type(input, '')
 })
 
+test('Échap ferme le menu de complétion ; il ne revient qu’à la saisie, pas au keyup/clic', async () => {
+  const input = $('.composer__input')
+  const key = (k, type = 'keydown') => input.dispatchEvent(new win.KeyboardEvent(type, { key: k, bubbles: true }))
+  type(input, '/')
+  await until(() => $('.menu.completion'), 1000, 'menu ouvert')
+  key('Escape'); key('Escape', 'keyup')
+  assert.equal($('.menu.completion'), null, 'Échap : menu fermé, le keyup ne le rouvre pas')
+  input.dispatchEvent(new win.MouseEvent('click', { bubbles: true }))
+  assert.equal($('.menu.completion'), null, 'un clic ne le rouvre pas non plus')
+  type(input, '/w')
+  await until(() => $('.menu.completion'), 1000, 'menu revenu à la saisie')
+  type(input, '')
+})
+
 test('mentions @ : menu fichiers, puce insérée, sérialisation D3, rendu en bulle', async () => {
   const input = $('.composer__input')
   const key = 'mock-desk/a1f39c0b'

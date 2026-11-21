@@ -172,6 +172,9 @@ export function composerCompletion({ input, getCommands, getFiles = () => [], on
   let mode = null
   let lastQuery = null
   let lastMode = null
+  // Échap : le menu reste masqué jusqu'à la prochaine édition du texte
+  // (Zed : il ne revient qu'en retapant, pas au keyup/clic qui suit).
+  let dismissedValue = null
 
   const isOpen = () => Boolean(wrap)
 
@@ -209,6 +212,10 @@ export function composerCompletion({ input, getCommands, getFiles = () => [], on
     // chaque édition — span fantôme hors du texte, caret conservé.
     const hint = commandHint(input.value, commands)
     input.setHint(hint?.label ?? null, hint?.pos ?? 0)
+    if (dismissedValue !== null) {
+      if (input.value === dismissedValue) return
+      dismissedValue = null
+    }
     const { line, start } = lineAtCaret()
 
     // Mention d'abord (Zed : try_parse tente @ avant / quand la ligne a un @).
@@ -376,7 +383,7 @@ export function composerCompletion({ input, getCommands, getFiles = () => [], on
     if (ev.key === 'ArrowDown') { ev.preventDefault(); move(1); return true }
     if (ev.key === 'ArrowUp') { ev.preventDefault(); move(-1); return true }
     if (ev.key === 'Enter' || ev.key === 'Tab') { ev.preventDefault(); confirm(selected); return true }
-    if (ev.key === 'Escape') { ev.preventDefault(); ev.stopPropagation(); close(); return true }
+    if (ev.key === 'Escape') { ev.preventDefault(); ev.stopPropagation(); dismissedValue = input.value; close(); return true }
     return false
   }
 
