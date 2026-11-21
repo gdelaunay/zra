@@ -9,6 +9,7 @@
 
 import { h, clear } from './dom.js'
 import { icon } from './icons.js'
+import { fileIcon } from './file-icons.js'
 import { tr } from './i18n.js'
 import { parseMention, mentionLink, fileUri } from './mentions.js'
 
@@ -272,7 +273,7 @@ export function composerCompletion({ input, getCommands, getFiles = () => [], on
           class: i === selected ? 'menu__item--on' : '',
           onclick: () => confirm(i),
         },
-          icon(entry.dir ? 'folder' : 'file-text', 'icon--sm'),
+          fileIcon(entry.path, entry.dir, 'icon--sm'),
           label(entry.label, match.positions),
         ))
       })

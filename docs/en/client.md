@@ -8,9 +8,10 @@ runtime dependency, no bundler, no framework.
 zra-client/
   index.html  manifest.webmanifest  sw.js  icon.svg
   css/   themes.css (generated)  app.css
+  icon-themes/  colored-zed/ (vendored: theme.json, dark/light SVGs, LICENSES)
   js/    main.js store.js link.js settings.js acp.js markdown.js diff.js
-         dom.js icons.js format.js ui.js i18n.js en.js elicitation.js
-         themes.js + agent-icons.js (generated from Zed)
+         dom.js icons.js file-icons.js format.js ui.js i18n.js en.js elicitation.js
+         themes.js + agent-icons.js + file-icons-data.js (generated from Zed)
          views/  threads.js thread.js entry.js settings.js new-session.js pair.js devbar.js
          mock/   mock-link.js scenarios.js
   tools/ mock-server.mjs
@@ -159,6 +160,32 @@ CSS variables reuse Zed's token names (`element.hover` →
 `scripts/gen-themes.mjs`. Eight themes shipped. **Default: One, dark or light
 following the browser** (`prefers-color-scheme`), as long as no manual choice
 was made; the first choice is persisted and freezes the theme.
+
+## File icon set
+
+Mention chips and the completion menu show the file's icon according to the
+**Theme → Icon set** setting (`js/file-icons.js`):
+
+- **Default**: generic `file-text`/`folder` icons from the ZRA set.
+- **Colored Zed Dark / Light**: the "Colored Zed Icons Theme" extension
+  (TheRedXD), vendored in `icon-themes/colored-zed/` with its licenses
+  (`LICENSES`, Lucide ISC in particular). No extension downloads.
+
+Resolution is a port of Zed's `FileIcons::get_icon`: full name, then each
+suffix after a dot, then the prefix before the first dot
+(`Dockerfile.prod`), compound extensions, hidden file (`.gitignore`),
+simple extension. Name/extension → type associations come from the Zed
+default (`icon_theme.rs`), merged with the chosen set's overrides — like
+`registry.rs` on the Zed side. `js/file-icons-data.js` is **generated**:
+
+```bash
+npm run file-icons   # reads _upstream/zed + icon-themes/colored-zed/theme.json
+```
+
+Assumed divergences: a type missing from the colored set falls back to
+generic `file-text` (Zed falls back to the default theme's monochrome SVG);
+folders always keep `folder` (no folder icons in the colored sets). Changing
+the set repaints the thread without a reload.
 
 ## Wired to the daemon
 

@@ -21,6 +21,8 @@ function load() {
     lang: s.lang === 'fr' || s.lang === 'en' ? s.lang : 'auto',
     /** Échelle des tailles de police (confort mobile) ; 1 = tailles de la feuille. */
     textScale: typeof s.textScale === 'number' && s.textScale >= 0.5 && s.textScale <= 2 ? s.textScale : 1,
+    /** Jeu d'icônes de fichiers (mentions) ; défaut = génériques file-text/folder. */
+    iconSet: ['default', 'colored-dark', 'colored-light'].includes(s.iconSet) ? s.iconSet : 'default',
     clientId: s.clientId || `zra-${Math.random().toString(36).slice(2, 10)}`,
     defaultSendMode: s.defaultSendMode === 'interrupt' ? 'interrupt' : 'queue',
     /** Faux (défaut) : comme Zed (`thinking_display: "auto"`), dépliées pendant leur écriture. */
@@ -41,10 +43,10 @@ function load() {
 export const settings = load()
 
 function persist() {
-  const { machines, theme, lang, textScale, clientId, defaultSendMode, alwaysShowThoughts, expandTools, threadFilter, notifications, mock, lastThread, tokens } = settings
+  const { machines, theme, lang, textScale, iconSet, clientId, defaultSendMode, alwaysShowThoughts, expandTools, threadFilter, notifications, mock, lastThread, tokens } = settings
   try {
     localStorage.setItem(KEY, JSON.stringify({
-      machines, theme, lang, textScale, clientId, defaultSendMode, alwaysShowThoughts, expandTools, threadFilter, notifications, mock, lastThread, tokens,
+      machines, theme, lang, textScale, iconSet, clientId, defaultSendMode, alwaysShowThoughts, expandTools, threadFilter, notifications, mock, lastThread, tokens,
     }))
   } catch { /* mode privé : on tourne en mémoire */ }
 }

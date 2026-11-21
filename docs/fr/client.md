@@ -8,9 +8,10 @@ dépendance runtime, aucun bundler, aucun framework.
 zra-client/
   index.html  manifest.webmanifest  sw.js  icon.svg
   css/   themes.css (généré)  app.css
+  icon-themes/  colored-zed/ (vendored : theme.json, SVG dark/light, LICENSES)
   js/    main.js store.js link.js settings.js acp.js markdown.js diff.js
-         dom.js icons.js format.js ui.js i18n.js en.js elicitation.js
-         themes.js + agent-icons.js (générés depuis Zed)
+         dom.js icons.js file-icons.js format.js ui.js i18n.js en.js elicitation.js
+         themes.js + agent-icons.js + file-icons-data.js (générés depuis Zed)
          views/  threads.js thread.js entry.js settings.js new-session.js pair.js devbar.js
          mock/   mock-link.js scenarios.js
   tools/ mock-server.mjs
@@ -159,6 +160,32 @@ Les variables CSS reprennent les noms de tokens de Zed (`element.hover` →
 `scripts/gen-themes.mjs`. Huit thèmes livrés. **Défaut : One, dark ou light
 selon le navigateur** (`prefers-color-scheme`), tant qu'aucun choix manuel n'a
 été fait ; le premier choix est persisté et fige le thème.
+
+## Jeu d'icônes de fichiers
+
+Les puces de mention et le menu de complétion affichent l'icône du fichier
+selon le réglage **Thème → Jeu d'icônes** (`js/file-icons.js`) :
+
+- **Défaut** : icônes génériques `file-text`/`folder` du jeu ZRA.
+- **Colored Zed Dark / Light** : l'extension « Colored Zed Icons Theme »
+  (TheRedXD), vendored dans `icon-themes/colored-zed/` avec ses licences
+  (`LICENSES`, Lucide ISC notamment). Pas de téléchargement d'extensions.
+
+La résolution est un port de `FileIcons::get_icon` (Zed) : nom complet, puis
+chaque suffixe après un point, puis le préfixe d'avant le premier point
+(`Dockerfile.prod`), extensions composées, fichier caché (`.gitignore`),
+extension simple. Les associations nom/extension → type viennent du défaut
+Zed (`icon_theme.rs`), fusionnées avec les surcharges du jeu choisi — comme
+`registry.rs` côté Zed. `js/file-icons-data.js` est **généré** :
+
+```bash
+npm run file-icons   # lit _upstream/zed + icon-themes/colored-zed/theme.json
+```
+
+Écarts assumés : un type absent du jeu coloré retombe sur `file-text`
+générique (Zed retombe sur le SVG monochrome du thème par défaut) ; les
+dossiers gardent toujours `folder` (pas d'icônes de dossiers dans les jeux
+colorés). Le changement de jeu repeint le fil sans rechargement.
 
 ## Branché sur le daemon
 

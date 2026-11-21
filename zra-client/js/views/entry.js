@@ -10,6 +10,7 @@
 
 import { h, button, escapeHtml } from '../dom.js'
 import { icon, toolIcon } from '../icons.js'
+import { fileIcon } from '../file-icons.js'
 import { markdownBlocks } from '../markdown.js'
 import { parseMentionLinks, uriName } from '../mentions.js'
 import { lineDiff, collapse } from '../diff.js'
@@ -58,7 +59,7 @@ export function renderEntry(entry, ctx = {}) {
  */
 /** Puce de mention (ui/mention_crease.rs) — HTML pour les bulles et le fil. */
 function mentionHtml(name, uri) {
-  const ic = icon(/\/$/.test(uri || '') ? 'folder' : 'file-text', 'icon--sm').outerHTML
+  const ic = fileIcon(uri || '', /\/$/.test(uri || ''), 'icon--sm').outerHTML
   return `<span class="mention" data-uri="${escapeHtml(uri || '')}">${ic}<span class="mention__name">${escapeHtml(name || '')}</span></span>`
 }
 

@@ -15,6 +15,7 @@
 
 import { parseMentionLinks, mentionLink } from './mentions.js'
 import { icon } from './icons.js'
+import { fileIcon } from './file-icons.js'
 
 const HINT = 'composer__hint'
 const BLOCKS = /^(DIV|P|LI|UL|OL|H[1-6]|BLOCKQUOTE|PRE|SECTION|ARTICLE|TABLE|TR)$/
@@ -140,7 +141,7 @@ export function editable(el) {
     const label = doc.createElement('span')
     label.className = 'mention__name'
     label.textContent = name
-    span.append(icon(/\/$/.test(uri) ? 'folder' : 'file-text', 'icon--sm'), label)
+    span.append(fileIcon(uri, /\/$/.test(uri), 'icon--sm'), label)
     return span
   }
 

@@ -20,7 +20,8 @@
     "pair": "node --no-warnings scripts/pair.mjs",
     "wireguard": "node --no-warnings scripts/wireguard.mjs",
     "zed": "node --no-warnings scripts/zed.mjs",
-    "themes": "node scripts/gen-themes.mjs"
+    "themes": "node scripts/gen-themes.mjs",
+    "file-icons": "node scripts/gen-file-icons.mjs"
   },
   "devDependencies": {
     "jsdom": "^29.1.1",

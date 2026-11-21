@@ -3,6 +3,7 @@
 import { h, button, clear } from '../dom.js'
 import { icon } from '../icons.js'
 import { THEMES } from '../themes.js'
+import { ICON_SETS } from '../file-icons.js'
 import * as settingsModule from '../settings.js'
 import { settings, applyTheme, applyTextScale, currentThemeId, update as updateSettings } from '../settings.js'
 import * as store from '../store.js'
@@ -18,7 +19,7 @@ export function openSettings() {
 }
 
 function build(body, api) {
-  body.append(machinesSection(api), themeSection(), displaySection(api), aboutSection())
+  body.append(machinesSection(api), themeSection(), langScaleSection(), togglesSection(), aboutSection())
 }
 
 function machinesSection(api) {
@@ -76,9 +77,20 @@ function themeSection() {
 
   const sync = () => { btn.querySelector('span').textContent = current().name }
 
+  const iconSetBtn = button('btn', {
+    onclick: (ev) => openMenu(ev.currentTarget, {
+      label: tr`Jeu d'icônes`,
+      items: ICON_SETS.map((s) => ({
+        label: s.name,
+        on: s.id === settings.iconSet,
+        onSelect: () => { updateSettings({ iconSet: s.id }); iconSetBtn.querySelector('span').textContent = s.name },
+      })),
+    }),
+  }, icon('file-text', 'icon--sm'), h('span', { text: (ICON_SETS.find((s) => s.id === settings.iconSet) || ICON_SETS[0]).name }), icon('chevron-down', 'icon--sm'))
+
   return h('section.field', {},
-    h('span.label', { text: tr`Thème` }),
-    h('div.row', {}, btn),
+    h('div.setting', {}, h('span.label', { text: tr`Thème` }), btn),
+    h('div.setting', {}, h('span.label', { text: tr`Jeu d'icônes` }), iconSetBtn),
   )
 }
 
@@ -99,7 +111,7 @@ const LANGS = [
   { value: 'en', label: 'English' },
 ]
 
-function displaySection(api) {
+function langScaleSection() {
   const langBtn = button('btn', {
     onclick: (ev) => openMenu(ev.currentTarget, {
       label: tr`Langue`,
@@ -128,9 +140,14 @@ function displaySection(api) {
   }, icon('eye', 'icon--sm'), h('span', { text: scaleLabel(TEXT_SCALES.find((s) => s.value === settings.textScale) || TEXT_SCALES[1]) }), icon('chevron-down', 'icon--sm'))
 
   return h('section.field', {},
-    h('span.label', { text: tr`Affichage` }),
     h('div.setting', {}, h('span.label', { text: tr`Langue` }), langBtn),
     h('div.setting', {}, h('span.label', { text: tr`Taille du texte` }), scaleBtn),
+  )
+}
+
+/** Cases à cocher ; nom accessible seulement (pas de titre visuel). */
+function togglesSection() {
+  return h('section.field', { 'aria-label': tr`Affichage` },
     toggle(tr`Toujours déplier les réflexions`, 'alwaysShowThoughts'),
     toggle(tr`Déplier tous les outils`, 'expandTools'),
     notificationsToggle(),

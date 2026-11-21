@@ -9,7 +9,7 @@ import { renderEntry, blocksPieces, revealBlocks, textLength, messageBody, planP
 import { openMenu, toast, switchEl } from '../ui.js'
 import { newSessionButton } from './new-session.js'
 import { BottomBar } from './bottombar.js'
-import { settings, update as updateSettings } from '../settings.js'
+import { settings, update as updateSettings, onSettings } from '../settings.js'
 import { tr, locale } from '../i18n.js'
 import { composerCompletion, validateSlash } from '../completion.js'
 import { editable } from '../editor.js'
@@ -685,6 +685,8 @@ export function ThreadView({ key, navigate }) {
   })
 
   const offs = [
+    // Jeu d'icônes changé : les puces de mention du fil se repeignent.
+    (() => { let last = settings.iconSet; return onSettings((s) => { if (s.iconSet !== last) { last = s.iconSet; paintAll() } }) })(),
     store.on(`timeline:${key}`, onTimeline),
     store.on(`state:${key}`, onState),
     // Écriture abandonnée après une coupure : le texte revient dans le champ.

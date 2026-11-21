@@ -1,4 +1,5 @@
 export default {
+  "Défaut": "Default",
   "avis de l'agent": "agent notice",
   "outil": "tool",
   "appel d'outil introuvable": "Tool call not found",
@@ -151,6 +152,7 @@ export default {
   "La langue des textes change au rechargement de la PWA.": "Text language changes when the PWA reloads.",
   "Recharger": "Reload",
   "Taille du texte": "Text size",
+  "Jeu d'icônes": "Icon set",
   "Affichage": "Display",
   "Toujours déplier les réflexions": "Always expand thinking",
   "Déplier tous les outils": "Expand all tools",

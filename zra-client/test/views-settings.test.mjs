@@ -31,6 +31,7 @@ const settingsModule = await import('../js/settings.js')
 const { openSettings } = await import('../js/views/settings.js')
 const { closeAllOverlays } = await import('../js/ui.js')
 const { THEMES } = await import('../js/themes.js')
+const { ICON_SETS } = await import('../js/file-icons.js')
 
 const { MockLink } = await import('../js/mock/mock-link.js')
 store.init({ mock: MockLink })
@@ -53,15 +54,16 @@ function open() {
   openSettings()
   return $('.sheet')
 }
-const sections = (sheet) => $$('section.field').map((s) => s.querySelector('.label').textContent)
-const section = (sheet, label) => $$('section.field').find((s) => s.querySelector('.label').textContent === label)
+const sectionName = (s) => s.getAttribute('aria-label') || s.querySelector('.label').textContent
+const sections = (sheet) => $$('section.field').map(sectionName)
+const section = (sheet, label) => $$('section.field').find((s) => sectionName(s) === label)
 const toasts = () => $$('.toast').map((n) => n.textContent)
 const wait = (ms) => new Promise((r) => setTimeout(r, ms))
 
-test('la feuille s’ouvre avec ses quatre sections', () => {
+test('la feuille s’ouvre avec ses cinq sections', () => {
   const sheet = open()
   assert.equal(sheet.querySelector('.sheet__title span').textContent, 'Réglages')
-  assert.deepEqual(sections(sheet), ['Postes', 'Thème', 'Affichage', 'À propos'])
+  assert.deepEqual(sections(sheet), ['Postes', 'Thème', 'Langue', 'Affichage', 'À propos'])
   assert.equal($$('.sheet').length, 1, 'une seule feuille')
 })
 
@@ -259,6 +261,28 @@ test('Affichage : les cases reflètent les réglages et les écrivent', () => {
   settingsModule.update({ expandTools: false })
 })
 
+test('Affichage : le jeu d’icônes se choisit, se persiste et met le libellé à jour', () => {
+  const sheet = open()
+  const row = $$('.setting', section(sheet, 'Thème')).find((r) => r.querySelector('.label').textContent === "Jeu d'icônes")
+  const btn = row.querySelector('button.btn')
+  assert.equal(btn.querySelector('span').textContent, ICON_SETS.find((s) => s.id === settingsModule.settings.iconSet).name)
+
+  click(btn)
+  const menu = $('.menu')
+  assert.equal(menu.querySelector('.menu__label').textContent, "Jeu d'icônes")
+  assert.equal(menu.querySelectorAll('.menu__item').length, ICON_SETS.length)
+  assert.equal(menu.querySelectorAll('.menu__item--on').length, 1, 'le jeu courant est coché')
+
+  const target = ICON_SETS.find((s) => s.id === 'colored-dark')
+  click($$('.menu__item').find((b) => b.querySelector('.truncate').textContent === target.name))
+  assert.equal(settingsModule.settings.iconSet, 'colored-dark', 'réglage mis à jour')
+  assert.equal(JSON.parse(localStorage.getItem('zra.settings.v2')).iconSet, 'colored-dark', 'et persisté')
+  assert.equal($('.menu'), null, 'le menu est refermé')
+  assert.equal(row.querySelector('button.btn span').textContent, target.name, 'libellé à jour sans rouvrir la feuille')
+
+  settingsModule.update({ iconSet: 'default' })
+})
+
 test('Affichage : toucher au mode mock demande un rechargement', () => {
   const sheet = open()
   const box = section(sheet, 'Affichage').querySelectorAll('input[type="checkbox"]')[3]
@@ -277,9 +301,9 @@ test('Affichage : toucher au mode mock demande un rechargement', () => {
   settingsModule.update({ mock: true })
 })
 
-test('Affichage : la langue se choisit et demande un rechargement', () => {
+test('Langue : se choisit et demande un rechargement', () => {
   const sheet = open()
-  const btn = [...section(sheet, 'Affichage').querySelectorAll('button.btn')][0]
+  const btn = [...section(sheet, 'Langue').querySelectorAll('button.btn')][0]
   assert.equal(btn.querySelector('span').textContent, 'Auto')
   click(btn)
   const items = $$('.menu__item')
@@ -292,9 +316,9 @@ test('Affichage : la langue se choisit et demande un rechargement', () => {
   settingsModule.update({ lang: 'auto' })
 })
 
-test('Affichage : la taille du texte s’applique sans rechargement', () => {
+test('Taille du texte : s’applique sans rechargement', () => {
   const sheet = open()
-  const btn = [...section(sheet, 'Affichage').querySelectorAll('button.btn')][1]
+  const btn = [...section(sheet, 'Langue').querySelectorAll('button.btn')][1]
   assert.equal(btn.querySelector('span').textContent, 'Normale (14 px)')
   click(btn)
   const grande = $$('.menu__item').find((i) => i.querySelector('.truncate').textContent === 'Grande (16 px)')
