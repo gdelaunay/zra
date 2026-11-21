@@ -175,7 +175,7 @@ button { cursor: pointer; }
 .btn--ghost:hover { color: var(--text); }
 .btn--accent { color: var(--text-accent); }
 .btn--danger { color: var(--error); }
-.btn--sm { height: 20px; font-size: var(--fs-xs); }
+.btn--sm { height: 28px; font-size: var(--fs-xs); }
 .btn--full { width: 100%; justify-content: center; }
 
 .input {
@@ -809,7 +809,7 @@ button { cursor: pointer; }
  * Réduction mobile icon-only : implémentation ZRA conservée. */
 .pill {
   display: inline-flex; align-items: center; gap: var(--sp-2);
-  height: 22px; padding: 0 var(--sp-2);
+  height: 28px; padding: 0 var(--sp-2);
   border-radius: var(--radius); font-size: var(--fs-sm);
   color: var(--text-muted); background: var(--ghost-element-background);
   border: 1px solid transparent;

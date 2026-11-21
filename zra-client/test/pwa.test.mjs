@@ -159,10 +159,10 @@ test('ossature identique sur les deux écrans', async () => {
   await until(() => /Refactor/.test(headerTitle()), 3000)
 })
 
-test('la top bar du thread porte agent, titre, chemin et date', () => {
+test('la top bar du thread porte agent, titre et chemin, sans date', () => {
   assert.ok($('.header__agent svg'), "icône de l'agent à gauche du titre")
   assert.match($('.header__meta .path').textContent, /zra/)
-  assert.match($('.header__meta').textContent, /·/)
+  assert.doesNotMatch($('.header__meta').textContent, /·/, 'plus de temps relatif du dernier update')
   assert.equal($$('.header .icon-btn').length, 3, 'nouvelle session + rechargement + réglages, pas de retour')
   assert.ok($('.header [title="Recharger l’historique"]'), 'rechargement de l’historique dans la top bar')
   assert.ok(!$('.header [aria-label=retour]'), 'plus de bouton précédent')
