@@ -307,9 +307,9 @@ button { cursor: pointer; }
 @media (hover: hover) {
   .group__head:not(:hover) .group__chevron { visibility: hidden; }
 }
-.group__name { font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .06em;
+.group__name { font-size: var(--fs-sm); text-transform: uppercase; letter-spacing: .06em;
   color: var(--text-muted); font-weight: 600; }
-.group__meta { font-size: var(--fs-xs); color: var(--text-disabled); }
+.group__meta { font-size: var(--fs-sm); color: var(--text-disabled); }
 
 /* Projet — render_project_header : 31 px, pl 8 pr 6, survol ghost_element_hover. */
 .project__head {
@@ -382,6 +382,12 @@ button { cursor: pointer; }
 .thread-row:has(.thread-row__rename) .thread-row__actions { display: none; }
 .thread-row--actions { background: var(--ghost-element-hover); }
 .thread-row--actions .thread-row__actions { display: flex; }
+/* Les actions prennent la place de la pastille d'état : elle s'efface dessous. */
+@media (hover: hover) {
+  .thread-row:hover .thread-row__status, .thread-row:focus-within .thread-row__status { visibility: hidden; }
+}
+.thread-row--actions .thread-row__status { visibility: hidden; }
+.thread-row:has(.thread-row__rename) .thread-row__status { visibility: visible; }
 /* Renommage inline : éditeur une ligne à la place du titre (render_rename_title_editor). */
 .thread-row__rename {
   flex: 1; min-width: 0; height: 20px; padding: 0 2px;
