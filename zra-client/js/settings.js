@@ -104,7 +104,8 @@ const isIPv4 = (s) => /^\d{1,3}(\.\d{1,3}){3}$/.test(s) && s.split('.').every((p
 
 /**
  * Cible d'un poste : la référence persistée, indépendante du mode de service.
- * Relais : IP littérale (schéma et port ignorés, le relais vise 7777).
+ * Relais : IP littérale, port explicite gardé (`IP:port`) — 7777, le défaut
+ * du relais, est omis pour fondre les doublons ; schéma ignoré.
  * Direct : adresse normalisée — sans schéma, celui de la page (une PWA en
  * HTTPS ne peut ouvrir que du `wss://`) ; sans port, 7777 en HTTP, 443 en
  * HTTPS (reverse proxy, docs/fr/deploy.md §4) ; port explicite respecté,
@@ -116,8 +117,12 @@ export function parseTarget(input, pageProtocol = globalThis.location?.protocol)
   if (!/^https?:\/\//i.test(s)) s = `${pageProtocol === 'https:' ? 'https' : 'http'}://${s}`
   let u
   try { u = new URL(s) } catch { return null }
-  if (relayOn) return isIPv4(u.hostname) ? u.hostname : null
   const explicitPort = /^https?:\/\/(\[[^\]]*\]|[^/:]*):\d+/i.test(s)
+  if (relayOn) {
+    if (!isIPv4(u.hostname)) return null
+    if (explicitPort && (Number(u.port) < 1 || Number(u.port) > 65535)) return null
+    return explicitPort && u.port !== '7777' ? `${u.hostname}:${u.port}` : u.hostname
+  }
   if (!explicitPort && u.protocol === 'http:') u.port = '7777'
   u.pathname = u.pathname.replace(/\/+$/, '')
   return u.origin + (u.pathname === '/' ? '' : u.pathname)
@@ -125,24 +130,31 @@ export function parseTarget(input, pageProtocol = globalThis.location?.protocol)
 
 /**
  * URL de connexion d'une cible, selon le mode courant — jamais persistée.
- * Une IP nue saisie en mode relais suit les règles directes quand la page est
- * servie par un daemon (et inversement, une adresse dont l'hôte est une IP
- * repasse par la route du relais). Une adresse à hostname reste joignable en
- * direct même sous le relais : le mode ne casse aucune entrée enregistrée.
+ * Une IP nue saisie en mode relais (port éventuel : `IP:port`) suit les règles
+ * directes quand la page est servie par un daemon (et inversement, une adresse
+ * dont l'hôte est une IP repasse par la route du relais, port gardé). Une
+ * adresse à hostname reste joignable en direct même sous le relais : le mode
+ * ne casse aucune entrée enregistrée.
  */
 export function machineUrl(target, pageProtocol = globalThis.location?.protocol, origin = globalThis.location?.origin) {
   if (!target) return null
   if (relayOn) {
-    if (isIPv4(target)) return `${origin}/to/${target}`
+    // Cible nue du relais : IP, ou IP:port (port explicite ≠ 7777).
+    if (/^\d{1,3}(\.\d{1,3}){3}(:\d+)?$/.test(target) && isIPv4(target.split(':')[0])) return `${origin}/to/${target}`
     try {
       const u = new URL(target)
-      if (isIPv4(u.hostname)) return `${origin}/to/${u.hostname}`
+      if (isIPv4(u.hostname)) {
+        const port = u.port && u.port !== '7777' ? `:${u.port}` : ''
+        return `${origin}/to/${u.hostname}${port}`
+      }
     } catch { /* cible nue non IP : adresse directe */ }
     return target
   }
   if (/^https?:\/\//i.test(target)) return target
-  // IP nue (saisie en mode relais) : schéma de la page, 7777 en http, 443 en https.
-  return pageProtocol === 'https:' ? `https://${target}` : `http://${target}:7777`
+  // IP nue (saisie en mode relais) : schéma de la page ; sans port, 7777 en
+  // http, 443 en https — un port déjà présent (`IP:port`) est respecté.
+  if (pageProtocol === 'https:') return `https://${target}`
+  return `http://${target}${target.includes(':') ? '' : ':7777'}`
 }
 
 /** Saisie utilisateur → URL de connexion dans le mode courant. */

@@ -43,7 +43,7 @@ if (certFile) {
 
 const server = createRelay({ tls })
 server.listen(port, host, () => {
-  log.info(tr`zra-relay écoute ${tls ? 'https' : 'http'}://${host}:${port} — PWA + relais /to/<ip>/ws.`)
+  log.info(tr`zra-relay écoute ${tls ? 'https' : 'http'}://${host}:${port} — PWA + relais /to/<ip>[:<port>]/ws.`)
 })
 server.on('error', (err) => {
   log.error(tr`Écoute impossible :`, err.message)

@@ -27,17 +27,26 @@ const SITE = join(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'site')
 
 // ---- Cibles ------------------------------------------------------------------
 
-test('cibles : IPv4 privées littérales, rien d’autre', () => {
+test('cibles : IPv4 privées littérales, port optionnel (7777 par défaut)', () => {
   for (const ip of ['10.0.0.2', '192.168.1.20', '172.16.0.1', '100.64.0.3']) {
-    assert.deepEqual(parseTarget(`/to/${ip}/ws`), { ip }, ip)
-    assert.deepEqual(parseTarget(`/to/${ip}`), { ip }, 'sonde GET sans /ws')
-    assert.deepEqual(parseTarget(`/to/${ip}/ws/`), { ip }, 'slash final')
+    assert.deepEqual(parseTarget(`/to/${ip}/ws`), { ip, port: 7777 }, ip)
+    assert.deepEqual(parseTarget(`/to/${ip}`), { ip, port: 7777 }, 'sonde GET sans /ws')
+    assert.deepEqual(parseTarget(`/to/${ip}/ws/`), { ip, port: 7777 }, 'slash final')
   }
+  // Port explicite : gardé, upgrade comme sonde.
+  assert.deepEqual(parseTarget('/to/10.0.0.2:7778/ws'), { ip: '10.0.0.2', port: 7778 })
+  assert.deepEqual(parseTarget('/to/10.0.0.2:7778'), { ip: '10.0.0.2', port: 7778 }, 'sonde GET')
+  assert.deepEqual(parseTarget('/to/10.0.0.2:1/ws/'), { ip: '10.0.0.2', port: 1 }, 'borne basse')
+  assert.deepEqual(parseTarget('/to/10.0.0.2:65535/ws'), { ip: '10.0.0.2', port: 65535 }, 'borne haute')
   for (const ip of ['8.8.8.8', '1.1.1.1', '127.0.0.1', '169.254.1.1', '172.32.0.1']) {
     assert.equal(parseTarget(`/to/${ip}/ws`).error, 'public_ip', `${ip} refusée`)
+    assert.equal(parseTarget(`/to/${ip}:7778/ws`).error, 'public_ip', `${ip} refusée même avec port`)
   }
-  for (const bad of ['poste.local', '::1', '10.0.0', '10.0.0.2:7777', '999.0.0.1']) {
+  for (const bad of ['poste.local', '::1', '10.0.0', '999.0.0.1', 'poste.local:7778']) {
     assert.equal(parseTarget(`/to/${bad}/ws`).error, 'invalid_ip', `${bad} invalide`)
+  }
+  for (const bad of ['10.0.0.2:0', '10.0.0.2:65536', '10.0.0.2:abc', '10.0.0.2:', '10.0.0.2:-1', '10.0.0.2:7778:9']) {
+    assert.equal(parseTarget(`/to/${bad}/ws`).error, 'invalid_port', `${bad} port invalide`)
   }
   for (const path of ['/ws', '/', '/to//ws', '/to/10.0.0.2/autre', '/to/10.0.0.2/ws/x']) {
     assert.equal(parseTarget(path).error, 'not_found', path)
@@ -133,14 +142,32 @@ test('pipe : handshake rejoué sans Origin, trames dans les deux sens', async (t
   await closed
 })
 
-test('refus avant upgrade : IP publique, hostname, chemin inconnu', async (t) => {
+test('refus avant upgrade : IP publique, hostname, port invalide, chemin inconnu', async (t) => {
   const daemon = await fakeDaemon(t)
   const relay = await relayTo(t, daemon.port)
   assert.match(await rawUpgrade(relay.port, '/to/8.8.8.8/ws'), /403/, 'IP publique')
   assert.match(await rawUpgrade(relay.port, '/to/127.0.0.1/ws'), /403/, 'loopback')
   assert.match(await rawUpgrade(relay.port, '/to/poste.local/ws'), /400/, 'hostname : pas de DNS')
+  assert.match(await rawUpgrade(relay.port, '/to/10.0.0.2:70000/ws'), /400/, 'port hors plage')
+  assert.match(await rawUpgrade(relay.port, '/to/10.0.0.2:abc/ws'), /400/, 'port non numérique')
   assert.match(await rawUpgrade(relay.port, '/ws'), /404/, 'le relais n’a pas de /ws propre')
   assert.deepEqual(relay.asked, [], 'aucune connexion ouverte vers un poste refusé')
+})
+
+test('pipe : port explicite visé, Host du poste accordé', async (t) => {
+  const daemon = await fakeDaemon(t)
+  const relay = await relayTo(t, daemon.port)
+
+  const client = new WebSocket(`ws://127.0.0.1:${relay.port}/to/10.0.0.2:7778/ws`)
+  t.after(() => client.close())
+  await once(client, 'open')
+
+  assert.deepEqual(relay.asked, [{ host: '10.0.0.2', port: 7778 }], 'le relais vise le port de la route')
+  assert.equal(daemon.headers().host, '10.0.0.2:7778', 'Host du poste, port compris')
+
+  client.send(JSON.stringify({ type: 'hello', clientId: 'test-port' }))
+  while (!daemon.received.length) await wait(10)
+  assert.deepEqual(daemon.received[0], { type: 'hello', clientId: 'test-port' })
 })
 
 test('poste injoignable : 502 rendu au navigateur', async (t) => {
@@ -183,8 +210,11 @@ test('sonde GET : le relais tranche pour le diagnostic du client', async (t) => 
 
   assert.equal((await fetch(`${base}/to/10.0.0.2`)).status, 200, 'poste joignable')
   assert.equal((await fetch(`${base}/to/10.0.0.2/ws`)).status, 200, 'avec /ws aussi')
+  assert.equal((await fetch(`${base}/to/10.0.0.2:7778`)).status, 200, 'port explicite')
+  assert.deepEqual(relay.asked.at(-1), { host: '10.0.0.2', port: 7778 }, 'la sonde vise le port de la route')
   assert.equal((await fetch(`${base}/to/8.8.8.8`)).status, 403, 'IP publique')
   assert.equal((await fetch(`${base}/to/poste.local`)).status, 400, 'hostname')
+  assert.equal((await fetch(`${base}/to/10.0.0.2:0`)).status, 400, 'port invalide')
 
   const closed = createServer()
   await new Promise((resolve) => closed.listen(0, '127.0.0.1', resolve))

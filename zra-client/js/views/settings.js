@@ -50,13 +50,13 @@ function generalPage(api) {
 function machinesBlock(api) {
   const list = h('div.machine-list')
   for (const m of store.state.machines.values()) {
-    // Route relais : le sous-titre montre l'adresse du poste (ws://IP:7777),
-    // pas l'hôte du relais — le titre, lui, peut être un alias.
+    // Route relais : le sous-titre montre l'adresse du poste (ws://IP:port,
+    // 7777 par défaut), pas l'hôte du relais — le titre, lui, peut être un alias.
     const route = /^https?:\/\/[^/]+\/to\/([^/]+)/.exec(m.url)
     list.append(h('div.machine-row', {},
       h(`span.dot.dot--${m.status === 'online' ? 'live' : 'unknown'}`),
       h('span.truncate.machine-row__name', { text: m.info?.name || m.label }),
-      h('span.muted.truncate.machine-row__addr', { text: route ? `ws://${route[1]}:7777` : m.url.replace(/^https?:\/\//, '') }),
+      h('span.muted.truncate.machine-row__addr', { text: route ? `ws://${route[1]}${route[1].includes(':') ? '' : ':7777'}` : m.url.replace(/^https?:\/\//, '') }),
       m.implicit ? h('span.thread-row__badge', { text: 'local' }) : null,
       !m.implicit && store.state.mock ? h('span.thread-row__badge', { text: 'mock' }) : null,
       // Retrait possible même en mock (le poste simulé revient au rechargement).
@@ -72,7 +72,7 @@ function machinesBlock(api) {
   }
 
   const input = h('input.inputfield', {
-    placeholder: isRelay() ? tr`192.168.1.20 ou 10.0.0.2 — IP du poste` : tr`192.168.1.20 ou http://192.168.1.20:7777`,
+    placeholder: isRelay() ? tr`192.168.1.20 ou 10.0.0.2:7778 — IP du poste (port optionnel)` : tr`192.168.1.20 ou http://192.168.1.20:7777`,
     inputmode: 'url', autocapitalize: 'off', spellcheck: 'false', 'aria-label': tr`Adresse du poste`,
   })
   const add = () => {
@@ -87,7 +87,7 @@ function machinesBlock(api) {
   return h('div.sblock', {},
     list,
     h('div.row', {}, input, button('btn.btn--md', { onclick: add }, icon('plus', 'icon--sm'), tr`Ajouter`)),
-    h('p.srow-desc', { text: isRelay() ? tr`IP du poste sur le réseau local ou le tunnel. Le relais construit la route (port 7777).` : tr`Adresse du daemon. Port 7777 par défaut en http, 443 en https (derrière un reverse proxy).` }),
+    h('p.srow-desc', { text: isRelay() ? tr`IP du poste sur le réseau local ou le tunnel. Le relais construit la route — port 7777 par défaut, ou IP:port.` : tr`Adresse du daemon. Port 7777 par défaut en http, 443 en https (derrière un reverse proxy).` }),
   )
 }
 

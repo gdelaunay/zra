@@ -244,9 +244,10 @@ machine), pairing.
 
 Two serving modes, automatic detection at boot (`/zra-relay` marker):
 
-- **served by the relay**: a typed IP becomes a `/to/<ip>` route on the page's
-  origin (`wss://<host>/to/<ip>/ws`); the machine is named by its IP, no
-  implicit machine;
+- **served by the relay**: a typed IP becomes a `/to/<ip>[:<port>]` route on
+  the page's origin (`wss://<host>/to/<ip>[:<port>]/ws`, port 7777 by default);
+  the machine is named by its IP (port included when given), no implicit
+  machine;
 - **served elsewhere** (daemon, per-machine proxy, static server): direct
   behavior — address of a machine without a port: 7777 over `http://`, 443 over
   `https://` (behind a reverse proxy).

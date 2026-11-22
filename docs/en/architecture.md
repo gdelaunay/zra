@@ -34,7 +34,7 @@ flowchart LR
 | `zra-shim/` | ACP proxy. Zed launches it instead of the agent — node preload in the original `registry` entry (npx agents), or `… (zra)` entry in `agent_servers` (binaries) —, it launches the real agent and copies frames both ways. It observes the stream, publishes it to the daemon, and injects what comes from the phone. | That of the thread in Zed |
 | `zra-daemon/` | The machine's HTTP + WebSocket server. Holds the thread index, routes messages between shims and clients, handles pairing, drives the Zed window with the keyboard. | Long-running, one per machine |
 | `zra-client/` | PWA in plain JavaScript, no build. Served by the daemon, by the relay or by any static server. Can follow several machines. | The phone's browser |
-| `zra-relay/` | Optional HTTPS relay (`npm run relay`), for the homelab: serves the PWA and relays `wss://<host>/to/<ip>/ws` → `ws://<ip>:7777/ws`, as a transparent pipe. Literal private IPs only; the request to the machine goes without `Origin` (a native client for the daemon: nothing to declare on the machines). Pairing crosses end-to-end. HTTP behind the homelab's proxy, or standalone HTTPS (`ZRA_RELAY_TLS_CERT`/`KEY`, reloaded live). | Long-running, one for the LAN, optional |
+| `zra-relay/` | Optional HTTPS relay (`npm run relay`), for the homelab: serves the PWA and relays `wss://<host>/to/<ip>[:<port>]/ws` → `ws://<ip>:<port>/ws` (7777 by default), as a transparent pipe. Literal private IPs only; the request to the machine goes without `Origin` (a native client for the daemon: nothing to declare on the machines). Pairing crosses end-to-end. HTTP behind the homelab's proxy, or standalone HTTPS (`ZRA_RELAY_TLS_CERT`/`KEY`, reloaded live). | Long-running, one for the LAN, optional |
 
 `scripts/` holds installation (`setup`), the service (`service`), pairing (`pair`) and keyboard tuning (`zed`).
 
@@ -60,7 +60,7 @@ flowchart LR
 ### PWA ↔ daemon: HTTP and WebSocket `/ws`
 
 - Same port for everything (7777 by default). HTTP serves `zra-client/` (`zra-daemon/static.js`).
-- Through `zra-relay` (optional): the PWA is served by the relay (same origin, `/zra-relay` marker detected at boot) and opens `wss://<host>/to/<ip>/ws`. The relay targets the machine's private IP, without `Origin` or proxy headers: the daemon treats it as a native client, pairing is required just like direct. A GET probe `/to/<ip>` (200/502/400/403) feeds the client's diagnosis (`link.js`).
+- Through `zra-relay` (optional): the PWA is served by the relay (same origin, `/zra-relay` marker detected at boot) and opens `wss://<host>/to/<ip>[:<port>]/ws`. The relay targets the machine's private IP (port 7777 by default, or the route's), without `Origin` or proxy headers: the daemon treats it as a native client, pairing is required just like direct. A GET probe `/to/<ip>[:<port>]` (200/502/400/403) feeds the client's diagnosis (`link.js`).
 - WebSocket: protocol described in `docs/en/protocol.md`. `zra-daemon/hub.js` is the only module that knows the clients.
 - ACP events are rebroadcast as is in numbered `acp_event`s (`seq`). A ring buffer per thread (`zra-daemon/ring-buffer.js`, 2,000 events) allows resuming after a drop.
 - HTTP routes reserved to loopback: `/status`, `/pair`, `/pair/rotate`, `/pair/revoke` (used by `npm run setup` and `npm run pair`).

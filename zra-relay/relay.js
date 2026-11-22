@@ -2,7 +2,8 @@
 //
 // Un client servi en https:// ne peut ouvrir que du wss:// (contenu mixte
 // bloqué) ; les daemons parlent en ws://. Le relais joint chaque poste par son
-// IP privée : `wss://<hôte>/to/<ip>/ws` → `ws://<ip>:7777/ws`. Une seule config
+// IP privée : `wss://<hôte>/to/<ip>[:<port>]/ws` → `ws://<ip>:<port>/ws`
+// (7777 par défaut). Une seule config
 // HTTPS : celle du proxy du homelab devant lui (HTTP/WS simple), ou la sienne
 // (`ZRA_RELAY_TLS_CERT`/`KEY`, certificat relu à chaud) — un process, sans
 // proxy, quand on n'en a pas.
@@ -30,7 +31,7 @@ import { tr } from '../zra-daemon/i18n.js'
 
 const log = logger('relay')
 
-/** Le daemon écoute toujours sur ce port ; le relais ne vise que lui. */
+/** Port par défaut d'un daemon ; une route peut en viser un autre (`/to/<ip>:<port>`). */
 const DAEMON_PORT = 7777
 /** Handshake vers le poste : au-delà, il est tenu pour injoignable. */
 const CONNECT_TIMEOUT_MS = 10_000
@@ -38,19 +39,25 @@ const CONNECT_TIMEOUT_MS = 10_000
 const PROBE_TIMEOUT_MS = 4_000
 
 /**
- * Cible d'une route `/to/<ip>/ws` (upgrade) ou `/to/<ip>` (sonde GET).
- * IP littérale uniquement : pas de résolution DNS, donc pas de rebinding ni
- * de cible mouvante ; privées uniquement (RFC 1918 + CGNAT des tunnels),
- * sinon le relais serait un proxy ouvert sur internet. La loopback et le
- * link-local n'en font pas partie : refusés.
+ * Cible d'une route `/to/<ip>[:<port>]/ws` (upgrade) ou `/to/<ip>[:<port>]`
+ * (sonde GET). IP littérale uniquement : pas de résolution DNS, donc pas de
+ * rebinding ni de cible mouvante ; privées uniquement (RFC 1918 + CGNAT des
+ * tunnels), sinon le relais serait un proxy ouvert sur internet. La loopback
+ * et le link-local n'en font pas partie : refusés. Port optionnel (1-65535),
+ * 7777 par défaut — un daemon lancé sur un autre port reste joignable.
  */
 export function parseTarget(pathname) {
   const m = /^\/to\/([^/]+?)(?:\/ws)?\/?$/.exec(pathname || '')
   if (!m) return { error: 'not_found' }
-  const ip = m[1]
+  const [ip, portRaw, ...rest] = m[1].split(':')
   if (!isIPv4(ip)) return { error: 'invalid_ip', ip }
   if (!isPrivate(ip)) return { error: 'public_ip', ip }
-  return { ip }
+  if (rest.length) return { error: 'invalid_port', ip }
+  if (portRaw === undefined) return { ip, port: DAEMON_PORT }
+  if (!/^\d{1,5}$/.test(portRaw)) return { error: 'invalid_port', ip }
+  const port = Number(portRaw)
+  if (port < 1 || port > 65535) return { error: 'invalid_port', ip }
+  return { ip, port }
 }
 
 function refuse(socket, status, reason) {
@@ -92,8 +99,9 @@ export function createRelay({ staticDir = resolve(import.meta.dirname, '..', 'zr
     const target = parseTarget(url.pathname)
     if (target.error !== 'not_found') {
       if (target.error === 'invalid_ip') return sendText(res, 400, tr`Adresse invalide : une IPv4 littérale est attendue.`)
+      if (target.error === 'invalid_port') return sendText(res, 400, tr`Port invalide : un entier entre 1 et 65535 est attendu.`)
       if (target.error === 'public_ip') return sendText(res, 403, tr`IP non privée refusée : le relais ne vise que le réseau local ou un tunnel.`)
-      const probe = connect({ host: target.ip, port: DAEMON_PORT })
+      const probe = connect({ host: target.ip, port: target.port })
       const done = (status, text) => {
         probe.destroy()
         if (!res.headersSent) sendText(res, status, text)
@@ -119,6 +127,7 @@ export function createRelay({ staticDir = resolve(import.meta.dirname, '..', 'zr
     const target = parseTarget(url)
     if (target.error === 'not_found') return refuse(socket, 404, tr`Chemin inconnu.`)
     if (target.error === 'invalid_ip') return refuse(socket, 400, tr`Adresse invalide : une IPv4 littérale est attendue.`)
+    if (target.error === 'invalid_port') return refuse(socket, 400, tr`Port invalide : un entier entre 1 et 65535 est attendu.`)
     if (target.error === 'public_ip') {
       log.warn(tr`Relais refusé : ${target.ip} n'est pas une IP privée.`)
       return refuse(socket, 403, tr`IP non privée refusée : le relais ne vise que le réseau local ou un tunnel.`)
@@ -127,7 +136,7 @@ export function createRelay({ staticDir = resolve(import.meta.dirname, '..', 'zr
     const key = req.headers['sec-websocket-key']
     if (!key || String(req.headers['sec-websocket-version']) !== '13') return refuse(socket, 400, tr`Handshake invalide.`)
 
-    const up = connect({ host: target.ip, port: DAEMON_PORT })
+    const up = connect({ host: target.ip, port: target.port })
     up.setNoDelay(true)
     let opened = false
     let settled = false
@@ -152,7 +161,7 @@ export function createRelay({ staticDir = resolve(import.meta.dirname, '..', 'zr
       // `Sec-WebSocket-Accept` rendu prouve que le poste a bien répondu.
       up.write(
         'GET /ws HTTP/1.1\r\n' +
-        `Host: ${target.ip}:${DAEMON_PORT}\r\n` +
+        `Host: ${target.ip}:${target.port}\r\n` +
         'Upgrade: websocket\r\nConnection: Upgrade\r\n' +
         `Sec-WebSocket-Key: ${key}\r\n` +
         'Sec-WebSocket-Version: 13\r\n\r\n',

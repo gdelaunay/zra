@@ -245,9 +245,10 @@ poste), appairage.
 
 Deux modes de service, détection automatique au boot (marqueur `/zra-relay`) :
 
-- **servi par le relais** : une IP saisie devient une route `/to/<ip>` sur
-  l'origine de la page (`wss://<hôte>/to/<ip>/ws`) ; le poste se nomme par son
-  IP, pas de poste implicite ;
+- **servi par le relais** : une IP saisie devient une route `/to/<ip>[:<port>]`
+  sur l'origine de la page (`wss://<hôte>/to/<ip>[:<port>]/ws`, port 7777 par
+  défaut) ; le poste se nomme par son IP (port compris le cas échéant), pas de
+  poste implicite ;
 - **servi ailleurs** (daemon, proxy par poste, serveur statique) : comportement
   direct — adresse d'un poste sans port : 7777 en `http://`, 443 en `https://`
   (derrière un reverse proxy).

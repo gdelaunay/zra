@@ -160,7 +160,8 @@ hands-on.
 ### 4.1 The `zra-relay` relay (recommended with a homelab)
 
 A small Node server (no build, no dependencies) that serves the PWA **and**
-relays the WebSockets: `wss://<host>/to/<ip>/ws` → `ws://<ip>:7777/ws`. A
+relays the WebSockets: `wss://<host>/to/<ip>[:<port>]/ws` →
+`ws://<ip>:<port>/ws` (7777 by default). A
 single HTTPS config — its own. The machines keep their daemon on HTTP on the
 local network or the tunnel, **nothing more to configure**.
 
@@ -172,8 +173,9 @@ npm run relay               # listens http://0.0.0.0:7777 — PWA + relay
   WireGuard/Tailscale): public IP, hostname, loopback → refused. It is not an
   open proxy;
 - it only sees frames: pairing stays end-to-end (§2);
-- adding a machine = Settings › Add a machine › its IP. The PWA served by the
-  relay builds the route itself (automatic detection);
+- adding a machine = Settings › Add a machine › its IP (optional port:
+  `IP:port`, otherwise 7777). The PWA served by the relay builds the route
+  itself (automatic detection);
 - network prerequisite: the relay must be able to reach the machines (LAN or
   VPN, §3.1). Relay down: the machines carry on, only the PWA is unreachable.
 

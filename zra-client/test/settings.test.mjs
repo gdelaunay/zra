@@ -31,10 +31,14 @@ test('mode relais : une IP devient une route /to/<ip> sur l’origine de la page
   t.after(() => setRelayMode(false))
   const origin = 'https://zra.exemple.fr'
   assert.equal(normalizeUrl('10.77.0.1', 'https:', origin), 'https://zra.exemple.fr/to/10.77.0.1')
-  assert.equal(normalizeUrl('http://10.77.0.1:7777/', 'https:', origin), 'https://zra.exemple.fr/to/10.77.0.1', 'schéma et port ignorés : le relais vise 7777')
+  assert.equal(normalizeUrl('http://10.77.0.1:7777/', 'https:', origin), 'https://zra.exemple.fr/to/10.77.0.1', 'schéma ignoré ; 7777 = défaut du relais, omis')
+  assert.equal(normalizeUrl('10.77.0.1:7778', 'https:', origin), 'https://zra.exemple.fr/to/10.77.0.1:7778', 'port explicite gardé')
+  assert.equal(normalizeUrl('http://10.77.0.1:7778/', 'https:', origin), 'https://zra.exemple.fr/to/10.77.0.1:7778')
+  assert.equal(normalizeUrl('10.77.0.1:0', 'https:', origin), null, 'port hors plage refusé')
   assert.equal(normalizeUrl('zra.exemple.fr', 'https:', origin), null, 'hostname refusé : le relais n’accepte que des IP littérales')
   assert.equal(normalizeUrl('', 'https:', origin), null)
   assert.equal(hostLabel('https://zra.exemple.fr/to/10.77.0.1'), '10.77.0.1', 'le poste se nomme par son IP, pas par le relais')
+  assert.equal(hostLabel('https://zra.exemple.fr/to/10.77.0.1:7778'), '10.77.0.1:7778', 'port compris')
   // Hors mode relais : comportement direct inchangé.
   setRelayMode(false)
   assert.equal(normalizeUrl('10.77.0.1', 'http:'), 'http://10.77.0.1:7777')
@@ -45,13 +49,17 @@ test('cible persistée, URL dérivée : une IP enregistrée sous le relais suit 
   setRelayMode(true)
   t.after(() => setRelayMode(false))
   assert.equal(parseTarget('192.168.1.32', 'https:'), '192.168.1.32', 'la cible est l’IP, pas la route')
+  assert.equal(parseTarget('192.168.1.32:7778', 'https:'), '192.168.1.32:7778', 'port explicite persisté')
   assert.equal(machineUrl('192.168.1.32', 'https:', origin), 'https://zra.exemple.fr/to/192.168.1.32')
-  // Adresse complète saisie en direct : hôte IP → route du relais ; hostname → direct.
+  assert.equal(machineUrl('192.168.1.32:7778', 'https:', origin), 'https://zra.exemple.fr/to/192.168.1.32:7778')
+  // Adresse complète saisie en direct : hôte IP → route du relais (port gardé) ; hostname → direct.
   assert.equal(machineUrl('http://192.168.1.32:7777', 'https:', origin), 'https://zra.exemple.fr/to/192.168.1.32')
+  assert.equal(machineUrl('http://192.168.1.32:7778', 'https:', origin), 'https://zra.exemple.fr/to/192.168.1.32:7778')
   assert.equal(machineUrl('https://poste.exemple.fr', 'https:', origin), 'https://poste.exemple.fr')
   setRelayMode(false)
   assert.equal(machineUrl('192.168.1.32', 'http:'), 'http://192.168.1.32:7777')
   assert.equal(machineUrl('192.168.1.32', 'https:'), 'https://192.168.1.32')
+  assert.equal(machineUrl('192.168.1.32:7778', 'http:'), 'http://192.168.1.32:7778', 'IP:port du relais → direct, port respecté')
   assert.equal(machineUrl('https://poste.exemple.fr', 'https:'), 'https://poste.exemple.fr')
 })
 
