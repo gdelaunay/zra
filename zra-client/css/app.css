@@ -348,7 +348,8 @@ button { cursor: pointer; }
 .recent__head {
   display: flex; align-items: center; gap: var(--sp-3);
   width: 100%; text-align: left;
-  margin-top: var(--sp-4); padding: var(--sp-2) var(--sp-4) var(--sp-2) calc(var(--sp-4) + var(--indent-step));
+  height: var(--group-head-h);
+  padding: 0 var(--sp-4) 0 calc(var(--sp-4) + var(--indent-step));
 }
 .recent__head:hover { background: var(--ghost-element-hover); }
 @media (hover: hover) {

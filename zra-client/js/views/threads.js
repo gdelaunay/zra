@@ -250,11 +250,12 @@ function machineHead(m, open, onToggle) {
   )
 }
 
-/** Ligne « nouveau projet » : même style que la tête « Projets récents ». */
+/** Ligne « nouveau projet » : même style que la tête « Projets récents » ;
+ * le « + » après le libellé, visible au survol seulement (comme les chevrons). */
 function newProjectRow(m) {
   return button('recent__head', { onclick: () => openProjectSheet(m) },
-    icon('plus', 'icon--sm group__icon'),
     h('span.group__name', { text: tr`Nouveau projet` }),
+    icon('plus', 'icon--sm group__chevron'),
   )
 }
 
