@@ -31,6 +31,11 @@ export const APP_DIRS = ['zra-daemon', 'zra-client', 'zra-shim', 'zra-relay']
 /** Dev-only, exclu de l'archive utilisateur (tests, fixtures, outils). */
 const PRUNE = new Set(['test', 'tools', 'node_modules', '.zra'])
 
+/** Scripts d'orchestration embarqués dans app/scripts/ (setup/service + libs,
+ *  repli PowerShell Windows). Le tray les spawn en non interactif (étape 5.2). */
+export const SCRIPT_FILES = ['setup.mjs', 'service.mjs', 'daemon-task.ps1']
+export const SCRIPT_DIRS = ['lib']
+
 /** Version du tray — source unique (le gate CI exige tag == cette version). */
 export function trayVersion(root = ROOT) {
   const cargo = readFileSync(join(root, 'zra-tray', 'Cargo.toml'), 'utf8')
@@ -73,6 +78,10 @@ export function stageApp({ root = ROOT, target, version = trayVersion(root), out
   for (const f of ['zra.config.example.json', 'zra.config.example.en.json']) {
     if (existsSync(join(root, f))) cpSync(join(root, f), join(staging, 'app', f))
   }
+  // Orchestration : setup/service + libs (imports ../zra-daemon/* depuis app/scripts/).
+  mkdirSync(join(staging, 'app', 'scripts'), { recursive: true })
+  for (const f of SCRIPT_FILES) cpSync(join(root, 'scripts', f), join(staging, 'app', 'scripts', f))
+  for (const d of SCRIPT_DIRS) cpSync(join(root, 'scripts', d), join(staging, 'app', 'scripts', d), { recursive: true })
   return staging
 }
 

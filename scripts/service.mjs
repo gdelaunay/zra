@@ -39,12 +39,20 @@ import { loadConfig } from '../zra-daemon/config.js'
 import { serviceBackend } from '../zra-daemon/platform.js'
 import { npmSafeArgs } from './lib/args.mjs'
 import { daemonStatus } from './lib/daemon-status.mjs'
-import { commands as systemdCommands, UNIT } from './lib/systemd.mjs'
-import { commands as autostartCommands, DESKTOP } from './lib/autostart.mjs'
+import { commands as systemdCommands, UNIT, unitState } from './lib/systemd.mjs'
+import { commands as autostartCommands, DESKTOP, autostartState } from './lib/autostart.mjs'
 import { trayBinary } from './lib/tray-binary.mjs'
 import { tr } from '../zra-daemon/i18n.js'
 
 export { trayBinary }
+
+/** État de l'autostart pour la page d'onboarding : backend + installé ? */
+export function serviceState() {
+  const backend = serviceBackend()
+  if (backend === 'schtasks') return { backend, installed: queryTask() !== null }
+  if (backend === 'systemd') return { backend, installed: unitState().installed }
+  return { backend, installed: autostartState().installed }
+}
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 export const TASK = 'ZRA daemon'

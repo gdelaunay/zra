@@ -8,7 +8,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { APP_DIRS, archiveName, stageApp, trayVersion } from '../../scripts/ci-package-app.mjs'
+import { APP_DIRS, SCRIPT_DIRS, SCRIPT_FILES, archiveName, stageApp, trayVersion } from '../../scripts/ci-package-app.mjs'
 
 const WIN = 'x86_64-pc-windows-msvc'
 const LINUX = 'x86_64-unknown-linux-gnu'
@@ -27,6 +27,9 @@ function fakeRoot(t, target = WIN, { binary = true } = {}) {
   }
   mkdirSync(join(root, 'zra-client', 'tools'), { recursive: true })
   writeFileSync(join(root, 'zra-client', 'tools', 'mock-server.mjs'), '// dev-only\n')
+  mkdirSync(join(root, 'scripts', 'lib'), { recursive: true })
+  for (const f of SCRIPT_FILES) writeFileSync(join(root, 'scripts', f), '// fake\n')
+  for (const d of SCRIPT_DIRS) writeFileSync(join(root, 'scripts', d, 'args.mjs'), '// fake\n')
   writeFileSync(join(root, 'package.json'), JSON.stringify({ name: 'zra', version: '0.6.0-dev' }))
   if (binary) {
     const exe = target.includes('windows') ? '.exe' : ''
@@ -61,6 +64,9 @@ test('stageApp : binaire à la racine, app/ avec les quatre dossiers + package.j
   // Dev-only exclu : tests, fixtures, outils.
   for (const d of APP_DIRS) assert.equal(existsSync(join(staging, 'app', d, 'test')), false, `app/${d}/test exclu`)
   assert.equal(existsSync(join(staging, 'app', 'zra-client', 'tools')), false, 'tools exclu')
+  // Orchestration : setup/service + libs embarqués (le tray les spawn).
+  for (const f of SCRIPT_FILES) assert.ok(existsSync(join(staging, 'app', 'scripts', f)), `app/scripts/${f}`)
+  for (const d of SCRIPT_DIRS) assert.ok(existsSync(join(staging, 'app', 'scripts', d, 'args.mjs')), `app/scripts/${d}/`)
 })
 
 test('stageApp : cible Linux → binaire sans .exe', (t) => {

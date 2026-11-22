@@ -218,6 +218,7 @@ test('setup : « apply » et les agents passent en mots nus — npm avale les --
   assert.equal(parseArgs(['install']).yes, false)
   assert.deepEqual(parseArgs(['install', '--agent', 'x']).agents, ['x'])
   assert.throws(() => parseArgs(['install', 'a', 'b', '--name', 'n']), /un seul agent/)
+  assert.equal(parseArgs(['discover']).command, 'discover', 'commande JSON pour la page du tray')
 })
 
 test('setup : nom d’entrée = nom d’affichage de l’agent + (zra)', () => {

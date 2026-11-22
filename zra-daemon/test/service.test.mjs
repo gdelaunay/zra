@@ -5,7 +5,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { JSDOM } from 'jsdom'
 
-import { TASK, buildTaskXml, parseQuery } from '../../scripts/service.mjs'
+import { TASK, buildTaskXml, parseQuery, serviceState } from '../../scripts/service.mjs'
 
 const opts = {
   user: 'azuread\\gd',
@@ -430,4 +430,23 @@ test('trayBinary : .zra/bin puis release puis debug — nom selon la plateforme'
   writeFileSync(bin, '')
   assert.equal(trayBinary(root, 'linux'), bin, 'celui téléchargé au setup prioritaire')
   assert.equal(trayBinary(root, 'win32'), null, 'sous Windows le binaire est zra-tray.exe')
+})
+
+test('trayBinary : layout archive « app » — binaire à la racine, à côté de app/', (t) => {
+  const archive = mkdtempSync(join(tmpdir(), 'zra-archive-'))
+  t.after(() => rmSync(archive, { recursive: true, force: true }))
+  const app = join(archive, 'app')
+  mkdirSync(app, { recursive: true })
+  assert.equal(trayBinary(app, 'linux'), null, 'pas encore de binaire')
+  writeFileSync(join(archive, 'zra-tray'), '')
+  assert.equal(trayBinary(app, 'linux'), join(archive, 'zra-tray'), 'root = app/, exe à la racine de l’archive')
+  assert.equal(trayBinary(app, 'win32'), null, 'sous Windows c’est zra-tray.exe')
+  writeFileSync(join(archive, 'zra-tray.exe'), '')
+  assert.equal(trayBinary(app, 'win32'), join(archive, 'zra-tray.exe'))
+})
+
+test('serviceState : backend de la machine + installed booléen (pour la page)', () => {
+  const s = serviceState()
+  assert.equal(s.backend, serviceBackend(), 'même backend que serviceBackend()')
+  assert.equal(typeof s.installed, 'boolean')
 })

@@ -37,7 +37,8 @@ import { basename, dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { loadConfig } from '../zra-daemon/config.js'
-import { agentLabel } from '../zra-daemon/agents.js'
+import { agentLabel, isZedRunning } from '../zra-daemon/agents.js'
+import { defaultZedCli, detectZedChannel } from '../zra-daemon/platform.js'
 import { parseJsonc } from '../zra-daemon/jsonc.js'
 import { discoverAgents, hasPreload, isPreloadEntry, isShimEntry, preloadFlag, registryAgentName, resolveAgentCommand, stripPreload, wrappedAgentId } from '../zra-daemon/agent-commands.js'
 import { assertParsable, removeAgentServer, removeAgentServerEnv, upsertAgentServer, upsertAgentServerEnv } from '../zra-daemon/zed-settings.js'
@@ -45,6 +46,7 @@ import { assignKeys, readZraKeys, removeZraKeymap, upsertZraKeymap } from '../zr
 import { npmSafeArgs } from './lib/args.mjs'
 import { daemonStatus } from './lib/daemon-status.mjs'
 import { offerTrayDownload } from './lib/tray-download.mjs'
+import { serviceState } from './service.mjs'
 import { isWayland, findZedDesktop, patchDesktopForXWayland, unpatchDesktop } from './lib/wayland.mjs'
 import { tr } from '../zra-daemon/i18n.js'
 
@@ -73,7 +75,7 @@ export function parseArgs(argv) {
     else if (!a.startsWith('-')) out.agents.push(a)
     else throw new Error(tr`Option inconnue : ${a}`)
   }
-  if (!['status', 'install', 'uninstall', 'xwayland', 'help'].includes(out.command)) {
+  if (!['status', 'install', 'uninstall', 'xwayland', 'discover', 'help'].includes(out.command)) {
     throw new Error(tr`Commande inconnue : ${out.command}`)
   }
   if (out.name && out.agents.length > 1) throw new Error(tr`--name ne vaut que pour un seul agent.`)
@@ -569,6 +571,34 @@ async function uninstall(opts, config) {
   }
 }
 
+/** État JSON pour la page d'onboarding du tray : Zed, agents, autostart,
+ *  Wayland. Aucune écriture, aucun texte humain — que du JSON sur stdout. */
+async function discover(opts, config) {
+  const file = config.zedSettings
+  const { parsed } = await readSettings(file)
+  const servers = parsed?.agent_servers ?? {}
+  const shimmed = new Set(Object.entries(servers)
+    .filter(([, v]) => isShimEntry(v))
+    .map(([k, v]) => (isPreloadEntry(v) ? k : wrappedAgentId(v))))
+  const agents = (await discoverAgents({ settingsFile: file, overrides: config.agentCommands }))
+    .map((a) => ({ ...a, shimmed: shimmed.has(a.id) }))
+  const channel = detectZedChannel()
+  const out = {
+    platform: process.platform,
+    zed: {
+      settings: file,
+      settingsExists: existsSync(file),
+      channel,
+      cli: defaultZedCli({ channel }),
+      running: await isZedRunning(),
+    },
+    agents,
+    wayland: isWayland(),
+    autostart: serviceState(),
+  }
+  console.log(JSON.stringify(out, null, 2))
+}
+
 // ---------------------------------------------------------------------------
 
 async function main() {
@@ -576,6 +606,7 @@ async function main() {
   if (opts.command === 'help') return console.log(USAGE)
   if (opts.command === 'xwayland') return xwayland(opts)
   const config = await loadConfig()
+  if (opts.command === 'discover') return discover(opts, config)
   if (opts.command === 'status') return status(opts, config)
   if (opts.command === 'install') {
     await install(opts, config)
