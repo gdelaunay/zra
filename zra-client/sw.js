@@ -108,7 +108,9 @@ self.addEventListener('push', (ev) => {
 
 self.addEventListener('notificationclick', (ev) => {
   ev.notification.close()
-  const url = ev.notification.data?.url || './'
+  // Base = scope, pas le script : une URL fragment seul (`#/t/…`) se résoudrait
+  // sinon sur `sw.js#/t/…` et le navigateur afficherait le source du worker.
+  const url = new URL(ev.notification.data?.url || './', self.registration.scope).href
   ev.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
     for (const c of list) if ('focus' in c) { c.navigate(url); return c.focus() }
     return self.clients.openWindow(url)
