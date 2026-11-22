@@ -243,13 +243,18 @@ Tout le protocole est câblé contre le vrai daemon : identité du poste, modes,
 modèles et autres réglages de l'agent, permissions (y compris la course avec le
 poste), appairage.
 
-Deux modes de service, détection automatique au boot (marqueur `/zra-relay`) :
+Deux modes de service, détection automatique au boot (marqueurs `/zra-relay`
+puis `/zra-daemon`) :
 
 - **servi par le relais** : une IP saisie devient une route `/to/<ip>[:<port>]`
   sur l'origine de la page (`wss://<hôte>/to/<ip>[:<port>]/ws`, port 7777 par
   défaut) ; le poste se nomme par son IP (port compris le cas échéant), pas de
   poste implicite ;
-- **servi ailleurs** (daemon, proxy par poste, serveur statique) : comportement
+- **servi par le daemon lui-même** (marqueur `/zra-daemon`, tout port, toute
+  adresse) : poste implicite sur l'origine de la page — « Ce poste » en
+  loopback, l'hôte sinon. Sans marqueur mais en local (serveur de dev) : daemon
+  supposé sur 7777, confort de dev ;
+- **servi ailleurs** (proxy par poste, serveur statique) : comportement
   direct — adresse d'un poste sans port : 7777 en `http://`, 443 en `https://`
   (derrière un reverse proxy).
 

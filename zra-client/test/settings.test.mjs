@@ -9,7 +9,7 @@ globalThis.localStorage ??= {
   removeItem: (k) => mem.delete(k),
 }
 
-const { normalizeUrl, parseTarget, machineUrl, settings, update, setRelayMode, hostLabel } = await import('../js/settings.js')
+const { normalizeUrl, parseTarget, machineUrl, settings, update, setRelayMode, hostLabel, detectDaemonOrigin, originMachine } = await import('../js/settings.js')
 
 test('adresse d’un poste : 7777 par défaut en HTTP, 443 en HTTPS (reverse proxy)', () => {
   assert.equal(normalizeUrl('10.77.0.1', 'http:'), 'http://10.77.0.1:7777')
@@ -61,6 +61,46 @@ test('cible persistée, URL dérivée : une IP enregistrée sous le relais suit 
   assert.equal(machineUrl('192.168.1.32', 'https:'), 'https://192.168.1.32')
   assert.equal(machineUrl('192.168.1.32:7778', 'http:'), 'http://192.168.1.32:7778', 'IP:port du relais → direct, port respecté')
   assert.equal(machineUrl('https://poste.exemple.fr', 'https:'), 'https://poste.exemple.fr')
+})
+
+test('poste implicite : marqueur /zra-daemon → cette origine (tout port) ; sinon heuristiques', async (t) => {
+  const realFetch = globalThis.fetch
+  const hadLocation = 'location' in globalThis
+  const realLocation = globalThis.location
+  t.after(() => {
+    globalThis.fetch = realFetch
+    if (hadLocation) globalThis.location = realLocation; else delete globalThis.location
+    setRelayMode(false)
+  })
+  const loc = (o) => { globalThis.location = o }
+  const marker = (ok) => { globalThis.fetch = async (url) => ({ ok: ok && String(url).endsWith('/zra-daemon'), json: async () => ({ daemon: true }) }) }
+
+  // Servi par le daemon sur un port non standard, loopback : cette origine.
+  loc({ protocol: 'http:', hostname: '127.0.0.1', port: '7779', origin: 'http://127.0.0.1:7779' })
+  marker(true)
+  assert.equal(await detectDaemonOrigin(), true)
+  assert.equal(originMachine().url, 'http://127.0.0.1:7779', 'plus d’hypothèse 7777')
+  // Servi par le daemon sur l’IP du LAN, port non standard : implicite aussi.
+  loc({ protocol: 'http:', hostname: '192.168.1.86', port: '7779', origin: 'http://192.168.1.86:7779' })
+  assert.equal(await detectDaemonOrigin(), true)
+  assert.equal(originMachine().url, 'http://192.168.1.86:7779')
+  assert.equal(originMachine().label, '192.168.1.86')
+  // Sans marqueur, en local (serveur de dev) : daemon supposé sur 7777.
+  marker(false)
+  loc({ protocol: 'http:', hostname: 'localhost', port: '5173', origin: 'http://localhost:5173' })
+  assert.equal(await detectDaemonOrigin(), false)
+  assert.equal(originMachine().url, 'http://localhost:7777')
+  // Sans marqueur, ailleurs, port 7777 : heuristique historique (proxy).
+  loc({ protocol: 'https:', hostname: 'zra.exemple.fr', port: '7777', origin: 'https://zra.exemple.fr:7777' })
+  assert.equal(originMachine().url, 'https://zra.exemple.fr:7777')
+  // Sans marqueur, ailleurs, autre port : rien.
+  loc({ protocol: 'https:', hostname: 'zra.exemple.fr', port: '', origin: 'https://zra.exemple.fr' })
+  assert.equal(originMachine(), null)
+  // Mode relais : jamais de poste implicite, même avec un marqueur.
+  setRelayMode(true)
+  marker(true)
+  assert.equal(await detectDaemonOrigin(), false)
+  assert.equal(originMachine(), null)
 })
 
 test('migration : URL construite → cible, jeton conservé, doublons fondus', async () => {

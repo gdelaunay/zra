@@ -18,6 +18,21 @@ let relayOn = false
 export const isRelay = () => relayOn
 export function setRelayMode(on) { relayOn = Boolean(on) }
 
+/**
+ * Origine servie par un daemon : marqueur `GET /zra-daemon` (public, tout
+ * port, toute adresse) — le poste implicite est alors cette origine, plus
+ * une hypothèse de port. Détecté au boot après le mode relais.
+ */
+let daemonOrigin = false
+export async function detectDaemonOrigin() {
+  if (relayOn || !globalThis.location?.protocol?.startsWith('http')) return (daemonOrigin = false)
+  try {
+    const res = await fetch(`${location.origin}/zra-daemon`, { cache: 'no-store', signal: AbortSignal.timeout(3000) })
+    daemonOrigin = res.ok && (await res.json())?.daemon === true
+  } catch { daemonOrigin = false }
+  return daemonOrigin
+}
+
 export async function detectRelayMode() {
   if (!globalThis.location?.protocol?.startsWith('http')) return setRelayMode(false)
   try {
@@ -225,8 +240,14 @@ export function applyTextScale(scale = settings.textScale) {
  *
  * Le client est servi indépendamment du daemon : en production il vient d'un
  * hébergeur quelconque, et l'origine de la page ne dit **rien** de l'adresse des
- * postes. On ne pré-remplit donc que dans les deux cas où l'origine est
- * effectivement celle d'un daemon : servi par lui (port 7777) ou en local.
+ * postes. Trois cas, dans l'ordre :
+ * - servi par un daemon (marqueur `/zra-daemon` détecté au boot) : le poste
+ *   implicite est cette origine, quel que soit le port ou l'adresse ;
+ * - en local sans marqueur (serveur de dev) : daemon supposé sur 7777 —
+ *   confort de dev, la seule hypothèse de port qui reste ;
+ * - ailleurs, port 7777 : l'heuristique historique (proxy par poste devant
+ *   le daemon, docs/fr/deploy.md §4.2) — sans marqueur, un proxy qui ne
+ *   relaie pas `/zra-daemon` garde son poste implicite.
  * Partout ailleurs : liste vide, et les postes se saisissent dans Réglages.
  */
 export function originMachine() {
@@ -235,12 +256,11 @@ export function originMachine() {
   if (relayOn) return null
 
   const local = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname)
-  const servedByDaemon = location.port === '7777'
-  if (!local && !servedByDaemon) return null
-
-  // Le daemon écoute toujours sur 7777, y compris quand un serveur de dev sert
-  // le client sur un autre port de la même machine.
-  const url = `${location.protocol}//${location.hostname}:7777`
+  let url
+  if (daemonOrigin) url = location.origin
+  else if (local) url = `${location.protocol}//${location.hostname}:7777`
+  else if (location.port === '7777') url = location.origin
+  else return null
   return {
     id: 'origin',
     url,
