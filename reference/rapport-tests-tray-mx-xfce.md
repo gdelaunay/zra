@@ -202,17 +202,25 @@ désignent alors le tray. Suggestion : `✓ lancé (pid 19475 = tray, node 19487
 | 9. `service start` | ✓ tray pid 19475 (ppid 1, bien détaché), node pid 19487 **fils du tray** → supervision effective en autostart |
 | 9. `service status` / `stop` | ✓ `✓ daemon arrêté (pid 19475)`, aucun node orphelin, port libre |
 | Bonus : headless auto | ✓ lancé sans `DISPLAY` : pas d'icône, node supervisé quand même, `kill -TERM` → aucun orphelin |
+| 10. Pilotage depuis la PWA | ✓ thread ouvert et piloté depuis le mobile, frappe dans Zed (PWA servie sur `http://192.168.1.74:7777`, backend `xdotool`) |
 | Bonus : shim | ✓ le shim Zed se reconnecte tout seul après chaque arrêt/relance du daemon (`daemon-link.js` reprogramme, ne sort pas) |
+| Bonus : `npm test` | ✓ 1020 pass / 0 fail / 1 skipped (`keyboard.ps1`, `process.platform !== 'win32'`) |
 
 ## Non testé (à faire à la main)
 
 - **Étape 9, déconnexion/reconnexion** : ferme la session graphique, donc aussi
-  Zed et l'agent qui rédige ce rapport. Vérifier après reconnexion :
-  `pgrep -af zra-tray`, `pgrep -af "zra-daemon/index.js"`,
-  `ss -ltnp | grep 7777`, et que le pid node a pour ppid le pid du tray.
-  Attention : le lanceur temporise 15 s sans `--now` (`autostart.mjs DELAY_S`),
-  donc rien pendant les 15 premières secondes — comportement voulu.
-- **Étape 10, pilotage Zed depuis la PWA** : bloqué par le navigateur par
-  défaut (§4). À refaire avec `firefox-esr http://127.0.0.1:7777/` (ou après
-  réparation de Waterfox) ; le backend clavier est actif côté daemon
-  (`Pilotage de Zed : backend clavier xdotool`).
+  Zed et l'agent qui rédige ce rapport — d'où la commande à coller au retour,
+  ~30 s après l'ouverture de session (le lanceur temporise 15 s sans `--now`,
+  `autostart.mjs DELAY_S` : rien avant, c'est voulu) :
+
+  ```sh
+  cd ~/Documents/zra && sleep 20 && \
+    t=$(pgrep -f 'target/debug/zra-tray' | head -1); \
+    d=$(pgrep -f 'zra-daemon/index.js' | head -1); \
+    echo "tray=$t node=$d ppid_node=$(ps -o ppid= -p ${d:-0} | tr -d ' ')"; \
+    ss -ltn | grep 7777 || echo 'port 7777 libre → KO'; \
+    tail -3 .zra/logs/service.log
+  ```
+
+  Attendu : `tray` et `node` non vides, `ppid_node` égal à `tray`, port 7777 en
+  écoute, et l'icône au panneau.
