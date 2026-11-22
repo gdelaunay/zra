@@ -168,7 +168,7 @@ HTTP éphémère dans le binaire, coupé une fois le setup fini. Pas de webview
 
 ## Ordre
 
-1. MVP Windows : event loop tao + tray-icon, spawn/supervision de node dans
+1. **Fait** — MVP Windows : event loop tao + tray-icon, spawn/supervision de node dans
    les **deux modes** (daemon et relais), bascule de mode depuis le menu,
    onboarding navigateur (page locale, détection Node ≥ 24), menu minimal
    (état, ouvrir ZRA, copier code, logs, quitter). `npm run service` installe
