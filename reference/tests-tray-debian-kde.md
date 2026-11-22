@@ -72,7 +72,7 @@ icône vérifiée via `org.kde.StatusNotifierWatcher` + capture d'écran.
    Redémarrer, Passer en mode relais, Quitter). « Ouvrir ZRA » → onglet PWA
    dans Firefox ✓ ; « Ouvrir le journal » → kwrite sur
    `~/zra-tray-test/.zra/logs/daemon.log` ✓. **Copier le code d'appairage :
-   ÉCHEC — bug 1 ci-dessous.**
+   ÉCHEC au premier passage — bug 1 ci-dessous, corrigé et revérifié.**
 4. **Redémarrer** : RAS. pid daemon 968504 → 969538, `/status` → 200.
 5. **Crash** : RAS. `kill -9` → `[zra-tray] Poste sorti (signal: 9 (SIGKILL)) —
    relance dans 1 s`, nouveau pid, `/status` → 200.
@@ -127,6 +127,16 @@ Piste de fix : garder le handle `Clipboard` vivant dans le tray (processus
 longue durée — le plus naturel), ou `SetExtLinux::wait()` dans le thread
 (sert les requêtes jusqu'à ce qu'un autre contenu remplace le code).
 
+**Corrigé (commit ada2cda)** : `ID_PAIR` utilise
+`clip.set().wait().text(code)` sous Linux (`SetExtLinux`, cfg-gated ;
+`set_text` inchangé ailleurs) — le thread spawned garde le handle et sert
+les requêtes jusqu'à remplacement du contenu. Revérifié sur cette machine
+(tray rebuildé, worktree à jour, toujours sans gestionnaire de presse-papiers) :
+clic menu → lecture presse-papiers `528 032` (le code de `/pair`), et collage
+manuel par l'utilisateur : RAS. Premier essai automatisé post-fix tombé sur
+un `None` transitoire (clic très tôt après le démarrage du tray) ; essais
+suivants immédiats et stables.
+
 ### Bug 2 — PWA servie par un daemon sur un port non standard : Offline
 
 « Ouvrir ZRA » ouvre bien la PWA (`http://127.0.0.1:7779`), mais elle affiche
@@ -150,6 +160,17 @@ présupposé « le daemon écoute toujours sur 7777 » que celui corrigé côté
 relais (commit b70ba4d), versant client. Touche tout daemon lancé sur un
 autre port qui sert la PWA en loopback (et le confort dev localhost).
 Bug client, pas tray — débusqué par l'isolation sur port non standard.
+
+**Corrigé (commit ada2cda)** : marqueur public `GET /zra-daemon` →
+`{"daemon":true}` côté daemon (tout port, toute adresse, le pendant du
+`/zra-relay` du relais ; `Host`/`Origin` toujours vérifiés, test sécurité),
+détecté au boot par `detectDaemonOrigin()` après le mode relais ;
+`originMachine()` prend `location.origin` quand le marqueur répond — les
+heuristiques restent pour les cas sans marqueur (local dev → 7777, ailleurs
+port 7777 → origine). Revérifié : PWA ouverte sur `http://127.0.0.1:7779` →
+`/status` `clients: 1`, poste implicite en ligne (avant : Offline, 0 client).
+L'étape 10 reste non testée (injection `acp`, pas de frappe Zed à observer),
+mais son blocage PWA est levé.
 
 ### Notes
 
