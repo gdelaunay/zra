@@ -277,3 +277,33 @@
 /* Avertissement organisation — render_settings_item : icône Warning sm warning
    devant le contrôle, infobulle « Overridden by Organization ». */
 .org-warn { display: inline-flex; flex: none; }
+/* ---------- Modale de confirmation (crates/ui_prompt/src/ui_prompt.rs ZedPromptRenderer) ---------- */
+
+/* Écart ZRA : Zed ignore le PromptLevel visuellement (_level) ; ZRA surface la sévérité
+   (icône info/warning/error en tête + bouton d'action teinté Accent/Warning/Error),
+   en réutilisant le vocabulaire de sévérité de Zed (Banner, TintColor). Le reste est
+   le relevé Zed : scrim black 20 %, dialogue centré w_80 320 px, p_4 16 / gap_4 16,
+   elevation_3 (elevated_surface_background, rounded_lg 8, bordure border_variant,
+   ombre ModalSurface), message markdown + détail text_xs muted, pile de boutons
+   pleine largeur gap_1 4 (actif Tinted + focus), clavier contexte Prompt.
+   Boutons pleine largeur en 28 px (md) pour le tactile ZRA (Zed : Default 22). */
+
+/* Cadre de la specimen : fond editor_background pour figurer la page sous le scrim. */
+.modal-frame { position: relative; height: var(--frame-h, 280px); overflow: hidden; background: var(--editor-background); }
+/* Scrim : black().opacity(0.2), inset 0, centré (occlude). */
+.modal-scrim { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, .2); }
+/* Dialogue : elevation_3 = ModalSurface ( ombre 0 2 3 / 0 3 6 / 0 6 12 / 0 1 0 ). */
+.modal-dialog {
+  display: flex; flex-direction: column; gap: 16px; width: 320px; padding: 16px;
+  background: var(--elevated-surface-background); border: 1px solid var(--border-variant); border-radius: 8px;
+  box-shadow: 0 2px 3px rgba(0, 0, 0, .12), 0 3px 6px rgba(0, 0, 0, .08), 0 6px 12px rgba(0, 0, 0, .04), 0 1px 0 rgba(0, 0, 0, .12);
+}
+/* En-tête ZRA : icône de sévérité (sm) + message. Zed n'a pas d'icône (message seul). */
+.modal-head { display: flex; align-items: center; gap: 6px; }
+.modal-head .lbl { white-space: normal; }
+.modal-detail { font-size: 12px; color: var(--text-muted); }
+/* Pile d'actions : gap_1 4, boutons pleine largeur 28 px (md tactile). */
+.modal-actions { display: flex; flex-direction: column; gap: 4px; }
+.modal-actions .btn { width: 100%; height: 28px; padding: 0 8px; justify-content: center; }
+/* Actif clavier : Tinted + bordure focus (Zed : l'actif passe Tinted Accent). */
+.modal-actions .btn.active { border-color: var(--border-focused); }

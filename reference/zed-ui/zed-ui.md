@@ -41,6 +41,16 @@ La fenêtre de settings scope l'agrandissement tactile par rôle — les contrô
 - **Primaires icône** (retour de sous-page, reset `Undo`, boutons de fenêtre) : `.ibtn.sm` 28 px.
 - **Centrage** : colonne contrôle centrée dans la ligne (`align-items: center`, le dropdown ne flotte plus en haut) ; boutons de champ centrés (`top: 50%`) au lieu d'ancrés `top: 4px`.
 
+### Modale de confirmation
+
+Base : `ZedPromptRenderer` (`crates/ui_prompt/src/ui_prompt.rs`), enregistré via `set_prompt_builder`, déclenché par `Window::prompt(level, message, detail, answers)` (gpui) qui renvoie l'index de la réponse. Scrim `black 20 %` plein écran, dialogue centré `w_80` 320 px / `p_4` 16 / `gap_4` 16 / `elevation_3` (`elevated_surface_background`, rayon 8, bordure `border_variant`, ombre `ModalSurface`) ; message markdown (`ui_font_size`, text) + détail `text_xs` muted ; pile de boutons pleine largeur `gap_1` 4, `Outlined`, l'actif `Tinted Accent` (défaut = premier). Clavier contexte `Prompt` : Entrée confirme l'actif, Échap choisit « Cancel » si présent, flèches/Tab cyclent.
+
+**Écart ZRA** : Zed ignore le `PromptLevel` (`_level`, aucun rendu de sévérité). ZRA le surface en réutilisant son vocabulaire (`Banner`, `TintColor`) :
+
+- **Icône de sévérité en tête** (Zed n'en a pas) : `info` accent (Info), `warning` warning (Warning), `warning` error (Critical/destructif), à côté du message.
+- **Bouton d'action teinté par sévérité** : `Tinted Accent` (Info), `Tinted Warning` (Warning), **`Tinted Error` rouge** pour une suppression (`error_background` / `error_border`) — au lieu de l'`Outlined` uniforme de Zed. « Cancel » reste `Outlined`.
+- **Boutons 28 px** (md) pleine largeur pour le tactile (Zed : Default 22 px).
+
 ## Fichiers
 
 | Fichier | Rôle |
@@ -279,7 +289,7 @@ ZRA pilote des agents ACP externes. Différences avec l'agent natif de Zed :
 ## Fenêtre de settings
 
 - **Réglages** : `ui_font_size` 16, densité par défaut, thème One Dark, raccourcis Windows. Fenêtre autonome « Zed — Settings », 900 × 750 par défaut (`DEFAULT_ADDITIONAL_WINDOW_SIZE`, ratio 6:5), mise à l'échelle par `ui_font_size / 16` ; minimale 626 × 240 (`SIDEBAR_WIDTH` 226 + `CONTENT_MIN_WIDTH` 400).
-- **Périmètre** : la fenêtre complète — barre de titre, nav (recherche, arbre, pied), en-tête de fichiers, titre de page, sections, lignes de réglage, contrôles, types d'items, sous-pages, bandeaux et états. Exclus : le contenu spécifique des sous-pages (fournisseurs LLM, serveurs MCP, agents externes, skills, éditeur de keymap…), dessiné seulement en exemple.
+- **Périmètre** : la fenêtre complète — barre de titre, nav (recherche, arbre, pied), en-tête de fichiers, titre de page, sections, lignes de réglage, contrôles, types d'items, sous-pages, bandeaux et états ; plus la modale de confirmation générique (`ui_prompt`, section 9, avec écart ZRA de sévérité). Exclus : le contenu spécifique des sous-pages (fournisseurs LLM, serveurs MCP, agents externes, skills, éditeur de keymap…), dessiné seulement en exemple.
 - **Source** : crate `settings_ui` (`settings_ui.rs` ≈ 8 000 lignes, `page_data.rs` ≈ 11 600, `components/`, `pages/`). La galerie montre la page General et des extraits d'Appearance/AI ; les libellés et descriptions sont ceux de `page_data.rs`.
 
 ### Comment la fenêtre est générée

@@ -30,7 +30,8 @@
     <a href="#types">6. Types d'items</a>
     <a href="#subpage">7. Sous-page</a>
     <a href="#states">8. États et bandeaux</a>
-    <a href="#swatches">9. Nuancier</a>
+    <a href="#modal">9. Modale de confirmation</a>
+    <a href="#swatches">10. Nuancier</a>
   </nav>
 </header>
 
@@ -602,8 +603,82 @@
 </section>
 
 <!-- ============================================================ -->
+<section class="ref-section" id="modal">
+  <h2>9. Modale de confirmation</h2>
+  <p>Composant <code>ZedPromptRenderer</code> (<code>crates/ui_prompt</code>), déclenché par <code>Window::prompt(level, message, detail, answers)</code>. Scrim noir 20 %, dialogue centré 320 px (<code>elevation_3</code>), message + détail, pile de boutons pleine largeur. <strong>Écart ZRA</strong> : Zed ignore le niveau d'alerte ; ici la sévérité est visible — icône en tête et bouton d'action teinté (Accent / Warning / <span style="color:var(--error)">Error</span> pour une suppression). Détails et clavier dans <code>zed-ui.md</code>.</p>
+  <div class="ref-grid">
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Info</b> — confirmation simple, action teintée Accent</div>
+      <div class="ref-frame modal-frame" style="--frame-h:260px">
+        <div class="modal-scrim" data-src="ui_prompt/ui_prompt.rs render (scrim black 20 %)">
+          <div class="modal-dialog" data-src="ui_prompt/ui_prompt.rs ZedPromptRenderer (w_80, elevation_3)">
+            <div class="modal-head" data-src="écart ZRA : icône de sévérité"><i class="icon sm accent" data-i="info"></i><span class="lbl">Close this project?</span></div>
+            <div class="modal-detail">Any unsaved changes will be lost.</div>
+            <div class="modal-actions" data-src="ui_prompt/ui_prompt.rs render (actions, full_width Outlined)">
+              <button class="btn outlined"><span class="lbl sm">Cancel</span></button>
+              <button class="btn tinted-accent active"><span class="lbl sm">Close</span></button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Warning</b> — icône warning, action teintée Warning</div>
+      <div class="ref-frame modal-frame" style="--frame-h:260px">
+        <div class="modal-scrim">
+          <div class="modal-dialog" data-src="ui_prompt/ui_prompt.rs ZedPromptRenderer (PromptLevel::Warning)">
+            <div class="modal-head" data-src="écart ZRA : icône de sévérité"><i class="icon sm warning" data-i="warning"></i><span class="lbl">Trust this project?</span></div>
+            <div class="modal-detail">Trusted projects can run tasks and load project settings.</div>
+            <div class="modal-actions">
+              <button class="btn outlined"><span class="lbl sm">Cancel</span></button>
+              <button class="btn tinted-warning active"><span class="lbl sm">Trust</span></button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Critical / suppression</b> — icône error, bouton « Delete » rouge (Tinted Error)</div>
+      <div class="ref-frame modal-frame" style="--frame-h:260px">
+        <div class="modal-scrim">
+          <div class="modal-dialog" data-src="ui_prompt/ui_prompt.rs ZedPromptRenderer (PromptLevel::Critical)">
+            <div class="modal-head" data-src="écart ZRA : icône de sévérité error"><i class="icon sm error" data-i="warning"></i><span class="lbl">Delete this skill?</span></div>
+            <div class="modal-detail">This action cannot be undone.</div>
+            <div class="modal-actions">
+              <button class="btn outlined"><span class="lbl sm">Cancel</span></button>
+              <button class="btn tinted-error active" data-src="écart ZRA : bouton destructif Tinted Error"><span class="lbl sm">Delete</span></button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Trois réponses</b> — type pane.rs « Save / Don't Save / Cancel », actif = premier</div>
+      <div class="ref-frame modal-frame" style="--frame-h:300px">
+        <div class="modal-scrim">
+          <div class="modal-dialog" data-src="ui_prompt/ui_prompt.rs (active_action_id = 0) ; pane.rs prompt answers">
+            <div class="modal-head"><i class="icon sm muted" data-i="info"></i><span class="lbl">Save changes before closing?</span></div>
+            <div class="modal-detail">Your changes will be lost if you don't save them.</div>
+            <div class="modal-actions">
+              <button class="btn tinted-accent active"><span class="lbl sm">Save</span></button>
+              <button class="btn outlined"><span class="lbl sm">Don't Save</span></button>
+              <button class="btn outlined"><span class="lbl sm">Cancel</span></button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ============================================================ -->
 <section class="ref-section" id="swatches">
-  <h2>9. Nuancier</h2>
+  <h2>10. Nuancier</h2>
   <p>Fonds et bordures structurants de la fenêtre. La nav utilise <code>panel_background</code>, le contenu <code>editor_background</code>, la fenêtre <code>background</code>.</p>
   <div id="swatches" data-swatches="background,panel-background,editor-background,title-bar-background,surface-background,element-background,element-hover,element-active,element-disabled,border,border-variant,border-focused,info,info-background,warning,warning-background,text,text-muted,text-disabled,text-accent"></div>
 </section>
