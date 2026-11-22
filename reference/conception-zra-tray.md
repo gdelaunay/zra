@@ -156,6 +156,16 @@ HTTP éphémère dans le binaire, coupé une fois le setup fini. Pas de webview
 - Écarté : tirer le repo git à l'installation (git requis, fragile hors-ligne,
   découplage des versions). Artefacts versionnés uniquement.
 
+## Noté pour après le MVP
+
+- **TLS du daemon dans l'onboarding** : le daemon a son propre TLS (`tls` dans
+  `zra.config.json`, deploy.md §4.3), mais ce réglage vit dans la config JSONC
+  du daemon, pas dans `tray.json`. L'exposer en mode poste (même ligne TLS +
+  upload du cert dans `.zra/tls/`) demande d'écrire `zra.config.json` en
+  préservant ses commentaires — opération à part, post-MVP. En attendant, le
+  tray gère déjà un daemon TLS configuré ailleurs (état http puis https,
+  « Ouvrir ZRA » au schéma détecté).
+
 ## Ordre
 
 1. MVP Windows : event loop tao + tray-icon, spawn/supervision de node dans

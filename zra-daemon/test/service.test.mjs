@@ -44,6 +44,15 @@ test('tâche : PowerShell masqué, chemins entre guillemets et échappés pour l
   assert.equal(get('WorkingDirectory'), opts.root, '« & » survit à l’échappement')
 })
 
+test('tâche : tray présent — lancé directement, sans PowerShell ni lanceur', () => {
+  const tray = 'C:\\Users\\gd\\Documents\\Développement\\zra & co\\.zra\\bin\\zra-tray.exe'
+  const get = parse(buildTaskXml({ ...opts, tray }))
+  assert.equal(get('Command'), tray, 'le tray est le point d\'entrée unique')
+  assert.equal(get('Arguments'), '', 'le tray supervise node lui-même')
+  assert.equal(get('WorkingDirectory'), opts.root)
+  assert.equal(get('LogonType'), 'InteractiveToken', 'session interactive : l\'icône tray en dépend')
+})
+
 test('schtasks /Query /V /FO LIST : champs relevés, quelle que soit la langue', () => {
   const fr = [
     'Nom de l’hôte:                                DELL-056',
@@ -61,10 +70,10 @@ test('schtasks /Query /V /FO LIST : champs relevés, quelle que soit la langue',
 })
 
 // ---------------------------------------------------------------------------
-// Backend systemd --user (portage Linux) — les mêmes six verbes, autre mécanisme
+// Backend systemd --user (portage Linux) — les mêmes six verbes, autre mécanisme.
 //
-// La branche Windows ci-dessus est gelée : ces tests s'y AJOUTENT. Les valeurs
-// attendues sont celles de l'unité réellement installée et démarrée sur la
+// Ces tests s'AJOUTENT à ceux de la tâche Windows (tray ou lanceur PowerShell).
+// Les valeurs attendues sont celles de l'unité réellement installée et démarrée sur la
 // machine de portage (Ubuntu 24.04.3, systemd 255) :
 //   $ node scripts/service.mjs install --apply   → unité écrite
 //   $ node scripts/service.mjs start             → ✓ daemon lancé (http://127.0.0.1:7777)

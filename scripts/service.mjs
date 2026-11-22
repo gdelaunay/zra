@@ -11,8 +11,8 @@
 // Trois backends, MÊMES sous-commandes — celui de la machine est choisi par
 // `platform.js`, pas par un test dispersé ici :
 //
-//   Windows : tâche planifiée (`schtasks`) — **gelée**, inchangée, vérifiée sur
-//             la machine cible et impossible à retester depuis Linux.
+//   Windows : tâche planifiée (`schtasks`) — lance le tray s'il est présent
+//             (supervision, icône), sinon le lanceur PowerShell historique.
 //   Linux avec systemd en init : service `systemd --user`
 //             (`scripts/lib/systemd.mjs`), vérifié sur la machine de portage.
 //   Linux sans systemd en init : entrée d'autostart XDG
@@ -24,7 +24,8 @@
 // pilotage de Zed au clavier (on ne tape pas dans un bureau depuis une session
 // de service) et ça évite de stocker un mot de passe.
 //
-// Windows lance `scripts/daemon-task.ps1` dans une console PowerShell masquée ;
+// Windows lance `zra-tray` s'il est présent (il supervise node) ; sinon
+// `scripts/daemon-task.ps1` dans une console PowerShell masquée ;
 // Linux laisse systemd journaliser, ou lance un petit `.sh` côté autostart, et
 // le daemon écrit aussi dans `.zra/logs/daemon.log` (`--log`) — même fichier
 // partout.
@@ -48,6 +49,21 @@ export const TASK = 'ZRA daemon'
 const LAUNCHER = join(ROOT, 'scripts', 'daemon-task.ps1')
 const LOG = join(ROOT, '.zra', 'logs', 'daemon.log')
 const XML_FILE = join(ROOT, '.zra', 'service', 'zra-daemon.xml')
+
+/**
+ * Binaire du tray, s'il est là : la tâche le lance directement (plus de
+ * fenêtre PowerShell, supervision et single-instance par le tray lui-même).
+ * Cherché dans l'ordre : téléchargé au setup, build release, build dev.
+ * Absent → repli sur le lanceur PowerShell historique.
+ */
+export function trayBinary(root = ROOT) {
+  const candidates = [
+    join(root, '.zra', 'bin', 'zra-tray.exe'),
+    join(root, 'zra-tray', 'target', 'release', 'zra-tray.exe'),
+    join(root, 'zra-tray', 'target', 'debug', 'zra-tray.exe'),
+  ]
+  return candidates.find((p) => existsSync(p)) ?? null
+}
 
 function parseArgs(argv) {
   const out = { command: 'status', apply: false, lines: 40 }
@@ -102,11 +118,15 @@ const quote = (s) => `"${String(s).replace(/"/g, '\\"')}"`
  * - relance par le lanceur lui-même (`daemon-task.ps1`), qui sait distinguer
  *   un arrêt propre d'un plantage.
  */
-export function buildTaskXml({ user, node = process.execPath, root = ROOT, launcher = LAUNCHER, log = LOG }) {
+export function buildTaskXml({ user, node = process.execPath, root = ROOT, launcher = LAUNCHER, log = LOG, tray = null }) {
   const args = [
     '-NoProfile', '-NonInteractive', '-WindowStyle', 'Hidden', '-ExecutionPolicy', 'Bypass',
     '-File', quote(launcher), '-Node', quote(node), '-Root', quote(root), '-Log', quote(log),
   ].join(' ')
+  // Avec le tray : lui-même supervise node (restart, logs, single-instance) ;
+  // la tâche n'a plus qu'à le lancer, sans PowerShell ni lanceur.
+  const command = tray ?? 'powershell.exe'
+  const commandArgs = tray ? '' : args
   return `<?xml version="1.0" encoding="UTF-16"?>
 <Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
   <RegistrationInfo>
@@ -148,8 +168,8 @@ export function buildTaskXml({ user, node = process.execPath, root = ROOT, launc
   </Settings>
   <Actions Context="Author">
     <Exec>
-      <Command>powershell.exe</Command>
-      <Arguments>${xmlEscape(args)}</Arguments>
+      <Command>${xmlEscape(command)}</Command>
+      <Arguments>${xmlEscape(commandArgs)}</Arguments>
       <WorkingDirectory>${xmlEscape(root)}</WorkingDirectory>
     </Exec>
   </Actions>
@@ -218,18 +238,27 @@ async function status(opts, config) {
     console.log(tr`Daemon 127.0.0.1:${config.port} : ✗ injoignable (${d.reason}).`)
   }
 
+  const tray = trayBinary()
+  console.log(tray ? tr`Tray : ✓ ${tray}.` : tr`Tray : ✗ absent — la tâche lancera le lanceur PowerShell.`)
+
   const last = tail(LOG, 5)
   if (last) console.log(tr`Journal ${LOG} :\n  ${last.join('\n  ')}`)
   else console.log(tr`Journal ${LOG} : pas encore écrit.`)
 }
 
 async function install(opts) {
-  if (!existsSync(LAUNCHER)) throw new Error(tr`Lanceur introuvable : ${LAUNCHER}`)
+  const tray = trayBinary()
+  if (!tray && !existsSync(LAUNCHER)) throw new Error(tr`Lanceur introuvable : ni tray (.zra/bin/ ou zra-tray/target/) ni ${LAUNCHER}.`)
   const user = currentUser()
-  const xml = buildTaskXml({ user })
+  const xml = buildTaskXml({ user, tray })
   console.log(tr`Tâche « ${TASK} » pour ${user} : à l'ouverture de session (+15 s), sans fenêtre, sans élévation.`)
-  console.log(`  powershell.exe → ${LAUNCHER}`)
-  console.log(`  node ${process.execPath}`)
+  if (tray) {
+    console.log(tr`  tray ${tray} — supervise le daemon (restart, journal, single-instance).`)
+  } else {
+    console.log(tr`  Tray absent — repli sur le lanceur PowerShell (cargo build dans zra-tray/ pour le tray).`)
+    console.log(`  powershell.exe → ${LAUNCHER}`)
+    console.log(`  node ${process.execPath}`)
+  }
   console.log(tr`  Journal ${LOG}`)
   if (!opts.apply) {
     console.log(tr`\nSimulation : rien créé. Relancer avec --apply pour créer la tâche.`)
@@ -303,8 +332,7 @@ async function main() {
   const config = await loadConfig()
 
   // Linux : mêmes verbes, autre mécanisme — systemd --user, ou l'autostart XDG
-  // quand systemd n'est pas l'init (MX Linux). La branche Windows ci-dessous est
-  // gelée — elle n'est pas modifiée, elle n'est plus atteinte que sous Windows.
+  // quand systemd n'est pas l'init (MX Linux).
   const linux = { systemd: systemdCommands, autostart: autostartCommands }[serviceBackend()]
   if (linux) {
     const run = linux[opts.command]
