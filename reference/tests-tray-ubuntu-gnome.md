@@ -6,7 +6,10 @@ Code écrit à l'aveugle depuis Windows : tout échec est un bug à rapporter
 ## Prépare
 
 ```sh
-sudo apt install pkg-config libgtk-3-dev libappindicator3-dev libssl-dev
+sudo apt install pkg-config libgtk-3-dev libssl-dev
+# Pas libappindicator3-dev : en conflit avec Ayatana (Ubuntu ≥ 24.04) et inutile
+# au build — libappindicator-sys charge libayatana-appindicator3.so.1 au runtime
+# (déjà installée sur Ubuntu ; sinon installer la lib runtime de la distro).
 # rustup si absent : https://rustup.rs (profil minimal suffit)
 cd zra-tray && cargo build     # premier build : long, crates téléchargées
 ldd target/debug/zra-tray | grep "not found"   # → vide sinon, installer les libs manquantes
@@ -32,7 +35,7 @@ d'abord — sinon le tray passe en observateur (voulu, mais rien à superviser).
    échouer silencieusement — si le collage ne donne rien, le signaler.
 4. **Redémarrer** (menu) : l'état repasse `… démarrage` puis `✓`.
 5. **Crash** : `kill -9 <pid node>` (`ps aux | grep zra-daemon`) → relancé
-   tout seul en ~1-2 s.
+   tout seul en ~2 s (backoff progressif si crashes répétés : 2 s, 4 s…).
 6. **Quitter** (menu) : `ps aux | grep zra-daemon` → **plus rien** (pas
    d'orphelin), port 7777 libre.
 7. **Single-instance** : relancer le tray pendant qu'il tourne → le second
