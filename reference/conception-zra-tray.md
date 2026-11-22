@@ -213,7 +213,8 @@ HTTP éphémère dans le binaire, coupé une fois le setup fini. Pas de webview
    téléchargement optionnel au `setup` (oui/non/jamais, repli de forge).
    À tester : runners Forgejo à enregistrer (Linux p350 + Windows Dell),
    premier tag `v0.6.0` ;
-4. Sucre : icône qui change d'état (thread live / réponse en attente) — les
+4. **Facultatif — skippé pour l'instant** (décision utilisateur) : sucre,
+   icône qui change d'état (thread live / réponse en attente) — les
    événements existent déjà dans le daemon ;
 5. Option C : l'archive « app » par plateforme, relay compris (une version
    partout, updates via les releases) ; cycle de vie complet — console de

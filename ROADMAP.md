@@ -15,7 +15,7 @@ datés, avec le hash du commit de référence ; ROADMAP à jour ; puis commit
 - **0.5.2 — composer** (fait — commandes `/`, mentions `@`, icônes de fichiers ; voir `CHANGELOG.md`) ;
 - **0.5.3 — tous les threads par le shim** (fait — entrée d'origine shimée par preload node, threads anciens compris ; voir `CHANGELOG.md`) ;
 - **0.5.4 — relais HTTPS** (fait — la PWA servie avec un relais, plus de proxy par poste ; voir `CHANGELOG.md`) ;
-- **0.6 — `zra-tray`** : le tray natif Rust et la distribution binaire. Windows + Linux faits (vérifiés sur les trois postes de référence et le homelab headless) ; restent CI double forge, icône d'état, archive « app ».
+- **0.6 — `zra-tray`** : le tray natif Rust et la distribution binaire. Windows + Linux faits (vérifiés sur les trois postes de référence et le homelab headless) ; restent CI double forge (codée, à tester) et archive « app » ; icône d'état facultative, skippée pour l'instant.
 
 ---
 
@@ -27,7 +27,8 @@ Windows + Linux faits (tray deux modes, onboarding navigateur, supervision
 sans orphelin, autostart tâche planifiée / systemd --user / XDG, headless) —
 vérifiés sur les trois postes de référence (Ubuntu/GNOME/Wayland, Debian/KDE,
 MX/Xfce/sysvinit) et le homelab headless ; restent CI double forge (codée,
-à tester), icône d'état et archive « app » — ordre dans la conception.
+à tester) et archive « app » — ordre dans la conception. Icône d'état
+(étape 4) : facultative, skippée pour l'instant.
 
 **Test de l'étape 3 (CI/releases + téléchargement au setup) :**
 
