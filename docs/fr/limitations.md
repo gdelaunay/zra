@@ -27,6 +27,29 @@ Lecture, injection `acp` et permissions marchent toujours (via le shim).
 → XWayland forcé via le `.desktop` patché **est** la voie supportée ; pas de
 retour à `ydotool`/`wtype` (droits `uinput`, fragilité par compositeur).
 
+## Icône tray Linux : hôte SNI requis sous Wayland
+
+Deux protocoles d'icône de zone de notification sous Linux : **SNI**
+(StatusNotifierItem, D-Bus — KDE natif, GNOME via l'extension AppIndicator,
+Xfce via le greffon « Status Notifier ») et **XEmbed** (l'ancienne systray X11,
+une fenêtre incrustée au panneau — **inexistante sous Wayland**).
+`libappindicator` (via `tray-icon`) arbitre au lancement : hôte SNI enregistré
+→ SNI ; sinon → repli XEmbed.
+
+**Décision : le repli est subi, pas codé chez nous.** Vérifié sur les postes de
+référence : Ubuntu/GNOME publie en SNI (extension `ubuntu-appindicators`),
+Debian/KDE en SNI natif ; MX/Xfce sans greffon Status Notifier retombe en
+XEmbed — icône et menu marchent (X11). Cas limite mesuré : le greffon « Zone de
+notification » de Xfce possède le nom D-Bus du watcher sans exposer
+`Properties` → appindicator ne voit pas d'hôte et retombe en XEmbed.
+
+**Conséquence assumée : session Wayland sans hôte SNI → pas d'icône** (le repli
+XEmbed n'y existe pas). La supervision marche quand même : `--headless`
+(automatique sans `DISPLAY`/`WAYLAND_DISPLAY`), ou tray lancé depuis un terminal.
+→ Pour lever la limite : installer l'hôte SNI du bureau (extension AppIndicator
+sous GNOME, greffon Status Notifier sous Xfce/Wayland) ; rien à coder côté ZRA —
+forcer SNI sans hôte n'afficherait rien non plus.
+
 ## WSL2
 
 Jamais lancé. systemd pas toujours init, WSLg fournit X11/Wayland mais `xdotool`

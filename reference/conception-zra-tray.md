@@ -195,11 +195,13 @@ HTTP éphémère dans le binaire, coupé une fois le setup fini. Pas de webview
    onboarding navigateur (page locale, détection Node ≥ 24), menu minimal
    (état, ouvrir ZRA, copier code, logs, quitter). `npm run service` installe
    la tâche planifiée qui lance le tray → la fenêtre PowerShell meurt ;
-2. Linux — codé depuis Windows : supervision unix (groupe de processus +
-   PDEATHSIG, pas d'orphelin), headless automatique sans session graphique,
-   backends systemd/autostart → tray si le binaire est présent. Vérification
-   sur les trois postes de référence + homelab : fiches
-   `reference/tests-tray-*.md`, à exécuter sur chaque poste ;
+2. **Fait** — Linux : supervision unix (groupe de processus + PDEATHSIG, pas
+   d'orphelin), headless automatique sans session graphique, backends
+   systemd/autostart → tray si le binaire est présent. Vérifié sur les trois
+   postes de référence (Ubuntu/GNOME/Wayland, Debian/KDE, MX/Xfce/sysvinit)
+   + homelab headless — rapports `reference/`, fiches `tests-tray-*.md`.
+   Icône : hôte SNI requis sous Wayland, repli XEmbed en X11
+   (`docs/fr/limitations.md`) ;
 3. CI releases + téléchargement au `setup` ;
 4. Sucre : icône qui change d'état (thread live / réponse en attente) — les
    événements existent déjà dans le daemon ;

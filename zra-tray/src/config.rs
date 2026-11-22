@@ -99,6 +99,12 @@ impl Paths {
         })
     }
 
+    /// stderr du daemon supervisé (crashs) — il journalise lui-même dans
+    /// daemon.log via --log, le tray ne recopie plus son stdout.
+    pub fn err_log_file(&self) -> PathBuf {
+        self.logs.join("daemon.err.log")
+    }
+
     pub fn load_config(&self) -> Option<TrayConfig> {
         let text = fs::read_to_string(self.tray_config()).ok()?;
         serde_json::from_str(&text).ok()

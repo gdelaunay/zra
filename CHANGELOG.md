@@ -4,6 +4,11 @@
 
 ## En cours
 
+- Fix tray : le daemon supervisé journalise comme avec les backends service — `--log` passé au spawn (heure locale datée, rotation par `log.js`), stdout plus recopié (il mélangeait le format console UTC au format fichier local dans `daemon.log`), stderr seul capturé dans `daemon.err.log` ; le relais, sans `--log`, reste capturé entier dans `relay.log` (rapport MX §2)
+- Tray : item « Copier l'URL » — repli manuel quand le navigateur ne s'ouvre pas (`xdg-open` rend 0 même quand le navigateur est cassé) ; échec d'`open::that` journalisé avec l'URL (onboarding et « Ouvrir ZRA ») (rapport MX §4)
+- `npm run service` (Linux sans systemd) : le pid annoncé est identifié comme celui du tray quand il supervise — `start` et `status` ne laissent plus croire que c'est le pid de node (rapport MX §5)
+- Doc : `limitations.md` — icône tray Linux, hôte SNI requis sous Wayland, repli XEmbed en X11 (rapport MX §3) ; ROADMAP/conception : étape Linux du jalon 0.6 faite — bilingue
+
 - Fix tray Linux : « Copier le code d'appairage » ne perd plus le presse-papiers — le handle arboard était droppé aussitôt après l'écriture ; sur X11/Wayland le contenu est servi par le processus, et sans gestionnaire de presse-papiers (session xrdp sans klipper) il disparaissait. `.set().wait().text()` garde le thread serveur vivant jusqu'à remplacement du contenu (fiche `tests-tray-debian-kde.md`, bug 1)
 - Fix PWA : poste implicite reconnu sur toute origine servie par un daemon — nouveau marqueur public `GET /zra-daemon` → `{daemon:true}` (tout port, toute adresse, le pendant du `/zra-relay` du relais), détecté au boot après le mode relais ; `originMachine()` ne code plus 7777 en dur (la PWA servie sur un port non standard restait Offline, et l'IP LAN sur port custom n'avait pas de poste implicite). Heuristiques conservées : local sans marqueur → 7777 (dev), ailleurs port 7777 → origine (proxy). Docs `daemon.md`, `architecture.md`, `client.md` — bilingue (fiche `tests-tray-debian-kde.md`, bug 2)
 

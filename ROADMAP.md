@@ -15,7 +15,7 @@ datés, avec le hash du commit de référence ; ROADMAP à jour ; puis commit
 - **0.5.2 — composer** (fait — commandes `/`, mentions `@`, icônes de fichiers ; voir `CHANGELOG.md`) ;
 - **0.5.3 — tous les threads par le shim** (fait — entrée d'origine shimée par preload node, threads anciens compris ; voir `CHANGELOG.md`) ;
 - **0.5.4 — relais HTTPS** (fait — la PWA servie avec un relais, plus de proxy par poste ; voir `CHANGELOG.md`) ;
-- **0.6 — `zra-tray`** : le tray natif Rust et la distribution binaire. MVP Windows fait ; restent Linux, CI double forge, icône d'état, archive « app ».
+- **0.6 — `zra-tray`** : le tray natif Rust et la distribution binaire. Windows + Linux faits (vérifiés sur les trois postes de référence et le homelab headless) ; restent CI double forge, icône d'état, archive « app ».
 
 ---
 
@@ -23,9 +23,11 @@ datés, avec le hash du commit de référence ; ROADMAP à jour ; puis commit
 
 ### 0.6 — Tray natif `zra-tray`
 
-MVP Windows fait (tray deux modes, onboarding navigateur, supervision, tâche
-planifiée vers le tray) ; restent Linux, CI double forge, icône d'état et
-archive « app » — ordre dans la conception.
+Windows + Linux faits (tray deux modes, onboarding navigateur, supervision
+sans orphelin, autostart tâche planifiée / systemd --user / XDG, headless) —
+vérifiés sur les trois postes de référence (Ubuntu/GNOME/Wayland, Debian/KDE,
+MX/Xfce/sysvinit) et le homelab headless ; restent CI double forge, icône
+d'état et archive « app » — ordre dans la conception.
 
 Un petit binaire Rust par plateforme, à la fois **icône de zone de
 notification** et **superviseur**, avec deux modes : poste (spawn et surveille

@@ -45,7 +45,9 @@ pub fn run(paths: &Paths) -> TrayConfig {
     let port = server.server_addr().to_ip().expect("adresse loopback").port();
     let url = format!("http://127.0.0.1:{port}/");
     eprintln!("[zra-tray] onboarding : {url}");
-    let _ = open::that(&url);
+    if let Err(err) = open::that(&url) {
+        eprintln!("[zra-tray] ouverture du navigateur impossible ({err}) — ouvrir l'URL manuellement.");
+    }
 
     let (tx, rx) = mpsc::channel::<TrayConfig>();
     for mut request in server.incoming_requests() {

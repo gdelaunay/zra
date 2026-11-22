@@ -4,6 +4,11 @@
 
 ## In progress
 
+- Tray fix: the supervised daemon logs like with the service backends — `--log` passed at spawn (dated local time, rotation by `log.js`), stdout no longer copied (it mixed the UTC console format into the local file format in `daemon.log`), only stderr captured in `daemon.err.log`; the relay, without `--log`, is still captured whole in `relay.log` (MX report §2)
+- Tray: "Copy URL" menu item — manual fallback when the browser does not open (`xdg-open` returns 0 even when the browser is broken); `open::that` failure logged with the URL (onboarding and "Open ZRA") (MX report §4)
+- `npm run service` (Linux without systemd): the announced pid is identified as the tray's when it supervises — `start` and `status` no longer suggest it is node's pid (MX report §5)
+- Doc: `limitations.md` — Linux tray icon, SNI host required on Wayland, XEmbed fallback on X11 (MX report §3); ROADMAP/design: Linux step of milestone 0.6 done — bilingual
+
 - Linux tray fix: "Copy pairing code" no longer loses the clipboard — the arboard handle was dropped right after writing; on X11/Wayland the content is served by the process, and without a clipboard manager (xrdp session without klipper) it vanished. `.set().wait().text()` keeps the server thread alive until the content is replaced (sheet `tests-tray-debian-kde.md`, bug 1)
 - PWA fix: implicit machine recognized on any origin served by a daemon — new public marker `GET /zra-daemon` → `{daemon:true}` (any port, any address, the counterpart of the relay's `/zra-relay`), detected at boot after relay mode; `originMachine()` no longer hardcodes 7777 (the PWA served on a non-standard port stayed Offline, and the LAN IP on a custom port had no implicit machine). Heuristics kept: local without marker → 7777 (dev), elsewhere port 7777 → origin (proxy). Docs `daemon.md`, `architecture.md`, `client.md` — bilingual (sheet `tests-tray-debian-kde.md`, bug 2)
 

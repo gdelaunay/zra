@@ -281,9 +281,13 @@ async function status(opts, config, ctx = {}) {
   } else {
     console.log(tr`Entrée « ${DESKTOP} » : ✓ installée (${s.desktop}).`)
     console.log(tr`  Lanceur : ${s.launcherPath}` + (s.launcher ? '' : tr` — ✗ absent.`))
-    console.log(s.running
-      ? tr`  Processus : ✓ lancé, pid ${s.pid}`
-      : tr`  Processus : ✗ arrêté.`)
+    if (s.running) {
+      console.log(s.tray
+        ? tr`  Processus : ✓ tray lancé, pid ${s.pid} (node supervisé)`
+        : tr`  Processus : ✓ lancé, pid ${s.pid}`)
+    } else {
+      console.log(tr`  Processus : ✗ arrêté.`)
+    }
     if (s.stalePid) console.log(tr`  Pidfile périmé (pid ${s.stalePid} mort ou recyclé) — \`stop\` le nettoiera.`)
     console.log(tr`  Au démarrage : à l’ouverture de session (autostart XDG, sans sudo).`)
     if (s.tray) {
@@ -389,7 +393,11 @@ async function start(opts, config, ctx = {}) {
     const d = await daemonStatus(config.port, { timeoutMs: 500 })
     if (d.ok) {
       const pid = existsSync(s.pidFile) ? parsePid(readFileSync(s.pidFile, 'utf8')) : null
-      return console.log(tr`✓ daemon lancé (${`${d.scheme}://127.0.0.1:${config.port}${pid ? `, pid ${pid}` : ''}`})`)
+      const url = `${d.scheme}://127.0.0.1:${config.port}`
+      // Avec le tray, le pid du pidfile est celui du tray (le lanceur l'exécute) :
+      // node est son fils, on le dit plutôt que d'annoncer un faux pid daemon.
+      if (s.tray && pid) return console.log(tr`✓ daemon lancé (${url} ; pid ${pid} = tray, node supervisé)`)
+      return console.log(tr`✓ daemon lancé (${`${url}${pid ? `, pid ${pid}` : ''}`})`)
     }
   }
   console.log(tr`Lanceur parti, mais le daemon ne répond pas encore : npm run service -- logs.`)

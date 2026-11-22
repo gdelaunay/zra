@@ -23,7 +23,7 @@ use std::time::{Duration, Instant};
 use config::{Mode, Paths};
 use supervisor::{RunState, Supervisor};
 // X11/Wayland : le presse-papiers est servi par le processus propriétaire ;
-// `.wait()` garde le contenu vivant après l'écriture (voir ID_PAIR).
+// `.wait()` garde le contenu vivant après l'écriture (voir copy_to_clipboard).
 #[cfg(target_os = "linux")]
 use arboard::SetExtLinux;
 use tao::event::Event;
@@ -37,6 +37,7 @@ enum UserEvent {
 }
 
 const ID_OPEN: &str = "open";
+const ID_URL: &str = "url";
 const ID_PAIR: &str = "pair";
 const ID_LOGS: &str = "logs";
 const ID_RESTART: &str = "restart";
@@ -132,6 +133,7 @@ fn run_gui(sup: Arc<Supervisor>, paths: Arc<Paths>, cfg: config::TrayConfig) {
     let menu = Menu::new();
     let status_item = MenuItem::with_id("status", "ZRA — démarrage…", false, None);
     let open_item = MenuItem::with_id(ID_OPEN, "Ouvrir ZRA", true, None);
+    let url_item = MenuItem::with_id(ID_URL, "Copier l'URL", true, None);
     let pair_item = MenuItem::with_id(ID_PAIR, "Copier le code d'appairage", false, None);
     let logs_item = MenuItem::with_id(ID_LOGS, "Ouvrir le journal", true, None);
     let restart_item = MenuItem::with_id(ID_RESTART, "Redémarrer", true, None);
@@ -142,6 +144,7 @@ fn run_gui(sup: Arc<Supervisor>, paths: Arc<Paths>, cfg: config::TrayConfig) {
         &status_item as &dyn tray_icon::menu::IsMenuItem,
         &sep(),
         &open_item,
+        &url_item,
         &pair_item,
         &logs_item,
         &sep(),
@@ -241,33 +244,23 @@ fn run_gui(sup: Arc<Supervisor>, paths: Arc<Paths>, cfg: config::TrayConfig) {
                 while let Ok(ev) = menu_rx.try_recv() {
                     match ev.id().0.as_str() {
                         ID_OPEN => {
-                            let url = last_url.lock().unwrap().clone().unwrap_or_else(|| {
-                                let cfg = sup.config();
-                                match cfg.mode {
-                                    Mode::Poste => format!("http://127.0.0.1:{}", cfg.port),
-                                    Mode::Relais => format!("http://127.0.0.1:{}", cfg.relay.port),
-                                }
-                            });
-                            let _ = open::that(url);
+                            let url = current_url(&sup, &last_url);
+                            // xdg-open rend 0 même quand le navigateur est
+                            // cassé : l'échec détectable est journalisé, et
+                            // « Copier l'URL » sert de repli manuel.
+                            if let Err(err) = open::that(&url) {
+                                eprintln!("[zra-tray] ouverture du navigateur impossible ({err}) — URL : {url}");
+                            }
+                        }
+                        ID_URL => {
+                            let url = current_url(&sup, &last_url);
+                            thread::spawn(move || copy_to_clipboard(url));
                         }
                         ID_PAIR => {
                             let port = sup.config().port;
                             thread::spawn(move || {
                                 if let Some(code) = status::pair_code(port) {
-                                    if let Ok(mut clip) = arboard::Clipboard::new() {
-                                        // Linux : le handle doit vivre — droppé
-                                        // aussitôt, arboard relaie vers un
-                                        // gestionnaire de presse-papiers puis
-                                        // coupe son serveur ; sans gestionnaire
-                                        // (session xrdp sans klipper…), le code
-                                        // est perdu. `.wait()` sert les requêtes
-                                        // jusqu'à ce qu'un autre contenu remplace
-                                        // le code — le thread vit dans le tray.
-                                        #[cfg(target_os = "linux")]
-                                        let _ = clip.set().wait().text(code);
-                                        #[cfg(not(target_os = "linux"))]
-                                        let _ = clip.set_text(code);
-                                    }
+                                    copy_to_clipboard(code);
                                 }
                             });
                         }
@@ -302,5 +295,30 @@ fn mode_switch_label(current: Mode) -> &'static str {
     match current {
         Mode::Poste => "Passer en mode relais",
         Mode::Relais => "Passer en mode poste",
+    }
+}
+
+/// Dernière URL connue, ou l'origine par défaut du service (pas encore up).
+fn current_url(sup: &Supervisor, last_url: &Mutex<Option<String>>) -> String {
+    last_url.lock().unwrap().clone().unwrap_or_else(|| {
+        let cfg = sup.config();
+        match cfg.mode {
+            Mode::Poste => format!("http://127.0.0.1:{}", cfg.port),
+            Mode::Relais => format!("http://127.0.0.1:{}", cfg.relay.port),
+        }
+    })
+}
+
+/// Presse-papiers : sous Linux le handle doit vivre — le contenu est servi
+/// par le processus (X11/Wayland) ; sans gestionnaire de presse-papiers
+/// (session xrdp sans klipper…), le drop le perd. `.wait()` bloque le thread
+/// appelant jusqu'à ce qu'un autre contenu remplace le texte — à appeler
+/// depuis un thread dédié, jamais depuis la boucle d'événements.
+fn copy_to_clipboard(text: String) {
+    if let Ok(mut clip) = arboard::Clipboard::new() {
+        #[cfg(target_os = "linux")]
+        let _ = clip.set().wait().text(text);
+        #[cfg(not(target_os = "linux"))]
+        let _ = clip.set_text(text);
     }
 }

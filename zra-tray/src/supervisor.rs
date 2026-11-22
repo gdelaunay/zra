@@ -9,7 +9,7 @@
 
 use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -208,18 +208,20 @@ fn rotate_log(path: &Path) {
 }
 
 fn spawn_child(cfg: &TrayConfig, paths: &Paths) -> std::io::Result<Child> {
-    let log_path = paths.log_file(cfg.mode);
     fs::create_dir_all(&paths.logs)?;
-    rotate_log(&log_path);
-    let file = Arc::new(Mutex::new(
-        OpenOptions::new().create(true).append(true).open(&log_path)?,
-    ));
-
     let mut cmd = Command::new(&cfg.node);
-    match cfg.mode {
+    // Ce que le tray capture dépend du mode : le daemon journalise lui-même
+    // (--log, heure locale datée, rotation par log.js — parité avec les
+    // backends service) ; le tray ne garde que son stderr (crashs) dans
+    // daemon.err.log. Le relais n'a pas de --log : capture complète dans
+    // relay.log, un seul écrivain, rotation par le tray.
+    let capture: PathBuf = match cfg.mode {
         Mode::Poste => {
             // --wait-tunnel : mode de la tâche planifiée (tunnel pas encore monté).
-            cmd.arg(paths.root.join("zra-daemon").join("index.js")).arg("--wait-tunnel");
+            cmd.arg(paths.root.join("zra-daemon").join("index.js"))
+                .arg("--wait-tunnel")
+                .arg("--log").arg(paths.log_file(Mode::Poste));
+            paths.err_log_file()
         }
         Mode::Relais => {
             cmd.arg(paths.root.join("zra-relay").join("index.js"))
@@ -228,11 +230,19 @@ fn spawn_child(cfg: &TrayConfig, paths: &Paths) -> std::io::Result<Child> {
             if let (Some(cert), Some(key)) = (&cfg.relay.tls_cert, &cfg.relay.tls_key) {
                 cmd.env("ZRA_RELAY_TLS_CERT", cert).env("ZRA_RELAY_TLS_KEY", key);
             }
+            paths.log_file(Mode::Relais)
         }
-    }
+    };
+    rotate_log(&capture);
+    let file = Arc::new(Mutex::new(
+        OpenOptions::new().create(true).append(true).open(&capture)?,
+    ));
+
     cmd.current_dir(&paths.root)
         .stdin(Stdio::null())
-        .stdout(Stdio::piped())
+        // stdout du daemon : déjà doublé dans daemon.log par log.js, le
+        // recopier mélangeait deux formats (console UTC vs fichier local).
+        .stdout(if cfg.mode == Mode::Poste { Stdio::null() } else { Stdio::piped() })
         .stderr(Stdio::piped());
     // CREATE_NO_WINDOW : pas de console pour node, même lancé depuis un shell.
     #[cfg(windows)]

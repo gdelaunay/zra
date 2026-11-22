@@ -27,6 +27,30 @@ Reading, `acp` injection and permissions still work (through the shim).
 → XWayland forced through the patched `.desktop` **is** the supported way; no
 going back to `ydotool`/`wtype` (`uinput` permissions, fragility per compositor).
 
+## Linux tray icon: SNI host required on Wayland
+
+Two notification-area icon protocols on Linux: **SNI** (StatusNotifierItem,
+D-Bus — native on KDE, GNOME through the AppIndicator extension, Xfce through
+the "Status Notifier" plugin) and **XEmbed** (the legacy X11 systray, a window
+embedded in the panel — **nonexistent on Wayland**).
+`libappindicator` (via `tray-icon`) arbitrates at launch: registered SNI host
+→ SNI; otherwise → XEmbed fallback.
+
+**Decision: the fallback is endured, not coded by us.** Verified on the
+reference machines: Ubuntu/GNOME publishes over SNI (`ubuntu-appindicators`
+extension), Debian/KDE over native SNI; MX/Xfce without the Status Notifier
+plugin falls back to XEmbed — icon and menu work (X11). Measured edge case:
+Xfce's "Notification Area" plugin owns the watcher's D-Bus name without
+exposing `Properties` → appindicator sees no host and falls back to XEmbed.
+
+**Assumed consequence: Wayland session without an SNI host → no icon** (the
+XEmbed fallback does not exist there). Supervision still works: `--headless`
+(automatic without `DISPLAY`/`WAYLAND_DISPLAY`), or tray launched from a
+terminal.
+→ To lift the limit: install the desktop's SNI host (AppIndicator extension on
+GNOME, Status Notifier plugin on Xfce/Wayland); nothing to code on the ZRA
+side — forcing SNI without a host would display nothing either.
+
 ## WSL2
 
 Never run. systemd is not always init, WSLg provides X11/Wayland but `xdotool`
