@@ -222,13 +222,11 @@ HTTP éphémère dans le binaire, coupé une fois le setup fini. Pas de webview
 
 ## Noté pour après le MVP
 
-- **TLS du daemon dans l'onboarding** : le daemon a son propre TLS (`tls` dans
-  `zra.config.json`, deploy.md §4.3), mais ce réglage vit dans la config JSONC
-  du daemon, pas dans `tray.json`. L'exposer en mode poste (même ligne TLS +
-  upload du cert dans `.zra/tls/`) demande d'écrire `zra.config.json` en
-  préservant ses commentaires — opération à part, post-MVP. En attendant, le
-  tray gère déjà un daemon TLS configuré ailleurs (état http puis https,
-  « Ouvrir ZRA » au schéma détecté).
+- **TLS du daemon dans l'onboarding — fait** : le mode poste expose la même
+  ligne TLS que le relais (HTTP/HTTPS + upload du cert/clé dans `.zra/tls/`).
+  Le daemon lisant son TLS dans `zra.config.json` (JSONC, pas d'env), le tray
+  l'écrit via `setup tls` (`upsertRootMember`, commentaires préservés) ; le
+  tray détecte le schéma (http/https) à l'état du daemon.
 
 ## Ordre
 
@@ -254,11 +252,17 @@ HTTP éphémère dans le binaire, coupé une fois le setup fini. Pas de webview
    événements existent déjà dans le daemon ;
 5. Option C — l'archive « app » par plateforme, relay compris (une version
    partout), cycle de vie complet (cf. Distribution). Découpé :
-   - **5.1** archive + CI : layout `app/` (daemon + client + shim + relay,
-     zéro dépendance runtime), zip `zra-<version>-<plateforme>.zip`, gate
-     version, attach double forge ; `Paths::discover()` vise `app/`.
-   - **5.2** onboarding grand public : détection Zed, autostart, câblage via
-     les scripts Node en non interactif, section « Tester l'écoute ».
+   - **5.1 — Fait** archive + CI : layout `app/` (daemon + client + shim +
+     relay + `package.json`, zéro dépendance runtime, dev-only exclu), zip
+     `zra-<version>-<target>.zip`, gate version, attach double forge (en plus
+     du binaire tray seul) ; `Paths::discover()` vise `app/`.
+   - **5.2 — Fait** onboarding grand public : plomberie (5.2a : `scripts/`
+     embarqués, `trayBinary` layout archive, `setup discover --json`) ; page +
+     orchestration (5.2b : Runtime Zed+Node, Réglages défaut/custom, agents
+     « Tous/Choisir », autostart, XWayland + warning, TLS poste/relais,
+     `/done` câble Zed+autostart+XWayland+TLS via les scripts Node) ; pare-feu
+     (5.2c : « Tester l'écoute » best-effort, aucune règle). TLS poste écrit
+     dans `zra.config.json` (`setup tls`, JSONC préservé).
    - **5.3** console de gestion : page d'onboarding en mode « installé »
      (à propos, gestion, désinstallation) — l'UI du tray.
    - **5.4** updates : canal stable unique, auto-update (défaut activé),
@@ -267,3 +271,36 @@ HTTP éphémère dans le binaire, coupé une fois le setup fini. Pas de webview
    - **5.6** unité systemd du relais générée par le binaire (homelab).
    Le test CI de l'étape 3 est mutualisé avec le premier tag de test de
    l'étape 5 (même pipeline) ; `offerTrayDownload` au setup reste à part.
+
+## Reprise (handoff)
+
+**État** : 5.1 + 5.2 faits (archive « app », onboarding grand public, TLS
+poste, pare-feu best-effort). Restent 5.3 (console « installé »), 5.4
+(updates), 5.5 (désinstallation + HKCU), 5.6 (unité systemd relais).
+Prochaine étape par défaut : **5.3**.
+
+**À vérifier sur les postes Linux** (fait sur Windows seulement) : warning
+XWayland affiché sous Wayland, sonde pare-feu ufw/firewalld (`listen-test.mjs`).
+
+**Test CI** : mutualisé étapes 3 + 5 (même pipeline), tag `v0.6.0-dev`,
+runners Forgejo p350 (`ubuntu-latest`) + Dell (`windows-latest`) en cours
+d'enregistrement ; GitHub miroir + sync des tags. `offerTrayDownload` au
+setup (flux contributeur) à cocher à part.
+
+**État machine** : rustup dans `~/.cargo/bin` (profil minimal, MSVC VS2022) ;
+`npm run tray` = dev. La tâche planifiée pointe encore vers PowerShell
+(`npm run service -- install --apply` non appliqué — décision utilisateur).
+Le tray debug peut tourner en observateur (le daemon de la tâche planifiée
+tient 7777 ; l'adoption vérifie l'identité du service).
+
+**Pièges** : rebuild impossible tray vivant (exe verrouillé, os error 5) →
+tuer le process avant `cargo build` ; l'arrêt du tray tue ses children (Job
+Object Windows, groupe + PDEATHSIG unix — pas d'orphelins) ; textes
+utilisateur via `tr` + `i18n/en.json` + `node scripts/i18n-test.mjs --write`
+(`reference/` et outils de dev : français only) ; doc fr/en même commit ;
+demander confirmation avant tout commit ; ne pas toucher au daemon vivant
+pour tester (mode relais sur port libre, certs dummy rejetés = crash loop
+attendu et sans danger).
+
+**Aperçu dev** : `?mock=missing` sur la page d'onboarding (Node/Zed
+introuvables + Wayland, mode custom).

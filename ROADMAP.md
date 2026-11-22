@@ -15,7 +15,7 @@ datés, avec le hash du commit de référence ; ROADMAP à jour ; puis commit
 - **0.5.2 — composer** (fait — commandes `/`, mentions `@`, icônes de fichiers ; voir `CHANGELOG.md`) ;
 - **0.5.3 — tous les threads par le shim** (fait — entrée d'origine shimée par preload node, threads anciens compris ; voir `CHANGELOG.md`) ;
 - **0.5.4 — relais HTTPS** (fait — la PWA servie avec un relais, plus de proxy par poste ; voir `CHANGELOG.md`) ;
-- **0.6 — `zra-tray`** : le tray natif Rust et la distribution binaire. Windows + Linux faits (vérifiés sur les trois postes de référence et le homelab headless) ; restent CI double forge (codée, à tester) et archive « app » ; icône d'état facultative, skippée pour l'instant.
+- **0.6 — `zra-tray`** : le tray natif Rust et la distribution binaire. Windows + Linux faits, archive « app » + onboarding grand public faits (vérifiés sur les trois postes de référence et le homelab headless) ; restent console « installé », updates, désinstallation, unité systemd relais, et CI double forge (codée, à tester) ; icône d'état facultative, skippée pour l'instant.
 
 ---
 
@@ -26,9 +26,11 @@ datés, avec le hash du commit de référence ; ROADMAP à jour ; puis commit
 Windows + Linux faits (tray deux modes, onboarding navigateur, supervision
 sans orphelin, autostart tâche planifiée / systemd --user / XDG, headless) —
 vérifiés sur les trois postes de référence (Ubuntu/GNOME/Wayland, Debian/KDE,
-MX/Xfce/sysvinit) et le homelab headless ; restent CI double forge (codée,
-à tester) et archive « app » — ordre dans la conception. Icône d'état
-(étape 4) : facultative, skippée pour l'instant.
+MX/Xfce/sysvinit) et le homelab headless. Archive « app » + onboarding grand
+public faits (TLS poste, pare-feu best-effort) ; restent console de gestion
+« installé », updates, désinstallation (+ HKCU), unité systemd du relais, et
+le test CI double forge (codé, à tester) — ordre et handoff dans la
+conception. Icône d'état (étape 4) : facultative, skippée pour l'instant.
 
 **Test de l'étape 3 (CI/releases + téléchargement au setup) :**
 
@@ -39,7 +41,8 @@ MX/Xfce/sysvinit) et le homelab headless ; restent CI double forge (codée,
    doit syncer les **tags**.
 3. Tag de test **`v0.6.0-dev`** (le gate exige tag == version
    `zra-tray/Cargo.toml`, actuellement `0.6.0-dev`) → la release se crée et
-   se remplit sur les **deux** forges (un binaire par plateforme).
+   se remplit sur les **deux** forges (binaire tray seul + archive
+   `zra-<version>-<target>.zip` par plateforme). Test mutualisé avec l'étape 5.
 4. `npm run setup -- install --apply` → question oui/non/jamais,
    téléchargement dans `.zra/bin/` (Forgejo d'abord, GitHub en repli) ;
    vérifier « jamais » mémorisé (`.zra/setup.json`) et le repli en coupant
