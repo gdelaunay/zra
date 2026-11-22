@@ -41,7 +41,7 @@ import { agentLabel, isZedRunning } from '../zra-daemon/agents.js'
 import { defaultZedCli, detectZedChannel } from '../zra-daemon/platform.js'
 import { parseJsonc } from '../zra-daemon/jsonc.js'
 import { discoverAgents, hasPreload, isPreloadEntry, isShimEntry, preloadFlag, registryAgentName, resolveAgentCommand, stripPreload, wrappedAgentId } from '../zra-daemon/agent-commands.js'
-import { assertParsable, removeAgentServer, removeAgentServerEnv, upsertAgentServer, upsertAgentServerEnv } from '../zra-daemon/zed-settings.js'
+import { assertParsable, removeAgentServer, removeAgentServerEnv, removeRootMember, upsertAgentServer, upsertAgentServerEnv, upsertRootMember } from '../zra-daemon/zed-settings.js'
 import { assignKeys, readZraKeys, removeZraKeymap, upsertZraKeymap } from '../zra-daemon/zed-keymap.js'
 import { npmSafeArgs } from './lib/args.mjs'
 import { daemonStatus } from './lib/daemon-status.mjs'
@@ -59,7 +59,7 @@ const SHIM = join(ROOT, 'zra-shim', 'index.js')
 // ---------------------------------------------------------------------------
 
 export function parseArgs(argv) {
-  const out = { command: 'status', apply: false, name: null, agents: [], record: false, yes: false, port: null }
+  const out = { command: 'status', apply: false, name: null, agents: [], record: false, yes: false, port: null, cert: null, key: null }
   const rest = npmSafeArgs(argv, ['apply', 'record', 'yes'])
   if (rest[0] && !rest[0].startsWith('-')) out.command = rest.shift()
   for (let i = 0; i < rest.length; i++) {
@@ -70,12 +70,14 @@ export function parseArgs(argv) {
     else if (a === '--record') out.record = true
     else if (a === '--yes' || a === '-y') out.yes = true
     else if (a === '--port') out.port = Number(rest[++i])
+    else if (a === '--cert') out.cert = rest[++i]
+    else if (a === '--key') out.key = rest[++i]
     else if (a === '--help' || a === '-h') out.command = 'help'
     // Mot nu : un agent. npm transmet toujours les mots nus, jamais `--agent x`.
     else if (!a.startsWith('-')) out.agents.push(a)
     else throw new Error(tr`Option inconnue : ${a}`)
   }
-  if (!['status', 'install', 'uninstall', 'xwayland', 'discover', 'help'].includes(out.command)) {
+  if (!['status', 'install', 'uninstall', 'xwayland', 'discover', 'tls', 'help'].includes(out.command)) {
     throw new Error(tr`Commande inconnue : ${out.command}`)
   }
   if (out.name && out.agents.length > 1) throw new Error(tr`--name ne vaut que pour un seul agent.`)
@@ -571,6 +573,34 @@ async function uninstall(opts, config) {
   }
 }
 
+/** TLS du daemon (mode poste) : écrit `tls` dans zra.config.json en préservant
+ *  les commentaires (JSONC). --cert + --key → HTTPS ; sans → retrait (HTTP).
+ *  Le daemon relit sa config au démarrage ; pas d'env TLS côté daemon. */
+async function tls(opts) {
+  if ((opts.cert || opts.key) && !(opts.cert && opts.key)) {
+    throw new Error(tr`--cert et --key sont requis ensemble.`)
+  }
+  const file = process.env.ZRA_CONFIG || join(ROOT, 'zra.config.json')
+  const before = existsSync(file) ? await readFile(file, 'utf8') : '{}'
+  const result = opts.cert
+    ? upsertRootMember(before, 'tls', { cert: opts.cert, key: opts.key })
+    : removeRootMember(before, 'tls')
+  if (result.action === 'unchanged' || result.action === 'absent') {
+    console.log(tr`✓ TLS : rien à faire.`)
+    return
+  }
+  assertParsable(result.text)
+  console.log(tr`TLS dans ${file} :\n`)
+  console.log(lineDiff(before, result.text))
+  if (!opts.apply) {
+    console.log(tr`\nSimulation : rien n’a été écrit. Relancer avec --apply pour appliquer.`)
+    return
+  }
+  if (existsSync(file)) await copyFile(file, `${file}.bak`)
+  await writeFile(file, result.text)
+  console.log(tr`\n✓ TLS enregistré. Le daemon le relit au démarrage.`)
+}
+
 /** État JSON pour la page d'onboarding du tray : Zed, agents, autostart,
  *  Wayland. Aucune écriture, aucun texte humain — que du JSON sur stdout. */
 async function discover(opts, config) {
@@ -607,6 +637,7 @@ async function main() {
   if (opts.command === 'xwayland') return xwayland(opts)
   const config = await loadConfig()
   if (opts.command === 'discover') return discover(opts, config)
+  if (opts.command === 'tls') return tls(opts)
   if (opts.command === 'status') return status(opts, config)
   if (opts.command === 'install') {
     await install(opts, config)

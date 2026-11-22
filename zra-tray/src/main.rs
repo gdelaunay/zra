@@ -13,6 +13,7 @@
 mod config;
 mod node;
 mod onboarding;
+mod orchestrate;
 mod status;
 mod supervisor;
 

@@ -7,7 +7,7 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { locate, removeAgentServer, removeAgentServerEnv, upsertAgentServer, upsertAgentServerEnv, SettingsEditError } from '../zed-settings.js'
+import { locate, removeAgentServer, removeAgentServerEnv, removeRootMember, upsertAgentServer, upsertAgentServerEnv, upsertRootMember, SettingsEditError } from '../zed-settings.js'
 import { parseJsonc } from '../jsonc.js'
 import { discoverAgents, isPreloadEntry, isShimEntry, preloadFlag, resolveAgentCommand, wrappedAgentId } from '../agent-commands.js'
 import { readAgents } from '../agents.js'
@@ -328,4 +328,36 @@ test('resolveAgentCommand : une entrée registry shimée se résout sans le prel
   // readAgents : nom usuel, wraps pour la PWA — les threads ne sont plus cadenassés.
   const agents = await readAgents(settingsFile)
   assert.deepEqual(agents.find((a) => a.id === 'faux-acp'), { id: 'faux-acp', name: 'Faux', kind: 'registry', wraps: 'faux-acp' })
+})
+
+test('upsertRootMember : clé racine ajoutée/remplacée, commentaires préservés (tls)', () => {
+  const src = '// tête\n{\n  "port": 7777, // port\n  /* bloc */\n  "name": "x",\n}\n'
+  const added = upsertRootMember(src, 'tls', { cert: 'a.crt', key: 'a.key' })
+  assert.equal(added.action, 'added')
+  assert.ok(added.text.includes('// tête'), 'commentaire de tête préservé')
+  assert.ok(added.text.includes('// port'), 'commentaire de ligne préservé')
+  assert.ok(added.text.includes('/* bloc */'), 'commentaire bloc préservé')
+  assert.deepEqual(parseJsonc(added.text).tls, { cert: 'a.crt', key: 'a.key' })
+  assert.equal(parseJsonc(added.text).port, 7777)
+  const replaced = upsertRootMember(added.text, 'tls', { cert: 'b.crt', key: 'b.key' })
+  assert.equal(replaced.action, 'replaced')
+  assert.deepEqual(parseJsonc(replaced.text).tls, { cert: 'b.crt', key: 'b.key' })
+  assert.equal(upsertRootMember(replaced.text, 'tls', { cert: 'b.crt', key: 'b.key' }).action, 'unchanged')
+})
+
+test('removeRootMember : retire la clé racine, retour exact au fichier d’avant', () => {
+  const src = '{\n  "port": 7777,\n  "name": "x",\n}\n'
+  const added = upsertRootMember(src, 'tls', { cert: 'a.crt', key: 'a.key' })
+  const removed = removeRootMember(added.text, 'tls')
+  assert.equal(removed.action, 'removed')
+  assert.equal(removed.text, src)
+  assert.equal(removeRootMember(src, 'tls').action, 'absent')
+})
+
+test('setup tls : parseArgs — commande + --cert/--key', () => {
+  const opts = parseArgs(['tls', '--cert', 'a.crt', '--key', 'a.key', 'apply'])
+  assert.equal(opts.command, 'tls')
+  assert.equal(opts.cert, 'a.crt')
+  assert.equal(opts.key, 'a.key')
+  assert.equal(opts.apply, true)
 })

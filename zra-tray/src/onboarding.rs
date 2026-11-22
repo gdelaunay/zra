@@ -10,6 +10,7 @@ use tiny_http::{Header, Method, Response, Server};
 
 use crate::config::{Mode, Paths, RelayConfig, TrayConfig};
 use crate::node;
+use crate::orchestrate;
 
 const PAGE: &str = include_str!("onboarding.html");
 // Le logo suit les régénérations de scripts/gen-icons.mjs (SVG complet, signal
@@ -24,6 +25,16 @@ struct DonePayload {
     node: String,
     port: u16,
     relay: RelayConfig,
+    #[serde(default)]
+    agents: Vec<String>,
+    #[serde(default)]
+    autostart: bool,
+    #[serde(default)]
+    xwayland: bool,
+    #[serde(default)]
+    tls_cert: Option<String>,
+    #[serde(default)]
+    tls_key: Option<String>,
 }
 
 fn json_response(body: String) -> Response<std::io::Cursor<Vec<u8>>> {
@@ -76,6 +87,35 @@ pub fn run(paths: &Paths) -> TrayConfig {
                     .unwrap_or_else(|_| Err("Requête invalide.".into()));
                 json_response(match result {
                     Ok(version) => serde_json::json!({ "ok": true, "version": version }),
+                    Err(error) => serde_json::json!({ "ok": false, "error": error }),
+                }.to_string())
+            }
+            (Method::Post, "/discover") => {
+                #[derive(Deserialize)]
+                struct P { node: String }
+                let result = (|| -> Result<serde_json::Value, String> {
+                    let p: P = serde_json::from_str(&body).map_err(|e| format!("Requête invalide : {e}"))?;
+                    node::check(&p.node)?;
+                    Ok(orchestrate::discover(paths, &p.node))
+                })();
+                json_response(match result {
+                    Ok(v) => serde_json::json!({ "ok": true, "discover": v }),
+                    Err(error) => serde_json::json!({ "ok": false, "error": error }),
+                }.to_string())
+            }
+            (Method::Post, "/listen-test") => {
+                #[derive(Deserialize)]
+                struct P { port: u16, host: String, node: String }
+                let result = (|| -> Result<serde_json::Value, String> {
+                    let p: P = serde_json::from_str(&body).map_err(|e| format!("Requête invalide : {e}"))?;
+                    node::check(&p.node)?;
+                    let args = vec!["--port".to_string(), p.port.to_string(), "--host".to_string(), p.host];
+                    let step = orchestrate::run_script(paths, &p.node, "listen-test", "lib/listen-test.mjs", &args);
+                    if !step.ok { return Err(step.output); }
+                    serde_json::from_str(&step.output).map_err(|e| format!("Réponse invalide : {e}"))
+                })();
+                json_response(match result {
+                    Ok(v) => serde_json::json!({ "ok": true, "result": v }),
                     Err(error) => serde_json::json!({ "ok": false, "error": error }),
                 }.to_string())
             }
@@ -134,7 +174,36 @@ pub fn run(paths: &Paths) -> TrayConfig {
                     ));
                     continue;
                 }
-                let _ = request.respond(json_response(r#"{"ok":true}"#.into()));
+                // Orchestration (poste) : câblage Zed, autostart, XWayland — les
+                // scripts Node en non interactif, la page a collecté les choix.
+                let mut steps: Vec<orchestrate::Step> = Vec::new();
+                if cfg.mode == Mode::Poste {
+                    if !payload.agents.is_empty() {
+                        let mut args = vec!["install".to_string(), "--apply".to_string(), "yes".to_string()];
+                        for a in &payload.agents {
+                            args.push("--agent".to_string());
+                            args.push(a.clone());
+                        }
+                        steps.push(orchestrate::run_script(paths, &cfg.node, "Agents Zed", "setup.mjs", &args));
+                    }
+                    if payload.autostart {
+                        steps.push(orchestrate::run_script(paths, &cfg.node, "Démarrage automatique", "service.mjs",
+                            &["install".to_string(), "--apply".to_string()]));
+                    }
+                    if payload.xwayland {
+                        steps.push(orchestrate::run_script(paths, &cfg.node, "Zed sous XWayland", "setup.mjs",
+                            &["xwayland".to_string(), "--apply".to_string()]));
+                    }
+                    // TLS du daemon : écrit dans zra.config.json (HTTPS) ou retiré
+                    // (HTTP). Idempotent — succès sans changement = rien à faire.
+                    let tls_args = match (&payload.tls_cert, &payload.tls_key) {
+                        (Some(cert), Some(key)) => vec!["tls".to_string(), "--cert".to_string(), cert.clone(), "--key".to_string(), key.clone(), "--apply".to_string()],
+                        _ => vec!["tls".to_string(), "--apply".to_string()],
+                    };
+                    steps.push(orchestrate::run_script(paths, &cfg.node, "TLS du daemon", "setup.mjs", &tls_args));
+                }
+                let body = serde_json::json!({ "ok": true, "steps": orchestrate::steps_json(&steps) });
+                let _ = request.respond(json_response(body.to_string()));
                 let _ = tx.send(cfg);
                 break;
             }

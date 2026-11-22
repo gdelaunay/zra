@@ -336,3 +336,23 @@ export function assertParsable(text) {
     throw new SettingsEditError(tr`Le résultat ne serait plus un JSONC valide : ${err.message}`)
   }
 }
+
+/**
+ * Ajoute ou remplace une clé à la racine du fichier (ex. `tls` dans
+ * zra.config.json). Édition chirurgicale : commentaires et mise en forme du
+ * reste préservés. Même machinerie que les entrées d'agents.
+ *
+ * @returns {{ text:string, action:'added'|'replaced'|'unchanged' }}
+ */
+export function upsertRootMember(text, key, value) {
+  return upsertMember(text, locate(text), key, value)
+}
+
+/**
+ * Retire une clé à la racine du fichier et la virgule qui l'accompagne.
+ *
+ * @returns {{ text:string, action:'removed'|'absent' }}
+ */
+export function removeRootMember(text, key) {
+  return removeMember(text, locate(text), key)
+}

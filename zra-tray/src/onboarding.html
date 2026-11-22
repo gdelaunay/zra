@@ -75,7 +75,7 @@
     display: flex; justify-content: center; padding: 40px 16px;
   }
   .swindow {
-    width: 100%; max-width: 720px; background: var(--editor-background);
+    width: 100%; max-width: 880px; background: var(--editor-background);
     border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
     box-shadow: 0 8px 24px rgba(0, 0, 0, .35);
   }
@@ -189,6 +189,25 @@
   .footer { display: flex; justify-content: flex-end; align-items: center; gap: 14px; margin-top: 24px; }
   .hidden { display: none !important; }
   #done { padding: 32px 0 8px; }
+
+  /* Cases à cocher (agents, autostart, XWayland) et liste d'agents. */
+  input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; flex-shrink: 0; }
+  .agents-list { display: flex; flex-direction: column; gap: 2px; margin-top: 10px; }
+  .agent { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 4px; cursor: pointer; }
+  .agent:hover { background: var(--element-hover); }
+  .agent .agent-id { font-family: var(--font-mono); font-size: 12px; }
+  .agent .agent-src { margin-left: auto; font-size: 11px; text-align: right; overflow-wrap: anywhere; }
+  .agent.disabled { opacity: .55; cursor: default; }
+  .agent .badge { font-size: 10px; color: var(--accent); border: 1px solid var(--success-border); background: var(--success-background); padding: 0 5px; border-radius: 3px; white-space: nowrap; }
+  .banner.warning { background: var(--element); border-color: var(--border); margin-top: 10px; }
+  .banner.warning svg { color: var(--text-muted); }
+  /* Étapes d'orchestration (résultat de l'enregistrement). */
+  .steps { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
+  .step { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; }
+  .step svg { width: 14px; height: 14px; flex-shrink: 0; margin-top: 1px; }
+  .step.ok svg { color: var(--success); }
+  .step.ko svg { color: var(--error); }
+  .step-output { color: var(--text-muted); font-family: var(--font-mono); font-size: 11px; white-space: pre-wrap; overflow-wrap: anywhere; margin-top: 2px; }
 </style>
 </head>
 <body>
@@ -200,6 +219,23 @@
       <p class="sw-intro">ZRA fait tourner un service en arrière-plan sur ce PC et le relance s'il s'arrête. Choisissez ce que ce PC doit faire, vérifiez les réglages réseau, puis enregistrez : l'icône ZRA apparaîtra dans la zone de notification, et tout se pilotera depuis son menu.</p>
 
       <div class="ssh"><span class="ssh-label">Runtime</span><span class="divider-h"></span></div>
+      <div class="srow" id="zed-row">
+        <div class="srow-text">
+          <div class="srow-title">Zed</div>
+          <div class="srow-desc"><span>L'éditeur dont ZRA pilote les agents. Détecté automatiquement.</span></div>
+        </div>
+        <div class="node-line">
+          <span class="node-version" id="zed-status"><span class="muted">détection…</span></span>
+          <span class="mono muted" id="zed-path" style="margin-left:auto;max-width:400px;text-align:right;overflow-wrap:anywhere"></span>
+        </div>
+        <div class="banner error hidden" id="zed-banner">
+          <span id="zed-banner-icon"></span>
+          <div><span>Zed introuvable sur ce PC.</span>
+            <span class="detail">Installer Zed (<a href="https://zed.dev" target="_blank" rel="noopener">zed.dev</a>) puis l'ouvrir une fois : ZRA branche ses agents à ce moment-là.</span>
+            <span class="detail">Seule l'installation native est détectée — les versions Flatpak ou Snap ne sont pas prises en charge.</span>
+          </div>
+        </div>
+      </div>
       <div class="srow last">
         <div class="srow-text">
           <div class="srow-title">Node.js</div>
@@ -229,6 +265,68 @@
           <span class="mode-head"><span id="icon-relais"></span>Relais</span>
           <span class="mode-desc"><span>Ce PC héberge l'application web et relaie les connexions vers d'autres postes.</span><span>Une seule adresse HTTPS pour tous les postes.</span></span>
         </button>
+      </div>
+
+      <div class="ssh"><span class="ssh-label">Réglages</span><span class="divider-h"></span></div>
+      <div class="srow last">
+        <div class="srow-inner">
+          <div class="srow-text">
+            <div class="srow-title">Configuration</div>
+            <div class="srow-desc"><span>« Par défaut » convient à la plupart des postes. « Customiser » affiche tous les réglages.</span></div>
+          </div>
+          <div class="srow-control">
+            <select id="settings-mode">
+              <option value="default">Réglages par défaut</option>
+              <option value="custom">Customiser</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div id="custom-settings" class="hidden">
+      <div id="poste-sections">
+        <div class="ssh"><span class="ssh-label">Agents</span><span class="divider-h"></span></div>
+        <div class="srow last">
+          <div class="srow-inner">
+            <div class="srow-text">
+              <div class="srow-title">Agents à piloter</div>
+              <div class="srow-desc"><span>Les agents qui passent par ZRA : leurs threads deviennent pilotables depuis le téléphone.</span></div>
+            </div>
+            <div class="srow-control">
+              <select id="agent-mode">
+                <option value="all">Tous les agents</option>
+                <option value="choose">Choisir les agents</option>
+              </select>
+            </div>
+          </div>
+          <div id="agents-list" class="agents-list hidden"></div>
+        </div>
+
+        <div class="ssh"><span class="ssh-label">Démarrage</span><span class="divider-h"></span></div>
+        <div class="srow" id="autostart-row">
+          <div class="srow-inner">
+            <div class="srow-text">
+              <div class="srow-title">Lancer ZRA à l'ouverture de session</div>
+              <div class="srow-desc"><span>Le service démarre automatiquement à l'ouverture de votre session, sans élévation.</span></div>
+            </div>
+            <div class="srow-control"><input type="checkbox" id="autostart" checked></div>
+          </div>
+        </div>
+        <div class="srow last hidden" id="xwayland-row">
+          <div class="srow-inner">
+            <div class="srow-text">
+              <div class="srow-title">Forcer Zed sous XWayland</div>
+              <div class="srow-desc"><span>Nécessaire pour piloter Zed au clavier sous Wayland.</span></div>
+            </div>
+            <div class="srow-control"><input type="checkbox" id="xwayland" checked></div>
+          </div>
+          <div class="banner warning">
+            <span id="xwayland-warning-icon"></span>
+            <div><span>Sans XWayland, le pilotage au clavier ne fonctionne pas sous Wayland.</span>
+              <span class="detail">Vous pourrez suivre les threads depuis le téléphone, mais pas ouvrir de session ni envoyer de commande à distance. Le rendu de Zed peut légèrement changer.</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="ssh"><span class="ssh-label">Réseau</span><span class="divider-h"></span></div>
@@ -261,7 +359,7 @@
             </div>
           </div>
         </div>
-        <div class="srow">
+        <div class="srow last">
           <div class="srow-inner">
             <div class="srow-text">
               <div class="srow-title">Hôte d'écoute</div>
@@ -283,11 +381,13 @@
             </div>
           </div>
         </div>
+      </div>
+      <div id="tls-block">
         <div class="srow last">
           <div class="srow-inner">
             <div class="srow-text">
               <div class="srow-title">TLS</div>
-              <div class="srow-desc"><span>HTTP : le certificat est porté par le proxy placé devant ce serveur (Nginx Proxy Manager, Caddy…).</span><span>HTTPS : ce serveur porte son propre certificat (Let's Encrypt, validation DNS-01).</span></div>
+              <div class="srow-desc"><span>HTTP : le certificat est porté par un proxy placé devant ce serveur (Nginx Proxy Manager, Caddy…).</span><span>HTTPS : ce serveur porte son propre certificat (Let's Encrypt…).</span></div>
             </div>
             <div class="srow-control">
               <div class="segmented" id="tls">
@@ -323,6 +423,22 @@
         </div>
       </div>
 
+      <div class="ssh"><span class="ssh-label">Pare-feu</span><span class="divider-h"></span></div>
+      <div class="srow last">
+        <div class="srow-inner">
+          <div class="srow-text">
+            <div class="srow-title">Tester l'écoute</div>
+            <div class="srow-desc"><span>Vérifie que le port peut être ouvert sur le réseau. Aucune règle de pare-feu n'est créée.</span></div>
+          </div>
+          <div class="srow-control"><button class="btn" id="listen-test">Tester</button></div>
+        </div>
+        <div class="banner hidden" id="listen-result" style="margin-top:10px">
+          <span id="listen-result-icon"></span>
+          <div id="listen-result-text"></div>
+        </div>
+      </div>
+      </div>
+
       <div class="banner error hidden" id="error-banner"><span id="error-icon"></span><div id="error-text"></div></div>
       <div class="footer">
         <button class="btn primary" id="start" disabled>Enregistrer et démarrer</button>
@@ -335,6 +451,8 @@
           <span class="detail">Le service est supervisé par le tray. Cet onglet peut être fermé.</span>
         </div>
       </div>
+      <div class="steps" id="steps"></div>
+      <div class="footer"><button class="btn primary" id="open-zra">Ouvrir ZRA</button></div>
     </div>
   </div>
 </div>
@@ -352,7 +470,7 @@
     server: '<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12.8 9H3.2C2.53726 9 2 9.44772 2 10V12C2 12.5523 2.53726 13 3.2 13H12.8C13.4627 13 14 12.5523 14 12V10C14 9.44772 13.4627 9 12.8 9Z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M12.8 3H3.2C2.53726 3 2 3.44772 2 4V6C2 6.55228 2.53726 7 3.2 7H12.8C13.4627 7 14 6.55228 14 6V4C14 3.44772 13.4627 3 12.8 3Z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 11H4.00667" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 5H4.00667" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     monitor: '<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="3" width="12" height="8.5" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M6 14H10M8 11.5V14" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>',
   }
-  for (const [id, icon] of [['node-edit','pencil'],['node-banner-icon','warning'],['error-icon','warning'],['done-icon','check'],['cert-icon','folder'],['key-icon','folder'],['icon-poste','monitor'],['icon-relais','server']]) $(id).innerHTML = ICONS[icon]
+  for (const [id, icon] of [['node-edit','pencil'],['node-banner-icon','warning'],['zed-banner-icon','warning'],['xwayland-warning-icon','warning'],['error-icon','warning'],['done-icon','check'],['cert-icon','folder'],['key-icon','folder'],['icon-poste','monitor'],['icon-relais','server']]) $(id).innerHTML = ICONS[icon]
   document.querySelectorAll('.ibtn.reset').forEach((b) => b.innerHTML = ICONS.undo)
   document.querySelectorAll('.ibtn.toggle').forEach((b) => b.innerHTML = ICONS.pencil)
 
@@ -366,11 +484,26 @@
     tls: 'http',
     certPath: null,
     keyPath: null,
+    zed: null,
+    agents: [],
+    selected: new Set(),
+    agentMode: 'all',
+    settingsMode: 'default',
+    wayland: false,
+    autostart: true,
+    xwayland: true,
   }
 
   function refresh() {
+    const eff = effective()
     $('start').disabled = !state.node
-      || (state.mode === 'relais' && state.tls === 'https' && (!state.certPath || !state.keyPath))
+      || (eff.tls === 'https' && (!eff.certPath || !eff.keyPath))
+    $('zed-row').classList.toggle('hidden', state.mode !== 'poste')
+    $('custom-settings').classList.toggle('hidden', state.settingsMode !== 'custom')
+    $('poste-sections').classList.toggle('hidden', state.mode !== 'poste')
+    $('xwayland-row').classList.toggle('hidden', !state.wayland)
+    $('autostart-row').classList.toggle('last', !state.wayland)
+    $('agents-list').classList.toggle('hidden', state.agentMode !== 'choose')
     $('net-poste').classList.toggle('hidden', state.mode !== 'poste')
     $('net-relais').classList.toggle('hidden', state.mode !== 'relais')
     $('tls-fields').classList.toggle('hidden', state.tls !== 'https')
@@ -436,6 +569,7 @@
     if (body.ok) {
       setNode({ path, version: body.version })
       nodeEdit(false)
+      loadDiscover(path)
     } else {
       setNode(state.node)
       $('node-banner-text').textContent = body.error
@@ -443,7 +577,15 @@
     }
   }
 
-  fetch('/info').then((r) => r.json()).then((info) => setNode(info.node))
+  // Aperçu dev : ?mock=missing simule Node/Zed introuvables + Wayland (custom).
+  const mock = new URLSearchParams(location.search).get('mock')
+  if (mock === 'missing') {
+    populateDiscover({ zed: { settingsExists: false, channel: 'stable', cli: 'zed' }, agents: [], wayland: true, autostart: { backend: 'systemd', installed: false } })
+    setNode(null)
+    state.settingsMode = 'custom'; $('settings-mode').value = 'custom'; refresh()
+  } else {
+    fetch('/info').then((r) => r.json()).then((info) => { setNode(info.node); if (info.node) loadDiscover(info.node.path) })
+  }
   $('node-edit').addEventListener('click', () => {
     if ($('node-input').classList.contains('hidden')) nodeEdit(true)
     else nodeConfirm()
@@ -451,6 +593,179 @@
   $('node-input').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') nodeConfirm()
     if (e.key === 'Escape') nodeEdit(false)
+  })
+
+  // --- Zed, agents, autostart (poste) : détection via /discover --------------
+  function setZed(zed) {
+    state.zed = zed
+    if (zed && zed.settingsExists) {
+      $('zed-status').textContent = '✓ ' + (zed.channel || 'stable')
+      $('zed-status').style.color = 'var(--success)'
+      $('zed-path').textContent = zed.cli || zed.settings
+      $('zed-banner').classList.add('hidden')
+    } else {
+      $('zed-status').textContent = '—'
+      $('zed-status').style.color = ''
+      $('zed-path').textContent = ''
+      $('zed-banner').classList.remove('hidden')
+    }
+  }
+
+  function renderAgents() {
+    const list = $('agents-list')
+    list.innerHTML = ''
+    if (!state.agents.length) {
+      list.innerHTML = '<span class="muted">Aucun agent détecté. Ouvrez une fois un thread avec l\'agent voulu dans Zed, puis rechargez cette page.</span>'
+      return
+    }
+    for (const a of state.agents) {
+      const label = document.createElement('label')
+      label.className = 'agent' + (a.ok ? '' : ' disabled')
+      const cb = document.createElement('input')
+      cb.type = 'checkbox'
+      cb.disabled = !a.ok
+      cb.checked = a.ok && state.selected.has(a.id)
+      cb.addEventListener('change', () => { if (cb.checked) state.selected.add(a.id); else state.selected.delete(a.id) })
+      const id = document.createElement('span')
+      id.className = 'agent-id'
+      id.textContent = a.id
+      label.append(cb, id)
+      if (a.shimmed) {
+        const b = document.createElement('span')
+        b.className = 'badge'
+        b.textContent = 'déjà branché'
+        label.append(b)
+      }
+      const src = document.createElement('span')
+      src.className = 'agent-src muted'
+      src.textContent = a.ok ? (a.source || '') : (a.reason || 'non lançable')
+      label.append(src)
+      list.append(label)
+    }
+  }
+
+  function populateDiscover(d) {
+    if (!d) {
+      setZed(null)
+      state.agents = []
+      state.wayland = false
+      $('agents-list').innerHTML = '<span class="muted">Détection indisponible — vérifiez Node ci-dessus.</span>'
+      refresh()
+      return
+    }
+    state.wayland = !!d.wayland
+    state.agents = d.agents || []
+    // « Tous les agents » par défaut : tous les lançables, liste repliée.
+    state.selected = new Set(state.agents.filter((a) => a.ok).map((a) => a.id))
+    state.agentMode = 'all'
+    $('agent-mode').value = 'all'
+    setZed(d.zed)
+    renderAgents()
+    refresh()
+  }
+
+  async function loadDiscover(node) {
+    if (!node) return populateDiscover(null)
+    $('agents-list').innerHTML = '<span class="muted">détection…</span>'
+    try {
+      const res = await fetch('/discover', { method: 'POST', body: JSON.stringify({ node }) })
+      const body = await res.json()
+      populateDiscover(body.ok ? body.discover : null)
+    } catch {
+      populateDiscover(null)
+    }
+  }
+
+  function renderSteps(steps) {
+    const box = $('steps')
+    box.innerHTML = ''
+    for (const s of steps) {
+      const row = document.createElement('div')
+      row.className = 'step ' + (s.ok ? 'ok' : 'ko')
+      row.innerHTML = s.ok ? ICONS.check : ICONS.warning
+      const txt = document.createElement('div')
+      const t = document.createElement('div')
+      t.textContent = s.label + (s.ok ? '' : ' — échec')
+      txt.append(t)
+      if (!s.ok && s.output) {
+        const o = document.createElement('div')
+        o.className = 'step-output'
+        o.textContent = s.output
+        txt.append(o)
+      }
+      row.append(txt)
+      box.append(row)
+    }
+  }
+
+  // Réglages effectifs : « par défaut » = valeurs fixes (tout caché) ;
+  // « customiser » = l'état des contrôles. Les valeurs custom sont conservées
+  // quand on repasse en défaut.
+  function effective() {
+    const allAgents = state.agents.filter((a) => a.ok).map((a) => a.id)
+    if (state.settingsMode === 'default') {
+      return { port: DEFAULT_PORT, relayPort: DEFAULT_PORT, host: '0.0.0.0', tls: 'http', certPath: null, keyPath: null, autostart: true, xwayland: true, agents: allAgents }
+    }
+    return { port: state.port, relayPort: state.relayPort, host: state.host, tls: state.tls, certPath: state.certPath, keyPath: state.keyPath, autostart: state.autostart, xwayland: state.xwayland, agents: [...state.selected] }
+  }
+
+  function renderListenResult(body) {
+    const res = $('listen-result')
+    res.classList.remove('hidden', 'error', 'success', 'warning')
+    const icon = $('listen-result-icon')
+    const text = $('listen-result-text')
+    if (!body.ok) {
+      res.classList.add('error'); icon.innerHTML = ICONS.warning
+      text.textContent = body.error || 'Test impossible.'
+      return
+    }
+    const r = body.result
+    const fw = r.firewall || {}
+    let cls, msg
+    if (r.error && !r.bound && !r.inUse) {
+      cls = 'error'; msg = `Le port ${r.port} ne peut pas être ouvert (${r.error}).`
+    } else if (r.inUse) {
+      cls = 'success'; msg = `Le service écoute déjà sur le port ${r.port}.`
+    } else if (!fw.active || !fw.type) {
+      cls = 'success'; msg = 'Aucun pare-feu actif détecté — le port devrait être joignable depuis le réseau.'
+    } else if (fw.portAllowed === true) {
+      cls = 'success'; msg = `Port ouvert sur ${fw.type} — devrait être joignable depuis le réseau.`
+    } else if (fw.portAllowed === false) {
+      cls = 'warning'; msg = `Pare-feu ${fw.type} actif : le port ${r.port} n'est pas ouvert. Ouvrez-le manuellement dans les réglages du pare-feu.`
+    } else {
+      cls = 'warning'
+      msg = r.platform === 'win32'
+        ? 'Pare-feu Windows : une invite « autoriser l\'accès » a pu apparaître. Si le port reste fermé, ouvrez-le manuellement.'
+        : `Pare-feu ${fw.type} actif : règles illisibles sans droits. Vérifiez que le port ${r.port} est ouvert.`
+    }
+    res.classList.add(cls)
+    icon.innerHTML = cls === 'success' ? ICONS.check : ICONS.warning
+    text.textContent = msg
+  }
+
+  $('autostart').addEventListener('change', () => { state.autostart = $('autostart').checked })
+  $('xwayland').addEventListener('change', () => { state.xwayland = $('xwayland').checked })
+  $('agent-mode').addEventListener('change', () => {
+    state.agentMode = $('agent-mode').value
+    // « Tous » : on recoche tous les lançables ; « Choisir » : on déplie la liste.
+    if (state.agentMode === 'all') state.selected = new Set(state.agents.filter((a) => a.ok).map((a) => a.id))
+    refresh()
+  })
+  $('settings-mode').addEventListener('change', () => { state.settingsMode = $('settings-mode').value; refresh() })
+  $('listen-test').addEventListener('click', async () => {
+    const btn = $('listen-test')
+    btn.disabled = true
+    $('listen-result').classList.add('hidden')
+    const eff = effective()
+    const port = state.mode === 'relais' ? eff.relayPort : eff.port
+    const host = state.mode === 'relais' ? (eff.host || '0.0.0.0') : '0.0.0.0'
+    let body
+    try {
+      const r = await fetch('/listen-test', { method: 'POST', body: JSON.stringify({ port, host, node: state.node.path }) })
+      body = await r.json()
+    } catch { body = { ok: false, error: 'Le tray ne répond plus.' } }
+    btn.disabled = false
+    renderListenResult(body)
   })
 
   // --- Ports : input number toujours là, disabled par défaut ----------------
@@ -529,16 +844,23 @@
   $('start').addEventListener('click', async () => {
     $('start').disabled = true
     $('error-banner').classList.add('hidden')
+    const eff = effective()
+    const https = eff.tls === 'https'
     const payload = {
       mode: state.mode,
       node: state.node.path,
-      port: state.port,
+      port: eff.port,
       relay: {
-        port: state.relayPort,
-        host: state.host || '0.0.0.0',
-        tlsCert: state.tls === 'https' ? state.certPath : null,
-        tlsKey: state.tls === 'https' ? state.keyPath : null,
+        port: eff.relayPort,
+        host: eff.host || '0.0.0.0',
+        tlsCert: state.mode === 'relais' && https ? eff.certPath : null,
+        tlsKey: state.mode === 'relais' && https ? eff.keyPath : null,
       },
+      agents: state.mode === 'poste' ? eff.agents : [],
+      autostart: state.mode === 'poste' && eff.autostart,
+      xwayland: state.mode === 'poste' && state.wayland && eff.xwayland,
+      tlsCert: state.mode === 'poste' && https ? eff.certPath : null,
+      tlsKey: state.mode === 'poste' && https ? eff.keyPath : null,
     }
     try {
       const res = await fetch('/done', { method: 'POST', body: JSON.stringify(payload) })
@@ -546,6 +868,7 @@
       if (body.ok) {
         $('form').classList.add('hidden')
         $('done').classList.remove('hidden')
+        renderSteps(body.steps || [])
       } else {
         showError(body.error)
         refresh()
@@ -554,6 +877,11 @@
       showError('Le tray ne répond plus.')
       refresh()
     }
+  })
+
+  $('open-zra').addEventListener('click', () => {
+    const port = state.mode === 'relais' ? state.relayPort : state.port
+    window.open(`http://127.0.0.1:${port}`, '_blank', 'noopener')
   })
 
   refresh()
