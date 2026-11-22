@@ -201,26 +201,30 @@ désignent alors le tray. Suggestion : `✓ lancé (pid 19475 = tray, node 19487
 | 9. `service install` / `--apply` | ✓ annonce le tray, écrit `~/.config/autostart/zra-daemon.desktop` et `.zra/service/zra-daemon.sh` dont la dernière ligne est `exec '…/zra-tray/target/debug/zra-tray' >> '…/service.log' 2>&1` |
 | 9. `service start` | ✓ tray pid 19475 (ppid 1, bien détaché), node pid 19487 **fils du tray** → supervision effective en autostart |
 | 9. `service status` / `stop` | ✓ `✓ daemon arrêté (pid 19475)`, aucun node orphelin, port libre |
-| Bonus : headless auto | ✓ lancé sans `DISPLAY` : pas d'icône, node supervisé quand même, `kill -TERM` → aucun orphelin |
+| 9. Déconnexion/reconnexion | ✓ tray 25540 lancé à l'ouverture de session (21:58:48), node 25950 avec `ppid=25540` → supervisé par le tray, port 7777 en écoute sur les 3 interfaces, `zra-daemon.pid` = 25540, shim reconnecté (`Shim b5a774f8 connecté`) |
 | 10. Pilotage depuis la PWA | ✓ thread ouvert et piloté depuis le mobile, frappe dans Zed (PWA servie sur `http://192.168.1.74:7777`, backend `xdotool`) |
+| Bonus : headless auto | ✓ lancé sans `DISPLAY` : pas d'icône, node supervisé quand même, `kill -TERM` → aucun orphelin |
 | Bonus : shim | ✓ le shim Zed se reconnecte tout seul après chaque arrêt/relance du daemon (`daemon-link.js` reprogramme, ne sort pas) |
 | Bonus : `npm test` | ✓ 1020 pass / 0 fail / 1 skipped (`keyboard.ps1`, `process.platform !== 'win32'`) |
 
-## Non testé (à faire à la main)
+## Tout est testé
 
-- **Étape 9, déconnexion/reconnexion** : ferme la session graphique, donc aussi
-  Zed et l'agent qui rédige ce rapport — d'où la commande à coller au retour,
-  ~30 s après l'ouverture de session (le lanceur temporise 15 s sans `--now`,
-  `autostart.mjs DELAY_S` : rien avant, c'est voulu) :
+Les dix étapes de la fiche ont été jouées sur cette machine, plus le headless
+auto et `npm test`. Seuls restent ouverts les cinq relevés ci-dessus (dont trois
+côté ZRA : §2 format du journal, §3 publication de l'icône, §5 wording des pid).
 
-  ```sh
-  cd ~/Documents/zra && sleep 20 && \
-    t=$(pgrep -f 'target/debug/zra-tray' | head -1); \
-    d=$(pgrep -f 'zra-daemon/index.js' | head -1); \
-    echo "tray=$t node=$d ppid_node=$(ps -o ppid= -p ${d:-0} | tr -d ' ')"; \
-    ss -ltn | grep 7777 || echo 'port 7777 libre → KO'; \
-    tail -3 .zra/logs/service.log
-  ```
+Contrôle rapide après une ouverture de session (le lanceur temporise 15 s sans
+`--now`, `autostart.mjs DELAY_S` : rien avant, c'est voulu) :
 
-  Attendu : `tray` et `node` non vides, `ppid_node` égal à `tray`, port 7777 en
-  écoute, et l'icône au panneau.
+```sh
+cd ~/Documents/zra && sleep 20 && \
+  t=$(pgrep -f 'target/debug/zra-tray' | head -1); \
+  d=$(pgrep -f 'zra-daemon/index.js' | head -1); \
+  echo "tray=$t node=$d ppid_node=$(ps -o ppid= -p ${d:-0} | tr -d ' ')"; \
+  ss -ltn | grep 7777 || echo 'port 7777 libre → KO'; \
+  tail -3 .zra/logs/service.log
+```
+
+Attendu : `tray` et `node` non vides, `ppid_node` égal à `tray`, port 7777 en
+écoute, icône au panneau. `service.log` reste muet tant que le tray n'échoue pas
+: c'est le tray qui recopie le stdout de node dans `daemon.log` (voir §2).
