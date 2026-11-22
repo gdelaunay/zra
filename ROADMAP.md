@@ -26,8 +26,25 @@ datés, avec le hash du commit de référence ; ROADMAP à jour ; puis commit
 Windows + Linux faits (tray deux modes, onboarding navigateur, supervision
 sans orphelin, autostart tâche planifiée / systemd --user / XDG, headless) —
 vérifiés sur les trois postes de référence (Ubuntu/GNOME/Wayland, Debian/KDE,
-MX/Xfce/sysvinit) et le homelab headless ; restent CI double forge, icône
-d'état et archive « app » — ordre dans la conception.
+MX/Xfce/sysvinit) et le homelab headless ; restent CI double forge (codée,
+à tester), icône d'état et archive « app » — ordre dans la conception.
+
+**Test de l'étape 3 (CI/releases + téléchargement au setup) :**
+
+1. Forgejo : Actions activées sur le repo ; enregistrer les runners —
+   **p350** (Debian/KDE) label `ubuntu-latest`, **Dell** (Windows) label
+   `windows-latest` (shell ou docker ; le label est un routage, pas l'OS).
+2. GitHub : Actions activées sur le miroir `gdelaunay/zra` ; le push mirror
+   doit syncer les **tags**.
+3. Tag de test **`v0.6.0-dev`** (le gate exige tag == version
+   `zra-tray/Cargo.toml`, actuellement `0.6.0-dev`) → la release se crée et
+   se remplit sur les **deux** forges (un binaire par plateforme).
+4. `npm run setup -- install --apply` → question oui/non/jamais,
+   téléchargement dans `.zra/bin/` (Forgejo d'abord, GitHub en repli) ;
+   vérifier « jamais » mémorisé (`.zra/setup.json`) et le repli en coupant
+   l'une des forges.
+5. Nettoyer la release et le tag de test après coup ; la vraie release
+   `v0.6.0` attend la fin du jalon (version bumpée dans `Cargo.toml`).
 
 Un petit binaire Rust par plateforme, à la fois **icône de zone de
 notification** et **superviseur**, avec deux modes : poste (spawn et surveille
