@@ -62,7 +62,8 @@ for (const name of [...used].filter(exists).sort()) {
     if (w && h) raw = raw.replace('<svg', `<svg viewBox="0 0 ${w} ${h}"`)
   }
   const svg = raw
-    .replace(/\s(width|height)="[^"]*"/g, '')
+    // Largeur/hauteur du seul tag <svg> : les éléments internes (rect…) gardent les leurs.
+    .replace(/<svg\b[^>]*>/, (tag) => tag.replace(/\s(width|height)="[^"]*"/g, ''))
     // GPUI ne garde que l'alpha : toute couleur devient celle de l'icône (sauf le blanc des masques/clips)
     .replace(/(fill|stroke)="(?!none|white|url)[^"]*"/g, '$1="currentColor"')
     .replace(/\s+/g, ' ')

@@ -1,6 +1,6 @@
 // « Nouveau projet » : le parent par défaut (`views/new-project.js`) et la
-// feuille dans un DOM headless avec le store en mode mock — le dossier est
-// créé, le projet rejoint la liste, les refus s'affichent dans la feuille.
+// modale de formulaire dans un DOM headless avec le store en mode mock — le
+// dossier est créé, le projet rejoint la liste, les refus s'y affichent.
 
 import { test, after } from 'node:test'
 import assert from 'node:assert/strict'
@@ -27,7 +27,7 @@ win.localStorage.setItem('zra.settings.v2', JSON.stringify({ lang: 'fr' }))
 
 const store = await import('../js/store.js')
 const settingsModule = await import('../js/settings.js')
-const { defaultParent, openProjectSheet } = await import('../js/views/new-project.js')
+const { defaultParent, openProjectDialog } = await import('../js/views/new-project.js')
 const { closeAllOverlays } = await import('../js/ui.js')
 const { MockLink } = await import('../js/mock/mock-link.js')
 store.init({ mock: MockLink })
@@ -97,7 +97,7 @@ test('parent par défaut : séparateurs Windows et racine de lecteur', () => {
 })
 
 // ---------------------------------------------------------------------------
-// La feuille, en mode mock
+// La modale, en mode mock
 // ---------------------------------------------------------------------------
 
 /** Le poste mock en ligne, ses projets chargés. */
@@ -107,45 +107,60 @@ async function deskOnline() {
   return m
 }
 
-function fill(sheet, { name, parent }) {
-  const inputs = [...sheet.querySelectorAll('input.input')]
+function fill(dlg, { name, parent }) {
+  const inputs = [...dlg.querySelectorAll('input.inputfield')]
   if (name !== undefined) { inputs[0].value = name; inputs[0].dispatchEvent(new win.Event('input')) }
   if (parent !== undefined) { inputs[1].value = parent; inputs[1].dispatchEvent(new win.Event('input')) }
   return inputs
 }
 
-test('feuille : parent pré-rempli, aperçu du chemin, créer ajoute le projet', async () => {
+test('modale : parent pré-rempli, aperçu du chemin, créer ajoute le projet', async () => {
   const m = await deskOnline()
   closeAllOverlays()
-  openProjectSheet(m)
-  const sheet = $('.sheet')
-  const inputs = [...sheet.querySelectorAll('input.input')]
+  openProjectDialog(m)
+  const dlg = $('.modal--form')
+  const inputs = [...dlg.querySelectorAll('input.inputfield')]
   assert.equal(inputs[1].value, 'C:/Users/gd/Documents/Développement', 'le parent le plus fréquent du mock')
 
-  fill(sheet, { name: 'nouveau-truc' })
-  assert.match(sheet.querySelector('p.muted').textContent, /Développement\/nouveau-truc$/)
-  sheet.querySelector('.btn').click()
-  await until(() => !$('.sheet'))
+  fill(dlg, { name: 'nouveau-truc' })
+  assert.match(dlg.querySelector('.form-preview').textContent, /Développement\/nouveau-truc$/)
+  dlg.querySelector('.btn').click()
+  await until(() => !$('.modal--form'))
   assert.ok(m.projects.some((p) => p.folderPaths[0].endsWith('/nouveau-truc')), 'le projet rejoint le sidebar')
 })
 
-test('feuille : nom invalide → bouton désactivé ; dossier existant → erreur dans la feuille', async () => {
+test('modale : pas de filet de 30 s sans envoi — l’erreur n’arrive qu’après Créer', async (t) => {
   const m = await deskOnline()
   closeAllOverlays()
-  openProjectSheet(m)
-  const sheet = $('.sheet')
-  const ok = sheet.querySelector('.btn')
+  openProjectDialog(m)
+  const dlg = $('.modal--form')
+  t.mock.timers.enable({ apis: ['setTimeout'], now: Date.now() })
+  try {
+    t.mock.timers.tick(31_000)
+    assert.equal(dlg.querySelector('.banner--error').style.display, 'none', 'rien ne se passe tant qu’on n’a pas envoyé')
+  } finally {
+    t.mock.timers.reset()
+    closeAllOverlays()
+  }
+})
 
-  fill(sheet, { name: 'a/b' })
+test('modale : nom invalide → bouton désactivé ; dossier existant → erreur dans la modale', async () => {
+  const m = await deskOnline()
+  closeAllOverlays()
+  openProjectDialog(m)
+  const dlg = $('.modal--form')
+  const ok = dlg.querySelector('.btn')
+
+  fill(dlg, { name: 'a/b' })
   assert.equal(ok.disabled, true)
-  fill(sheet, { name: '' })
+  fill(dlg, { name: '' })
   assert.equal(ok.disabled, true)
 
-  fill(sheet, { name: 'zra' })   // déjà dans le sidebar du mock
+  fill(dlg, { name: 'zra' })   // déjà dans le sidebar du mock
   assert.equal(ok.disabled, false)
   ok.click()
-  await until(() => sheet.querySelector('.callout--error').style.display !== 'none')
-  assert.match(sheet.querySelector('.callout--error').textContent, /existe déjà/)
-  assert.ok($('.sheet'), 'la feuille reste ouverte pour corriger')
+  await until(() => dlg.querySelector('.banner--error').style.display !== 'none')
+  assert.match(dlg.querySelector('.banner--error').textContent, /existe déjà/)
+  assert.ok($('.modal--form'), 'la modale reste ouverte pour corriger')
   closeAllOverlays()
 })

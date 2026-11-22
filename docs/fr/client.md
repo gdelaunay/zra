@@ -11,9 +11,9 @@ zra-client/
   css/   themes.css (généré)  app.css
   icon-themes/  colored-zed/ (vendored : theme.json, SVG dark/light, LICENSES)
   js/    main.js store.js link.js settings.js acp.js markdown.js diff.js
-         dom.js icons.js file-icons.js format.js ui.js i18n.js en.js elicitation.js
+         dom.js icons.js file-icons.js format.js ui.js settings-window.js i18n.js en.js elicitation.js
          themes.js + agent-icons.js + file-icons-data.js (générés depuis Zed)
-         views/  threads.js thread.js entry.js settings.js machine-settings.js new-session.js pair.js devbar.js
+         views/  threads.js thread.js entry.js settings.js machine-settings.js new-session.js new-thread.js new-project.js pair.js devbar.js
          mock/   mock-link.js scenarios.js
   tools/ mock-server.mjs
   test/  *.test.mjs
@@ -78,13 +78,24 @@ génération, supprimer (confirmation). Le titre de la page agent est lui-même
 un input éditable. Renommage et suppression passent par ACP, gatés par les
 capacités de l'agent (`docs/fr/acp.md`).
 
+Réglages et modales : les réglages globaux (`views/settings.js`) et ceux d'un
+poste vivent dans une fenêtre style Zed (`settings-window.js`, référence
+`reference/zed-ui/settings-window.html`) — titlebar avec seulement fermer,
+nav arbre + recherche à gauche, tout le contenu scrollable à droite (la nav
+scrolle jusqu'à la section et suit le défilement) ; sous 626 px la nav passe
+en puces horizontales. Backdrop fermant. Les confirmations (suppression de
+thread, retrait de poste, rechargement langue/mock) sont des modales centrées
+style Zed avec sévérité — bouton rouge pour les suppressions — empilées sur la
+fenêtre ; nouveau projet et appairage sont des modales de formulaire (même
+surface, champs des settings).
+
 Réglages d'un poste : au survol sur desktop, à l'appui long sur mobile, une
-icône réglages ouvre la feuille du poste (`views/machine-settings.js`) — garde
-éveillé. Quand l'inhibition est active, la ligne porte un café (vert pour la
-bascule explicite, orange pendant un tour d'agent) et, à sa gauche, le TTL
-restant (style meta, séparé par un « · ») mis à jour chaque seconde ; au
-survol/appui long, le café laisse place au bouton réglages dans la même boîte,
-le TTL reste affiché sans bouger.
+icône réglages ouvre la fenêtre de settings du poste (`views/machine-settings.js`)
+— garde éveillé (dropdown de modes, statut café + décompte). Quand l'inhibition
+est active, la ligne porte un café (vert pour la bascule explicite, orange
+pendant un tour d'agent) et, à sa gauche, le TTL restant (style meta, séparé
+par un « · ») mis à jour chaque seconde ; au survol/appui long, le café laisse
+place au bouton réglages dans la même boîte, le TTL reste affiché sans bouger.
 
 Le composer est un contenteditable à façade textarea (`editor.js`) : le
 brouillon reste du texte, Entrée envoie, Maj+Entrée et Ctrl+Entrée sautent une

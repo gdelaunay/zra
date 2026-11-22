@@ -1,7 +1,7 @@
 // Service worker : coquille de cache (v1) + Web Push (fin de tour, `push.js`).
 // Réseau d'abord partout (coquille comprise), cache en repli hors tunnel.
 
-const VERSION = 'zra-v11'
+const VERSION = 'zra-v12'
 /** Au-delà, le réseau est tenu pour absent (hors tunnel) : on sert le cache. */
 const NETWORK_TIMEOUT_MS = 3000
 const SHELL = [
@@ -38,18 +38,26 @@ const SHELL = [
   './js/link.js',
   './js/store.js',
   './js/settings.js',
+  './js/settings-window.js',
   './js/themes.js',
   './js/agent-icons.js',
   './js/ui.js',
   './js/push.js',
   './js/sound.js',
+  './js/callout.js',
+  './js/completion.js',
+  './js/editor.js',
+  './js/mentions.js',
   './js/views/threads.js',
   './js/views/thread.js',
   './js/views/entry.js',
   './js/views/bottombar.js',
   './js/views/settings.js',
+  './js/views/machine-settings.js',
   './js/views/devbar.js',
   './js/views/new-session.js',
+  './js/views/new-thread.js',
+  './js/views/new-project.js',
   './js/views/pair.js',
 ]
 

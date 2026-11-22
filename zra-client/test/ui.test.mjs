@@ -1,8 +1,9 @@
-// Les surcouches (`js/ui.js`) : menus ancrés, feuilles, toasts.
+// Les surcouches (`js/ui.js`) : menus ancrés, modales, toasts.
 //
 // Le contrat qui compte pour le mobile : une pile d'overlays cohérente (Échap
-// ferme celle du dessus, une feuille remplace tout, un menu s'empile), un clic
-// sur le voile ferme, et aucun toast qui reste accroché indéfiniment.
+// ferme celle du dessus, un formulaire remplace tout, un menu ou une
+// confirmation s'empile), un clic sur le voile ferme, et aucun toast qui
+// reste accroché indéfiniment.
 
 import { test, after } from 'node:test'
 import assert from 'node:assert/strict'
@@ -19,7 +20,7 @@ for (const k of ['window', 'document', 'navigator', 'location', 'getComputedStyl
 }
 after(() => { dom.window.close() })
 
-const { openMenu, openSheet, closeOverlay, closeAllOverlays, toast, activity, confirmSheet, switchEl } = await import('../js/ui.js')
+const { openMenu, formDialog, closeOverlay, closeAllOverlays, toast, activity, confirmDialog, switchEl } = await import('../js/ui.js')
 
 const layer = () => doc.getElementById('overlays')
 const anchor = () => doc.getElementById('ancre')
@@ -30,7 +31,7 @@ const esc = () => doc.body.dispatchEvent(new win.KeyboardEvent('keydown', { key:
 const wait = (ms) => new Promise((r) => setTimeout(r, ms))
 
 const menus = () => [...doc.querySelectorAll('.menu')]
-const sheets = () => [...doc.querySelectorAll('.sheet')]
+const dialogs = () => [...doc.querySelectorAll('.modal')]
 const items = (root = doc) => [...root.querySelectorAll('.menu__item')]
 
 /** Ferme tout entre deux tests : la pile est un état global du module. */
@@ -38,7 +39,7 @@ function reset(t) {
   closeAllOverlays()
   for (const el of [...doc.querySelectorAll('.toast')]) el.remove()
   t.after(() => { closeAllOverlays() })
-  assert.deepEqual(menus().concat(sheets()), [], 'on part d’un calque vide')
+  assert.deepEqual(menus().concat(dialogs()), [], 'on part d’un calque vide')
 }
 
 // ---------------------------------------------------------------------------
@@ -143,52 +144,52 @@ test('un en-tête d’entrée s’affiche comme libellé, pas comme bouton', (t)
 // La pile d'overlays
 // ---------------------------------------------------------------------------
 
-test('une feuille remplace tout ce qui est ouvert', (t) => {
+test('un formulaire remplace tout ce qui est ouvert', (t) => {
   reset(t)
   openMenu(anchor(), { items: [{ label: 'x' }] })
-  openSheet('Titre', () => {})
+  formDialog('Titre', () => {})
   assert.equal(menus().length, 0, 'le menu a été remplacé')
-  assert.equal(sheets().length, 1)
+  assert.equal(dialogs().length, 1)
 })
 
-test('un menu s’empile sur une feuille (le sélecteur de thème sur les réglages)', (t) => {
+test('un menu s’empile sur un formulaire (le sélecteur de thème sur les réglages)', (t) => {
   reset(t)
-  openSheet('Réglages', () => {})
+  formDialog('Réglages', () => {})
   openMenu(anchor(), { items: [{ label: 'Thème' }] })
-  assert.equal(sheets().length, 1)
+  assert.equal(dialogs().length, 1)
   assert.equal(menus().length, 1)
 
   esc()                                  // Échap ferme le dessus seulement
   assert.equal(menus().length, 0)
-  assert.equal(sheets().length, 1)
+  assert.equal(dialogs().length, 1)
 
   esc()
-  assert.equal(sheets().length, 0, 'le second Échap ferme la feuille')
+  assert.equal(dialogs().length, 0, 'le second Échap ferme le formulaire')
 })
 
 test('closeOverlay() sur une pile vide ne fait rien', (t) => {
   reset(t)
   closeOverlay()
   closeOverlay()
-  assert.deepEqual(menus().concat(sheets()), [])
+  assert.deepEqual(menus().concat(dialogs()), [])
 })
 
 test('closeAllOverlays() vide la pile, quel que soit son contenu', (t) => {
   reset(t)
-  openSheet('Une', () => {})
+  formDialog('Une', () => {})
   openMenu(anchor(), { items: [{ label: 'x' }] })
   openMenu(anchor(), { items: [{ label: 'y' }] })
   closeAllOverlays()
-  assert.deepEqual(menus().concat(sheets()), [])
+  assert.deepEqual(menus().concat(dialogs()), [])
 })
 
-test('le close() rendu à une feuille ferme aussi ce qui s’est empilé dessus', (t) => {
+test('le close() rendu à un formulaire ferme aussi ce qui s’est empilé dessus', (t) => {
   reset(t)
   let close
-  openSheet('Réglages', (body, api) => { close = api.close })
+  formDialog('Réglages', (body, api) => { close = api.close })
   openMenu(anchor(), { items: [{ label: 'Thème' }] })
   close()
-  assert.deepEqual(menus().concat(sheets()), [], 'tout est parti')
+  assert.deepEqual(menus().concat(dialogs()), [], 'tout est parti')
 })
 
 test('Échap ne remonte pas au-delà du menu ouvert', (t) => {
@@ -201,90 +202,97 @@ test('Échap ne remonte pas au-delà du menu ouvert', (t) => {
 })
 
 // ---------------------------------------------------------------------------
-// openSheet
+// formDialog
 // ---------------------------------------------------------------------------
 
-test('openSheet() : titre, bouton fermer, et un corps construit par l’appelant', (t) => {
+test('formDialog() : titre, bouton fermer, et un corps construit par l’appelant', (t) => {
   reset(t)
-  const sheet = openSheet('Nouveau thread', (body) => body.append(doc.createElement('p')), { titleIcon: 'plus' })
-  assert.equal(sheet.getAttribute('role'), 'dialog')
-  assert.equal(sheet.getAttribute('aria-modal'), 'true')
-  assert.equal(sheet.querySelector('.sheet__title span').textContent, 'Nouveau thread')
-  assert.ok(sheet.querySelector('.sheet__title svg'), 'l’icône de titre est rendue')
-  assert.equal(sheet.querySelector('button[aria-label="Fermer"]') !== null, true)
-  assert.equal(sheet.querySelectorAll('p').length, 1)
+  const dlg = formDialog('Nouveau projet', (body) => body.append(doc.createElement('p')), { titleIcon: 'plus' })
+  assert.equal(dlg.getAttribute('role'), 'dialog')
+  assert.equal(dlg.getAttribute('aria-modal'), 'true')
+  assert.equal(dlg.querySelector('.modal__title').textContent, 'Nouveau projet')
+  assert.ok(dlg.querySelector('.modal__head svg'), 'l’icône de titre est rendue')
+  assert.equal(dlg.querySelector('button[aria-label="Fermer"]') !== null, true)
+  assert.equal(dlg.querySelectorAll('p').length, 1)
 
-  click(sheet.querySelector('button[aria-label="Fermer"]'))
-  assert.equal(sheets().length, 0)
+  click(dlg.querySelector('button[aria-label="Fermer"]'))
+  assert.equal(dialogs().length, 0)
 })
 
-test('openSheet() : rebuild reconstruit le corps sans rouvrir la feuille', (t) => {
+test('formDialog() : le close passé au constructeur ferme depuis l’intérieur', (t) => {
   reset(t)
-  let rebuild
-  let body
-  let count = 0
-  const sheet = openSheet('Compteur', (b, api) => {
-    body = b
-    // `rebuild` ne repasse que `close` : une vue qui veut reconstruire à répétition
-    // pose son propre `rebuild` stable, comme le fait `views/settings.js`.
-    rebuild ??= api.rebuild
-    count++
-    body.append(Object.assign(doc.createElement('span'), { textContent: `passage ${count}` }))
-  })
-  assert.equal(sheet.textContent.includes('passage 1'), true)
-  rebuild()
-  rebuild()
-  assert.equal(body.textContent, 'passage 3', 'le corps est vidé puis reconstruit')
-  assert.equal(body.querySelectorAll('span').length, 1)
-  assert.equal(sheets().length, 1, 'toujours une seule feuille')
-})
-
-test('openSheet() : le close passé au constructeur ferme depuis l’intérieur', (t) => {
-  reset(t)
-  openSheet('Confirmer', (body, { close }) => {
+  formDialog('Confirmer', (body, { close }) => {
     const btn = doc.createElement('button')
     btn.textContent = 'ok'
     btn.addEventListener('click', close)
     body.append(btn)
   })
-  click(sheets()[0].querySelector('button'))
-  assert.equal(sheets().length, 0)
+  click(dialogs()[0].querySelector('.modal__body button'))
+  assert.equal(dialogs().length, 0)
 })
 
-test('le voile d’une feuille la ferme', (t) => {
+test('le voile d’un formulaire le ferme', (t) => {
   reset(t)
-  openSheet('Titre', () => {})
+  formDialog('Titre', () => {})
   click(doc.querySelector('.scrim'))
-  assert.equal(sheets().length, 0)
+  assert.equal(dialogs().length, 0)
 })
 
 // ---------------------------------------------------------------------------
-// confirmSheet
+// confirmDialog
 // ---------------------------------------------------------------------------
 
-test('confirmSheet() : Annuler ferme sans rappeler, Confirmer ferme et rappelle', (t) => {
+test('confirmDialog() : Annuler ferme sans rappeler, Confirmer ferme et rappelle', (t) => {
   reset(t)
   let yes = 0
-  confirmSheet('Supprimer ?', 'Ce thread sera oublié.', () => { yes++ }, { danger: true, yes: 'Supprimer' })
-  assert.equal(sheets().length, 1)
-  assert.equal(sheets()[0].querySelector('.sheet__title span').textContent, 'Supprimer ?')
-  assert.equal(sheets()[0].querySelector('p').textContent, 'Ce thread sera oublié.')
+  confirmDialog('Supprimer ?', 'Ce thread sera oublié.', () => { yes++ }, { level: 'critical', yes: 'Supprimer' })
+  assert.equal(dialogs().length, 1)
+  assert.equal(dialogs()[0].querySelector('.modal__message').textContent, 'Supprimer ?')
+  assert.equal(dialogs()[0].querySelector('.modal__detail').textContent, 'Ce thread sera oublié.')
+  assert.ok(dialogs()[0].querySelector('.modal__head svg'), 'icône de sévérité en tête')
 
-  const [annuler, confirmer] = [...sheets()[0].querySelectorAll('button')].filter((b) => b.textContent !== '')
+  const [annuler, confirmer] = [...dialogs()[0].querySelectorAll('.modal__actions button')]
+  assert.equal(annuler.textContent, 'Annuler')
   assert.equal(confirmer.textContent, 'Supprimer')
-  assert.equal(confirmer.className.includes('btn--danger'), true)
+  assert.equal(confirmer.className.includes('btn--tinted-error'), true, 'suppression = bouton rouge')
 
   click(annuler)
-  assert.equal(sheets().length, 0)
+  assert.equal(dialogs().length, 0)
   assert.equal(yes, 0)
 
-  confirmSheet('Encore ?', 'msg', () => { yes++ })
-  const [, ok] = [...sheets()[0].querySelectorAll('button')].filter((b) => b.textContent !== '')
+  confirmDialog('Encore ?', 'msg', () => { yes++ })
+  const [, ok] = [...dialogs()[0].querySelectorAll('.modal__actions button')]
   assert.equal(ok.textContent, 'Confirmer', 'libellé par défaut')
-  assert.equal(ok.className.includes('btn--accent'), true)
+  assert.equal(ok.className.includes('btn--tinted-accent'), true, 'info = teinté accent')
   click(ok)
   assert.equal(yes, 1)
-  assert.equal(sheets().length, 0)
+  assert.equal(dialogs().length, 0)
+})
+
+test('confirmDialog() s’empile sur un formulaire : Échap ne ferme que la confirmation', (t) => {
+  reset(t)
+  let yes = 0
+  formDialog('Réglages', () => {})
+  confirmDialog('Retirer ?', 'détail', () => { yes++ }, { level: 'critical', yes: 'Retirer' })
+  assert.equal(dialogs().length, 2)
+  esc()
+  assert.equal(dialogs().length, 1, 'le formulaire reste dessous')
+  assert.equal(yes, 0)
+  assert.ok(doc.querySelector('.modal--form'))
+})
+
+test('confirmDialog() : le focus est sur l’action, Entrée confirme, Tab cycle', (t) => {
+  reset(t)
+  let yes = 0
+  const dlg = confirmDialog('Ok ?', null, () => { yes++ })
+  const [annuler, ok] = [...dlg.querySelectorAll('.modal__actions button')]
+  assert.equal(doc.activeElement, ok, 'l’action est active (Entrée la confirme)')
+  dlg.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Tab', bubbles: true }))
+  assert.equal(doc.activeElement, annuler)
+  dlg.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Tab', bubbles: true }))
+  assert.equal(doc.activeElement, ok)
+  ok.click()
+  assert.equal(yes, 1)
 })
 
 // ---------------------------------------------------------------------------
@@ -322,11 +330,11 @@ test('activity() montre un chargeur et s’arrête à done()', async (t) => {
   assert.equal(doc.querySelectorAll('.toast').length, 0)
 })
 
-test('switchEl() rend un interrupteur, décoratif, reflet de l’état', () => {
+test('switchEl() rend un interrupteur Zed, décoratif, reflet de l’état', () => {
   const off = switchEl(false)
   assert.equal(off.className, 'switch')
   assert.equal(off.getAttribute('aria-hidden'), 'true')
-  assert.equal(off.querySelector('.switch__knob') !== null, true)
+  assert.ok(off.querySelector('.switch__track .switch__thumb'), 'piste + pouce')
   assert.equal(switchEl(true).className, 'switch switch--on')
   assert.equal(switchEl(true, 'menu__switch').className, 'switch switch--on menu__switch')
 })

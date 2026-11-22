@@ -1,11 +1,12 @@
 // « Nouveau projet » : crée un dossier sur le poste et l'ouvre dans Zed.
-// Feuille sur le patron de l'appairage (`pair.js`) ; le parent par défaut est
-// calculé ici — le client a déjà les projets et les threads du poste.
-// Conception : `reference/conception-nouveau-projet.md`.
+// Modale de formulaire (reference/zed-ui/settings-window.html, section 10) ;
+// le parent par défaut est calculé ici — le client a déjà les projets et les
+// threads du poste. Conception : `reference/conception-nouveau-projet.md`.
 
 import { h, button } from '../dom.js'
+import { icon } from '../icons.js'
 import * as store from '../store.js'
-import { openSheet } from '../ui.js'
+import { formDialog } from '../ui.js'
 import { projectOf, displayTime, toMs } from '../format.js'
 import { tr } from '../i18n.js'
 
@@ -58,19 +59,20 @@ export function defaultParent(m) {
 /** Nom valide : un segment de dossier, comme le daemon l'exige. */
 const nameOk = (n) => Boolean(n) && n.length <= 100 && !/[\\/\u0000-\u001f]/.test(n) && n !== '.' && n !== '..'
 
-export function openProjectSheet(m) {
-  openSheet(tr`Nouveau projet · ${m.label || m.url}`, (body, { close }) => {
-    const name = h('input.input', {
+export function openProjectDialog(m) {
+  formDialog(tr`Nouveau projet · ${m.label || m.url}`, (body, { close }) => {
+    const name = h('input.inputfield', {
       type: 'text', placeholder: tr`nom-du-projet`, maxlength: '100',
-      autocomplete: 'off', autocapitalize: 'off', spellcheck: 'false',
+      autocomplete: 'off', autocapitalize: 'off', spellcheck: 'false', 'aria-label': tr`Nom du projet`,
     })
-    const parent = h('input.input', {
+    const parent = h('input.inputfield', {
       type: 'text', value: defaultParent(m),
-      autocomplete: 'off', autocapitalize: 'off', spellcheck: 'false',
+      autocomplete: 'off', autocapitalize: 'off', spellcheck: 'false', 'aria-label': tr`Dossier parent`,
     })
-    const preview = h('p.muted', { style: { wordBreak: 'break-all' } })
-    const error = h('p.callout.callout--error', { style: { display: 'none' } })
-    const ok = button('btn.btn--accent', { onclick: () => submit() }, tr`Créer`)
+    const preview = h('p.form-preview')
+    const error = h('div.banner.banner--error', { style: { display: 'none' } },
+      icon('alert-triangle', 'icon--xs'), h('span.banner__text'))
+    const ok = button('btn.btn--md.btn--full.btn--tinted-accent', { onclick: () => submit() }, tr`Créer`)
 
     const sync = () => {
       const n = name.value.trim()
@@ -84,42 +86,47 @@ export function openProjectSheet(m) {
     parent.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') submit() })
 
     let pending = false
+    let timer = null
     function submit() {
       if (ok.disabled || pending) return
       pending = true
       ok.disabled = true
       error.style.display = 'none'
+      // Filet de 30 s seulement pendant l'attente d'une réponse (lien mort) :
+      // on rend la main, on corrige et on réessaie. Pas de filet à l'ouverture.
+      timer = setTimeout(() => {
+        pending = false
+        error.querySelector('.banner__text').textContent = tr`Pas de réponse du poste — réessaie.`
+        error.style.display = ''
+        sync()
+      }, 30_000)
       store.newProject(m.id, name.value.trim(), parent.value.trim())
     }
 
-    // Réponse : `project_created` (la feuille se ferme) ou `new_project_failed`
-    // (l'erreur s'affiche dans la feuille, on corrige et on réessaie).
+    // Réponse : `project_created` (la modale se ferme) ou `new_project_failed`
+    // (l'erreur s'affiche dans la modale, on corrige et on réessaie — les
+    // écouteurs restent jusqu'au succès).
     const offs = [
       store.on('project_created', (e) => { if (e.machineId === m.id) end(close) }),
       store.on('error', (e) => {
         if (e.machineId !== m.id || e.code !== 'new_project_failed') return
+        clearTimeout(timer); timer = null
         pending = false
-        error.textContent = e.message
+        error.querySelector('.banner__text').textContent = e.message
         error.style.display = ''
         sync()
       }),
     ]
-    // Sans réponse (lien mort) : on rend la main, les écouteurs restent —
-    // ils se retirent au prochain succès ou échec.
-    const timer = setTimeout(() => {
-      pending = false
-      error.textContent = tr`Pas de réponse du poste — réessaie.`
-      error.style.display = ''
-      sync()
-    }, 30_000)
-    function end(after) { clearTimeout(timer); offs.forEach((off) => off()); after?.() }
+    function end(after) { clearTimeout(timer); timer = null; pending = false; offs.forEach((off) => off()); after?.() }
 
     body.append(
-      h('label.field', {}, h('span', { text: tr`Nom du projet` }), name),
-      h('label.field', {}, h('span', { text: tr`Dossier parent` }), parent),
-      preview,
+      h('div.form-fields', {},
+        h('div.form-field', {}, h('span.form-label', { text: tr`Nom du projet` }), name),
+        h('div.form-field', {}, h('span.form-label', { text: tr`Dossier parent` }), parent),
+        preview,
+      ),
       error,
-      h('div.row', {}, ok),
+      h('div.modal__actions', {}, ok),
     )
     sync()
     setTimeout(() => name.focus(), 50)

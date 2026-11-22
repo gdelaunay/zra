@@ -114,6 +114,17 @@ Comportement seulement ; l'apparence : galeries et écarts volontaires dans `ref
 
 Les styles GPUI s'écrivent comme des classes utilitaires (`.px_2()`, `.gap_1()`, `.rounded_md()`, `.text_color(colors.text_muted)`) : chacun se traduit en une déclaration CSS. Les valeurs de base de `crates/ui/src/styles/` deviennent des variables CSS dans `app.css`, comme les couleurs dans `themes.css`.
 
+### Interface : fenêtre de settings et modales
+
+Apparence : galerie `reference/zed-ui/settings-window.html` et écarts dans `zed-ui.md`. Sources lues dans `_upstream/zed` (v1.28.1) pour les valeurs marquées `vérifié`.
+
+| PWA (`zra-client/js/`) | Côté Zed |
+|---|---|
+| Fenêtre de settings (`settings-window.js`, `views/settings.js`, `views/machine-settings.js`) : panel fixe centré, backdrop fermant (écart ZRA — Zed : fenêtre autonome), titlebar 32 px avec seulement fermer ; nav 226 px (recherche + arbre pages/sections, `SIDEBAR_WIDTH` 226 / `CONTENT_MIN_WIDTH` 400, vérifié) ; tout le contenu rendu d'un coup, la nav scrolle jusqu'à la catégorie et la sélection suit le défilement ; sous 626 px la nav passe en puces horizontales (écart ZRA tactile). Exclus : fichiers User/Projet, copy-link, settings.json, pied de nav, sous-pages. Réglages globaux : page Général, sections Postes / Apparence / Langue et texte / Affichage / À propos ; poste : une page Garde éveillé sans nav (dropdown de modes, statut café + décompte) | `crates/settings_ui/src/settings_ui.rs` : `Render for SettingsWindow`, `render_nav`, `render_page`, `update_navbar_entry_from_scroll_position` ; `components/section_items.rs` (`SettingsSectionHeader`) ; `crates/ui/src/components/tree_view_item.rs` (`TreeViewItem` 28 px) |
+| Contrôles des settings : Switch (piste 32×20, pouce 12, conteneur 38×26), dropdowns 28 px à menu coches, champs 32 px rayon 6 ; boutons texte 28 px (écart tactile ZRA, Zed : Default 22) | `crates/ui/src/components/toggle.rs` (`Switch`) ; `settings_ui/src/components/dropdown.rs` (`EnumVariantDropdown`), `input_field.rs` (`SettingsInputField`) ; `button_like.rs` (`ButtonSize::Medium`) |
+| Modale de confirmation (`ui.js` : `confirmDialog`) : dialogue centré 320 px (`w_80`, vérifié), `elevation_3` (vérifié), scrim noir 20 % (vérifié), pile de boutons pleine largeur 28 px, Entrée confirme / Échap annule ; s'empile sur la fenêtre de settings. Écart ZRA de sévérité : icône en tête + action teintée accent/warning/error (Zed ignore le `PromptLevel`) ; suppressions en critical (bouton rouge) | `crates/ui_prompt/src/ui_prompt.rs` : `ZedPromptRenderer`, `set_prompt_builder` ; gpui `Window::prompt` ; galerie section 9 |
+| Modale de formulaire (`ui.js` : `formDialog` ; `views/new-project.js`, `views/pair.js`) : composition ZRA sans équivalent Zed — surface `ui_prompt` 380 px, tête icône + titre + fermer, champs des settings pleine largeur, erreur en `Banner` Error, action unique Tinted Accent ; croix / Échap / backdrop ferment, Entrée valide | composition : `ui_prompt.rs` + `settings_ui/src/components/input_field.rs` + `crates/ui/src/components/banner.rs` ; galerie section 10 (écart ZRA documenté) |
+
 ## Points de vigilance
 
 - **Plusieurs canaux installés** : ZRA suit celui dont la base a été écrite en dernier, déterminé au démarrage du daemon. Pour en suivre un autre : `zedChannel` dans `zra.config.json`.

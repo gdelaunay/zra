@@ -142,12 +142,16 @@
 /* ---------- Ligne de réglage (settings_ui.rs render_settings_item_layout) ---------- */
 
 /* Rangée : pt_4 16 / pb_4 16 (pb_10 40 si dernière de section), px_8 32 ;
-   h_flex justify_between. Divider horizontal entre items sauf dernier de section.
-   Colonne gauche max_w_2_3 : titre + (reset Undo) + « — Modified in X », puis
-   description Small muted (code spans). Contrôle à droite. */
-.srow { padding: 16px 32px; }
+   h_flex justify_between. Divider horizontal entre items sauf dernier de section,
+   inset sur le padding (même retrait que l'en-tête de section). Colonne gauche
+   max_w_2_3 : titre + (reset Undo) + « — Modified in X », puis description Small
+   muted (code spans). Contrôle à droite. */
+.srow { padding: 16px 32px; position: relative; }
 .srow.last { padding-bottom: 40px; }
-.srow + .srow { border-top: 1px solid var(--border-variant); }
+.srow + .srow::before {
+  content: ""; position: absolute; top: 0; left: 32px; right: 32px; height: 1px;
+  background: var(--border-variant);
+}
 .srow-inner { display: flex; align-items: center; justify-content: space-between; gap: 16px; position: relative; }
 .srow-text { display: flex; flex-direction: column; max-width: 66%; min-width: 0; }
 .srow-title { display: flex; align-items: center; gap: 4px; }
@@ -235,7 +239,10 @@
    (SubPageLink) ou libellé propre + ArrowUpRight (ActionLink). */
 .linkrow { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 32px; position: relative; }
 .linkrow.last { padding-bottom: 40px; }
-.linkrow + .linkrow, .srow + .linkrow, .linkrow + .srow { border-top: 1px solid var(--border-variant); }
+.linkrow + .linkrow::before, .srow + .linkrow::before, .linkrow + .srow::before {
+  content: ""; position: absolute; top: 0; left: 32px; right: 32px; height: 1px;
+  background: var(--border-variant);
+}
 .linkrow-text { display: flex; flex-direction: column; max-width: 50%; min-width: 0; }
 .linkrow-desc { font-size: 12px; color: var(--text-muted); }
 
@@ -307,3 +314,24 @@
 .modal-actions .btn { width: 100%; height: 28px; padding: 0 8px; justify-content: center; }
 /* Actif clavier : Tinted + bordure focus (Zed : l'actif passe Tinted Accent). */
 .modal-actions .btn.active { border-color: var(--border-focused); }
+
+/* ---------- Modale de formulaire (écart ZRA : composition ui_prompt + settings) ----------
+   Zed n'a pas de prompt formulaire (Window::prompt = message + réponses). ZRA compose
+   ses primitives : surface elevation_3 et scrim de ui_prompt (ci-dessus), champs
+   SettingsInputField (input_field.rs), Banner erreur (banner.rs), boutons teintés.
+   Écarts vs prompt : largeur 380 px (prompt 320), tête icône sm muted + titre + fermer
+   (ibtn sm), champs pleine largeur (le min 256 px saute), libellé 12 px muted au-dessus,
+   aperçu mono 12 muted, action unique Tinted Accent pleine largeur 28 px. Pas d'Annuler :
+   croix, Échap ou backdrop ferment ; Entrée valide. Code d'appairage : mono centré espacé. */
+
+.modal-dialog.form { width: 380px; }
+.form-head { display: flex; align-items: center; gap: 6px; }
+.form-head .lbl { flex: 1; min-width: 0; white-space: normal; }
+.form-fields { display: flex; flex-direction: column; gap: 12px; }
+.form-field { display: flex; flex-direction: column; gap: 4px; }
+.form-field .inputfield { width: 100%; min-width: 0; }
+.form-preview { font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); word-break: break-all; }
+.form-code .if-text { font-family: var(--font-mono); font-size: 16px; letter-spacing: .2em; text-align: center; }
+/* Banner Error — banner.rs Severity::Error : fond error_background 50 %, bordure
+   error_border 40 %, icône Warning xs error (même mécanique que le Warning ci-dessus). */
+.banner.error { background: color-mix(in srgb, var(--error-background) 50%, transparent); border-color: color-mix(in srgb, var(--error-border) 40%, transparent); }

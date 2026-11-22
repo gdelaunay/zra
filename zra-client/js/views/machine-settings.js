@@ -1,12 +1,13 @@
-// Feuille de réglages d'un poste : garde éveillé (reference/conception-zra-veille.md).
-// Ouverte par l'icône settings de la ligne poste (survol / appui long).
-// L'état vit côté daemon : la feuille demande (`set_keep_awake`) et se
-// repeint au `keep_awake` rediffusé — TTL et raison compris.
+// Réglages d'un poste : garde éveillé (reference/conception-zra-veille.md),
+// dans la fenêtre style Zed (settings-window.js). Ouverte par l'icône settings
+// de la ligne poste (survol / appui long). L'état vit côté daemon : la fenêtre
+// demande (`set_keep_awake`) et se repeint au `keep_awake` rediffusé — TTL et
+// raison compris. Une seule page sans sections : pas de nav.
 
-import { h, button, clear, tickText } from '../dom.js'
+import { h, tickText } from '../dom.js'
 import { icon } from '../icons.js'
 import { formatDuration } from '../format.js'
-import { openSheet } from '../ui.js'
+import { openSettingsWindow, dropdownControl } from '../settings-window.js'
 import * as store from '../store.js'
 import { tr } from '../i18n.js'
 
@@ -26,59 +27,59 @@ export function awakeLabel(ka, now = Date.now()) {
   return tr`Garde éveillé jusqu'à désactivation.`
 }
 
-export function openMachineSheet(m) {
+export function openMachineSettings(m) {
   let off = () => {}
-  const sheet = openSheet(m.info?.name || m.label || m.url, (body, { close }) => {
-    off()
-    // Le `keep_awake` du daemon (choix, expiration du TTL, fin de tour)
-    // repeint la feuille tant qu'elle est ouverte ; fermée, le lien se coupe.
-    off = store.on('machines', () => {
-      if (!sheet.isConnected) { off(); off = () => {}; return }
-      clear(body)
-      build(body, m, close)
-    })
-    build(body, m, close)
-  }, { titleIcon: 'server' })
-  return sheet
+  const win = openSettingsWindow({
+    title: m.info?.name || m.label || m.url,
+    titleIcon: 'server',
+    build: () => [keepAwakePage(m)],
+  })
+  // Le `keep_awake` du daemon (choix, expiration du TTL, fin de tour) repeint
+  // la fenêtre tant qu'elle est ouverte ; fermée, le lien se coupe.
+  off = store.on('machines', () => {
+    if (!win.isConnected) { off(); off = () => {}; return }
+    win.rebuild()
+  })
+  return win
 }
 
-function build(body, m, close) {
+function keepAwakePage(m) {
   const ka = m.keepAwake
-  body.append(h('section.field', {},
-    h('span.label', { text: tr`Garde éveillé` }),
-    h('span.composer__hint', { text: tr`Le poste ne s'endort jamais pendant qu'un agent travaille. Ce réglage le garde éveillé au-delà, pour reprendre plus tard.` }),
-  ))
+  const items = [h('div.sblock', {},
+    h('p.srow-desc', { text: tr`Le poste ne s'endort jamais pendant qu'un agent travaille. Ce réglage le garde éveillé au-delà, pour reprendre plus tard.` }),
+  )]
   // Poste ancien (pas de `keep_awake` au bootstrap) ou mécanisme absent :
   // on le dit, on ne propose pas un réglage qui ne ferait rien.
   if (!ka) {
-    body.append(h('p.muted', { text: tr`Garde éveillé indisponible sur ce poste.` }))
-    return
+    items.push(h('div.sblock', {}, h('p.muted', { text: tr`Garde éveillé indisponible sur ce poste.` })))
+    return { title: tr`Garde éveillé`, items }
   }
   if (!ka.supported) {
-    body.append(h('p.muted', { text: tr`Ce poste ne sait pas empêcher la veille automatique : mécanisme indisponible sur son système.` }))
-    return
+    items.push(h('div.sblock', {}, h('p.muted', { text: tr`Ce poste ne sait pas empêcher la veille automatique : mécanisme indisponible sur son système.` })))
+    return { title: tr`Garde éveillé`, items }
   }
   const status = awakeLabel(ka)
   if (status) {
     const text = h('span', { text: status })
-    body.append(h(`p.machine-awake-status${ka.reason === 'turn' ? '.machine-awake-status--turn' : ''}`, {},
-      icon('coffee', 'icon--sm'), text))
-    // Le décompte vit tant que la feuille est ouverte (le TTL est figé sinon).
+    items.push(h('div.sblock', {},
+      h(`p.machine-awake-status${ka.reason === 'turn' ? '.machine-awake-status--turn' : ''}`, {},
+        icon('coffee', 'icon--sm'), text),
+    ))
+    // Le décompte vit tant que la fenêtre est ouverte (le TTL est figé sinon).
     if (ka.until) tickText(text, () => awakeLabel(ka))
   }
-  const list = h('div', { role: 'menu', 'aria-label': tr`Garde éveillé` })
-  for (const mode of MODES) {
-    const on = ka.mode === mode.id
-    list.append(button('menu__item', {
-      class: on ? 'menu__item--on' : '',
-      role: 'menuitemradio',
-      'aria-checked': String(on),
-      onclick: () => { close(); store.setKeepAwake(m.id, mode.id) },
-    },
-      h('span', { style: { width: '14px' } }),
-      h('span.truncate', { text: mode.label }),
-      on ? icon('check', 'icon--sm') : null,
-    ))
-  }
-  body.append(list)
+  items.push({
+    title: tr`Mode`,
+    desc: tr`Durée pendant laquelle le poste reste éveillé sans agent.`,
+    control: dropdownControl({
+      ariaLabel: tr`Garde éveillé`,
+      label: () => (MODES.find((x) => x.id === m.keepAwake?.mode) || MODES[0]).label,
+      items: () => MODES.map((mode) => ({
+        label: mode.label,
+        on: m.keepAwake?.mode === mode.id,
+        onSelect: () => store.setKeepAwake(m.id, mode.id),
+      })),
+    }),
+  })
+  return { title: tr`Garde éveillé`, items }
 }

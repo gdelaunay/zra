@@ -51,6 +51,16 @@ Base : `ZedPromptRenderer` (`crates/ui_prompt/src/ui_prompt.rs`), enregistré vi
 - **Bouton d'action teinté par sévérité** : `Tinted Accent` (Info), `Tinted Warning` (Warning), **`Tinted Error` rouge** pour une suppression (`error_background` / `error_border`) — au lieu de l'`Outlined` uniforme de Zed. « Cancel » reste `Outlined`.
 - **Boutons 28 px** (md) pleine largeur pour le tactile (Zed : Default 22 px).
 
+### Modale de formulaire
+
+Zed n'a pas de prompt formulaire : `Window::prompt` ne porte qu'un message et des réponses, les saisies vivent ailleurs (pickers, éditeurs). ZRA compose ses primitives existantes pour ses deux formulaires (nouveau projet, appairage) — référence : section 10 de `settings-window.html`.
+
+- **Surface et scrim de la modale** (`ui_prompt`, `elevation_3`) ; dialogue centré **380 px** (le prompt fait 320), p 16 / gap 16.
+- **Tête** : icône sm muted + titre 14 px + bouton fermer `.ibtn.sm` (le prompt n'a ni titre ni croix).
+- **Champs** : `SettingsInputField` (32 px, rayon 6) **pleine largeur** — le min 256 px de Zed saute dans le dialogue — avec libellé 12 px muted au-dessus (gap 4) ; champs espacés de 12 px. Aperçu de chemin : mono 12 px muted. Code d'appairage : champ mono 16 px centré, letter-spacing .2em.
+- **Erreur** : `Banner` `Severity::Error` (fond `error_background` 50 %, bordure `error_border` 40 %, icône Warning xs error) entre les champs et l'action ; l'action passe désactivée.
+- **Action unique** pleine largeur 28 px `Tinted Accent` (pas d'« Annuler ») : fermeture par la croix, Échap ou le backdrop ; Entrée valide.
+
 ## Fichiers
 
 | Fichier | Rôle |
@@ -58,7 +68,7 @@ Base : `ZedPromptRenderer` (`crates/ui_prompt/src/ui_prompt.rs`), enregistré vi
 | `agent-panel.html` | Galerie : panel complet dans six états, puis chaque composant dans ses états |
 | `bottom-bar.html` | Galerie : barre complète dans ses états, puis chaque composant dans ses états |
 | `threads-sidebar.html` | Galerie : sidebar complète dans ses états, puis chaque composant dans ses états |
-| `settings-window.html` | Galerie : fenêtre de settings complète, puis nav, contrôles, types d'items et états |
+| `settings-window.html` | Galerie : fenêtre de settings complète, puis nav, contrôles, types d'items, états et modales (confirmation, formulaire) |
 | `shared/base.css` | Styles communs : polices, variables dérivées, chrome des pages, primitives partagées (crates/ui) |
 | `shared/panel.css`, `shared/bar.css`, `shared/sidebar.css`, `shared/settings.css` | Styles propres à chaque page, une règle par composant, source et valeurs en commentaire |
 | `shared/ref.js` | Script commun : largeur du cadre, sources, spinners, nuancier |
@@ -289,7 +299,7 @@ ZRA pilote des agents ACP externes. Différences avec l'agent natif de Zed :
 ## Fenêtre de settings
 
 - **Réglages** : `ui_font_size` 16, densité par défaut, thème One Dark, raccourcis Windows. Fenêtre autonome « Zed — Settings », 900 × 750 par défaut (`DEFAULT_ADDITIONAL_WINDOW_SIZE`, ratio 6:5), mise à l'échelle par `ui_font_size / 16` ; minimale 626 × 240 (`SIDEBAR_WIDTH` 226 + `CONTENT_MIN_WIDTH` 400).
-- **Périmètre** : la fenêtre complète — barre de titre, nav (recherche, arbre, pied), en-tête de fichiers, titre de page, sections, lignes de réglage, contrôles, types d'items, sous-pages, bandeaux et états ; plus la modale de confirmation générique (`ui_prompt`, section 9, avec écart ZRA de sévérité). Exclus : le contenu spécifique des sous-pages (fournisseurs LLM, serveurs MCP, agents externes, skills, éditeur de keymap…), dessiné seulement en exemple.
+- **Périmètre** : la fenêtre complète — barre de titre, nav (recherche, arbre, pied), en-tête de fichiers, titre de page, sections, lignes de réglage, contrôles, types d'items, sous-pages, bandeaux et états ; plus la modale de confirmation générique (`ui_prompt`, section 9, avec écart ZRA de sévérité) et la modale de formulaire (section 10, composition ZRA). Exclus : le contenu spécifique des sous-pages (fournisseurs LLM, serveurs MCP, agents externes, skills, éditeur de keymap…), dessiné seulement en exemple.
 - **Source** : crate `settings_ui` (`settings_ui.rs` ≈ 8 000 lignes, `page_data.rs` ≈ 11 600, `components/`, `pages/`). La galerie montre la page General et des extraits d'Appearance/AI ; les libellés et descriptions sont ceux de `page_data.rs`.
 
 ### Comment la fenêtre est générée

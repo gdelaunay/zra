@@ -3,15 +3,16 @@
 // Le daemon affiche un code à 6 chiffres (son journal, `npm run pair`) ; on le
 // saisit ici, une fois. Le poste rend un jeton que la PWA garde : les
 // connexions suivantes se font sans code.
+// Modale de formulaire (reference/zed-ui/settings-window.html, section 10).
 
 import { h, button } from '../dom.js'
 import * as store from '../store.js'
-import { openSheet } from '../ui.js'
+import { formDialog } from '../ui.js'
 import { tr } from '../i18n.js'
 
-export function openPairSheet(machine) {
-  openSheet(tr`Appairer ${machine.label || machine.url}`, (body, { close }) => {
-    const input = h('input.input.pair__code', {
+export function openPairDialog(machine) {
+  formDialog(tr`Appairer ${machine.label || machine.url}`, (body, { close }) => {
+    const input = h('input.inputfield.inputfield--code', {
       type: 'text', inputmode: 'numeric', autocomplete: 'one-time-code', maxlength: '7',
       placeholder: '000 000', 'aria-label': tr`Code d'appairage`,
       oninput: () => {
@@ -20,14 +21,14 @@ export function openPairSheet(machine) {
       },
       onkeydown: (ev) => { if (ev.key === 'Enter') submit() },
     })
-    const ok = button('btn.btn--accent', { onclick: () => submit() }, tr`Appairer`)
+    const ok = button('btn.btn--md.btn--full.btn--tinted-accent', { onclick: () => submit() }, tr`Appairer`)
 
     function submit() {
       const code = input.value.replace(/\D/g, '')
       if (code.length !== 6) return
       ok.disabled = true
       store.pair(machine.id, code)
-      // Réponse : `paired` (la feuille se ferme) ou une erreur (toast), et on
+      // Réponse : `paired` (la modale se ferme) ou une erreur (toast), et on
       // laisse réessayer.
       setTimeout(() => { ok.disabled = false; input.select() }, 800)
     }
@@ -39,8 +40,9 @@ export function openPairSheet(machine) {
     })
 
     body.append(
-      h('p.muted', { text: tr`Sur le poste : le code est dans le journal du daemon, ou via « npm run pair ». Il ne sert qu’une fois.` }),
-      h('div.row', {}, input, ok),
+      h('p.modal__detail', { text: tr`Sur le poste : le code est dans le journal du daemon, ou via « npm run pair ». Il ne sert qu’une fois.` }),
+      h('div.form-fields', {}, h('div.form-field', {}, input)),
+      h('div.modal__actions', {}, ok),
     )
     setTimeout(() => input.focus(), 50)
   }, { titleIcon: 'lock' })

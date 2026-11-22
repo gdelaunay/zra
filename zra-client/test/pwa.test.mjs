@@ -168,12 +168,12 @@ test('la top bar du thread porte agent, titre et chemin, sans date', () => {
   assert.ok(!$('.header [aria-label=retour]'), 'plus de bouton précédent')
 })
 
-test('les réglages du thread ouvrent la feuille globale', async () => {
+test('les réglages du thread ouvrent la fenêtre globale', async () => {
   click($('.header [title="Réglages"]'))
-  await until(() => $('.sheet'), 2000, 'feuille des réglages')
-  assert.match($('.sheet').textContent, /Postes/, 'réglages globaux, pas un menu local')
+  await until(() => $('.swindow'), 2000, 'fenêtre des réglages')
+  assert.match($('.swindow').textContent, /Postes/, 'réglages globaux, pas un menu local')
   doc.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Escape' }))
-  await until(() => !$('.sheet'), 2000, 'feuille fermée')
+  await until(() => !$('.swindow'), 2000, 'fenêtre fermée')
 })
 
 test('le retour à la liste se fait depuis la bottombar', async () => {
@@ -591,22 +591,22 @@ test('liste : un tour en cours se voit sur sa ligne, sa fin non lue aussi (comme
 
 test('le sélecteur de thème s’ouvre par-dessus les réglages, sans les fermer', async () => {
   click($('.header [title="Réglages"]'))
-  await until(() => $('.sheet'), 2000, 'feuille des réglages')
-  const btn = $$('.sheet .btn').find((n) => n.querySelector('.icon') && /Thème/.test(n.closest('.field')?.textContent || ''))
+  await until(() => $('.swindow'), 2000, 'fenêtre des réglages')
+  const btn = $$('.swindow .srow').find((r) => r.querySelector('.srow-title')?.textContent === 'Thème').querySelector('.dropdown')
   click(btn)
   assert.ok($('.menu'), 'menu des thèmes ouvert')
-  assert.ok($('.sheet'), 'les réglages restent ouverts sous le menu')
+  assert.ok($('.swindow'), 'les réglages restent ouverts sous le menu')
   const before = doc.documentElement.dataset.theme
   click($$('.menu__item').find((n) => !n.classList.contains('menu__item--on')))
   assert.ok(!$('.menu'), 'le menu se referme au choix')
-  assert.ok($('.sheet'), 'les réglages sont toujours là')
+  assert.ok($('.swindow'), 'les réglages sont toujours là')
   assert.notEqual(doc.documentElement.dataset.theme, before)
-  // Échap ferme d'abord le menu, puis la feuille.
+  // Échap ferme d'abord le menu, puis la fenêtre.
   click(btn)
   doc.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Escape' }))
-  assert.ok(!$('.menu') && $('.sheet'))
+  assert.ok(!$('.menu') && $('.swindow'))
   doc.dispatchEvent(new win.KeyboardEvent('keydown', { key: 'Escape' }))
-  assert.ok(!$('.sheet'))
+  assert.ok(!$('.swindow'))
 })
 
 test('icônes d’agent au lieu des étiquettes texte', async () => {
@@ -850,17 +850,17 @@ test('appairage : poste verrouillé, code saisi, jeton gardé, poste déverrouil
     assert.ok(!$$('.thread-row__title').some((n) => /Portage du daemon/.test(n.textContent)), 'ses threads ne s’affichent plus')
 
     click($$('.btn').find((b) => /Saisir le code/.test(b.textContent)))
-    await until(() => $('.sheet .pair__code'), 2000, 'feuille d’appairage')
-    const input = $('.pair__code')
+    await until(() => $('.modal--form .inputfield--code'), 2000, 'modale d’appairage')
+    const input = $('.inputfield--code')
     input.value = '482 913'
     input.dispatchEvent(new win.Event('input', { bubbles: true }))
     const pair = sent.find((x) => x.type === 'pair')
     assert.equal(pair?.code, '482913', 'six chiffres : envoyé tout seul, espaces retirés')
     assert.ok(pair.label, 'l’appareil se nomme, pour npm run pair')
 
-    // Le daemon accepte : jeton gardé, feuille fermée, liste resynchronisée.
+    // Le daemon accepte : jeton gardé, modale fermée, liste resynchronisée.
     m.link.emit('message', { type: 'paired', token: 'jeton-de-test-assez-long-pour-passer', clientId: 'ab12cd34' })
-    await until(() => !$('.sheet'), 2000, 'feuille fermée')
+    await until(() => !$('.modal--form'), 2000, 'modale fermée')
     assert.equal(ZRA.settings.tokens[m.url], 'jeton-de-test-assez-long-pour-passer')
     assert.equal(m.status, 'online')
     assert.ok(sent.some((x) => x.type === 'list_threads'), 'resynchronisation après appairage')
@@ -929,11 +929,12 @@ test('supprimer depuis la liste : confirmation, le thread quitte la liste', asyn
   await longPress(rowOf('b7c2e441'))
   const btns = rowOf('b7c2e441').querySelectorAll('.thread-row__actions button')
   click(btns[btns.length - 1]) // poubelle
-  const sheet = $('.sheet')
-  assert.ok(sheet, 'une confirmation s’ouvre')
-  assert.match(sheet.textContent, /Supprimer le thread/)
-  assert.match(sheet.textContent, /définitivement/)
-  const yes = [...sheet.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Supprimer')
+  const dlg = $('.modal')
+  assert.ok(dlg, 'une confirmation s’ouvre')
+  assert.match(dlg.textContent, /Supprimer le thread/)
+  assert.match(dlg.textContent, /définitivement/)
+  const yes = [...dlg.querySelectorAll('.modal__actions button')].find((b) => b.textContent.trim() === 'Supprimer')
+  assert.ok(yes.className.includes('btn--tinted-error'), 'suppression = bouton rouge')
   click(yes)
   await until(() => !rowOf('b7c2e441'), 2000, 'thread supprimé')
 })

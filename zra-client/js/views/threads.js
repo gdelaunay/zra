@@ -14,13 +14,13 @@ import { settings, update } from '../settings.js'
 import { icon, agentIcon, brandLogo } from '../icons.js'
 import { zedAge, absTime, baseName, agentLabel, toMs, projectOf, projectNames, displayTime, formatDuration } from '../format.js'
 import * as store from '../store.js'
-import { openMenu, confirmSheet } from '../ui.js'
+import { openMenu, confirmDialog } from '../ui.js'
 import { openSettings } from './settings.js'
-import { openMachineSheet } from './machine-settings.js'
+import { openMachineSettings } from './machine-settings.js'
 import { newSessionButton } from './new-session.js'
-import { openProjectSheet } from './new-project.js'
+import { openProjectDialog } from './new-project.js'
 import { BottomBar } from './bottombar.js'
-import { openPairSheet } from './pair.js'
+import { openPairDialog } from './pair.js'
 import { tr } from '../i18n.js'
 
 // Tout est replié par défaut. L'état déplé est une liste blanche gardée en
@@ -145,7 +145,7 @@ export function ThreadsView({ navigate }) {
         // Le poste répond, mais ne parle qu'aux appareils appairés.
         section.append(h('div.empty', { style: { padding: '12px' } },
           h('span', { text: tr`Ce poste ne connaît pas encore ce téléphone.` }),
-          button('btn.btn--accent.btn--sm', { onclick: () => openPairSheet(m) }, icon('lock', 'icon--sm'), tr`Saisir le code`)))
+          button('btn.btn--accent.btn--sm', { onclick: () => openPairDialog(m) }, icon('lock', 'icon--sm'), tr`Saisir le code`)))
         continue
       }
       if (m.status !== 'online') {
@@ -306,7 +306,7 @@ function machineActions(m) {
     button('icon-btn icon-btn--sm', {
       title: tr`Réglages du poste`,
       'aria-label': tr`Réglages du poste`,
-      onclick: (ev) => { ev.stopPropagation(); closeMachineActions(); openMachineSheet(m) },
+      onclick: (ev) => { ev.stopPropagation(); closeMachineActions(); openMachineSettings(m) },
     }, icon('settings', 'icon--sm')),
   )
 }
@@ -342,7 +342,7 @@ function wireMachineLongPress(head, id) {
 /** Ligne « nouveau projet » : même style que la tête « Projets récents » ;
  * le « + » après le libellé, visible au survol seulement (comme les chevrons). */
 function newProjectRow(m) {
-  return button('recent__head', { onclick: () => openProjectSheet(m) },
+  return button('recent__head', { onclick: () => openProjectDialog(m) },
     h('span.group__name', { text: tr`Nouveau projet` }),
     icon('plus', 'icon--sm group__chevron recent__plus'),
   )
@@ -598,11 +598,11 @@ function restoreTitle(k, title) {
 
 function confirmDelete(k, t) {
   closeActions()
-  confirmSheet(
+  confirmDialog(
     tr`Supprimer le thread`,
     tr`« ${t.title || tr`Nouveau Thread d'Agent`} » sera supprimé côté agent, définitivement.`,
     () => store.deleteThread(k),
-    { danger: true, yes: tr`Supprimer` },
+    { level: 'critical', yes: tr`Supprimer` },
   )
 }
 

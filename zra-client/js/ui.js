@@ -1,16 +1,17 @@
-// Surcouches : menus contextuels, feuilles du bas, toasts.
+// Surcouches : menus contextuels, fenêtre de settings (settings-window.js),
+// modales de confirmation et de formulaire, toasts.
 // Style Zed : menu flottant ancré au bouton, pas d'animation superflue.
 
-import { h, button, clear } from './dom.js'
+import { h, button } from './dom.js'
 import { icon, agentIcon } from './icons.js'
 import { tr } from './i18n.js'
 
 const layer = () => document.getElementById('overlays')
 
 /**
- * Surcouches ouvertes, de la plus ancienne à celle du dessus. Un menu s'empile
- * sur ce qui est ouvert (le sélecteur de thème sur la feuille des réglages) ;
- * une feuille remplace tout.
+ * Surcouches ouvertes, de la plus ancienne à celle du dessus. Un menu ou une
+ * modale de confirmation s'empile sur ce qui est ouvert ; une fenêtre de
+ * settings ou un formulaire remplace tout.
  */
 const stack = []
 
@@ -32,7 +33,7 @@ function onEsc(ev) {
 }
 
 /** @returns {()=>void} ferme **cette** surcouche, et ce qui s'est empilé dessus. */
-function mount(node, { replace = true } = {}) {
+export function mountOverlay(node, { replace = true } = {}) {
   if (replace) closeAllOverlays()
   if (!stack.length) document.addEventListener('keydown', onEsc, true)
   stack.push(node)
@@ -45,9 +46,10 @@ function mount(node, { replace = true } = {}) {
  * @param {HTMLElement} anchor
  * @param {{label?:string, items:Array<{label:string, icon?:string, on?:boolean, danger?:boolean, onSelect?:Function, separator?:boolean}>}} opts
  */
-/** Interrupteur visuel ; l'état accessible est porté par l'élément parent. */
+/** Interrupteur Zed (toggle.rs) : piste 32×20, pouce 12 ; décoratif, l'état
+ * accessible est porté par l'élément parent (checkbox ou menuitemcheckbox). */
 export function switchEl(on, cls = '') {
-  const el = h('span.switch', { 'aria-hidden': 'true' }, h('span.switch__knob'))
+  const el = h('span.switch', { 'aria-hidden': 'true' }, h('span.switch__track', {}, h('span.switch__thumb')))
   if (on) el.classList.add('switch--on')
   if (cls) el.classList.add(cls)
   return el
@@ -86,9 +88,9 @@ export function openMenu(anchor, opts) {
     ))
   }
   wrap.append(menu)
-  const unmount = mount(wrap, { replace: false })
+  const unmount = mountOverlay(wrap, { replace: false })
   // Pas de voile : Zed ne grise pas le fond pour un menu (seulement pour la
-  // feuille des réglages). Un clic ailleurs ferme et traverse — il active sa
+  // fenêtre de settings et les modales). Un clic ailleurs ferme et traverse — il active sa
   // cible ; un clic sur le bouton d'origine replie le menu.
   const onDown = (ev) => {
     if (!menu.isConnected) { document.removeEventListener('pointerdown', onDown, true); return }
@@ -109,26 +111,29 @@ export function openMenu(anchor, opts) {
   return menu
 }
 
-/** Feuille ancrée en bas de l'écran (réglages, formulaires). */
-export function openSheet(title, build, { titleIcon } = {}) {
+/**
+ * Modale de formulaire (écart ZRA : composition ui_prompt + settings, gallery
+ * section 10) : dialogue centré 380 px, tête icône + titre + fermer, corps
+ * construit par l'appelant. Pas d'« Annuler » : croix, Échap ou backdrop.
+ */
+export function formDialog(title, build, { titleIcon } = {}) {
   const wrap = h('div')
   // `build` s'exécute avant le montage : on lie la fermeture après coup.
   let unmount = () => {}
   const close = () => unmount()
   const scrim = h('div.scrim', { onclick: close })
-  const sheet = h('div.sheet', { role: 'dialog', 'aria-modal': 'true' })
-  sheet.append(h('div.sheet__title', {},
-    titleIcon ? icon(titleIcon, 'icon--sm') : null,
-    h('span', { text: title }),
-    h('span.spacer'),
+  const dlg = h('div.modal.modal--form', { role: 'dialog', 'aria-modal': 'true', 'aria-label': title })
+  dlg.append(h('div.modal__head', {},
+    titleIcon ? icon(titleIcon, 'icon--sm icon--muted') : null,
+    h('span.modal__title', { text: title }),
     button('icon-btn', { onclick: close, 'aria-label': tr`Fermer` }, icon('x', 'icon--sm')),
   ))
-  const body = h('div')
-  sheet.append(body)
-  build(body, { close, rebuild: () => { clear(body); build(body, { close }) } })
-  wrap.append(scrim, sheet)
-  unmount = mount(wrap)
-  return sheet
+  const body = h('div.modal__body')
+  dlg.append(body)
+  build(body, { close })
+  wrap.append(scrim, dlg)
+  unmount = mountOverlay(wrap)
+  return dlg
 }
 
 // ---- toasts (indépendants du reste des overlays) ----
@@ -160,14 +165,40 @@ export function activity(message, { maxMs = 45_000 } = {}) {
   return { done: () => el.remove() }
 }
 
-/** Confirmation simple, sans dépendre de `confirm()` (bloqué en PWA standalone). */
-export function confirmSheet(title, message, onYes, { danger = false, yes = tr`Confirmer` } = {}) {
-  openSheet(title, (body, { close }) => {
-    body.append(
-      h('p.muted', { text: message }),
-      h('div.row', { style: { justifyContent: 'flex-end' } },
-        button('btn.btn--ghost', { onclick: close }, tr`Annuler`),
-        button('btn', { class: danger ? 'btn--danger' : 'btn--accent', onclick: () => { close(); onYes() } }, yes)),
-    )
+/**
+ * Modale de confirmation — ui_prompt (ZedPromptRenderer), écart ZRA de
+ * sévérité : icône en tête et bouton d'action teinté (info → accent,
+ * warning → warning, critical → error). Dialogue centré 320 px, pile de
+ * boutons pleine largeur ; s'empile sur ce qui est ouvert (les réglages
+ * restent dessous). Entrée confirme, Échap / backdrop annulent.
+ */
+export function confirmDialog(message, detail, onYes, { level = 'info', yes = tr`Confirmer` } = {}) {
+  const wrap = h('div')
+  let unmount = () => {}
+  let done = false
+  const finish = (confirmed) => {
+    if (done) return
+    done = true
+    unmount()
+    if (confirmed) onYes()
+  }
+  const scrim = h('div.scrim', { onclick: () => finish(false) })
+  const tint = level === 'critical' ? 'btn--tinted-error' : level === 'warning' ? 'btn--tinted-warning' : 'btn--tinted-accent'
+  const icCls = level === 'critical' ? 'icon--sm icon--error' : level === 'warning' ? 'icon--sm icon--warning' : 'icon--sm icon--accent'
+  const cancel = button('btn.btn--md.btn--outlined.btn--full', { onclick: () => finish(false) }, tr`Annuler`)
+  const ok = button(`btn.btn--md.btn--full.${tint}`, { onclick: () => finish(true) }, yes)
+  const dlg = h('div.modal', { role: 'alertdialog', 'aria-modal': 'true', 'aria-label': message },
+    h('div.modal__head', {}, icon(level === 'info' ? 'info' : 'alert-triangle', icCls), h('span.modal__message', { text: message })),
+    detail ? h('div.modal__detail', { text: detail }) : null,
+    h('div.modal__actions', {}, cancel, ok),
+  )
+  // Clavier contexte Prompt : Entrée confirme l'actif, Tab cycle entre les deux.
+  dlg.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Enter' && ev.target !== cancel && ev.target !== ok) { ev.preventDefault(); finish(true) }
+    if (ev.key === 'Tab') { ev.preventDefault(); (document.activeElement === ok ? cancel : ok).focus() }
   })
+  wrap.append(scrim, dlg)
+  unmount = mountOverlay(wrap, { replace: false })
+  ok.focus()
+  return dlg
 }

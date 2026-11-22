@@ -11,9 +11,9 @@ zra-client/
   css/   themes.css (generated)  app.css
   icon-themes/  colored-zed/ (vendored: theme.json, dark/light SVGs, LICENSES)
   js/    main.js store.js link.js settings.js acp.js markdown.js diff.js
-         dom.js icons.js file-icons.js format.js ui.js i18n.js en.js elicitation.js
+         dom.js icons.js file-icons.js format.js ui.js settings-window.js i18n.js en.js elicitation.js
          themes.js + agent-icons.js + file-icons-data.js (generated from Zed)
-         views/  threads.js thread.js entry.js settings.js machine-settings.js new-session.js pair.js devbar.js
+         views/  threads.js thread.js entry.js settings.js machine-settings.js new-session.js new-thread.js new-project.js pair.js devbar.js
          mock/   mock-link.js scenarios.js
   tools/ mock-server.mjs
   test/  *.test.mjs
@@ -77,13 +77,23 @@ rename (single-line editor in place of the title), stop generation, delete
 (confirmation). The agent page title is itself an editable input. Rename and
 delete go through ACP, gated by the agent's capabilities (`docs/en/acp.md`).
 
+Settings and modals: global settings (`views/settings.js`) and machine settings
+live in a Zed-style window (`settings-window.js`, reference
+`reference/zed-ui/settings-window.html`) — titlebar with close only, tree nav +
+search on the left, all content scrollable on the right (the nav scrolls to the
+section and follows scrolling); below 626 px the nav becomes horizontal chips.
+Closing backdrop. Confirmations (thread deletion, machine removal, language/mock
+reload) are Zed-style centered modals with severity — red button for deletions —
+stacked over the window; new project and pairing are form modals (same surface,
+settings fields).
+
 Machine settings: on hover on desktop, on long press on mobile, a settings
-icon opens the machine sheet (`views/machine-settings.js`) — keep awake. When
-the inhibition is active, the row shows a coffee icon (green for the explicit
-toggle, orange during an agent turn) with the remaining TTL on its left
-(meta style, separated by a “·”), updated every second; on hover/long press
-the coffee gives way to the settings button in the same box, the TTL stays
-put.
+icon opens the machine's settings window (`views/machine-settings.js`) — keep
+awake (mode dropdown, coffee status + countdown). When the inhibition is active,
+the row shows a coffee icon (green for the explicit toggle, orange during an
+agent turn) with the remaining TTL on its left (meta style, separated by a “·”),
+updated every second; on hover/long press the coffee gives way to the settings
+button in the same box, the TTL stays put.
 
 The composer is a contenteditable with a textarea-like facade (`editor.js`):
 the draft stays plain text, Enter sends, Shift+Enter and Ctrl+Enter insert a

@@ -31,7 +31,8 @@
     <a href="#subpage">7. Sous-page</a>
     <a href="#states">8. États et bandeaux</a>
     <a href="#modal">9. Modale de confirmation</a>
-    <a href="#swatches">10. Nuancier</a>
+    <a href="#form">10. Modale de formulaire</a>
+    <a href="#swatches">11. Nuancier</a>
   </nav>
 </header>
 
@@ -677,8 +678,101 @@
 </section>
 
 <!-- ============================================================ -->
+<section class="ref-section" id="form">
+  <h2>10. Modale de formulaire</h2>
+  <p><strong>Écart ZRA</strong> : Zed n'a pas de prompt formulaire — <code>Window::prompt</code> ne porte qu'un message et des réponses. ZRA compose ses primitives existantes : la surface <code>elevation_3</code> et le scrim de <code>ui_prompt</code>, les champs <code>SettingsInputField</code> des settings, le <code>Banner</code> erreur, les boutons teintés. Dialogue centré <strong>380 px</strong> (le prompt fait 320), tête icône + titre + fermer, champs pleine largeur avec libellé, action unique pleine largeur <code>Tinted Accent</code>. Pas d'« Annuler » : fermeture par la croix, Échap ou le backdrop ; Entrée valide. Détails dans <code>zed-ui.md</code>.</p>
+  <div class="ref-grid">
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Nouveau projet</b> — deux champs, aperçu du chemin, action</div>
+      <div class="ref-frame modal-frame" style="--frame-h:320px">
+        <div class="modal-scrim">
+          <div class="modal-dialog form" data-src="écart ZRA : composition ui_prompt (surface) + input_field.rs (champs)">
+            <div class="form-head" data-src="écart ZRA : tête icône + titre + fermer">
+              <i class="icon sm muted" data-i="plus"></i><span class="lbl">New project · laptop</span>
+              <button class="btn ibtn sm"><i class="icon sm" data-i="close"></i></button>
+            </div>
+            <div class="form-fields">
+              <div class="form-field">
+                <span class="lbl sm muted">Project name</span>
+                <span class="inputfield" data-src="components/input_field.rs SettingsInputField (pleine largeur)"><span class="if-text">mon-projet</span></span>
+              </div>
+              <div class="form-field">
+                <span class="lbl sm muted">Parent folder</span>
+                <span class="inputfield"><span class="if-text">C:/dev</span></span>
+              </div>
+              <div class="form-preview" data-src="écart ZRA : aperçu mono 12 muted">C:/dev/mon-projet</div>
+            </div>
+            <div class="modal-actions">
+              <button class="btn tinted-accent active"><span class="lbl sm">Create</span></button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Erreur</b> — Banner Error, action désactivée</div>
+      <div class="ref-frame modal-frame" style="--frame-h:380px">
+        <div class="modal-scrim">
+          <div class="modal-dialog form">
+            <div class="form-head">
+              <i class="icon sm muted" data-i="plus"></i><span class="lbl">New project · laptop</span>
+              <button class="btn ibtn sm"><i class="icon sm" data-i="close"></i></button>
+            </div>
+            <div class="form-fields">
+              <div class="form-field">
+                <span class="lbl sm muted">Project name</span>
+                <span class="inputfield focused"><span class="if-text">zra</span></span>
+              </div>
+              <div class="form-field">
+                <span class="lbl sm muted">Parent folder</span>
+                <span class="inputfield"><span class="if-text">C:/dev</span></span>
+              </div>
+            </div>
+            <div class="banner error" data-src="ui/components/banner.rs Banner (Severity::Error)">
+              <div class="banner-body">
+                <i class="icon xs error" data-i="warning"></i>
+                <div class="banner-text"><span class="lbl sm">A folder with this name already exists.</span></div>
+              </div>
+            </div>
+            <div class="modal-actions">
+              <button class="btn tinted-accent" disabled><span class="lbl sm">Create</span></button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Appairage</b> — détail, champ code mono centré, action</div>
+      <div class="ref-frame modal-frame" style="--frame-h:300px">
+        <div class="modal-scrim">
+          <div class="modal-dialog form">
+            <div class="form-head">
+              <i class="icon sm muted" data-i="lock"></i><span class="lbl">Pair laptop</span>
+              <button class="btn ibtn sm"><i class="icon sm" data-i="close"></i></button>
+            </div>
+            <div class="modal-detail">On the machine: the code is in the daemon log, or via “npm run pair”. Single use.</div>
+            <div class="form-fields">
+              <div class="form-field">
+                <span class="inputfield form-code" data-src="écart ZRA : code mono, centré, espacé"><span class="if-text placeholder">000 000</span></span>
+              </div>
+            </div>
+            <div class="modal-actions">
+              <button class="btn tinted-accent active"><span class="lbl sm">Pair</span></button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ============================================================ -->
 <section class="ref-section" id="swatches">
-  <h2>10. Nuancier</h2>
+  <h2>11. Nuancier</h2>
   <p>Fonds et bordures structurants de la fenêtre. La nav utilise <code>panel_background</code>, le contenu <code>editor_background</code>, la fenêtre <code>background</code>.</p>
   <div id="swatches" data-swatches="background,panel-background,editor-background,title-bar-background,surface-background,element-background,element-hover,element-active,element-disabled,border,border-variant,border-focused,info,info-background,warning,warning-background,text,text-muted,text-disabled,text-accent"></div>
 </section>

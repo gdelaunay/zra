@@ -132,11 +132,15 @@ button { cursor: pointer; }
 
 /* ---------- primitives (crates/ui) ---------- */
 
-/* Icon : Medium 16, Small 16, XSmall 14. */
+/* Icon : Medium 16, Small 16, XSmall 14 ; couleurs de sévérité (modales). */
 .icon { width: 16px; height: 16px; flex: none; display: block; }
 .icon--sm { width: 16px; height: 16px; }
 .icon--xs { width: 14px; height: 14px; }
 .icon--lg { width: 18px; height: 18px; }
+.icon--muted { color: var(--icon-muted); }
+.icon--accent { color: var(--icon-accent); }
+.icon--warning { color: var(--warning); }
+.icon--error { color: var(--error); }
 
 /* IconButton carré : hitbox 28 px pour une icône 16 (× 1.75), plus large que
  * les 20 px de Zed (icon.rs square_components) — cible tactile, hover aéré.
@@ -176,6 +180,15 @@ button { cursor: pointer; }
 .btn--accent { color: var(--text-accent); }
 .btn--danger { color: var(--error); }
 .btn--sm { height: 28px; font-size: var(--fs-xs); }
+/* Medium tactile des settings et modales (zed-ui.md) : 28 px / 0 8. */
+.btn--md { height: 28px; padding: 0 var(--sp-4); font-size: var(--fs-sm); }
+/* Boutons teintés — button.rs TintColor : fond et bordure de sévérité. */
+.btn--tinted-accent { background: var(--info-background); border-color: var(--info-border); }
+.btn--tinted-accent:hover { background: color-mix(in srgb, var(--info-background) 60%, var(--ghost-element-hover)); }
+.btn--tinted-warning { background: var(--warning-background); border-color: var(--warning-border); }
+.btn--tinted-warning:hover { background: color-mix(in srgb, var(--warning-background) 60%, var(--ghost-element-hover)); }
+.btn--tinted-error { background: var(--error-background); border-color: var(--error-border); }
+.btn--tinted-error:hover { background: color-mix(in srgb, var(--error-background) 60%, var(--ghost-element-hover)); }
 .btn--full { width: 100%; justify-content: center; }
 
 .input {
@@ -201,6 +214,7 @@ button { cursor: pointer; }
 .hidden { display: none !important; }
 
 /* Filets — divider.rs : horizontal border_variant, vertical 1 × 16 border. */
+.divider-h { height: 1px; width: 100%; background: var(--border-variant); flex: none; }
 .divider-v { width: 1px; height: 16px; background: var(--border); flex: none; }
 
 /* pastille d'état d'un thread (propre ZRA, couleurs Zed) */
@@ -397,13 +411,16 @@ span.group__name,span.group__meta,span.machine__awake-ttl,.group__chevron{ margi
 /* Ligne de thread — thread_item.rs : py 4 px 6, ligne principale h 24 gap 8,
  * contenu gap 6, boîte d'icône 16 ; métadonnées alignées sous le titre. */
 .thread-row {
+  /* Fond réel de la ligne (repos / survol / appui) : le fondu des actions
+   * se fond dans celui-ci, pas dans une couleur figée qui bave à l'appui. */
+  --row-bg: transparent;
   display: flex; flex-direction: column; gap: 0;
   width: 100%; text-align: left;
   padding: var(--sp-2) var(--sp-3);
   color: inherit; cursor: pointer;
 }
-.thread-row:hover { background: var(--ghost-element-hover); }
-.thread-row:active { background: var(--ghost-element-active); }
+.thread-row:hover { --row-bg: var(--ghost-element-hover); background: var(--row-bg); }
+.thread-row:active { --row-bg: var(--ghost-element-active); background: var(--row-bg); }
 .thread-row__main { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-4); height: 24px; min-width: 0; position: relative; }
 /* Contenu indenté comme les projets (le survol, lui, prend toute la largeur). */
 .thread-row__main, .thread-row__meta { padding-left: calc(var(--sp-4) + var(--indent-step) * 2 - var(--sp-3)); }
@@ -420,7 +437,7 @@ span.group__name,span.group__meta,span.machine__awake-ttl,.group__chevron{ margi
  * Zed : crayon + action contextuelle, fondu de 120 px côté référence, 80 ici
  * (la ligne est plus compacte). Le gating ACP masque les boutons inutiles. */
 .thread-row__actions { position: absolute; right: 0; top: 0; height: 100%; display: none; align-items: center; gap: 2px; }
-.thread-row__fade { position: absolute; right: 100%; top: 0; width: 80px; height: 100%; pointer-events: none; background: linear-gradient(90deg, transparent, var(--ghost-element-hover)); }
+.thread-row__fade { position: absolute; right: 100%; top: 0; width: 80px; height: 100%; pointer-events: none; background: linear-gradient(90deg, transparent, var(--row-bg)); }
 .thread-row__stop { color: var(--error); background: color-mix(in srgb, var(--error) 15%, transparent); }
 .thread-row__delete:hover { color: var(--error); }
 @media (hover: hover) {
@@ -428,7 +445,7 @@ span.group__name,span.group__meta,span.machine__awake-ttl,.group__chevron{ margi
 }
 /* Renommage en cours : pas d'actions ni de fondu derrière l'éditeur. */
 .thread-row:has(.thread-row__rename) .thread-row__actions { display: none; }
-.thread-row--actions { background: var(--ghost-element-hover); }
+.thread-row--actions { --row-bg: var(--ghost-element-hover); background: var(--row-bg); }
 .thread-row--actions .thread-row__actions { display: flex; }
 /* Les actions prennent la place de la pastille d'état : elle s'efface dessous. */
 @media (hover: hover) {
@@ -874,19 +891,27 @@ span.group__name,span.group__meta,span.machine__awake-ttl,.group__chevron{ margi
   .pill__label { display: none; }
 }
 
-.switch {
-  position: relative; flex: none;
-  width: 24px; height: 14px; border-radius: 7px;
-  background: var(--element-background); border: 1px solid var(--border);
+/* Switch — ui/components/toggle.rs : piste 32×20 (px 2 interne, bordure 1),
+ * pouce 12 ; conteneur p 1 + bordure 2 transparente (focus border_focused)
+ * → 38×26. Off : fond element_disabled, pouce opacité .5 ; on : fond info 40 %,
+ * bordure text_accent 20 %, pouce 1. Disabled : pouce .2. */
+.switch { display: inline-flex; flex: none; padding: 1px; border: 2px solid transparent; border-radius: 999px; cursor: pointer; }
+.switch__track {
+  display: flex; align-items: center; width: 32px; height: 20px; padding: 0 2px;
+  border-radius: 999px; border: 1px solid var(--border); background: var(--element-disabled);
   transition: background .15s, border-color .15s;
 }
-.switch__knob {
-  position: absolute; top: 1px; left: 1px;
-  width: 10px; height: 10px; border-radius: 50%;
-  background: var(--icon-muted); transition: transform .15s, background .15s;
-}
-.switch--on { background: var(--icon-accent); border-color: var(--icon-accent); }
-.switch--on .switch__knob { transform: translateX(10px); background: var(--text); }
+.switch__thumb { width: 12px; height: 12px; border-radius: 999px; background: var(--text); opacity: .5; transition: transform .15s, opacity .15s; }
+.switch--on .switch__track { background: color-mix(in srgb, var(--info) 40%, transparent); border-color: color-mix(in srgb, var(--text-accent) 20%, transparent); }
+.switch--on .switch__thumb { transform: translateX(14px); opacity: 1; }
+/* Checkbox native cachée : elle porte l'état, le focus et le clic ; le visuel
+ * suit (switchControl). */
+.switch-wrap { position: relative; display: inline-flex; flex: none; }
+.switch-wrap .switch-input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.switch-wrap .switch-input:focus-visible + .switch { border-color: var(--border-focused); }
+.switch-wrap .switch-input:disabled { cursor: default; }
+.switch-wrap:has(.switch-input:disabled) .switch { cursor: default; }
+.switch-wrap:has(.switch-input:disabled) .switch__thumb { opacity: .2; }
 .menu__switch { margin-left: auto; }
 
 /* Bouton d'envoi — IconButton Filled, icône 16 accent ; désactivé (champ vide,
@@ -1011,25 +1036,192 @@ span.group__name,span.group__meta,span.machine__awake-ttl,.group__chevron{ margi
 .menu__item--on .icon { color: var(--icon); }
 .menu__sep { height: 1px; background: var(--border-variant); margin: var(--sp-3) 0; }
 
-/* Feuille du bas (réglages, formulaires) : surface élevée, rectangulaire. */
-.sheet {
-  position: fixed; left: 0; right: 0; bottom: 0;
-  max-height: 88vh; overflow: auto;
-  background: var(--elevated-surface-background);
-  border: 1px solid var(--border-variant); border-bottom: 0;
-  box-shadow: var(--shadow-elevated);
-  padding: var(--sp-5) var(--sp-5) calc(var(--sp-6) + var(--safe-bottom));
-  max-width: 860px; margin: 0 auto;
-}
-.sheet__title { font-weight: 600; margin-bottom: var(--sp-5); display: flex; align-items: center; gap: var(--sp-3); }
-.field { display: flex; flex-direction: column; gap: var(--sp-2); margin-bottom: var(--sp-5); }
-/* Sections à sélecteurs (libellé + bouton) : rythme plus aéré que les lignes
- * simples, sans classe dédiée — les marges par ligne ne fusionnent pas en flex. */
-.field:has(.setting) { gap: var(--sp-4); }
-/* Réglage individuel (langue, taille du texte, jeu d'icônes) : libellé au-dessus. */
-.setting { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-2); }
+/* Feuille du bas supprimée : les réglages vivent dans la fenêtre style Zed
+ * (ci-dessous), les confirmations et formulaires dans des modales centrées. */
 .row { display: flex; align-items: center; gap: var(--sp-3); }
-.pair__code { font-family: var(--font-mono); font-size: 1.4em; letter-spacing: .2em; text-align: center; flex: 1; }
+
+/* ---------- fenêtre de settings (settings_ui — reference/zed-ui/settings-window.html) ----------
+ * Panel fixe centré (pas de commandes de fenêtre, juste fermer), backdrop
+ * fermant. Nav 226 px + contenu ; toutes les pages rendues d'un coup, la nav
+ * scrolle et suit le défilement. Sous 626 px (minimum Zed nav 226 + contenu
+ * 400) : nav en puces horizontales, contenu dessous. */
+
+.swindow {
+  position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  display: flex; flex-direction: column; overflow: hidden;
+  /* L'app (.app max 860) représente l'écran : la fenêtre garde la même marge
+   * que sur mobile (8 px par côté), donc 844 max. */
+  width: min(844px, calc(100vw - 16px));
+  height: min(750px, calc(100vh - 32px));
+  height: min(750px, calc(100dvh - 32px));
+  background: var(--background); color: var(--text);
+  border: 1px solid var(--border-variant); border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-elevated);
+  font-size: var(--fs-lg);
+}
+/* Titlebar 32 px (platform_title_bar) : titre 12 px muted centré, fermer à droite. */
+.sw-titlebar {
+  display: flex; align-items: center; gap: var(--sp-2); flex: none;
+  height: 32px; padding: 0 var(--sp-2) 0 var(--sp-4);
+  background: var(--title-bar-background);
+}
+.sw-title { flex: 1; text-align: center; font-size: var(--fs-sm); color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sw-body { display: flex; flex: 1; min-height: 0; border-top: 1px solid var(--border); }
+
+/* Nav — render_nav : 226 px, p 10, fond panel_background, bordure droite border. */
+.sw-nav {
+  display: flex; flex-direction: column; flex: none; width: 226px;
+  padding: 10px; background: var(--panel-background); border-right: 1px solid var(--border);
+}
+/* Recherche — render_search : h 28, fond editor_background, bordure border,
+ * loupe muted + éditeur une ligne + croix « Clear » si requête. */
+.sw-search {
+  display: flex; align-items: center; gap: var(--sp-3); flex: none;
+  height: 28px; padding: 0 var(--sp-1) 0 var(--sp-3); margin-bottom: var(--sp-5);
+  border-radius: var(--radius); background: var(--editor-background); border: 1px solid var(--border);
+}
+.sw-query { flex: 1; min-width: 0; height: 100%; font-size: var(--fs-sm); color: var(--text); }
+.sw-query:focus { outline: none; }
+.sw-query::placeholder { color: var(--text-placeholder); }
+.sw-query::-webkit-search-cancel-button { display: none; }
+.sw-search-clear { width: 24.5px; height: 24.5px; }
+.sw-tree { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow-y: auto; }
+
+/* TreeViewItem — tree_view_item.rs : 28 px, rayon 4, bordure transparente ;
+ * survol element_hover ; sélection element_active 50 % + bordure border 40 % ;
+ * libellé muted sauf sélectionné. Racine : disclosure chevron ; enfant :
+ * ligne d'indentation 22 px (filet border 50 %). */
+.tvi { display: flex; width: 100%; }
+.tvi-inner {
+  display: flex; align-items: center; width: 100%; height: 28px;
+  padding-left: 2px; padding-right: var(--sp-2); gap: var(--sp-4);
+  border-radius: var(--radius); border: 1px solid transparent; cursor: pointer;
+}
+.tvi-inner:hover { background: var(--element-hover); }
+.tvi.selected > .tvi-inner {
+  background: color-mix(in srgb, var(--element-active) 50%, transparent);
+  border-color: color-mix(in srgb, var(--border) 40%, transparent);
+}
+.tvi-label { color: var(--text-muted); }
+.tvi.selected > .tvi-inner .tvi-label { color: var(--text); }
+.tvi-disclosure { display: inline-flex; flex: none; width: 16px; height: 16px; padding: 0; background: none; color: var(--icon-muted); }
+.tvi-disclosure .icon { transition: transform .12s ease; }
+.tvi--root:not(.open) .tvi-disclosure .icon { transform: rotate(-90deg); }
+.tvi-indent { display: flex; justify-content: center; flex: none; width: 22px; height: 28px; }
+.tvi-indent::before { content: ""; width: 1px; height: 100%; background: color-mix(in srgb, var(--border) 50%, transparent); }
+
+/* Page — render_page : fond editor_background ; contenu défilant. min-height 0
+ * indispensable : en colonne (mobile) un flex child sans lui grandit au lieu
+ * de scroller. Titre de page : Label Large 16 px, px 32. */
+.sw-page { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; padding-top: var(--sp-5); background: var(--editor-background); }
+.sw-content { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.sw-pagetitle { padding: 0 32px; margin: var(--sp-4) 0 var(--sp-5); font-size: calc(16px * var(--text-scale)); }
+
+/* En-tête de section — section_items.rs : libellé 12 px muted mono, filet
+ * border 60 %, gap 6, px 32. */
+.ssh { display: flex; flex-direction: column; gap: var(--sp-3); padding: 0 32px; }
+.ssh-label { display: flex; align-items: center; gap: var(--sp-3); font-size: var(--fs-sm); color: var(--text-muted); font-family: var(--font-mono); }
+.ssh .divider-h { background: color-mix(in srgb, var(--border) 60%, transparent); }
+
+/* Ligne de réglage — render_settings_item_layout : p 16 px 32 (pb 40 en fin
+ * de section) ; filet border_variant entre items, inset comme celui des
+ * en-têtes de section ; gauche max 2/3 (titre + description 12 muted),
+ * contrôle à droite. */
+.srow { padding: var(--sp-6) 32px; position: relative; }
+.srow.last, .sblock.last { padding-bottom: 40px; }
+.srow + .srow::before, .srow + .sblock::before, .sblock + .srow::before, .sblock + .sblock::before {
+  content: ""; position: absolute; top: 0; left: 32px; right: 32px; height: 1px;
+  background: var(--border-variant);
+}
+.srow-inner { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-6); }
+.srow-text { display: flex; flex-direction: column; max-width: 66%; min-width: 0; }
+.srow-title { display: flex; align-items: center; gap: var(--sp-2); }
+.srow-desc { font-size: var(--fs-sm); color: var(--text-muted); margin: 0; }
+.srow-control { display: flex; align-items: center; gap: var(--sp-4); flex: none; }
+/* Bloc libre (liste des postes, à propos) : même rythme que les lignes. */
+.sblock { padding: var(--sp-6) 32px; display: flex; flex-direction: column; gap: var(--sp-4); position: relative; }
+.machine-list { display: flex; flex-direction: column; gap: var(--sp-2); }
+.machine-row { display: flex; align-items: center; gap: var(--sp-3); min-width: 0; }
+.machine-row__name { flex: 1; }
+.machine-row__addr { font-size: var(--fs-sm); flex: none; max-width: 40%; }
+.sblock .inputfield { flex: 1; min-width: 0; }
+/* Aucun résultat — render_no_results : centré, « No Results » + sous-titre muted. */
+.no-results { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--sp-2); padding: 48px 32px; }
+.no-results .nr-sub { font-size: var(--fs-sm); color: var(--text-muted); }
+
+/* Contrôles des settings — écarts tactiles ZRA (zed-ui.md) : boutons texte
+ * 28 px / 0 8, dropdowns et pickers Medium 28 px, champs 32 px. */
+.dropdown {
+  display: inline-flex; align-items: center; gap: var(--sp-2); flex: none;
+  height: 28px; padding: 0 var(--sp-4); max-width: 220px;
+  border-radius: var(--radius); border: 1px solid var(--border-variant);
+  background: var(--element-background); color: var(--text); font-size: var(--fs-sm);
+}
+.dropdown:hover { border-color: var(--border); background: var(--ghost-element-hover); }
+.dropdown .icon { color: var(--icon-muted); }
+/* SettingsInputField — input_field.rs : h 32, rayon 6, bordure border, fond
+ * editor_background ; focus bordure border_focused. */
+.inputfield {
+  width: 100%; height: 32px; padding: 0 var(--sp-4);
+  border-radius: var(--radius-lg); border: 1px solid var(--border);
+  background: var(--editor-background); font-size: var(--fs-lg); color: var(--text);
+}
+.inputfield:focus { outline: none; border-color: var(--border-focused); }
+.inputfield::placeholder { color: var(--text-placeholder); }
+/* Code d'appairage : mono centré espacé (écart ZRA, galerie section 10). */
+.inputfield--code { font-family: var(--font-mono); font-size: calc(16px * var(--text-scale)); letter-spacing: .2em; text-align: center; }
+
+/* ---------- modales (ui_prompt — galerie sections 9 et 10) ----------
+ * Confirmation : dialogue centré 320 px, elevation_3 (ModalSurface), message +
+ * détail, pile de boutons pleine largeur 28 px ; écart ZRA de sévérité (icône
+ * en tête, action teintée accent/warning/error). Formulaire : même surface,
+ * 380 px, tête icône + titre + fermer, champs des settings. */
+.modal {
+  position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  display: flex; flex-direction: column; gap: var(--sp-6);
+  width: 320px; max-width: calc(100vw - 32px); padding: var(--sp-6);
+  background: var(--elevated-surface-background);
+  border: 1px solid var(--border-variant); border-radius: var(--radius-xl);
+  box-shadow: 0 2px 3px rgba(0, 0, 0, .12), 0 3px 6px rgba(0, 0, 0, .08), 0 6px 12px rgba(0, 0, 0, .04), 0 1px 0 rgba(0, 0, 0, .12);
+}
+.modal--form { width: 380px; }
+.modal__head { display: flex; align-items: center; gap: var(--sp-3); }
+.modal__message { white-space: normal; }
+.modal__title { flex: 1; min-width: 0; font-weight: 600; overflow-wrap: anywhere; }
+.modal__detail { font-size: var(--fs-sm); color: var(--text-muted); margin: 0; }
+.modal__body { display: flex; flex-direction: column; gap: var(--sp-6); }
+.modal__actions { display: flex; flex-direction: column; gap: var(--sp-2); }
+.modal__actions .btn { width: 100%; justify-content: center; }
+.form-fields { display: flex; flex-direction: column; gap: var(--sp-5); }
+.form-field { display: flex; flex-direction: column; gap: var(--sp-2); }
+.form-label { font-size: var(--fs-sm); color: var(--text-muted); }
+.form-preview { font-family: var(--font-mono); font-size: var(--fs-sm); color: var(--text-muted); word-break: break-all; margin: 0; }
+/* Banner — banner.rs : py 2, gap 6, rayon 4, bordure 1 px. Error : fond
+ * error_background 50 %, bordure error_border 40 %, icône warning error. */
+.banner {
+  display: flex; align-items: flex-start; gap: var(--sp-3);
+  padding: var(--sp-1) var(--sp-4); border-radius: var(--radius);
+  border: 1px solid; font-size: var(--fs-sm);
+}
+.banner--error { background: color-mix(in srgb, var(--error-background) 50%, transparent); border-color: color-mix(in srgb, var(--error-border) 40%, transparent); }
+.banner .icon { color: var(--error); margin-top: 3px; }
+
+/* Mobile : la nav ne tient plus à côté (minimum Zed 626 px) — puces
+ * horizontales scrollables sous la recherche, tap = scroll vers la section. */
+@media (max-width: 625px) {
+  .sw-body { flex-direction: column; }
+  .sw-nav { width: 100%; padding: var(--sp-4); border-right: 0; border-bottom: 1px solid var(--border); }
+  .sw-search { margin-bottom: var(--sp-4); }
+  .sw-tree { flex-direction: row; overflow-x: auto; overflow-y: hidden; gap: var(--sp-2); }
+  .tvi { width: auto; flex: none; }
+  .tvi-inner { width: auto; padding: 0 var(--sp-4); gap: var(--sp-2); }
+  .tvi-disclosure, .tvi-indent { display: none; }
+  .tvi-kids, .tvi-kids.hidden { display: contents; }
+  .sw-pagetitle, .ssh, .srow, .sblock { padding-left: var(--sp-6); padding-right: var(--sp-6); }
+  .srow + .srow::before, .srow + .sblock::before, .sblock + .srow::before, .sblock + .sblock::before { left: var(--sp-6); right: var(--sp-6); }
+  .srow-inner { flex-wrap: wrap; gap: var(--sp-4); }
+  .srow-text { max-width: 100%; }
+}
 
 .toasts {
   position: fixed; left: 50%; transform: translateX(-50%);

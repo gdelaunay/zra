@@ -640,7 +640,7 @@ n'envoie pas ce message.
 ```
 `message` est affiché tel quel — le rédiger pour un humain, dans la langue du
 poste (français ou anglais). Le plus souvent en toast ; certains codes ont leur
-propre encart (callout de l'écran de création, feuille « nouveau projet »…). Codes
+propre encart (callout de l'écran de création, modale « nouveau projet »…). Codes
 attendus par la PWA (les autres passent aussi) :
 
 | `code` | sens | effet côté PWA |
@@ -654,7 +654,7 @@ attendus par la PWA (les autres passent aussi) :
 | `permission_expired` | demande déjà tranchée | toast, encart verrouillé |
 | `elicitation_expired` | question déjà répondue ou retirée | toast, la carte quitte le fil |
 | `new_thread_failed` | Zed n'a pas ouvert de session | callout « Échec du lancement » sur l'écran de création (`#/new/<poste>`) : Réessayer, copier, fermer |
-| `new_project_failed` | dossier de projet non créé ou non ouvert | message affiché dans la feuille « nouveau projet » |
+| `new_project_failed` | dossier de projet non créé ou non ouvert | message affiché dans la modale « nouveau projet » |
 | `not_zra_thread` | thread fermé d'un agent sans entrée ZRA : Zed le rouvrirait sans shim | toast, lecture seule |
 | `capability_missing` | l'agent ne supporte pas la méthode ACP demandée (`session/set_title`, `session/delete`) | toast ; le bouton est masqué quand la capacité est connue |
 | `prompt_refused` | l'agent a refusé le prompt injecté (mode `auto`, avant le repli clavier) | toast |

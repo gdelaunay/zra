@@ -638,7 +638,7 @@ offering a setting. An older machine does not send this message.
 ```
 `message` is shown as is — write it for a human, in the machine's language
 (French or English). Most often as a toast; some codes have their own panel
-(creation screen callout, “new project” sheet…). Codes expected by the PWA
+(creation screen callout, “new project” modal…). Codes expected by the PWA
 (others get through too):
 
 | `code` | meaning | effect on the PWA |
@@ -652,7 +652,7 @@ offering a setting. An older machine does not send this message.
 | `permission_expired` | request already settled | toast, card locked |
 | `elicitation_expired` | question already answered or withdrawn | toast, the card leaves the thread |
 | `new_thread_failed` | Zed did not open a session | “Failed to Launch” callout on the creation screen (`#/new/<machine>`): Retry, copy, close |
-| `new_project_failed` | project folder not created or not opened | message shown in the "new project" sheet |
+| `new_project_failed` | project folder not created or not opened | message shown in the "new project" modal |
 | `not_zra_thread` | closed thread of an agent without a ZRA entry: Zed would reopen it without a shim | toast, read-only |
 | `capability_missing` | the agent does not support the requested ACP method (`session/set_title`, `session/delete`) | toast; the button is hidden when the capability is known |
 | `prompt_refused` | the agent refused the injected prompt (`auto` mode, before the keyboard fallback) | toast |
