@@ -6,7 +6,8 @@ ZRA's front end. **Zero build**: native HTML + CSS + ESM, served as is by
 
 ```
 zra-client/
-  index.html  manifest.webmanifest  sw.js  icon.svg
+  index.html  manifest.webmanifest  sw.js
+  icons/  logo + favicon/apple-touch/maskable/badge (generated)
   css/   themes.css (generated)  app.css
   icon-themes/  colored-zed/ (vendored: theme.json, dark/light SVGs, LICENSES)
   js/    main.js store.js link.js settings.js acp.js markdown.js diff.js
@@ -186,6 +187,30 @@ Assumed divergences: a type missing from the colored set falls back to
 generic `file-text` (Zed falls back to the default theme's monochrome SVG);
 folders always keep `folder` (no folder icons in the colored sets). Changing
 the set repaints the thread without a reload.
+
+## App icons
+
+"Grand Z émetteur" logo (split two-tone Z + waves in the corner), derived into
+`icons/` from a single source by `scripts/gen-icons.mjs` (sharp, no runtime
+dependency):
+
+| File | Use |
+|---|---|
+| `icon.svg` | modern favicon + source; neutral/accent adapt to light/dark (`prefers-color-scheme`) |
+| `favicon-32.png` | favicon fallback (Safari), dark background |
+| `apple-touch-icon.png` | iOS home screen, full background |
+| `icon-192.png` | notification icon + manifest `any`, dark background |
+| `icon-maskable.png` | manifest `maskable`, mark within the safe zone |
+| `badge.png` / `badge.svg` | notification badge, white silhouette |
+
+Gruvbox colors: neutral `#ebdbb2`, accent `#b8bb26` (dark) / `#98971a`
+(light). The header logo (`brandLogo()`, `js/icons.js`) is inline: neutral as
+`currentColor`, accent as `light-dark()` — it follows the app theme, not the
+OS one.
+
+```bash
+node scripts/gen-icons.mjs   # regenerates icons/ from the mark
+```
 
 ## Wired to the daemon
 

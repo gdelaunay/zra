@@ -121,6 +121,30 @@ export function toolIcon(kind, cls = '') {
   return icon(TOOL_KIND_ICON[kind] || TOOL_KIND_ICON.other, cls)
 }
 
+// Logo ZRA (« Grand Z émetteur ») pour le header. Le neutre suit currentColor
+// (donc le thème clair/sombre de l'app) ; l'accent suit color-scheme via
+// light-dark() (gruvbox green sombre / light). Inline plutôt qu'<img> : un
+// fichier externe ne peut pas hériter de currentColor ni de light-dark().
+export function brandLogo(cls = '') {
+  const svg = document.createElementNS(SVG_NS, 'svg')
+  svg.setAttribute('viewBox', '0 0 512 512')
+  svg.setAttribute('aria-hidden', 'true')
+  svg.setAttribute('class', `icon ${cls}`.trim())
+  const acc = 'style="fill:light-dark(#98971a,#b8bb26)"'
+  svg.innerHTML = `
+    <g transform="translate(256 256) scale(1.375) translate(-281.7 -225.8)">
+      <g transform="translate(235 280) scale(0.88) translate(-256 -256)">
+        <path fill="currentColor" d="M148 116 L384 116 L116 384 L116 324 L252 188 L116 188 L116 148 Z"/>
+        <path ${acc} d="M396 138 L396 188 L260 324 L396 324 L396 364 L364 396 L138 396 Z"/>
+      </g>
+      <g transform="translate(352 148) rotate(-45) scale(0.5) translate(-250 -256)">
+        <path ${acc} d="M336.8 152.6 A135 135 0 0 1 336.8 359.4 L304.6 321.1 A85 85 0 0 0 304.6 190.9 Z"/>
+        <path ${acc} d="M378.6 102.8 A200 200 0 0 1 378.6 409.2 L352.9 378.6 A160 160 0 0 0 352.9 133.4 Z"/>
+      </g>
+    </g>`
+  return svg
+}
+
 // ---- icônes d'agents ----
 
 // `agent_id` du registry Zed -> glyphe. Les identifiants sont libres

@@ -11,7 +11,7 @@
 
 import { h, button, clear, debounce } from '../dom.js'
 import { settings, update } from '../settings.js'
-import { icon, agentIcon } from '../icons.js'
+import { icon, agentIcon, brandLogo } from '../icons.js'
 import { zedAge, absTime, baseName, agentLabel, toMs, projectOf, projectNames, displayTime } from '../format.js'
 import * as store from '../store.js'
 import { openMenu, confirmSheet } from '../ui.js'
@@ -214,8 +214,7 @@ function header({ navigate }) {
   const el = h('div.header')
   const sub = h('span.header__sub')
   el.append(
-    // Logo placeholder en attendant un choix définitif (l'éclair ne va pas).
-    h('div.header__title.header__title--brand', {}, icon('zed_assistant', 'icon--sm'), h('span', { text: 'ZRA' })),
+    h('div.header__title.header__title--brand', {}, brandLogo('icon--lg'), h('span', { text: 'ZRA' })),
     h('div.header__meta', {}, sub),
     button('icon-btn icon-btn--sm', { title: tr`Rafraîchir`, onclick: () => store.refreshAll() }, icon('refresh', 'icon--sm')),
     button('icon-btn icon-btn--sm', { title: tr`Réglages`, onclick: () => openSettings() }, icon('settings', 'icon--sm')),

@@ -1,14 +1,19 @@
 // Service worker : coquille de cache (v1) + Web Push (fin de tour, `push.js`).
 // Réseau d'abord partout (coquille comprise), cache en repli hors tunnel.
 
-const VERSION = 'zra-v10'
+const VERSION = 'zra-v11'
 /** Au-delà, le réseau est tenu pour absent (hors tunnel) : on sert le cache. */
 const NETWORK_TIMEOUT_MS = 3000
 const SHELL = [
   './',
   './index.html',
   './manifest.webmanifest',
-  './icon.svg',
+  './icons/icon.svg',
+  './icons/favicon-32.png',
+  './icons/apple-touch-icon.png',
+  './icons/icon-192.png',
+  './icons/icon-maskable.png',
+  './icons/badge.png',
   './sounds/agent_done.wav',
   './css/themes.css',
   './css/app.css',
@@ -94,8 +99,8 @@ self.addEventListener('push', (ev) => {
   if (!data.title) return
   ev.waitUntil(self.registration.showNotification(data.title, {
     body: data.body || '',
-    icon: './icon.svg',
-    badge: './icon.svg',
+    icon: './icons/icon-192.png',
+    badge: './icons/badge.png',
     data: { url: data.url || './' },
     tag: data.tag,
   }))

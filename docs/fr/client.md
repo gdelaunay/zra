@@ -6,7 +6,8 @@ Front de ZRA. **Zéro build** : HTML + CSS + ESM natifs, servis tels quels par
 
 ```
 zra-client/
-  index.html  manifest.webmanifest  sw.js  icon.svg
+  index.html  manifest.webmanifest  sw.js
+  icons/  logo + favicon/apple-touch/maskable/badge (générés)
   css/   themes.css (généré)  app.css
   icon-themes/  colored-zed/ (vendored : theme.json, SVG dark/light, LICENSES)
   js/    main.js store.js link.js settings.js acp.js markdown.js diff.js
@@ -186,6 +187,30 @@ npm run file-icons   # lit _upstream/zed + icon-themes/colored-zed/theme.json
 générique (Zed retombe sur le SVG monochrome du thème par défaut) ; les
 dossiers gardent toujours `folder` (pas d'icônes de dossiers dans les jeux
 colorés). Le changement de jeu repeint le fil sans rechargement.
+
+## Icônes de l'app
+
+Logo « Grand Z émetteur » (Z fendu bicolore + ondes dans l'angle), décliné dans
+`icons/` depuis une source unique par `scripts/gen-icons.mjs` (sharp, aucune
+dépendance runtime) :
+
+| Fichier | Usage |
+|---|---|
+| `icon.svg` | favicon moderne + source ; neutre/accent adaptés au clair/sombre (`prefers-color-scheme`) |
+| `favicon-32.png` | fallback favicon (Safari), fond sombre |
+| `apple-touch-icon.png` | écran d'accueil iOS, fond plein |
+| `icon-192.png` | icône notifications + manifest `any`, fond sombre |
+| `icon-maskable.png` | manifest `maskable`, mark dans la zone sûre |
+| `badge.png` / `badge.svg` | badge de notification, silhouette blanche |
+
+Couleurs gruvbox : neutre `#ebdbb2`, accent `#b8bb26` (sombre) / `#98971a`
+(clair). Le logo du header (`brandLogo()`, `js/icons.js`) est inline : neutre en
+`currentColor`, accent en `light-dark()` — il suit le thème de l'app, pas celui
+de l'OS.
+
+```bash
+node scripts/gen-icons.mjs   # régénère icons/ depuis le mark
+```
 
 ## Branché sur le daemon
 
