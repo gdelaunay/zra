@@ -23,6 +23,10 @@ image = { version = "0.25", default-features = false, features = ["png"] }
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_JobObjects"] }
 
+[target.'cfg(unix)'.dependencies]
+# killpg (arrêt du groupe de processus) et prctl PDEATHSIG (pas d'orphelin).
+libc = "0.2"
+
 [profile.release]
 strip = true
 lto = true

@@ -2741,6 +2741,7 @@ dependencies = [
  "ctrlc",
  "fd-lock",
  "image",
+ "libc",
  "native-tls",
  "open",
  "serde",

@@ -11,24 +11,23 @@
 // Trois backends, MÊMES sous-commandes — celui de la machine est choisi par
 // `platform.js`, pas par un test dispersé ici :
 //
-//   Windows : tâche planifiée (`schtasks`) — lance le tray s'il est présent
-//             (supervision, icône), sinon le lanceur PowerShell historique.
+//   Windows : tâche planifiée (`schtasks`).
 //   Linux avec systemd en init : service `systemd --user`
 //             (`scripts/lib/systemd.mjs`), vérifié sur la machine de portage.
 //   Linux sans systemd en init : entrée d'autostart XDG
 //             (`scripts/lib/autostart.mjs`) — MX Linux et ses dérivés, où
 //             `systemctl --user` répond `offline` (voir l'en-tête du module).
 //
+// Les trois lancent **le tray s'il est présent** (il supervise node) ; sinon
+// repli historique : `scripts/daemon-task.ps1` dans une console PowerShell
+// masquée (Windows), node direct journalisé par systemd ou via un petit `.sh`
+// (Linux). Le daemon écrit aussi dans `.zra/logs/daemon.log` (`--log`) — même
+// fichier partout.
+//
 // Dans les trois cas c'est **celui de l'utilisateur**, sans élévation : déclenché
 // à son ouverture de session, dans sa session interactive. C'est nécessaire au
 // pilotage de Zed au clavier (on ne tape pas dans un bureau depuis une session
 // de service) et ça évite de stocker un mot de passe.
-//
-// Windows lance `zra-tray` s'il est présent (il supervise node) ; sinon
-// `scripts/daemon-task.ps1` dans une console PowerShell masquée ;
-// Linux laisse systemd journaliser, ou lance un petit `.sh` côté autostart, et
-// le daemon écrit aussi dans `.zra/logs/daemon.log` (`--log`) — même fichier
-// partout.
 
 import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
@@ -42,28 +41,16 @@ import { npmSafeArgs } from './lib/args.mjs'
 import { daemonStatus } from './lib/daemon-status.mjs'
 import { commands as systemdCommands, UNIT } from './lib/systemd.mjs'
 import { commands as autostartCommands, DESKTOP } from './lib/autostart.mjs'
+import { trayBinary } from './lib/tray-binary.mjs'
 import { tr } from '../zra-daemon/i18n.js'
+
+export { trayBinary }
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 export const TASK = 'ZRA daemon'
 const LAUNCHER = join(ROOT, 'scripts', 'daemon-task.ps1')
 const LOG = join(ROOT, '.zra', 'logs', 'daemon.log')
 const XML_FILE = join(ROOT, '.zra', 'service', 'zra-daemon.xml')
-
-/**
- * Binaire du tray, s'il est là : la tâche le lance directement (plus de
- * fenêtre PowerShell, supervision et single-instance par le tray lui-même).
- * Cherché dans l'ordre : téléchargé au setup, build release, build dev.
- * Absent → repli sur le lanceur PowerShell historique.
- */
-export function trayBinary(root = ROOT) {
-  const candidates = [
-    join(root, '.zra', 'bin', 'zra-tray.exe'),
-    join(root, 'zra-tray', 'target', 'release', 'zra-tray.exe'),
-    join(root, 'zra-tray', 'target', 'debug', 'zra-tray.exe'),
-  ]
-  return candidates.find((p) => existsSync(p)) ?? null
-}
 
 function parseArgs(argv) {
   const out = { command: 'status', apply: false, lines: 40 }
@@ -238,7 +225,7 @@ async function status(opts, config) {
     console.log(tr`Daemon 127.0.0.1:${config.port} : ✗ injoignable (${d.reason}).`)
   }
 
-  const tray = trayBinary()
+  const tray = trayBinary(ROOT)
   console.log(tray ? tr`Tray : ✓ ${tray}.` : tr`Tray : ✗ absent — la tâche lancera le lanceur PowerShell.`)
 
   const last = tail(LOG, 5)
@@ -247,7 +234,7 @@ async function status(opts, config) {
 }
 
 async function install(opts) {
-  const tray = trayBinary()
+  const tray = trayBinary(ROOT)
   if (!tray && !existsSync(LAUNCHER)) throw new Error(tr`Lanceur introuvable : ni tray (.zra/bin/ ou zra-tray/target/) ni ${LAUNCHER}.`)
   const user = currentUser()
   const xml = buildTaskXml({ user, tray })

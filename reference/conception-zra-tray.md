@@ -195,9 +195,11 @@ HTTP éphémère dans le binaire, coupé une fois le setup fini. Pas de webview
    onboarding navigateur (page locale, détection Node ≥ 24), menu minimal
    (état, ouvrir ZRA, copier code, logs, quitter). `npm run service` installe
    la tâche planifiée qui lance le tray → la fenêtre PowerShell meurt ;
-2. Linux : même binaire, les deux modes, `.desktop` autostart → tray, vérifié
-   sur les trois postes Linux de référence ; headless vérifié (homelab sans
-   desktop) ;
+2. Linux — codé depuis Windows : supervision unix (groupe de processus +
+   PDEATHSIG, pas d'orphelin), headless automatique sans session graphique,
+   backends systemd/autostart → tray si le binaire est présent. Vérification
+   sur les trois postes de référence + homelab : fiches
+   `reference/tests-tray-*.md`, à exécuter sur chaque poste ;
 3. CI releases + téléchargement au `setup` ;
 4. Sucre : icône qui change d'état (thread live / réponse en attente) — les
    événements existent déjà dans le daemon ;

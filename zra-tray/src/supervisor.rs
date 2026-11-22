@@ -2,9 +2,10 @@
 // `.zra/logs/`, restart si crash avec backoff, arrêt propre à la demande.
 //
 // Un thread de surveillance tient l'état derrière un Mutex ; le menu et la
-// boucle d'événements lisent des snapshots. L'arrêt tue le processus enfant
-// (comme le faisait Stop-Process -Force de la tâche planifiée) — l'arrêt
-// gracieux par signal est une amélioration post-MVP.
+// boucle d'événements lisent des snapshots. Les enfants meurent avec le tray :
+// Job Object sous Windows, groupe de processus + PDEATHSIG sous unix.
+// L'arrêt unix est gracieux (SIGTERM au groupe, SIGKILL après 3 s) ; sous
+// Windows c'est kill direct, comme le faisait Stop-Process -Force.
 
 use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Write};
@@ -125,8 +126,7 @@ impl Supervisor {
         let mut s = self.state.lock().unwrap();
         s.wanted = false;
         if let Some(mut child) = s.child.take() {
-            let _ = child.kill();
-            let _ = child.wait();
+            kill_child(&mut child);
         }
         s.started = None;
     }
@@ -169,6 +169,31 @@ impl Supervisor {
     pub fn config(&self) -> TrayConfig {
         self.state.lock().unwrap().cfg.clone()
     }
+}
+
+/// Arrêt de l'enfant et de sa descendance.
+#[cfg(windows)]
+fn kill_child(child: &mut Child) {
+    // Le Job Object tue le reste du groupe à la mort du tray.
+    let _ = child.kill();
+    let _ = child.wait();
+}
+
+/// Unix : l'enfant est leader de son groupe de processus (`process_group(0)`
+/// au spawn) — `killpg` tue node et ses enfants d'un coup. SIGTERM d'abord
+/// (arrêt gracieux), SIGKILL après 3 s si ça pend.
+#[cfg(unix)]
+fn kill_child(child: &mut Child) {
+    let pgid = child.id() as libc::pid_t;
+    unsafe { libc::killpg(pgid, libc::SIGTERM) };
+    for _ in 0..30 {
+        if matches!(child.try_wait(), Ok(Some(_))) {
+            return;
+        }
+        thread::sleep(Duration::from_millis(100));
+    }
+    unsafe { libc::killpg(pgid, libc::SIGKILL) };
+    let _ = child.wait();
 }
 
 /// Rotation simple à l'ouverture : > 5 Mo → `.1` (l'ancien `.1` est écrasé).
@@ -214,6 +239,24 @@ fn spawn_child(cfg: &TrayConfig, paths: &Paths) -> std::io::Result<Child> {
     {
         use std::os::windows::process::CommandExt;
         cmd.creation_flags(0x0800_0000);
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::CommandExt;
+        // Groupe de processus dédié : kill_child tue node et ses enfants.
+        cmd.process_group(0);
+        // PDEATHSIG : si le tray meurt sauvagement (SIGKILL, crash), node
+        // reçoit SIGKILL — le pendant unix du Job Object, pas d'orphelin qui
+        // tient le port. Le signal part à la mort du THREAD spawnant (le
+        // thread de surveillance, vivant tant que le tray tourne).
+        unsafe {
+            cmd.pre_exec(|| {
+                if libc::prctl(libc::PR_SET_PDEATHSIG, libc::SIGKILL) == -1 {
+                    return Err(std::io::Error::last_os_error());
+                }
+                Ok(())
+            });
+        }
     }
     let mut child = cmd.spawn()?;
     if let Some(out) = child.stdout.take() {

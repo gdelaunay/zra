@@ -40,9 +40,13 @@ const ID_MODE: &str = "mode";
 const ID_QUIT: &str = "quit";
 
 fn main() {
-    let headless = std::env::args().skip(1).any(|a| a == "--headless");
+    // Headless : le flag, ou pas de session graphique du tout (ni DISPLAY ni
+    // WAYLAND_DISPLAY) — le homelab n'a pas de desktop, pas besoin d'y penser.
+    let no_display = std::env::var("DISPLAY").unwrap_or_default().is_empty()
+        && std::env::var("WAYLAND_DISPLAY").unwrap_or_default().is_empty();
+    let headless = std::env::args().skip(1).any(|a| a == "--headless") || (cfg!(unix) && no_display);
     if std::env::args().skip(1).any(|a| a == "--help" || a == "-h") {
-        println!("zra-tray — tray et superviseur ZRA (modes poste et relais)\n\n  --headless   supervision sans icône (pas de session graphique)\n\nConfig : .zra/tray.json (onboarding au premier lancement).");
+        println!("zra-tray — tray et superviseur ZRA (modes poste et relais)\n\n  --headless   supervision sans icône (automatique si pas de session graphique)\n\nConfig : .zra/tray.json (onboarding au premier lancement).");
         return;
     }
 

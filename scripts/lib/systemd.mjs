@@ -31,6 +31,7 @@ import { fileURLToPath } from 'node:url'
 import { mkdir, writeFile } from 'node:fs/promises'
 
 import { daemonStatus } from './daemon-status.mjs'
+import { trayBinary } from './tray-binary.mjs'
 import { tr } from '../../zra-daemon/i18n.js'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
@@ -90,11 +91,15 @@ export const GRAPHICS_ENV = ['XDG_SESSION_TYPE', 'WAYLAND_DISPLAY', 'DISPLAY', '
  * Contenu de l'unité. Fonction pure : les tests la vérifient sans rien
  * installer.
  *
- * @param {{ node?:string, root?:string, log?:string, env?:object, description?:string }} opts
+ * @param {{ node?:string, root?:string, log?:string, env?:object, description?:string, tray?:string|null }} opts
  */
-export function buildUnit({ node = process.execPath, root = ROOT, log = LOG, env = process.env, description = null } = {}) {
-  const daemon = join(root, 'zra-daemon', 'index.js')
-  const exec = [node, '--no-warnings', daemon, '--wait-tunnel', '--log', log].map(quoteUnitArg).join(' ')
+export function buildUnit({ node = process.execPath, root = ROOT, log = LOG, env = process.env, description = null, tray = null } = {}) {
+  // Avec le tray : il lance node lui-même (--wait-tunnel, journal,
+  // single-instance) ; l'unité n'a qu'à le lancer. S'il sort proprement parce
+  // qu'un autre tray tient le verrou, Restart=on-failure ne relance pas — voulu.
+  const exec = tray
+    ? quoteUnitArg(tray)
+    : [node, '--no-warnings', join(root, 'zra-daemon', 'index.js'), '--wait-tunnel', '--log', log].map(quoteUnitArg).join(' ')
   const vars = GRAPHICS_ENV.filter((k) => env[k]).map((k) => `Environment=${k}=${env[k]}`)
   return `# Généré par \`npm run service -- install --apply\` — ne pas éditer à la main.
 # ZRA — backend systemd --user, pendant de la tâche planifiée Windows.
@@ -219,16 +224,25 @@ async function status(opts, config) {
     console.log(tr`Daemon 127.0.0.1:${config.port} : ✗ injoignable (${d.reason}).`)
   }
 
+  const tray = trayBinary(ROOT)
+  console.log(tray ? tr`Tray : ✓ ${tray}.` : tr`Tray : ✗ absent — l’unité lance node directement.`)
+
   const last = journal(5) ?? tailLog(LOG, 5)
   if (last) console.log(tr`Journal :\n  ${last.join('\n  ')}`)
   else console.log(tr`Journal : pas encore écrit (${LOG}).`)
 }
 
 async function install(opts) {
-  const unit = buildUnit({ env: process.env })
+  const tray = trayBinary(ROOT)
+  const unit = buildUnit({ env: process.env, tray })
   const file = unitFile()
   console.log(tr`Unité « ${UNIT} » pour ${process.env.USER || tr`L’utilisateur courant`} : à l'ouverture de session, sans élévation, dans la session graphique.`)
-  console.log(`  node ${process.execPath}`)
+  if (tray) {
+    console.log(tr`  tray ${tray} — supervise le daemon (restart, journal, single-instance).`)
+  } else {
+    console.log(`  node ${process.execPath}`)
+    console.log(tr`  Tray absent — l’unité lance node directement (cargo build dans zra-tray/ pour le tray).`)
+  }
   console.log(tr`  Journal ${LOG} + journalctl --user -u ${UNIT}`)
   console.log(tr`  Fichier ${file}`)
   console.log('\n' + unit.split(/\r?\n/).map((l) => `  │ ${l}`).join('\n'))

@@ -176,9 +176,9 @@ test('systemd : la sortie de `systemctl show` se lit en clés/valeurs', () => {
 // `--user`, ni linger, ni journal. D'où ce troisième backend, mêmes six verbes.
 
 import { createServer } from 'node:http'
-import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 
 import {
   DELAY_S, DESKTOP, autostartState, buildDesktop, buildLauncher, desktopFile, parsePid,
@@ -390,4 +390,44 @@ test('autostart : start lance le daemon, stop l’arrête — sans systemd', { s
   assert.equal(stopped.running, false)
   assert.equal(pidCmdline(started.pid), null, 'le processus est mort')
   assert.equal(existsSync(p.pid), false, 'pidfile nettoyé')
+})
+
+// ===========================================================================
+// Tray — point d'entrée unique des trois backends quand le binaire est là
+// ===========================================================================
+
+import { trayBinary } from '../../scripts/lib/tray-binary.mjs'
+
+test('systemd : tray présent — l’unité le lance directement, sans node ni arguments', () => {
+  const tray = '/home/test/Mes projets/zra/zra-tray/target/debug/zra-tray'
+  const unit = buildUnit({ ...lx, tray })
+  assert.match(unit, /ExecStart="\/home\/test\/Mes projets\/zra\/zra-tray\/target\/debug\/zra-tray"/, 'chemin à espaces guillemetté')
+  assert.ok(!/ExecStart=.*--wait-tunnel/.test(unit), 'le tray passe --wait-tunnel à node lui-même')
+  assert.match(unit, /Restart=on-failure/, 'tray crashé relancé ; un autre tray tient le verrou → sortie 0, pas de relance')
+  assert.match(unit, /Environment=DISPLAY=:0/, 'session graphique toujours recopiée (icône + pilotage clavier)')
+})
+
+test('autostart : tray présent — le lanceur l’exécute, pidMatches le reconnaît', () => {
+  const tray = '/home/test/Mes projets/zra/zra-tray/target/debug/zra-tray'
+  const launcher = buildLauncher({ env: ax.env, tray })
+  assert.ok(launcher.includes(`exec '${tray}' >>`), 'le tray est exécuté à la place de node')
+  assert.ok(!launcher.includes('--wait-tunnel'), 'le tray supervise node lui-même')
+  const p = paths(ax)
+  assert.ok(pidMatches(tray, { ...p, tray }), 'après l’exec, le pidfile porte le pid du tray')
+  assert.ok(!pidMatches('/usr/bin/un-processus-sans-rapport', { ...p, tray }))
+})
+
+test('trayBinary : .zra/bin puis release puis debug — nom selon la plateforme', (t) => {
+  const root = mkdtempSync(join(tmpdir(), 'zra-traybin-'))
+  t.after(() => rmSync(root, { recursive: true, force: true }))
+  assert.equal(trayBinary(root, 'linux'), null, 'rien de buildé : repli sur le lancement historique')
+  const debug = join(root, 'zra-tray', 'target', 'debug', 'zra-tray')
+  mkdirSync(dirname(debug), { recursive: true })
+  writeFileSync(debug, '')
+  assert.equal(trayBinary(root, 'linux'), debug)
+  const bin = join(root, '.zra', 'bin', 'zra-tray')
+  mkdirSync(dirname(bin), { recursive: true })
+  writeFileSync(bin, '')
+  assert.equal(trayBinary(root, 'linux'), bin, 'celui téléchargé au setup prioritaire')
+  assert.equal(trayBinary(root, 'win32'), null, 'sous Windows le binaire est zra-tray.exe')
 })
