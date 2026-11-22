@@ -1,0 +1,614 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Référence — fenêtre de settings de Zed v1.28.1</title>
+<link rel="stylesheet" href="shared/tokens.css">
+<link rel="stylesheet" href="shared/base.css">
+<link rel="stylesheet" href="shared/settings.css">
+</head>
+<body>
+
+<header class="ref-head">
+  <h1>Fenêtre de settings de Zed — référence visuelle</h1>
+  <p>Zed v1.28.1, réglages par défaut, thème One Dark. Instantanés statiques ; génération, comportements et conditions dans <code>zed-ui.md</code>.</p>
+  <p><code>data-src</code> sur chaque élément : fichier et fonction d'origine (chemins relatifs à <code>crates/settings_ui/src</code> sauf mention ; <code>ui/…</code> = <code>crates/ui/src/…</code>).</p>
+  <div class="ref-toolbar">
+    Largeur de la fenêtre :
+    <button data-w="900" aria-pressed="true">900 px (défaut Zed)</button>
+    <button data-w="626" aria-pressed="false">626 px (minimum)</button>
+    <span style="width:16px"></span>
+    <button id="toggle-src" aria-pressed="false">Sources</button>
+  </div>
+  <nav class="ref-nav">
+    <a href="#window">1. Fenêtre complète</a>
+    <a href="#nav">2. Navigation</a>
+    <a href="#files">3. En-tête de fichiers</a>
+    <a href="#rows">4. Sections et lignes</a>
+    <a href="#controls">5. Contrôles</a>
+    <a href="#types">6. Types d'items</a>
+    <a href="#subpage">7. Sous-page</a>
+    <a href="#states">8. États et bandeaux</a>
+    <a href="#swatches">9. Nuancier</a>
+  </nav>
+</header>
+
+<!-- ============================================================ -->
+<section class="ref-section" id="window">
+  <h2>1. Fenêtre complète</h2>
+  <p>Fenêtre autonome « Zed — Settings » : barre de titre (32 px) · rangée nav (226 px, fond <code>panel_background</code>) + page (fond <code>editor_background</code>). La page General est déroulée : en-tête de fichiers, titre, sections et lignes. Le contenu défile ; la nav reste fixe.</p>
+  <div class="ref-grid">
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Page General</b> — nav + contenu, réglages par défaut</div>
+      <div class="ref-frame" style="--frame-h:750px">
+        <div class="swindow" data-src="settings_ui.rs Render for SettingsWindow">
+          <div class="sw-titlebar" data-src="ui/components/… platform_title_bar.rs (Windows 32 px)">
+            <span class="sw-title">Zed — Settings</span>
+            <span class="win-controls">
+              <button class="btn ibtn sm"><i class="icon sm" data-i="minimize"></i></button>
+              <button class="btn ibtn sm"><i class="icon sm" data-i="maximize"></i></button>
+              <button class="btn ibtn sm"><i class="icon sm" data-i="close"></i></button>
+            </span>
+          </div>
+          <div class="sw-body">
+            <div class="sw-nav" data-src="settings_ui.rs render_nav">
+              <div class="sw-search" data-src="settings_ui.rs render_search">
+                <i class="icon sm muted" data-i="magnifying_glass"></i>
+                <span class="sw-query placeholder">Search Settings</span>
+              </div>
+              <div class="sw-tree" data-src="settings_ui.rs render_nav (uniform_list TreeViewItem)">
+                <div class="tvi selected"><div class="tvi-inner"><span class="disclosure"><i class="icon sm muted" data-i="chevron_down"></i></span><span class="lbl">General</span></div></div>
+                <div class="tvi"><div class="tvi-inner"><span class="tvi-indent"></span><span class="lbl">General Settings</span></div></div>
+                <div class="tvi"><div class="tvi-inner"><span class="tvi-indent"></span><span class="lbl">Security</span></div></div>
+                <div class="tvi"><div class="tvi-inner"><span class="tvi-indent"></span><span class="lbl">Workspace Restoration</span></div></div>
+                <div class="tvi"><div class="tvi-inner"><span class="disclosure"><i class="icon sm muted" data-i="chevron_right"></i></span><span class="lbl">Appearance</span></div></div>
+                <div class="tvi"><div class="tvi-inner"><span class="disclosure"><i class="icon sm muted" data-i="chevron_right"></i></span><span class="lbl">Keymap</span></div></div>
+                <div class="tvi"><div class="tvi-inner"><span class="disclosure"><i class="icon sm muted" data-i="chevron_right"></i></span><span class="lbl">Editor</span></div></div>
+                <div class="tvi"><div class="tvi-inner"><span class="disclosure"><i class="icon sm muted" data-i="chevron_right"></i></span><span class="lbl">Languages &amp; Tools</span></div></div>
+                <div class="tvi"><div class="tvi-inner"><span class="disclosure"><i class="icon sm muted" data-i="chevron_right"></i></span><span class="lbl">Search &amp; Files</span></div></div>
+                <div class="tvi"><div class="tvi-inner"><span class="disclosure"><i class="icon sm muted" data-i="chevron_right"></i></span><span class="lbl">Window &amp; Layout</span></div></div>
+                <div class="tvi"><div class="tvi-inner"><span class="disclosure"><i class="icon sm muted" data-i="chevron_right"></i></span><span class="lbl">Panels</span></div></div>
+                <div class="tvi"><div class="tvi-inner"><span class="disclosure"><i class="icon sm muted" data-i="chevron_right"></i></span><span class="lbl">Terminal</span></div></div>
+                <div class="tvi"><div class="tvi-inner"><span class="disclosure"><i class="icon sm muted" data-i="chevron_right"></i></span><span class="lbl">AI</span></div></div>
+              </div>
+              <div class="sw-navfoot" data-src="settings_ui.rs render_nav (KeybindingHint ToggleFocusNav)">
+                <span class="kbh"><span class="kbd-box">Ctrl-Shift-E</span> Focus Content</span>
+              </div>
+            </div>
+            <div class="sw-page" data-src="settings_ui.rs render_page">
+              <div class="sw-pagehead">
+                <div class="sw-files" data-src="settings_ui.rs render_files_header">
+                  <div class="sw-files-left">
+                    <button class="btn md tinted-accent selected"><span class="lbl sm">User</span></button>
+                  </div>
+                  <button class="btn md oghost"><span class="lbl sm">Edit in settings.json</span></button>
+                </div>
+              </div>
+              <div class="sw-content" data-src="settings_ui.rs render_current_page_items (list)">
+                <div class="sw-pagetitle">General</div>
+                <div class="ssh" data-src="components/section_items.rs SettingsSectionHeader"><span class="ssh-label">General Settings</span><span class="divider-h"></span></div>
+                <div class="srow" data-src="settings_ui.rs render_settings_item_layout">
+                  <div class="srow-inner">
+                    <button class="btn ibtn xs srow-link"><i class="icon xs muted" data-i="link"></i></button>
+                    <div class="srow-text">
+                      <div class="srow-title"><span class="lbl">Accessible Mode</span></div>
+                      <div class="srow-desc">Optimize Zed's interface for assistive technology such as screen readers. When enabled, otherwise-collapsed controls stay expanded and keyboard-reachable.</div>
+                    </div>
+                    <div class="srow-control"><span class="switch" data-src="ui/components/toggle.rs Switch"><span class="track"><span class="thumb"></span></span></span></div>
+                  </div>
+                </div>
+                <div class="srow" data-src="settings_ui.rs render_settings_item_layout">
+                  <div class="srow-inner">
+                    <button class="btn ibtn xs srow-link"><i class="icon xs muted" data-i="link"></i></button>
+                    <div class="srow-text">
+                      <div class="srow-title"><span class="lbl">When Closing With No Tabs</span></div>
+                      <div class="srow-desc">What to do when using the 'close active item' action with no tabs.</div>
+                    </div>
+                    <div class="srow-control"><span class="dropdown" data-src="components/dropdown.rs EnumVariantDropdown"><span class="lbl sm">Platform Default</span><i class="icon xs muted" data-i="chevron_up_down"></i></span></div>
+                  </div>
+                </div>
+                <div class="srow" data-src="settings_ui.rs render_settings_item_layout">
+                  <div class="srow-inner">
+                    <button class="btn ibtn xs srow-link"><i class="icon xs muted" data-i="link"></i></button>
+                    <div class="srow-text">
+                      <div class="srow-title"><span class="lbl">Use System Path Prompts</span></div>
+                      <div class="srow-desc">Use native OS dialogs for 'Open' and 'Save As'.</div>
+                    </div>
+                    <div class="srow-control"><span class="switch on" data-src="ui/components/toggle.rs Switch (Selected)"><span class="track"><span class="thumb"></span></span></span></div>
+                  </div>
+                </div>
+                <div class="srow last" data-src="settings_ui.rs render_settings_item_layout (last in section)">
+                  <div class="srow-inner">
+                    <button class="btn ibtn xs srow-link"><i class="icon xs muted" data-i="link"></i></button>
+                    <div class="srow-text">
+                      <div class="srow-title"><span class="lbl">Redact Private Values</span></div>
+                      <div class="srow-desc">Hide the values of variables in private files.</div>
+                    </div>
+                    <div class="srow-control"><span class="switch on" data-src="ui/components/toggle.rs Switch (Selected)"><span class="track"><span class="thumb"></span></span></span></div>
+                  </div>
+                </div>
+                <div class="ssh" data-src="components/section_items.rs SettingsSectionHeader"><span class="ssh-label">Security</span><span class="divider-h"></span></div>
+                <div class="srow last" data-src="settings_ui.rs render_settings_item_layout">
+                  <div class="srow-inner">
+                    <button class="btn ibtn xs srow-link"><i class="icon xs muted" data-i="link"></i></button>
+                    <div class="srow-text">
+                      <div class="srow-title"><span class="lbl">Trust All Projects By Default</span></div>
+                      <div class="srow-desc">Whether to trust all projects by default, without prompting.</div>
+                    </div>
+                    <div class="srow-control"><span class="switch" data-src="ui/components/toggle.rs Switch"><span class="track"><span class="thumb"></span></span></span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="ref-section" id="nav">
+  <h2>2. Navigation</h2>
+  <p>Barre latérale de 226 px : recherche, arbre des pages et sections, pied avec le raccourci de focus. Racines = pages (chevron repliable) ; enfants = en-têtes de section (ligne d'indentation). Sélection : fond <code>element_active</code> 50 % + bordure 40 %, libellé non muted.</p>
+  <div class="ref-grid">
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Recherche</b> — vide, puis requête avec croix « Clear »</div>
+      <div class="ref-frame ref-frame--auto" style="--frame-w:226px">
+        <div style="display:flex;flex-direction:column;gap:12px;width:206px">
+          <div class="sw-search" data-src="settings_ui.rs render_search (empty)">
+            <i class="icon sm muted" data-i="magnifying_glass"></i>
+            <span class="sw-query placeholder">Search Settings</span>
+          </div>
+          <div class="sw-search" data-src="settings_ui.rs render_search (has_query)">
+            <i class="icon sm muted" data-i="magnifying_glass"></i>
+            <span class="sw-query">theme</span>
+            <button class="btn ibtn sm"><i class="icon sm muted" data-i="close"></i></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Arbre</b> — racine repliée / dépliée / sélectionnée, enfant sélectionné et survolé</div>
+      <div class="ref-frame ref-frame--auto" style="--frame-w:226px">
+        <div class="sw-tree" style="width:206px;flex:none" data-src="ui/components/tree_view_item.rs TreeViewItem">
+          <div class="tvi"><div class="tvi-inner"><span class="disclosure"><i class="icon sm muted" data-i="chevron_right"></i></span><span class="lbl">Appearance</span></div></div>
+          <div class="tvi selected"><div class="tvi-inner"><span class="disclosure"><i class="icon sm muted" data-i="chevron_down"></i></span><span class="lbl">General</span></div></div>
+          <div class="tvi"><div class="tvi-inner"><span class="tvi-indent"></span><span class="lbl">General Settings</span></div></div>
+          <div class="tvi selected"><div class="tvi-inner"><span class="tvi-indent"></span><span class="lbl">Security</span></div></div>
+          <div class="tvi hover"><div class="tvi-inner"><span class="tvi-indent"></span><span class="lbl">Workspace Restoration</span></div></div>
+          <div class="tvi"><div class="tvi-inner"><span class="tvi-indent"></span><span class="lbl">Privacy</span></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Pied de nav</b> — KeybindingHint, focus nav ou contenu</div>
+      <div class="ref-frame ref-frame--auto" style="--frame-w:226px">
+        <div style="display:flex;flex-direction:column;gap:8px;width:206px">
+          <div class="sw-navfoot" data-src="settings_ui.rs render_nav (navbar focused)"><span class="kbh"><span class="kbd-box">Ctrl-Shift-E</span> Focus Content</span></div>
+          <div class="sw-navfoot" data-src="settings_ui.rs render_nav (content focused)"><span class="kbh"><span class="kbd-box">Ctrl-Shift-E</span> Focus Navbar</span></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="ref-section" id="files">
+  <h2>3. En-tête de fichiers</h2>
+  <p>Sélecteur de portée : « User » toujours visible, puis le fichier courant et un menu « +N » pour les autres projets. Boutons <code>Tinted Accent</code> quand sélectionnés. À droite, « Edit in settings.json » (<code>OutlinedGhost</code>) ouvre le fichier dans l'éditeur.</p>
+  <div class="ref-grid">
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>User seul</b> — aucun projet ouvert</div>
+      <div class="ref-frame ref-frame--auto">
+        <div class="sw-files" data-src="settings_ui.rs render_files_header (User)">
+          <div class="sw-files-left"><button class="btn md tinted-accent selected"><span class="lbl sm">User</span></button></div>
+          <button class="btn md oghost"><span class="lbl sm">Edit in settings.json</span></button>
+        </div>
+      </div>
+    </div>
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>User + projet</b> — projet sélectionné</div>
+      <div class="ref-frame ref-frame--auto">
+        <div class="sw-files" data-src="settings_ui.rs render_files_header (User + Project)">
+          <div class="sw-files-left">
+            <button class="btn md"><span class="lbl sm">User</span></button>
+            <button class="btn md tinted-accent selected"><span class="lbl sm">zra</span></button>
+          </div>
+          <button class="btn md oghost"><span class="lbl sm">Edit in settings.json</span></button>
+        </div>
+      </div>
+    </div>
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Débordement</b> — « +2 » ouvre la liste des autres projets</div>
+      <div class="ref-frame ref-frame--auto">
+        <div class="sw-files" data-src="settings_ui.rs render_files_header (OVERFLOW_LIMIT=1, +N)">
+          <div class="sw-files-left">
+            <button class="btn md"><span class="lbl sm">User</span></button>
+            <button class="btn md tinted-accent selected"><span class="lbl sm">zra</span></button>
+            <button class="btn md"><span class="lbl sm">+2</span><i class="icon xs muted" data-i="chevron_down"></i></button>
+          </div>
+          <button class="btn md oghost"><span class="lbl sm">Edit in settings.json</span></button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="ref-section" id="rows">
+  <h2>4. Sections et lignes</h2>
+  <p>En-tête de section : libellé 12 px muted en police mono + filet <code>border</code> 60 %. Ligne : titre + description à gauche (max 2/3), contrôle à droite ; filet entre items, pas après le dernier d'une section (qui a un padding bas de 40 px). Au survol : icône « Copy Link » à gauche. Réglage modifié : bouton reset <code>Undo</code> + « — Modified in … ».</p>
+  <div class="ref-grid">
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>En-tête de section</b> — avec et sans icône</div>
+      <div class="ref-frame ref-frame--auto">
+        <div style="display:flex;flex-direction:column;gap:16px;width:560px">
+          <div class="ssh" data-src="components/section_items.rs SettingsSectionHeader"><span class="ssh-label">General Settings</span><span class="divider-h"></span></div>
+          <div class="ssh" data-src="components/section_items.rs SettingsSectionHeader (icon)"><span class="ssh-label"><i class="icon sm muted" data-i="sparkle"></i>AI</span><span class="divider-h"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Ligne</b> — défaut, survol (Copy Link), modifiée (reset + Modified in)</div>
+      <div class="ref-frame ref-frame--auto">
+        <div style="width:620px">
+          <div class="srow" data-src="settings_ui.rs render_settings_item_layout">
+            <div class="srow-inner">
+              <button class="btn ibtn xs srow-link"><i class="icon xs muted" data-i="link"></i></button>
+              <div class="srow-text">
+                <div class="srow-title"><span class="lbl">Buffer Font Size</span></div>
+                <div class="srow-desc">The font size used for the editor's text, in pixels.</div>
+              </div>
+              <div class="srow-control"><span class="numfield" data-src="components/number_field.rs NumberField"><span class="nf-btn nf-minus"><i class="icon sm" data-i="dash"></i></span><span class="nf-value">14</span><span class="nf-btn nf-plus"><i class="icon sm" data-i="plus"></i></span></span></div>
+            </div>
+          </div>
+          <div class="srow hover" data-src="settings_ui.rs render_settings_item_link (visible_on_hover)">
+            <div class="srow-inner">
+              <button class="btn ibtn xs srow-link"><i class="icon xs muted" data-i="link"></i></button>
+              <div class="srow-text">
+                <div class="srow-title"><span class="lbl">Buffer Font Family</span></div>
+                <div class="srow-desc">The font family used for the editor's text.</div>
+              </div>
+              <div class="srow-control"><span class="picker" data-src="settings_ui.rs render_font_picker"><span class="lbl sm">Lilex</span><i class="icon sm muted" data-i="chevron_up_down"></i></span></div>
+            </div>
+          </div>
+          <div class="srow last" data-src="settings_ui.rs render_settings_item (reset_fn + modified_in)">
+            <div class="srow-inner">
+              <button class="btn ibtn xs srow-link"><i class="icon xs muted" data-i="link"></i></button>
+              <div class="srow-text">
+                <div class="srow-title"><span class="lbl">UI Font Size</span><button class="btn ibtn sm"><i class="icon sm muted" data-i="undo"></i></button><span class="srow-modified">—&nbsp; Modified in User</span></div>
+                <div class="srow-desc">The font size used for the UI, in pixels.</div>
+              </div>
+              <div class="srow-control"><span class="numfield" data-src="components/number_field.rs NumberField"><span class="nf-btn nf-minus"><i class="icon sm" data-i="dash"></i></span><span class="nf-value">16</span><span class="nf-btn nf-plus"><i class="icon sm" data-i="plus"></i></span></span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Copy Link</b> — copié → coche succès ; description avec code span</div>
+      <div class="ref-frame ref-frame--auto">
+        <div style="width:620px">
+          <div class="srow hover" data-src="settings_ui.rs render_settings_item_link (copied)">
+            <div class="srow-inner">
+              <button class="btn ibtn xs srow-link"><i class="icon xs success" data-i="check"></i></button>
+              <div class="srow-text">
+                <div class="srow-title"><span class="lbl">Private Files</span></div>
+                <div class="srow-desc">Globs of files considered private, e.g. <code>.env</code>. Values are redacted when <code>redact_private_values</code> is on.</div>
+              </div>
+              <div class="srow-control"><span class="inputfield" data-src="components/input_field.rs SettingsInputField"><span class="if-text">**/.env*</span></span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="ref-section" id="controls">
+  <h2>5. Contrôles</h2>
+  <p>Le contrôle dépend du type du champ, choisi par un registre de rendus (<code>SettingFieldRenderer</code>, par <code>TypeId</code>) : bool → Switch, nombre → NumberField, enum → dropdown, texte → champ de saisie, police/thème → picker. Tous écrivent dans le fichier de settings via <code>update_settings_file</code>.</p>
+  <div class="ref-grid">
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Switch</b> — off, on, disabled</div>
+      <div class="ref-frame ref-frame--auto">
+        <div style="display:flex;gap:24px;align-items:center" data-src="ui/components/toggle.rs Switch">
+          <span class="switch"><span class="track"><span class="thumb"></span></span></span>
+          <span class="switch on"><span class="track"><span class="thumb"></span></span></span>
+          <span class="switch disabled"><span class="track"><span class="thumb"></span></span></span>
+          <span class="switch on disabled"><span class="track"><span class="thumb"></span></span></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>NumberField</b> — mode Edit (valeur centrée), − / +</div>
+      <div class="ref-frame ref-frame--auto">
+        <div style="display:flex;gap:24px;align-items:center" data-src="components/number_field.rs NumberField (mode Edit)">
+          <span class="numfield"><span class="nf-btn nf-minus"><i class="icon sm" data-i="dash"></i></span><span class="nf-value">14</span><span class="nf-btn nf-plus"><i class="icon sm" data-i="plus"></i></span></span>
+          <span class="numfield"><span class="nf-btn nf-minus"><i class="icon sm" data-i="dash"></i></span><span class="nf-value">1.5</span><span class="nf-btn nf-plus"><i class="icon sm" data-i="plus"></i></span></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Dropdown</b> — fermé, puis menu ouvert (coche sur l'option courante)</div>
+      <div class="ref-frame ref-frame--auto">
+        <div style="display:flex;gap:24px;align-items:flex-start">
+          <span class="dropdown" data-src="components/dropdown.rs EnumVariantDropdown"><span class="lbl sm">Platform Default</span><i class="icon xs muted" data-i="chevron_up_down"></i></span>
+          <div style="display:flex;flex-direction:column;gap:2px">
+            <span class="dropdown" data-src="components/dropdown.rs EnumVariantDropdown (deployed)"><span class="lbl sm">Close Window</span><i class="icon xs muted" data-i="chevron_up_down"></i></span>
+            <div class="menu elevated" data-src="ui/components/context_menu.rs ContextMenu (toggleable_entry)">
+              <div class="menu-item"><span class="start"><span class="lbl sm">Platform Default</span></span></div>
+              <div class="menu-item selected"><span class="start"><span class="lbl sm">Close Window</span></span><i class="icon sm" data-i="check"></i></div>
+              <div class="menu-item"><span class="start"><span class="lbl sm">Keep Window Open</span></span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Champ de saisie</b> — placeholder, valeur, focus (confirm + clear)</div>
+      <div class="ref-frame ref-frame--auto">
+        <div style="display:flex;flex-direction:column;gap:12px;width:300px" data-src="components/input_field.rs SettingsInputField">
+          <span class="inputfield"><span class="if-text placeholder">Enter a value…</span></span>
+          <span class="inputfield"><span class="if-text">**/.env*</span></span>
+          <span class="inputfield focused"><span class="if-text">**/.env*</span><span class="if-actions"><button class="btn ibtn xs"><i class="icon xs muted" data-i="close"></i></button><button class="btn ibtn xs"><i class="icon xs" data-i="check"></i></button></span></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Pickers</b> — thème, police, thème d'icônes (déclencheur Outlined + chevron)</div>
+      <div class="ref-frame ref-frame--auto">
+        <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap" data-src="settings_ui.rs render_theme_picker / render_font_picker / render_icon_theme_picker">
+          <span class="picker"><span class="lbl sm">One Dark</span><i class="icon sm muted" data-i="chevron_up_down"></i></span>
+          <span class="picker"><span class="lbl sm">Lilex</span><i class="icon sm muted" data-i="chevron_up_down"></i></span>
+          <span class="picker"><span class="lbl sm">Zed (default)</span><i class="icon sm muted" data-i="chevron_up_down"></i></span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="ref-section" id="types">
+  <h2>6. Types d'items</h2>
+  <p>Une page est une liste de <code>SettingsPageItem</code> : <code>SectionHeader</code>, <code>SettingItem</code>, <code>SubPageLink</code> (« Configure »), <code>ActionLink</code> (bouton propre), <code>DynamicItem</code> (discriminant + sous-champs selon la variante). Les données sont déclaratives dans <code>page_data.rs</code>.</p>
+  <div class="ref-grid">
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>SubPageLink</b> — « Configure » + chevron droit</div>
+      <div class="ref-frame ref-frame--auto">
+        <div style="width:620px">
+          <div class="linkrow" data-src="settings_ui.rs SettingsPageItem::render (SubPageLink)">
+            <div class="linkrow-text">
+              <span class="lbl">LLM Providers</span>
+              <span class="linkrow-desc">Configure the language model providers used by Zed's AI features.</span>
+            </div>
+            <button class="btn oghost md"><span class="lbl sm">Configure</span><i class="icon sm muted" data-i="chevron_right"></i></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>ActionLink</b> — libellé propre + flèche haut-droite</div>
+      <div class="ref-frame ref-frame--auto">
+        <div style="width:620px">
+          <div class="linkrow" data-src="settings_ui.rs SettingsPageItem::render (ActionLink)">
+            <div class="linkrow-text">
+              <span class="lbl">Keymap</span>
+              <span class="linkrow-desc">Edit your keybindings in the keymap editor.</span>
+            </div>
+            <button class="btn oghost md"><span class="lbl sm">Open Keymap</span><i class="icon sm muted" data-i="arrow_up_right"></i></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>DynamicItem</b> — Theme Mode « Static » (un sous-champ) puis « Dynamic » (trois)</div>
+      <div class="ref-frame ref-frame--auto">
+        <div style="width:620px" data-src="settings_ui.rs SettingsPageItem::render (DynamicItem)">
+          <div class="srow" style="padding-bottom:16px">
+            <div class="srow-inner">
+              <div class="srow-text">
+                <div class="srow-title"><span class="lbl">Theme Mode</span></div>
+                <div class="srow-desc">Choose a static, fixed theme or dynamically select themes based on appearance and light/dark modes.</div>
+              </div>
+              <div class="srow-control"><span class="dropdown"><span class="lbl sm">Static</span><i class="icon xs muted" data-i="chevron_up_down"></i></span></div>
+            </div>
+          </div>
+          <div class="dyn-sub last" data-src="settings_ui.rs DynamicItem (sub_field, border dashed)">
+            <div class="srow-inner">
+              <div class="srow-text">
+                <div class="srow-title"><span class="lbl">Theme Name</span></div>
+                <div class="srow-desc">The name of your selected theme.</div>
+              </div>
+              <div class="srow-control"><span class="picker"><span class="lbl sm">One Dark</span><i class="icon sm muted" data-i="chevron_up_down"></i></span></div>
+            </div>
+          </div>
+          <div class="srow" style="padding-bottom:16px">
+            <div class="srow-inner">
+              <div class="srow-text">
+                <div class="srow-title"><span class="lbl">Theme Mode</span></div>
+                <div class="srow-desc">Choose a static, fixed theme or dynamically select themes based on appearance and light/dark modes.</div>
+              </div>
+              <div class="srow-control"><span class="dropdown"><span class="lbl sm">Dynamic</span><i class="icon xs muted" data-i="chevron_up_down"></i></span></div>
+            </div>
+          </div>
+          <div class="dyn-sub" data-src="settings_ui.rs DynamicItem (sub_field)">
+            <div class="srow-inner">
+              <div class="srow-text"><div class="srow-title"><span class="lbl">Mode</span></div><div class="srow-desc">Choose whether to use the selected light or dark theme or to follow your OS appearance configuration.</div></div>
+              <div class="srow-control"><span class="dropdown"><span class="lbl sm">System</span><i class="icon xs muted" data-i="chevron_up_down"></i></span></div>
+            </div>
+          </div>
+          <div class="dyn-sub" data-src="settings_ui.rs DynamicItem (sub_field)">
+            <div class="srow-inner">
+              <div class="srow-text"><div class="srow-title"><span class="lbl">Light Theme</span></div><div class="srow-desc">The theme to use when mode is set to light, or when mode is set to system and it is in light mode.</div></div>
+              <div class="srow-control"><span class="picker"><span class="lbl sm">One Light</span><i class="icon sm muted" data-i="chevron_up_down"></i></span></div>
+            </div>
+          </div>
+          <div class="dyn-sub last" data-src="settings_ui.rs DynamicItem (last sub_field)">
+            <div class="srow-inner">
+              <div class="srow-text"><div class="srow-title"><span class="lbl">Dark Theme</span></div><div class="srow-desc">The theme to use when mode is set to dark, or when mode is set to system and it is in dark mode.</div></div>
+              <div class="srow-control"><span class="picker"><span class="lbl sm">One Dark</span><i class="icon sm muted" data-i="chevron_up_down"></i></span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="ref-section" id="subpage">
+  <h2>7. Sous-page</h2>
+  <p>« Configure » pousse une sous-page : l'en-tête de fichiers laisse place à un bouton retour + fil d'Ariane (portée / page / section / titre, tout muted). Le contenu est rendu par la fonction du <code>SubPageLink</code>. « Edit in settings.json » reste si la sous-page est éditable en JSON (<code>in_json</code>).</p>
+  <div class="ref-grid">
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Sous-page LLM Providers</b> — retour, fil d'Ariane, contenu</div>
+      <div class="ref-frame" style="--frame-h:420px">
+        <div class="swindow" data-src="settings_ui.rs render_page (sub_page_stack)">
+          <div class="sw-body" style="border-top:0">
+            <div class="sw-page" style="padding-top:24px">
+              <div class="sw-pagehead">
+                <div class="subpage-head" data-src="settings_ui.rs render_page (sub page header)">
+                  <div style="display:flex;align-items:center;gap:4px;min-width:0">
+                    <button class="btn ibtn sm" data-src="settings_ui.rs pop_sub_page"><i class="icon sm" data-i="arrow_left"></i></button>
+                    <div class="breadcrumbs" data-src="settings_ui.rs render_sub_page_breadcrumbs">
+                      <span class="lbl sm">User</span><span class="sep lbl sm">/</span>
+                      <span class="lbl sm">AI</span><span class="sep lbl sm">/</span>
+                      <span class="lbl sm">Agent</span><span class="sep lbl sm">/</span>
+                      <span class="lbl sm">LLM Providers</span>
+                    </div>
+                  </div>
+                  <button class="btn md oghost"><span class="lbl sm">Edit in settings.json</span></button>
+                </div>
+              </div>
+              <div class="sw-content" data-src="pages/llm_providers_page.rs render_llm_providers_page">
+                <div class="ssh"><span class="ssh-label">Providers</span><span class="divider-h"></span></div>
+                <div class="linkrow">
+                  <div class="linkrow-text"><span class="lbl">Anthropic</span><span class="linkrow-desc">Claude models via the Anthropic API.</span></div>
+                  <button class="btn oghost md"><span class="lbl sm">Configure</span><i class="icon sm muted" data-i="chevron_right"></i></button>
+                </div>
+                <div class="linkrow last">
+                  <div class="linkrow-text"><span class="lbl">OpenAI</span><span class="linkrow-desc">GPT models via the OpenAI API.</span></div>
+                  <button class="btn oghost md"><span class="lbl sm">Configure</span><i class="icon sm muted" data-i="chevron_right"></i></button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="ref-section" id="states">
+  <h2>8. États et bandeaux</h2>
+  <p>Recherche sans résultat : message centré. Erreur de parsing, migration ou mode restreint : bandeau <code>Warning</code> en tête de page, avec action. Réglage surchargé par l'organisation : icône warning devant le contrôle.</p>
+  <div class="ref-grid">
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Aucun résultat</b> — recherche sans correspondance</div>
+      <div class="ref-frame" style="--frame-h:280px">
+        <div class="swindow">
+          <div class="sw-body" style="border-top:0">
+            <div class="sw-page">
+              <div class="sw-pagehead">
+                <div class="sw-files"><div class="sw-files-left"><button class="btn md tinted-accent selected"><span class="lbl sm">User</span></button></div><button class="btn md oghost"><span class="lbl sm">Edit in settings.json</span></button></div>
+              </div>
+              <div class="sw-content">
+                <div class="no-results" data-src="settings_ui.rs render_no_results">
+                  <span class="lbl">No Results</span>
+                  <span class="nr-sub">No settings match "introuvable"</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Bandeaux</b> — erreur de parsing, migration, mode restreint</div>
+      <div class="ref-frame ref-frame--auto">
+        <div style="display:flex;flex-direction:column;gap:8px;width:620px" data-src="settings_ui.rs render_page (warning_banner / restricted_banner)">
+          <div class="banner warning" data-src="ui/components/banner.rs Banner (Severity::Warning, parse error)">
+            <div class="banner-body">
+              <i class="icon xs warning" data-i="warning"></i>
+              <div class="banner-text"><span class="lbl sm">Failed to load your settings. Some values may be incorrect and changes may be lost.</span><span class="banner-detail">expected value at line 12 column 5</span></div>
+            </div>
+            <div class="banner-action"><button class="btn tinted-warning"><span class="lbl sm">Fix in settings.json</span></button></div>
+          </div>
+          <div class="banner warning" data-src="ui/components/banner.rs Banner (migration)">
+            <div class="banner-body">
+              <i class="icon xs warning" data-i="warning"></i>
+              <div class="banner-text"><span class="lbl sm">Your settings are out of date, and need to be updated.</span><span class="banner-detail">They can be automatically migrated to the latest version.</span></div>
+            </div>
+            <div class="banner-action"><button class="btn tinted-warning"><span class="lbl sm">Fix in settings.json</span></button></div>
+          </div>
+          <div class="banner warning" data-src="ui/components/banner.rs Banner (Restricted Mode)">
+            <div class="banner-body">
+              <i class="icon xs warning" data-i="warning"></i>
+              <div class="banner-text"><span class="lbl sm">Restricted Mode</span><span class="banner-detail">This project is in restricted mode. Some project settings may not apply.</span></div>
+            </div>
+            <div class="banner-action"><button class="btn tinted-warning"><span class="lbl sm">Manage Trust</span></button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ref-specimen">
+      <div class="ref-label"><b>Surcharge organisation</b> — icône warning + contrôle</div>
+      <div class="ref-frame ref-frame--auto">
+        <div style="width:620px">
+          <div class="srow last" data-src="settings_ui.rs render_settings_item (is_overridden_by_organization)">
+            <div class="srow-inner">
+              <div class="srow-text">
+                <div class="srow-title"><span class="lbl">Telemetry Diagnostics</span></div>
+                <div class="srow-desc">Whether to send diagnostic telemetry.</div>
+              </div>
+              <div class="srow-control"><span class="org-warn" title="Overridden by Organization"><i class="icon sm warning" data-i="warning"></i></span><span class="switch on disabled"><span class="track"><span class="thumb"></span></span></span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section class="ref-section" id="swatches">
+  <h2>9. Nuancier</h2>
+  <p>Fonds et bordures structurants de la fenêtre. La nav utilise <code>panel_background</code>, le contenu <code>editor_background</code>, la fenêtre <code>background</code>.</p>
+  <div id="swatches" data-swatches="background,panel-background,editor-background,title-bar-background,surface-background,element-background,element-hover,element-active,element-disabled,border,border-variant,border-focused,info,info-background,warning,warning-background,text,text-muted,text-disabled,text-accent"></div>
+</section>
+
+<script src="shared/icons.js"></script>
+<script src="shared/ref.js"></script>
+</body>
+</html>

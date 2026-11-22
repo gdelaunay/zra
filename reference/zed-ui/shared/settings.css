@@ -1,0 +1,279 @@
+/* Fenêtre de settings de Zed v1.28.1 (crates/settings_ui, crates/ui). Valeurs pour
+   les réglages par défaut : ui_font_size 16 (1rem = 16px), densité UI par défaut,
+   thème One Dark, raccourcis Windows. Fenêtre autonome « Zed — Settings »,
+   900 × 750 par défaut (DEFAULT_ADDITIONAL_WINDOW_SIZE), minimale 626 × 240
+   (SIDEBAR_WIDTH 226 + CONTENT_MIN_WIDTH 400).
+   Base commune (polices, chrome, primitives) : base.css ; cette feuille commence
+   par les dérives de la fenêtre, puis ses composants. Les primitives partagées
+   (icônes, boutons) portent les écarts ZRA documentés dans zed-ui.md ; les valeurs
+   de mise en page ci-dessous sont le relevé Zed brut.
+   Chaque règle cite sa source ; les éléments de settings-window.html portent data-src.
+   Chemins relatifs à crates/settings_ui/src sauf mention (ui/… = crates/ui/src/…). */
+
+/* ---------- Dérives de la fenêtre (vs primitives de base.css) ---------- */
+
+/* Cadre de la galerie : 900 px par défaut (largeur de la fenêtre). */
+.ref-frame { width: var(--frame-w, 900px); }
+
+/* Bouton OutlinedGhost — button_like.rs : fond transparent, bordure border_variant ;
+   survol ghost_element_hover + bordure border. « Edit in settings.json », Configure… */
+.btn.oghost { background: transparent; border-color: var(--border-variant); }
+.btn.oghost:hover { background: var(--ghost-element-hover); border-color: var(--border); }
+
+/* Bouton Medium — button_like.rs ButtonSize::Medium : 28 px de haut, padding x 8 px.
+   Contrôles des settings (dropdown, pickers, Configure). */
+.btn.md { height: 28px; padding: 0 8px; }
+
+/* Bouton teinté Warning — banner.rs action_slot : « Fix in settings.json », « Manage Trust ». */
+.btn.tinted-warning { background: var(--warning-background); border-color: var(--warning-border); }
+
+/* ---------- Fenêtre (settings_ui.rs Render for SettingsWindow) ---------- */
+
+/* Conteneur : v_flex plein écran, fond background, texte text ; barre de titre puis
+   rangée nav + page. Bordure haute 1 px hors macOS (décorations client). */
+.swindow {
+  display: flex; flex-direction: column; position: relative; overflow: hidden;
+  width: var(--frame-w, 900px); height: var(--frame-h, 750px);
+  background: var(--background); color: var(--text);
+  font: 14px/var(--lh) var(--font-ui);
+}
+
+/* Barre de titre — platform_title_bar.rs, hauteur Windows 32 px (ui/utils/constants.rs
+   platform_title_bar_height). Titre « Zed — Settings », contrôles de fenêtre à droite. */
+.sw-titlebar {
+  display: flex; align-items: center; flex: none; height: 32px; padding: 0 8px;
+  background: var(--title-bar-background); color: var(--text);
+}
+.sw-titlebar .sw-title { flex: 1; text-align: center; font-size: 12px; color: var(--text-muted); }
+.sw-titlebar .win-controls { display: flex; gap: 2px; }
+
+/* Rangée centrale : nav (gauche) + page (droite), border_t_1 border hors macOS. */
+.sw-body { display: flex; flex: 1; min-height: 0; border-top: 1px solid var(--border); }
+
+/* ---------- Navigation (settings_ui.rs render_nav) ---------- */
+
+/* Conteneur : largeur SIDEBAR_WIDTH 226 px, p_2p5 10 px, fond panel_background,
+   bordure droite 1 px border. (macOS : pt_10 40 px pour les traffic lights.) */
+.sw-nav {
+  display: flex; flex-direction: column; flex: none; width: 226px; height: 100%;
+  padding: 10px; background: var(--panel-background); border-right: 1px solid var(--border);
+}
+
+/* Recherche — render_search : h_7 28 px, py_1 4 / pl_1p5 6 / pr_0p5 2, mb_3 12,
+   gap_1p5 6, rounded_sm 4, fond editor_background, bordure 1 px border.
+   Loupe muted + éditeur une ligne + croix « Clear » si requête. */
+.sw-search {
+  display: flex; align-items: center; gap: 6px; flex: none;
+  height: 28px; padding: 4px 2px 4px 6px; margin-bottom: 12px;
+  border-radius: 4px; background: var(--editor-background); border: 1px solid var(--border);
+}
+.sw-search .sw-query { flex: 1; min-width: 0; font: inherit; color: var(--text); }
+.sw-search .sw-query.placeholder { color: var(--text-placeholder); }
+
+/* Arbre — uniform_list de TreeViewItem (ui/components/tree_view_item.rs). */
+.sw-tree { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
+
+/* TreeViewItem : item_size 28 px (rems_from_px(28)), pl_0p5 2 / pr_1 4, gap_2 8,
+   rounded_sm 4, bordure 1 px transparente ; survol element_hover ; sélection
+   element_active 50 % + bordure border 40 % ; focus border_focused.
+   Libellé muted sauf sélectionné. */
+.tvi { display: flex; width: 100%; }
+.tvi-inner {
+  display: flex; align-items: center; width: 100%; height: 28px;
+  padding-left: 2px; padding-right: 4px; gap: 8px;
+  border-radius: 4px; border: 1px solid transparent; cursor: pointer;
+}
+.tvi-inner:hover, .tvi.hover .tvi-inner { background: var(--element-hover); }
+.tvi.selected .tvi-inner {
+  background: color-mix(in srgb, var(--element-active) 50%, transparent);
+  border-color: color-mix(in srgb, var(--border) 40%, transparent);
+}
+.tvi-inner .lbl { color: var(--text-muted); }
+.tvi.selected .tvi-inner .lbl { color: var(--text); }
+/* Racine : Disclosure (chevron_down ouvert / chevron_right fermé), icône sm muted. */
+.tvi-inner .disclosure { display: inline-flex; flex: none; }
+/* Enfant : ligne d'indentation 22 px de large, filet 1 px border 50 % sur toute la hauteur. */
+.tvi-indent { display: flex; justify-content: center; flex: none; width: 22px; height: 28px; }
+.tvi-indent::before { content: ""; width: 1px; height: 100%; background: color-mix(in srgb, var(--border) 50%, transparent); }
+
+/* Pied de nav — render_nav : h_8 32 px, p_2 8 / pb_0p5 2, bordure haute border_variant,
+   KeybindingHint ToggleFocusNav (Ctrl-Shift-E) + suffixe « Focus Navbar »/« Focus Content ». */
+.sw-navfoot {
+  display: flex; align-items: center; flex: none; height: 32px; padding: 8px 8px 2px;
+  border-top: 1px solid var(--border-variant);
+}
+/* KeybindingHint — ui/components/keybinding_hint.rs : italique, police buffer, 12 px,
+   text_disabled ; touche dans une boîte rounded_sm, px_0p5 2, bordure et fond dérivés
+   de surface_background 50 % (ici approximés), ombre 0 1 px. */
+.kbh { display: flex; align-items: center; gap: 4px; font-family: var(--font-mono); font-style: italic; font-size: 12px; color: var(--text-disabled); white-space: nowrap; }
+.kbh .kbd-box {
+  flex: none; font-style: normal; white-space: nowrap; border-radius: 4px; padding: 0 2px; margin-right: 2px;
+  border: 1px solid color-mix(in srgb, var(--surface-background) 50%, var(--text) 16%);
+  background: color-mix(in srgb, var(--surface-background) 50%, var(--text-accent) 10%);
+  box-shadow: 0 1px color-mix(in srgb, var(--text) 8%, transparent);
+}
+
+/* ---------- Page (settings_ui.rs render_page) ---------- */
+
+/* Conteneur : pt_6 24 px, gap_4 16 px, fond editor_background. En-tête px_8 32 / gap_2 8,
+   puis contenu défilant. */
+.sw-page { display: flex; flex-direction: column; flex: 1; min-width: 0; padding-top: 24px; gap: 16px; background: var(--editor-background); }
+.sw-pagehead { display: flex; flex-direction: column; gap: 8px; padding: 0 32px; }
+.sw-content { flex: 1; min-height: 0; overflow-y: auto; }
+
+/* En-tête de fichiers — render_files_header : h_flex w_full gap_1 4 justify_between.
+   Boutons de fichier (User, projet…) toggle_state, sélectionné Tinted Accent ;
+   « +N » DropdownMenu Subtle ; à droite « Edit in settings.json » OutlinedGhost. */
+.sw-files { display: flex; align-items: center; justify-content: space-between; gap: 4px; width: 100%; }
+.sw-files-left { display: flex; align-items: center; gap: 4px; }
+
+/* Titre de page — render_current_page_items item 0 : Label Large (text_ui_lg 16 px),
+   mt_2 8 / mb_3 12, px_8 32. */
+.sw-pagetitle { padding: 0 32px; margin: 8px 0 12px; font-size: 16px; line-height: var(--lh); }
+
+/* ---------- En-tête de section (components/section_items.rs SettingsSectionHeader) ---------- */
+
+/* v_flex w_full px_8 32, gap_1p5 6 ; Label Small 12 px muted en police buffer (mono) ;
+   Divider horizontal BorderFaded (border 60 %). Icône optionnelle muted. */
+.ssh { display: flex; flex-direction: column; gap: 6px; padding: 0 32px; }
+.ssh .ssh-label { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); font-family: var(--font-mono); }
+.ssh .divider-h { background: color-mix(in srgb, var(--border) 60%, transparent); }
+
+/* ---------- Ligne de réglage (settings_ui.rs render_settings_item_layout) ---------- */
+
+/* Rangée : pt_4 16 / pb_4 16 (pb_10 40 si dernière de section), px_8 32 ;
+   h_flex justify_between. Divider horizontal entre items sauf dernier de section.
+   Colonne gauche max_w_2_3 : titre + (reset Undo) + « — Modified in X », puis
+   description Small muted (code spans). Contrôle à droite. */
+.srow { padding: 16px 32px; }
+.srow.last { padding-bottom: 40px; }
+.srow + .srow { border-top: 1px solid var(--border-variant); }
+.srow-inner { display: flex; align-items: center; justify-content: space-between; gap: 16px; position: relative; }
+.srow-text { display: flex; flex-direction: column; max-width: 66%; min-width: 0; }
+.srow-title { display: flex; align-items: center; gap: 4px; }
+.srow-desc { font-size: 12px; color: var(--text-muted); }
+.srow-desc code { font-family: var(--font-mono); font-size: 11px; background: var(--element-background); border-radius: 3px; padding: 0 3px; }
+.srow-modified { font-size: 12px; color: var(--text-muted); }
+.srow-control { display: flex; align-items: center; gap: 8px; flex: none; }
+
+/* Lien de copie — render_settings_item_link : IconButton Link sm muted, carré,
+   absolute top 18 px / left −22 px (−8,5 en sous-champ), visible au survol de la ligne
+   (group setting-item). Copié → Check success. */
+.srow-link { position: absolute; top: -1px; left: -28px; visibility: hidden; }
+.srow:hover .srow-link, .srow.hover .srow-link { visibility: visible; }
+
+/* ---------- Contrôles ---------- */
+
+/* Switch — ui/components/toggle.rs : piste 32 × 20 (Base32 × Base20), px 2 interne,
+   bordure 1 px, rounded_full ; pouce 12 px (Base12) rounded_full couleur text,
+   opacité 1 (on) / 0,5 (off) / 0,2 (disabled). Conteneur p 1 px + bordure 2 px
+   border_transparent (focus border_focused) → 38 × 26 au total.
+   Off : fond element_disabled, bordure border. On (Accent) : fond info 40 %,
+   bordure text_accent 20 %. Survol : mélange text 16 % (on) / 5 % (off). */
+.switch { display: inline-flex; flex: none; padding: 1px; border: 2px solid transparent; border-radius: 999px; cursor: pointer; }
+.switch:focus-visible { border-color: var(--border-focused); }
+.switch .track {
+  display: flex; align-items: center; width: 32px; height: 20px; padding: 0 2px;
+  border-radius: 999px; border: 1px solid var(--border); background: var(--element-disabled);
+}
+.switch .thumb { width: 12px; height: 12px; border-radius: 999px; background: var(--text); opacity: .5; }
+.switch.on .track { justify-content: flex-end; background: color-mix(in srgb, var(--info) 40%, transparent); border-color: color-mix(in srgb, var(--text-accent) 20%, transparent); }
+.switch.on .thumb { opacity: 1; }
+.switch.disabled { cursor: default; }
+.switch.disabled .thumb { opacity: .2; }
+
+/* NumberField — components/number_field.rs : h_flex gap_1 4. Boutons −/+ p_1p5 6,
+   icône sm, fond surface_background, bordure border_variant, coins sm extérieurs ;
+   milieu min_w_16 64 px, bordures y, texte centré (mode Edit = éditeur une ligne).
+   Reset optionnel RotateCcw sm. */
+.numfield { display: inline-flex; align-items: stretch; gap: 4px; flex: none; }
+.numfield .nf-btn {
+  display: flex; align-items: center; justify-content: center; padding: 6px;
+  background: var(--surface-background); border: 1px solid var(--border-variant); cursor: pointer;
+}
+.numfield .nf-btn:hover { background: var(--element-hover); }
+.numfield .nf-minus { border-radius: 4px 0 0 4px; }
+.numfield .nf-plus { border-radius: 0 4px 4px 0; }
+.numfield .nf-value {
+  display: flex; align-items: center; justify-content: center; min-width: 64px; padding: 0 4px;
+  background: var(--surface-background); border-top: 1px solid var(--border-variant); border-bottom: 1px solid var(--border-variant);
+  color: var(--text);
+}
+
+/* EnumVariantDropdown — components/dropdown.rs : DropdownMenu trigger Medium 28 px,
+   style Outlined (bordure 1 px), ChevronUpDown xs muted ; menu ContextMenu à coches
+   (toggleable_entry, IconPosition::End), attach BottomRight offset y 2. */
+.dropdown { display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 8px; border-radius: 4px; border: 1px solid var(--border-variant); background: var(--element-background); cursor: pointer; flex: none; }
+.dropdown:hover { border-color: var(--border); background: var(--ghost-element-hover); }
+
+/* SettingsInputField — components/input_field.rs : h_8 32 px, min_w_64 256 px,
+   py_1 4 / px_2 8, rounded_md 6, bordure 1 px border, fond editor_background ;
+   focus bordure border_focused. Boutons confirm/clear absolute top_1 right_1,
+   visibles au focus ou survol. */
+.inputfield {
+  display: flex; align-items: center; position: relative; flex: none;
+  height: 32px; min-width: 256px; padding: 4px 8px; border-radius: 6px;
+  border: 1px solid var(--border); background: var(--editor-background);
+}
+.inputfield.focused { border-color: var(--border-focused); }
+.inputfield .if-text { flex: 1; min-width: 0; font: inherit; color: var(--text); }
+.inputfield .if-text.placeholder { color: var(--text-placeholder); }
+.inputfield .if-actions { position: absolute; top: 50%; right: 4px; transform: translateY(-50%); display: flex; gap: 2px; visibility: hidden; }
+.inputfield.focused .if-actions, .inputfield:hover .if-actions { visibility: visible; }
+
+/* Picker (police / thème / thème d'icônes) — render_picker_trigger_button :
+   Button Outlined Medium 28 px + ChevronUpDown sm muted ; PopoverMenu attach TopLeft
+   offset y 2. */
+.picker { display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 8px; border-radius: 4px; border: 1px solid var(--border-variant); background: var(--element-background); cursor: pointer; flex: none; }
+.picker:hover { border-color: var(--border); background: var(--ghost-element-hover); }
+
+/* ---------- Types d'items ---------- */
+
+/* SubPageLink / ActionLink — SettingsPageItem::render : h_flex justify_between,
+   pt_4 / pb_4 (ou pb_10), px_8. Gauche max_w_1_2 : titre + description Small muted.
+   Droite : bouton OutlinedGhost Medium « Configure » + ChevronRight sm muted
+   (SubPageLink) ou libellé propre + ArrowUpRight (ActionLink). */
+.linkrow { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 32px; position: relative; }
+.linkrow.last { padding-bottom: 40px; }
+.linkrow + .linkrow, .srow + .linkrow, .linkrow + .srow { border-top: 1px solid var(--border-variant); }
+.linkrow-text { display: flex; flex-direction: column; max-width: 50%; min-width: 0; }
+.linkrow-desc { font-size: 12px; color: var(--text-muted); }
+
+/* DynamicItem — SettingsPageItem::render : discriminant puis sous-champs dans des
+   boîtes mx_8 32 / p_4 16, bordures pointillées border_variant (haut, + bas pour le
+   dernier), fond element_background 20 %, mb_8 32 si dernier. */
+.dyn-sub { margin: 0 32px; padding: 16px; border-top: 1px dashed var(--border-variant); background: color-mix(in srgb, var(--element-background) 20%, transparent); }
+.dyn-sub.last { border-bottom: 1px dashed var(--border-variant); margin-bottom: 32px; }
+.dyn-sub .srow-inner { padding: 0; }
+
+/* ---------- Sous-page (render_page + render_sub_page_breadcrumbs) ---------- */
+
+/* En-tête : IconButton retour ArrowLeft sm carré + fil d'Ariane (scope / page /
+   section / titre, tout muted, séparateurs « / ») ; à droite « Edit in settings.json »
+   si in_json. Le scope est un DropdownMenu Subtle si plusieurs fichiers possibles. */
+.subpage-head { display: flex; align-items: center; justify-content: space-between; gap: 4px; width: 100%; }
+.breadcrumbs { display: flex; align-items: center; gap: 4px; min-width: 0; overflow: hidden; }
+.breadcrumbs .lbl { color: var(--text-muted); }
+.breadcrumbs .sep { color: var(--text-muted); }
+
+/* ---------- États et bandeaux ---------- */
+
+/* Aucun résultat — render_no_results : centré, « No Results » + « No settings match "…" »
+   Small muted. */
+.no-results { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; height: 100%; }
+.no-results .nr-sub { font-size: 12px; color: var(--text-muted); }
+
+/* Banner — ui/components/banner.rs : h_flex py_0p5 2, gap_1p5 6, rounded_sm 4,
+   bordure 1 px, justify_between. Warning : fond warning_background 50 %, bordure
+   warning_border 40 %, icône Warning xs warning. Avec action : pl_2 8 / pr_1 4,
+   bouton dans action_slot (pr_1 pb_1). */
+.banner { display: flex; align-items: flex-start; justify-content: space-between; gap: 6px; padding: 2px 8px; border-radius: 4px; border: 1px solid; }
+.banner.warning { background: color-mix(in srgb, var(--warning-background) 50%, transparent); border-color: color-mix(in srgb, var(--warning-border) 40%, transparent); }
+.banner .banner-body { display: flex; align-items: flex-start; gap: 6px; flex: 1; min-width: 0; }
+.banner .banner-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.banner .banner-detail { font-size: 12px; color: var(--text-muted); }
+.banner .banner-action { flex: none; padding: 0 4px 4px 0; }
+
+/* Avertissement organisation — render_settings_item : icône Warning sm warning
+   devant le contrôle, infobulle « Overridden by Organization ». */
+.org-warn { display: inline-flex; flex: none; }

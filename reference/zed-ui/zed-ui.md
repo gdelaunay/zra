@@ -1,6 +1,6 @@
 # Références visuelles de Zed
 
-Trois galeries statiques, base de comparaison pour `zra-client` : le panel agent, la barre du bas, la liste des threads. Une page HTML par référence, styles et script communs dans `shared/`. Ouvrir la page dans un navigateur (pas de serveur ni de build).
+Quatre galeries statiques, base de comparaison pour `zra-client` : le panel agent, la barre du bas, la liste des threads, la fenêtre de settings. Une page HTML par référence, styles et script communs dans `shared/`. Ouvrir la page dans un navigateur (pas de serveur ni de build).
 
 - **Version** : Zed v1.28.1 (`_upstream/zed`, voir [docs/fr/zed.md](../../docs/fr/zed.md)).
 - **Réglages** : valeurs par défaut, thème One Dark, raccourcis Windows ; détails par page ci-dessous.
@@ -32,6 +32,15 @@ L'air entre éléments des barres et du composer passe de 4 à 6 px (`gap`), et 
 
 Le markdown de l'agent passe de 16 à 14 px (interligne 20.8 → 18.2, titres h1–h4 16.1 / 15.4 / 14.7 / 14, sorties d'outils 14). Équivaut à un Ctrl+− sur le panel discussion de Zed.
 
+### Boutons des settings
+
+La fenêtre de settings scope l'agrandissement tactile par rôle — les contrôles denses de Zed sont calibrés pour ses petits boutons (18 px), un ibtn 28 px y déborde :
+
+- **Boutons texte de base** (User, +N, « Edit in settings.json ») : Default 22 px / padding 0 4 chez Zed → `.btn.md` 28 px / 0 8. Déviation tactile (le Medium 28 px de Zed est réservé aux contrôles : dropdown, Configure, pickers).
+- **Secondaires embarqués** (copy-link des lignes, clear/confirm des champs) : `.ibtn.xs` 24,5 px (icône 14) au lieu de sm 28, pour rentrer dans le contrôle parent ; centrés verticalement.
+- **Primaires icône** (retour de sous-page, reset `Undo`, boutons de fenêtre) : `.ibtn.sm` 28 px.
+- **Centrage** : colonne contrôle centrée dans la ligne (`align-items: center`, le dropdown ne flotte plus en haut) ; boutons de champ centrés (`top: 50%`) au lieu d'ancrés `top: 4px`.
+
 ## Fichiers
 
 | Fichier | Rôle |
@@ -39,11 +48,12 @@ Le markdown de l'agent passe de 16 à 14 px (interligne 20.8 → 18.2, titres h1
 | `agent-panel.html` | Galerie : panel complet dans six états, puis chaque composant dans ses états |
 | `bottom-bar.html` | Galerie : barre complète dans ses états, puis chaque composant dans ses états |
 | `threads-sidebar.html` | Galerie : sidebar complète dans ses états, puis chaque composant dans ses états |
+| `settings-window.html` | Galerie : fenêtre de settings complète, puis nav, contrôles, types d'items et états |
 | `shared/base.css` | Styles communs : polices, variables dérivées, chrome des pages, primitives partagées (crates/ui) |
-| `shared/panel.css`, `shared/bar.css`, `shared/sidebar.css` | Styles propres à chaque page, une règle par composant, source et valeurs en commentaire |
+| `shared/panel.css`, `shared/bar.css`, `shared/sidebar.css`, `shared/settings.css` | Styles propres à chaque page, une règle par composant, source et valeurs en commentaire |
 | `shared/ref.js` | Script commun : largeur du cadre, sources, spinners, nuancier |
 | `shared/tokens.css` | Couleurs One Dark en variables CSS (`--element-background`…), générées |
-| `shared/icons.js` | Icônes Zed utilisées par les trois pages, en `currentColor`, générées |
+| `shared/icons.js` | Icônes Zed utilisées par les pages, en `currentColor`, générées |
 | `shared/gen.mjs` | Régénère `tokens.css` et `icons.js` depuis `_upstream/zed` |
 
 Après une modification d'une page qui ajoute une icône : `node reference/zed-ui/shared/gen.mjs`.
@@ -55,7 +65,7 @@ Les polices (IBM Plex Sans pour `.ZedSans`, Lilex pour `.ZedMono`) sont lues dan
 Les tableaux « Correspondances d'unités » de chaque section donnent les valeurs **Zed** (GPUI → px) ; le rendu des pages intègre les écarts ZRA documentés en tête.
 
 - `data-src` sur chaque élément : fonction d'origine. Chemins relatifs à `crates/agent_ui/src` pour le panel (`thread_view.rs` = `conversation_view/thread_view.rs`), `crates/workspace/src` pour la barre (`ui/components/…` = `crates/ui/src/components/…`), `crates/sidebar/src` pour la sidebar (`thread_item.rs` = `crates/ui/src/components/ai/thread_item.rs`, l'archive = `crates/agent_ui/src/threads_archive_view.rs`). Survol = infobulle, bouton « Sources » = encadrés.
-- Boutons de largeur : panel 640 px (défaut Zed) / 400 px — Zed ne change rien sous 640 px, hormis le retour à la ligne des barres en `flex-wrap` ; barre 900 / 400 px — le groupe gauche tronque (`overflow_x_hidden`), le groupe droit ne rétrécit pas (`flex_shrink_0`) ; sidebar 300 px (défaut) / 200 px (minimum).
+- Boutons de largeur : panel 640 px (défaut Zed) / 400 px — Zed ne change rien sous 640 px, hormis le retour à la ligne des barres en `flex-wrap` ; barre 900 / 400 px — le groupe gauche tronque (`overflow_x_hidden`), le groupe droit ne rétrécit pas (`flex_shrink_0`) ; sidebar 300 px (défaut) / 200 px (minimum) ; fenêtre de settings 900 px (défaut) / 626 px (minimum = nav 226 + contenu 400).
 - Les états « survol » sont figés par une classe `.hover` ; le vrai survol fonctionne aussi.
 
 ## Panel agent
@@ -266,3 +276,94 @@ ZRA pilote des agents ACP externes. Différences avec l'agent natif de Zed :
 - **Titre** : « Regenerate Thread Title » et la génération pulsée du titre sont propres à l'agent natif ; un agent externe fournit son titre via le fil.
 - **Ouverture en markdown** : seulement si le fil est live ou natif Zed.
 - **Statuts et diff** : rapportés par le fil live (`agent::Thread`) ; un thread fermé retombe sur les métadonnées seules (titre, horodatage, worktrees, chemins).
+## Fenêtre de settings
+
+- **Réglages** : `ui_font_size` 16, densité par défaut, thème One Dark, raccourcis Windows. Fenêtre autonome « Zed — Settings », 900 × 750 par défaut (`DEFAULT_ADDITIONAL_WINDOW_SIZE`, ratio 6:5), mise à l'échelle par `ui_font_size / 16` ; minimale 626 × 240 (`SIDEBAR_WIDTH` 226 + `CONTENT_MIN_WIDTH` 400).
+- **Périmètre** : la fenêtre complète — barre de titre, nav (recherche, arbre, pied), en-tête de fichiers, titre de page, sections, lignes de réglage, contrôles, types d'items, sous-pages, bandeaux et états. Exclus : le contenu spécifique des sous-pages (fournisseurs LLM, serveurs MCP, agents externes, skills, éditeur de keymap…), dessiné seulement en exemple.
+- **Source** : crate `settings_ui` (`settings_ui.rs` ≈ 8 000 lignes, `page_data.rs` ≈ 11 600, `components/`, `pages/`). La galerie montre la page General et des extraits d'Appearance/AI ; les libellés et descriptions sont ceux de `page_data.rs`.
+
+### Comment la fenêtre est générée
+
+Tout est **déclaratif et piloté par les données** : aucune page n'est codée en dur, elles sont décrites dans `page_data.rs` puis rendues par un moteur générique.
+
+1. **Données** — `page_data.rs::settings_data()` retourne 15 pages (`SettingsPage { title, items }`) : General, Appearance, Keymap, Editor, Languages & Tools, Search & Files, Window & Layout, Panels, Debugger, Terminal, Version Control, Collaboration, AI, Network, Developer. Chaque page est une liste de `SettingsPageItem` :
+   - `SectionHeader(&str)` — en-tête de section (devient aussi une entrée enfant de la nav) ;
+   - `SettingItem { title, description, field, metadata, files }` — un réglage ;
+   - `SubPageLink { title, description, json_path, in_json, files, render }` — ouvre une sous-page via « Configure » ;
+   - `DynamicItem { discriminant, pick_discriminant, fields }` — un réglage discriminant + des sous-champs par variante ;
+   - `ActionLink { title, description, button_text, on_click }` — un bouton d'action.
+2. **Champ** — `SettingField<T> { pick, write, json_path, organization_override }` : `pick` lit la valeur dans `SettingsContent`, `write` l'y écrit, `json_path` identifie le réglage (sert aux liens `zed://settings/…` et à la recherche). Le type `T` détermine le contrôle.
+3. **Rendu du contrôle** — un registre `SettingFieldRenderer` (global, `HashMap<TypeId, renderer>`) associe chaque type à un rendu : `bool` → `Switch`, numériques → `NumberField`, enums `strum` → `EnumVariantDropdown`, `String` → `SettingsInputField`, `FontFamilyName`/`ThemeName`/`IconThemeName` → pickers à popover. Type sans rendu → bouton d'avertissement « NO RENDERER ».
+4. **Lecture/écriture** — les valeurs viennent du `SettingsStore` pour le fichier courant (`User`, `Project`, `Server`) ; toute modification passe par `update_settings_file`, qui édite le `settings.json` correspondant. Un réglage modifié dans le fichier courant affiche un reset (`Undo`) ; s'il vient d'un autre fichier, « — Modified in … ».
+5. **Nav** — `build_navbar` crée une entrée racine par page et une entrée enfant par `SectionHeader`. La sélection suit le défilement du contenu (`update_navbar_entry_from_scroll_position`) et inversement.
+6. **Recherche** — un index (`SearchIndex`) tokenize titres, descriptions, sections, pages et alias ; correspondance exacte puis fuzzy (`fuzzy::match_strings`, score ≥ 0,5). Elle filtre les items de toutes les pages (`filter_table`), déplie la nav et saute à la meilleure correspondance.
+7. **Sous-pages** — « Configure » pousse un `SubPage` sur une pile ; l'en-tête devient retour + fil d'Ariane, le contenu est rendu par `SubPageLink.render`. Retour = dépilage.
+
+### Structure et conditions
+
+- **Fenêtre** : `v_flex` plein écran, fond `background` ; barre de titre (`PlatformTitleBar`, 32 px sous Windows) puis rangée `nav` + `page`, bordure haute 1 px hors macOS. Singleton : ouvrir les settings réutilise la fenêtre existante.
+- **Nav** : 226 px, padding 10 px, fond `panel_background`, bordure droite `border`. Recherche (28 px, fond `editor_background`), arbre `uniform_list` de `TreeViewItem` (28 px), pied (32 px) avec `KeybindingHint` `ToggleFocusNav` + « Focus Navbar »/« Focus Content » selon le focus.
+- **TreeViewItem** : racine = `Disclosure` (chevron down/right) + libellé ; enfant = ligne d'indentation 22 px (filet 1 px `border` 50 %) + libellé. Libellé muted sauf sélectionné. Sélection : fond `element_active` 50 %, bordure `border` 40 % ; survol `element_hover` ; focus `border_focused`.
+- **Page** : padding haut 24 px, gap 16 px, fond `editor_background`. En-tête (px 32, gap 8) : fichiers ou sous-page, puis bandeaux. Contenu : liste virtualisée ; item 0 = titre de page (`Label` Large 16 px, mt 8 / mb 12).
+- **En-tête de fichiers** : « User » toujours visible (`OVERFLOW_LIMIT` 1), puis le fichier courant, puis « +N » (`DropdownMenu` Subtle) pour les autres projets. Boutons `Tinted Accent` si sélectionnés. À droite « Edit in settings.json » (`OutlinedGhost`).
+- **Ligne de réglage** : padding 16 px (bas 40 px si dernière de section), px 32 ; filet `border_variant` entre items, pas après le dernier d'une section. Gauche (max 2/3) : titre + reset + « Modified in », puis description 12 px muted avec code spans. Contrôle à droite. « Copy Link » (`Link` sm) en absolu à gauche (−22 px), visible au survol ; copié → `Check` succès, presse-papiers `zed://settings/<json_path>`.
+- **En-tête de section** : libellé 12 px muted en police buffer (mono), filet `BorderFaded` (`border` 60 %), gap 6 px, px 32.
+- **DynamicItem** : discriminant rendu comme une ligne, puis sous-champs dans des boîtes mx 32 / p 16, bordures pointillées `border_variant` (haut, + bas pour le dernier), fond `element_background` 20 %.
+- **Bandeaux** : erreur de parsing, migration (`MigrationStatus`) ou mode restreint → `Banner` `Warning` (fond `warning_background` 50 %, bordure `warning_border` 40 %, icône `Warning` xs) avec action « Fix in settings.json » / « Manage Trust ».
+- **Surcharge organisation** : si `organization_override` renvoie une valeur, icône `Warning` sm devant le contrôle + infobulle « Overridden by Organization ».
+- **Aucun résultat** : recherche active sans item → « No Results » + « No settings match "…" » centrés.
+
+### Correspondances d'unités
+
+| GPUI | Valeur |
+|---|---|
+| `rems(1)` | 16 px (`ui_font_size`) |
+| `px_1`, `gap_1`, `p_1`… | 4 px (échelle Tailwind : `_0p5` 2, `_1p5` 6, `_2` 8, `_2p5` 10, `_3` 12, `_4` 16, `_6` 24, `_8` 32, `_10` 40) |
+| `SIDEBAR_WIDTH` / `CONTENT_MIN_WIDTH` | 226 / 400 px |
+| `DEFAULT_ADDITIONAL_WINDOW_SIZE` | 900 × 750 px |
+| `h_7` / `h_8` | 28 / 32 px (recherche, pied de nav, champ de saisie) |
+| `TreeViewItem` item_size | 28 px (`rems_from_px(28)`) ; indentation 22 px |
+| `ButtonSize::Medium` | 28 px de haut, padding x 8 px (contrôles) |
+| `Switch` | piste 32 × 20, pouce 12 px ; conteneur 38 × 26 (p 1 + bordure 2) |
+| `NumberField` | milieu min 64 px ; boutons −/+ padding 6 px |
+| `SettingsInputField` | 32 px de haut, min 256 px, rayon 6 px |
+| `LabelSize` Default / Small / Large | 14 / 12 / 16 px |
+| `IconSize` XSmall / Small | 12 / 14 px |
+| `rounded_sm` / `rounded_md` | 4 / 6 px |
+| `platform_title_bar_height` (Windows) | 32 px |
+
+### Ce que la page ne montre pas
+
+#### Comportements
+
+- **Focus** : `ToggleFocusNav` (Ctrl-Shift-E ou ←) bascule entre nav et contenu. Dans la nav, ↑/↓/Tab/Shift-Tab déplacent le focus, →/← déplient/replient, PgPréc/PgSuiv sautent de racine en racine, Début/Fin aux extrêmes. Le contenu est un groupe Tab ; la navigation y est piégée en sous-page.
+- **Recherche** : Ctrl-F focus la recherche ; la frappe filtre en direct (exact + fuzzy), déplie toute la nav et ouvre la meilleure page. La croix « Clear » vide la requête.
+- **Fichiers** : Ctrl-1…0 sélectionnent le fichier par index, Ctrl-PgPréc/PgSuiv le précédent/suivant. Changer de fichier re-filtre les items (`files` mask USER/PROJECT/SERVER) et recharge les valeurs.
+- **Écriture** : chaque contrôle écrit immédiatement dans le `settings.json` du fichier courant (`update_settings_file`) ; pas de bouton « Appliquer ». Le reset retire la clé (ou remet la valeur par défaut si elle est définie ailleurs).
+- **Liens** : `zed://settings/<json_path>` ouvre la fenêtre et saute au réglage (`OpenSettingsAt`) ; les discriminants portent un `$` final, les réglages par langue `languages.$(language)`.
+- **Sous-pages** : pile ; le fil d'Ariane montre portée / page / section / titre. La portée est un dropdown si plusieurs fichiers sont possibles pour toute la pile.
+
+#### Raccourcis (Windows)
+
+| Action | Touches |
+|---|---|
+| Ouvrir les settings | Ctrl-, |
+| Ouvrir le fichier courant (dans la fenêtre) | Ctrl-, |
+| Focus recherche | Ctrl-F |
+| Focus nav / contenu | Ctrl-Shift-E ou ← |
+| Fermer la fenêtre | Échap ou Ctrl-W |
+| Minimiser | Ctrl-M |
+| Sélectionner le fichier N | Ctrl-1…0 |
+| Fichier précédent / suivant | Ctrl-PgPréc / Ctrl-PgSuiv |
+| Naviguer dans la nav | ↑ / ↓ / Tab / Shift-Tab |
+| Déplier / replier la racine | → / ← |
+| Racine précédente / suivante | PgPréc / PgSuiv |
+| Première / dernière entrée | Début / Fin |
+
+#### Variantes non dessinées
+
+- Contenu réel des sous-pages : fournisseurs LLM (`llm_providers_page.rs`), serveurs MCP (`mcp_servers_page.rs`), agents externes (`external_agents_page.rs`), skills et créateur de skills (`skills_setup.rs`, `skill_creator.rs`), permissions d'outils (`tool_permissions_setup.rs`), prédiction d'édition, audio, bac à sable, feature flags.
+- Éditeur de keymap (page Keymap, `ActionLink` vers l'éditeur).
+- Réglages par langue (sous-pages `SubPageType::Language`, globale `ACTIVE_LANGUAGE`).
+- Traffic lights macOS et coins arrondis des décorations client ; boutons de fenêtre dessinés ici pour la complétude.
+- Popovers déployés des pickers (police, thème, thème d'icônes) et menus de scope.

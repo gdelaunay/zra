@@ -1,6 +1,6 @@
 // Génère tokens.css (couleurs One Dark) et icons.js (icônes Zed) depuis _upstream/zed,
-// pour les trois pages de référence (agent-panel.html, bottom-bar.html,
-// threads-sidebar.html). Usage : node reference/zed-ui/shared/gen.mjs
+// pour les pages de référence (agent-panel.html, bottom-bar.html,
+// threads-sidebar.html, settings-window.html). Usage : node reference/zed-ui/shared/gen.mjs
 import { readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url'
 const here = dirname(fileURLToPath(import.meta.url))
 const root = join(here, '..')
 const zed = join(root, '..', '..', '_upstream', 'zed')
-const pages = ['agent-panel.html', 'bottom-bar.html', 'threads-sidebar.html']
+const pages = ['agent-panel.html', 'bottom-bar.html', 'threads-sidebar.html', 'settings-window.html']
 
 // --- Couleurs : style du thème + valeurs dérivées que Zed calcule (theme_settings/src/schema.rs)
 const one = JSON.parse(readFileSync(join(zed, 'assets/themes/one/one.json'), 'utf8'))
