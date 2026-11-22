@@ -154,6 +154,7 @@ function togglesSection() {
     toggle(tr`Toujours déplier les réflexions`, 'alwaysShowThoughts'),
     toggle(tr`Déplier tous les outils`, 'expandTools'),
     notificationsToggle(),
+    toggle(tr`Son de fin de tour`, 'turnEndSound'),
     toggle(tr`Mode mock (daemon simulé)`, 'mock', () => {
       confirmSheet(tr`Recharger ?`, tr`Le mode mock change la source de données : la PWA doit être rechargée.`,
         () => location.reload(), { yes: tr`Recharger` })

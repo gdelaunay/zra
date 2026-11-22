@@ -8,6 +8,7 @@ import { DaemonLink } from './link.js'
 import { Timeline, blocksText, blockText } from './acp.js'
 import { parseMentionLinks, uriName } from './mentions.js'
 import { noteRegistryIcons } from './icons.js'
+import { playTurnEnd } from './sound.js'
 import { settings, originMachine, tokenFor, setToken, withUrl, machineUrl } from './settings.js'
 import { tr } from './i18n.js'
 
@@ -187,9 +188,14 @@ function handle(machine, msg) {
       for (const t of all) {
         const k = key(machine.id, t.threadId)
         const st = ensureState(k)
-        // Fin de tour d'un thread qu'on ne regarde pas : pastille, comme le
-        // sidebar de Zed, jusqu'à ce qu'on l'ouvre.
-        if (st.summary?.turn === 'busy' && t.turn !== 'busy' && !st.subscribed) st.unseen = true
+        if (st.summary?.turn === 'busy' && t.turn !== 'busy') {
+          // « Tu-dum » de Zed à chaque fin de tour, PWA ouverte ; le push
+          // prend le relais quand personne ne regarde ce thread.
+          playTurnEnd()
+          // Pastille si on ne regarde pas ce thread, comme le sidebar de
+          // Zed, jusqu'à ce qu'on l'ouvre.
+          if (!st.subscribed) st.unseen = true
+        }
         st.summary = t
         st.state = t.state
       }

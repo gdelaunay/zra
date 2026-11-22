@@ -215,4 +215,7 @@ du navigateur puis s'abonne auprès du poste (`js/push.js`, clé VAPID de
 clic. Le daemon notifie la fin d'un tour qu'aucun client connecté ne regarde
 en direct. Un navigateur n'a qu'un abonnement push : il suit le poste du
 dernier thread ouvert (`settings.lastThread`), à défaut le premier poste en
-ligne qui annonce une clé.
+ligne qui annonce une clé. Quand la PWA est ouverte, la fin d'un tour joue
+le « tu-dum » de Zed (`js/sound.js`, `sounds/agent_done.wav`), quel que soit
+le poste ; le réglage « Son de fin de tour » l'active ou le coupe (activé par
+défaut).

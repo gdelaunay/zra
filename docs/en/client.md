@@ -215,4 +215,6 @@ permission then subscribes to the machine (`js/push.js`, VAPID key from
 click. The daemon notifies the end of a turn that no connected client is
 watching live. A browser has only one push subscription: it follows the
 machine of the last opened thread (`settings.lastThread`), falling back to
-the first online machine advertising a key.
+the first online machine advertising a key. While the PWA is open, a turn
+ending plays Zed's "tu-dum" (`js/sound.js`, `sounds/agent_done.wav`), on any
+machine; the "Turn-end sound" setting toggles it (on by default).

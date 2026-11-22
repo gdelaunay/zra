@@ -73,6 +73,8 @@ function load() {
     threadFilter: ['all', 'live', 'archived'].includes(s.threadFilter) ? s.threadFilter : 'all',
     /** Notifications push de fin de tour (Web Push) ; faux par défaut. */
     notifications: s.notifications === true,
+    /** « Tu-dum » de fin de tour quand la PWA est ouverte ; vrai par défaut. */
+    turnEndSound: s.turnEndSound !== false,
     mock: s.mock === true,
     lastThread: s.lastThread || null,
     /** Jetons d'appairage, par cible de poste (IP ou adresse). */
@@ -83,10 +85,10 @@ function load() {
 export const settings = load()
 
 function persist() {
-  const { machines, theme, lang, textScale, iconSet, clientId, defaultSendMode, alwaysShowThoughts, expandTools, threadFilter, notifications, mock, lastThread, tokens } = settings
+  const { machines, theme, lang, textScale, iconSet, clientId, defaultSendMode, alwaysShowThoughts, expandTools, threadFilter, notifications, turnEndSound, mock, lastThread, tokens } = settings
   try {
     localStorage.setItem(KEY, JSON.stringify({
-      machines, theme, lang, textScale, iconSet, clientId, defaultSendMode, alwaysShowThoughts, expandTools, threadFilter, notifications, mock, lastThread, tokens,
+      machines, theme, lang, textScale, iconSet, clientId, defaultSendMode, alwaysShowThoughts, expandTools, threadFilter, notifications, turnEndSound, mock, lastThread, tokens,
     }))
   } catch { /* mode privé : on tourne en mémoire */ }
 }
