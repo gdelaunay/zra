@@ -9,7 +9,7 @@ import { button } from '../dom.js'
 import { icon } from '../icons.js'
 import { agentLabel } from '../format.js'
 import * as store from '../store.js'
-import { openMenu, toast, activity } from '../ui.js'
+import { openMenu, toast } from '../ui.js'
 import { tr } from '../i18n.js'
 
 const FALLBACK_AGENTS = [{ id: 'claude-acp', name: 'Claude' }]
@@ -19,16 +19,17 @@ const FALLBACK_AGENTS = [{ id: 'claude-acp', name: 'Claude' }]
  *   machineId: string,
  *   project: () => ({ name:string, folderPaths:string[] } | null),
  *   title?: string,
+ *   navigate: (hash:string) => void,
  * }} opts `project` est lu au clic : le thread courant peut n'être connu de
  *        l'index qu'après le montage du bouton.
  */
-export function newSessionButton({ machineId, project, title = tr`Nouveau thread` }) {
+export function newSessionButton({ machineId, project, title = tr`Nouveau thread`, navigate }) {
   const btn = button('icon-btn icon-btn--sm', {
     title,
     'aria-label': tr`Nouvelle session`,
     onclick: (ev) => {
       ev.stopPropagation()
-      openAgentMenu(ev.currentTarget, { machineId, project: project() })
+      openAgentMenu(ev.currentTarget, { machineId, project: project(), navigate })
     },
   }, icon('plus', 'icon--sm'))
 
@@ -52,14 +53,14 @@ export function newSessionButton({ machineId, project, title = tr`Nouveau thread
 /**
  * Menu des agents d'un poste ; le choix ouvre la session dans le projet.
  * @param {HTMLElement} anchor
- * @param {{ machineId:string, project:{ name:string, folderPaths:string[] } | null }} target
+ * @param {{ machineId:string, project:{ name:string, folderPaths:string[] } | null, navigate:(hash:string)=>void }} target
  */
-export function openAgentMenu(anchor, { machineId, project }) {
+export function openAgentMenu(anchor, { machineId, project, navigate }) {
   const m = store.state.machines.get(machineId)
   if (!m || m.status !== 'online') return toast(tr`Poste hors ligne`, { level: 'warn' })
   // Backend clavier `none` (Wayland natif non patché, xdotool absent…) :
   // la lecture et l'injection marchent, mais Zed ne peut pas être piloté —
-  // le dire tout de suite plutôt que de laisser l'activité tourner 45 s.
+  // le dire tout de suite plutôt que de laisser l'écran de création pulser 45 s.
   if (m.info?.keyboard === 'none') {
     return toast(tr`Ouverture de thread indisponible sur ce poste : aucun backend clavier (installer xdotool, ou lancer Zed via le .desktop patché XWayland). Lecture et réponses marchent toujours.`, { level: 'warn' })
   }
@@ -69,16 +70,11 @@ export function openAgentMenu(anchor, { machineId, project }) {
     label: agent.name,
     agentId: agent.id,
     onSelect: () => {
-      // Zed est piloté au clavier : plusieurs secondes sans rien voir. Le toast
-      // tourne jusqu'au `thread_created` (la PWA y navigue) ou à l'échec.
-      const wait = activity(where ? tr`Zed ouvre une session ${agent.name} dans ${where}…` : tr`Zed ouvre une session ${agent.name}…`)
-      const offs = [
-        store.on('thread_created', (e) => { if (e.machineId === m.id) end() }),
-        store.on('error', (e) => { if (e.machineId === m.id && e.code === 'new_thread_failed') end() }),
-      ]
-      const timer = setTimeout(end, 45_000)
-      function end() { clearTimeout(timer); wait.done(); offs.forEach((off) => off()) }
-      store.newThread(m.id, agent.id, where ? project.folderPaths : undefined)
+      // Navigation immédiate vers l'écran de création (label pulsé de Zed) :
+      // le store envoie `new_thread` et suit la réponse — `thread_created` ouvre
+      // le thread, `new_thread_failed` s'affiche en callout sur cet écran.
+      store.newThread(m.id, agent.id, where ? project.folderPaths : undefined, where)
+      navigate(`#/new/${m.id}`)
     },
   }))
   return openMenu(anchor, { label: where ? tr`Nouveau thread · ${where}` : tr`Nouveau thread`, items })

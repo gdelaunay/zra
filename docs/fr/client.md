@@ -66,6 +66,12 @@ L'écran « normal » est le thread : la navigation entre les deux écrans se fa
 par les deux boutons de la bottom bar (bouton actif = écran courant) ; le
 bouton agent ramène à la dernière discussion ouverte.
 
+Le « + » d'un projet ouvre un écran de création transitoire (`#/new/<poste>`,
+`views/new-thread.js`) : le label pulsé de Zed pendant l'ouverture de la session,
+puis le thread une fois créé (`thread_created`). Un échec (`new_thread_failed`)
+s'y affiche en callout « Échec du lancement » — Réessayer, copier, fermer — comme
+le panneau de Zed (`docs/fr/zed.md`).
+
 Actions d'un thread : au survol sur desktop (comme Zed), à l'appui long sur
 mobile — renommer (éditeur une ligne à la place du titre), stopper la
 génération, supprimer (confirmation). Le titre de la page agent est lui-même

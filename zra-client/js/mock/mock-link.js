@@ -206,10 +206,14 @@ export class MockLink {
           archived: false,
           state: 'live',
         }
-        this.threads.unshift(created)
-        this.pushThreads()
-        this.push({ type: 'thread_created', threadId: created.threadId, agentId: agent.id })
-        this.pushState(created.threadId)
+        // Le pilotage clavier de Zed prend quelques secondes : l'écran de
+        // création (label pulsé) reste visible le temps de la simulation.
+        setTimeout(() => {
+          this.threads.unshift(created)
+          this.pushThreads()
+          this.push({ type: 'thread_created', threadId: created.threadId, agentId: agent.id })
+          this.pushState(created.threadId)
+        }, 1500)
         break
       }
 

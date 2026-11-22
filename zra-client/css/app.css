@@ -242,6 +242,9 @@ button { cursor: pointer; }
   font-size: var(--fs-lg); line-height: var(--lh); background: transparent;
   field-sizing: content;
 }
+.header__title--brand>.icon--lg {
+    margin-bottom: 6px;
+}
 /* Éditer ne change rien à l'apparence (render_title_view) : on édite le texte
  * direct, seul le focus sélectionne tout. Bleu clair d'accent de Zed
  * (player.local_selection, reference/zed-ui/shared/tokens.css). */
@@ -929,6 +932,19 @@ button { cursor: pointer; }
   font: var(--fs-buffer)/var(--lh) var(--font-mono); color: var(--text);
 }
 .completion-aside__body { padding: 0 var(--sp-4); max-height: calc(12 * var(--fs-buffer) * var(--lh)); overflow-y: auto; white-space: pre-wrap; }
+
+/* Écran de création d'un thread — conversation_view.rs, Render for
+   ConversationView : Loading → label centré pulsé (pulsating_between 0.3/0.7,
+   2 s) ; LoadError → callout en bas (justify_end), le label disparaît. */
+.creating { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; background: var(--panel-background); }
+.creating__label {
+  flex: 1 1 auto; display: flex; align-items: center; justify-content: center;
+  padding: var(--sp-4); text-align: center; color: var(--text-muted);
+  animation: creating-pulse 2s ease-in-out infinite;
+}
+.creating__label.hidden { display: none; }
+.creating__callout { flex: none; }
+@keyframes creating-pulse { 0%, 100% { opacity: .3 } 50% { opacity: .7 } }
 
 /* Callout — callout.rs / galerie zed-ui section 11 : filet haut, fond teinté
    par sévérité (info 10 %, warning 20 %, error 8 %), p 8 gap 8, icône et

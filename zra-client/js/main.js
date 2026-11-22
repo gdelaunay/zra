@@ -5,6 +5,7 @@ import { settings, applyTheme, applyTextScale, detectRelayMode, update as update
 import * as store from './store.js'
 import { ThreadsView } from './views/threads.js'
 import { ThreadView } from './views/thread.js'
+import { NewThreadView } from './views/new-thread.js'
 import { DevBar } from './views/devbar.js'
 import { toast, closeAllOverlays } from './ui.js'
 import { syncPush } from './push.js'
@@ -46,7 +47,9 @@ function render() {
 
   const view = route.name === 'thread'
     ? ThreadView({ key: currentKey, navigate })
-    : ThreadsView({ navigate })
+    : route.name === 'new-thread'
+      ? NewThreadView({ machineId: route.machineId, navigate })
+      : ThreadsView({ navigate })
 
   currentView = view
   app.append(view.el)
@@ -64,6 +67,8 @@ function render() {
 function parseRoute(hash) {
   const m = /^#\/t\/([^/]+)\/(.+)$/.exec(hash || '')
   if (m) return { name: 'thread', machineId: decodeURIComponent(m[1]), threadId: decodeURIComponent(m[2]) }
+  const n = /^#\/new\/([^/]+)$/.exec(hash || '')
+  if (n) return { name: 'new-thread', machineId: decodeURIComponent(n[1]) }
   return { name: 'threads' }
 }
 
@@ -84,16 +89,21 @@ async function boot() {
 
   store.on('error', (err) => {
     // Erreur d'agent détaillée : le callout du thread la rend, pas un toast.
-    if (err.details) return
+    // Échec de création routé vers l'écran de création (`handled`) : de même.
+    if (err.details || err.handled) return
     toast(err.message || err.code || tr`Erreur daemon.`, { level: 'error' })
   })
 
   // Un poste passe en ligne : (ré)abonnement push si l'utilisateur l'a activé.
   store.on('machines', () => { syncPush() })
 
-  // Nouvelle session créée dans Zed : on l'ouvre tout de suite.
-  store.on('thread_created', ({ machineId, threadId }) => {
-    navigate(`#/t/${machineId}/${threadId}`)
+  // Nouvelle session créée dans Zed : on l'ouvre si on est sur son écran de
+  // création ; sinon seulement si aucune création n'était suivie (recharge
+  // pendant la création) — pas de focus volé si l'utilisateur est parti ailleurs.
+  store.on('thread_created', ({ machineId, threadId, pending }) => {
+    const route = parseRoute(location.hash)
+    const onCreating = route.name === 'new-thread' && route.machineId === machineId
+    if (onCreating || !pending) navigate(`#/t/${machineId}/${threadId}`)
   })
 
   window.addEventListener('hashchange', render)

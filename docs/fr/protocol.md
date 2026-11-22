@@ -565,7 +565,11 @@ pour ne pas afficher la conversation deux fois.
 { type: 'thread_created', threadId: string, agentId?: string }
 ```
 Réponse à `new_thread`. À envoyer **après** le `threads` qui contient le nouveau
-thread, sinon la PWA ouvre un écran sans titre. Elle navigue dessus aussitôt.
+thread, sinon la PWA ouvre un écran sans titre. La PWA affiche d'abord un écran
+de création (`#/new/<poste>`, label pulsé de Zed) dès l'envoi de `new_thread` :
+`thread_created` remplace cet écran par le thread. Hors de cet écran, elle ne
+navigue que si aucune création n'était suivie (recharge pendant la création) —
+pas de focus volé si l'utilisateur est parti ailleurs.
 
 ### `project_created`
 ```ts
@@ -607,8 +611,10 @@ messages ne font que confirmer.
 ```ts
 { type: 'error', code: string, message: string, threadId?: string }
 ```
-`message` est affiché tel quel dans un toast — le rédiger pour un humain, dans
-la langue du poste (français ou anglais). Codes attendus par la PWA (les autres passent aussi) :
+`message` est affiché tel quel — le rédiger pour un humain, dans la langue du
+poste (français ou anglais). Le plus souvent en toast ; certains codes ont leur
+propre encart (callout de l'écran de création, feuille « nouveau projet »…). Codes
+attendus par la PWA (les autres passent aussi) :
 
 | `code` | sens | effet côté PWA |
 |---|---|---|
@@ -620,7 +626,7 @@ la langue du poste (français ou anglais). Codes attendus par la PWA (les autres
 | `inject_failed` | l'agent a refusé le prompt (§12.1) | toast, le message reste affiché |
 | `permission_expired` | demande déjà tranchée | toast, encart verrouillé |
 | `elicitation_expired` | question déjà répondue ou retirée | toast, la carte quitte le fil |
-| `new_thread_failed` | Zed n'a pas ouvert de session | toast |
+| `new_thread_failed` | Zed n'a pas ouvert de session | callout « Échec du lancement » sur l'écran de création (`#/new/<poste>`) : Réessayer, copier, fermer |
 | `new_project_failed` | dossier de projet non créé ou non ouvert | message affiché dans la feuille « nouveau projet » |
 | `not_zra_thread` | thread fermé d'un agent sans entrée ZRA : Zed le rouvrirait sans shim | toast, lecture seule |
 | `capability_missing` | l'agent ne supporte pas la méthode ACP demandée (`session/set_title`, `session/delete`) | toast ; le bouton est masqué quand la capacité est connue |

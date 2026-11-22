@@ -184,6 +184,7 @@ export function ThreadView({ key, navigate }) {
         newSessionButton({
           machineId: store.splitKey(key).machineId,
           project: () => (st.summary ? projectOf(st.summary.folderPaths) : null),
+          navigate,
         }),
         button('icon-btn icon-btn--sm', { title: tr`Recharger l’historique`, onclick: () => { st.historyComplete = false; store.loadHistory(key) } }, icon('refresh', 'icon--sm')),
         button('icon-btn icon-btn--sm', { title: tr`Réglages`, onclick: () => openSettings() }, icon('settings', 'icon--sm')),

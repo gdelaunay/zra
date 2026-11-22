@@ -564,7 +564,11 @@ so as not to show the conversation twice.
 { type: 'thread_created', threadId: string, agentId?: string }
 ```
 Answer to `new_thread`. To send **after** the `threads` that contains the new
-thread, otherwise the PWA opens an untitled screen. It navigates to it right away.
+thread, otherwise the PWA opens an untitled screen. The PWA first shows a
+creation screen (`#/new/<machine>`, Zed's pulsing label) as soon as `new_thread`
+is sent: `thread_created` replaces that screen with the thread. Off that screen,
+it only navigates if no creation was being tracked (reload during creation) —
+no stolen focus if the user went elsewhere.
 
 ### `project_created`
 ```ts
@@ -606,8 +610,10 @@ these messages only confirm.
 ```ts
 { type: 'error', code: string, message: string, threadId?: string }
 ```
-`message` is shown as is in a toast — write it for a human, in
-the machine's language (French or English). Codes expected by the PWA (others get through too):
+`message` is shown as is — write it for a human, in the machine's language
+(French or English). Most often as a toast; some codes have their own panel
+(creation screen callout, “new project” sheet…). Codes expected by the PWA
+(others get through too):
 
 | `code` | meaning | effect on the PWA |
 |---|---|---|
@@ -619,7 +625,7 @@ the machine's language (French or English). Codes expected by the PWA (others ge
 | `inject_failed` | the agent refused the prompt (§12.1) | toast, the message stays displayed |
 | `permission_expired` | request already settled | toast, card locked |
 | `elicitation_expired` | question already answered or withdrawn | toast, the card leaves the thread |
-| `new_thread_failed` | Zed did not open a session | toast |
+| `new_thread_failed` | Zed did not open a session | “Failed to Launch” callout on the creation screen (`#/new/<machine>`): Retry, copy, close |
 | `new_project_failed` | project folder not created or not opened | message shown in the "new project" sheet |
 | `not_zra_thread` | closed thread of an agent without a ZRA entry: Zed would reopen it without a shim | toast, read-only |
 | `capability_missing` | the agent does not support the requested ACP method (`session/set_title`, `session/delete`) | toast; the button is hidden when the capability is known |

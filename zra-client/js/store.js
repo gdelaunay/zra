@@ -25,6 +25,8 @@ export const state = {
   threadStates: new Map(),
   /** @type {Map<string, Timeline>} */
   timelines: new Map(),
+  /** @type {Map<string, object>} créations de thread en cours, par poste (écran `#/new/<poste>`). */
+  creations: new Map(),
   mock: false,
 }
 
@@ -91,6 +93,7 @@ export function dropMachine(id) {
   if (!m) return
   m.link.close()
   state.machines.delete(id)
+  clearCreation(id)
   for (const k of [...state.threadStates.keys()]) if (k.startsWith(`${id}/`)) state.threadStates.delete(k)
   for (const k of [...state.timelines.keys()]) if (k.startsWith(`${id}/`)) state.timelines.delete(k)
   emit('machines')
@@ -277,7 +280,12 @@ function handle(machine, msg) {
       st.state = 'live'
       // L'historique d'un thread tout neuf est vide : inutile d'aller le chercher.
       st.historyComplete = true
-      emit('thread_created', { key: k, machineId: machine.id, threadId: msg.threadId, agentId: msg.agentId })
+      // `pending` : la PWA suivait-elle cette création (écran de création) ? La
+      // navigation ne se fait que là — ou en fallback si rien n'était suivi
+      // (recharge pendant la création), pour ne pas voler le focus sinon.
+      const pending = state.creations.has(machine.id)
+      clearCreation(machine.id)
+      emit('thread_created', { key: k, machineId: machine.id, threadId: msg.threadId, agentId: msg.agentId, pending })
       break
     }
 
@@ -299,6 +307,16 @@ function handle(machine, msg) {
     }
 
     case 'error': {
+      // Échec de création (sans threadId) : callout de l'écran de création du
+      // poste, pas un toast — comme Zed (`render_load_error`).
+      if (!msg.threadId && msg.code === 'new_thread_failed' && state.creations.has(machine.id)) {
+        const c = state.creations.get(machine.id)
+        clearTimeout(c.timer)
+        c.error = msg.message
+        emit(`creating:${machine.id}`, c)
+        emit('error', { ...msg, machineId: machine.id, machineLabel: machine.label, handled: true })
+        break
+      }
       const k = msg.threadId ? key(machine.id, msg.threadId) : null
       // Question déjà répondue ailleurs ou retirée : celle qu'on venait de
       // répondre quitte le fil.
@@ -737,13 +755,56 @@ export function deleteThread(k) {
 
 /**
  * Ouvre une nouvelle session d'agent sur un poste, dans un projet — les dossiers
- * d'un thread existant. Le daemon répond `thread_created` : la navigation se
- * fait à ce moment-là, pas avant.
+ * d'un thread existant. La PWA navigue aussitôt vers l'écran de création
+ * (`#/new/<poste>`) : le label pulsé de Zed y attend `thread_created`, ou un
+ * callout d'échec (`new_thread_failed`). Le daemon répond `threads` puis
+ * `thread_created` (protocole §new_thread).
  */
-export function newThread(machineId, agentId, folderPaths) {
+export function newThread(machineId, agentId, folderPaths, projectName) {
   const m = state.machines.get(machineId)
   if (!m) return
-  m.link.send(folderPaths?.length ? { type: 'new_thread', agentId, folderPaths } : { type: 'new_thread', agentId })
+  const paths = folderPaths?.length ? folderPaths : undefined
+  startCreation(machineId, { agentId, folderPaths: paths, projectName: paths ? projectName : null })
+  m.link.send(paths ? { type: 'new_thread', agentId, folderPaths: paths } : { type: 'new_thread', agentId })
+}
+
+/** Création en cours d'un poste (écran `#/new/<poste>`), ou `null`. */
+export function pendingCreation(machineId) { return state.creations.get(machineId) ?? null }
+
+/** Réessaie la création après un échec : mêmes agent et projet. */
+export function retryCreation(machineId) {
+  const c = state.creations.get(machineId)
+  const m = state.machines.get(machineId)
+  if (!c || !m) return
+  const { agentId, folderPaths, projectName } = c
+  startCreation(machineId, { agentId, folderPaths, projectName })
+  m.link.send(folderPaths ? { type: 'new_thread', agentId, folderPaths } : { type: 'new_thread', agentId })
+}
+
+/** Ferme l'écran de création (callout fermé) : abandonne le suivi. */
+export function dismissCreation(machineId) {
+  clearCreation(machineId)
+  emit(`creating:${machineId}`, null)
+}
+
+function startCreation(machineId, { agentId, folderPaths, projectName }) {
+  clearCreation(machineId)
+  const c = { agentId, folderPaths, projectName, error: null, timer: null }
+  // Filet : le daemon abandonne à 30 s ; si la réponse se perd (lien mort),
+  // l'écran de création ne pulse pas indéfiniment.
+  c.timer = setTimeout(() => {
+    if (state.creations.get(machineId) !== c || c.error) return
+    c.error = tr`Délai dépassé : aucune réponse de Zed.`
+    emit(`creating:${machineId}`, c)
+  }, 45_000)
+  state.creations.set(machineId, c)
+  emit(`creating:${machineId}`, c)
+}
+
+function clearCreation(machineId) {
+  const c = state.creations.get(machineId)
+  if (c) clearTimeout(c.timer)
+  state.creations.delete(machineId)
 }
 
 /**

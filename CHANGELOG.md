@@ -2,6 +2,12 @@
 
 [English](https://forgejo.gdelaunay.fr/gdelaunay/zra/src/branch/main/CHANGELOG.en.md)
 
+## En cours
+
+- Création de thread : le « + » navigue directement vers l'écran de création de Zed (`#/new/<poste>`, `views/new-thread.js`) — label centré muted pulsé (opacité 0,3 ↔ 0,7, 2 s) pendant l'ouverture de la session, plus de toast d'attente ; `thread_created` remplace l'écran par le thread
+- Échec de création (`new_thread_failed`) en callout « Échec du lancement » sur cet écran (Réessayer relance `new_thread`, copier, fermer = retour liste), comme le `render_load_error` de Zed ; filet 45 s côté PWA (daemon : 30 s) ; navigation vers le thread seulement sur l'écran de création, ou si aucune création n'était suivie (recharge pendant la création) — pas de focus volé si l'utilisateur est parti ailleurs
+- Doc : `zed.md` (écran de création, `conversation_view.rs` `ServerState::Loading`/`LoadError`), `protocol.md` (`new_thread_failed`, `thread_created`), `client.md` — bilingue
+
 ## v0.5.4 — 2026-11-21 — Relais HTTPS (`5d9583e`)
 
 - `zra-relay/` : package Node optionnel, sans build — sert la PWA et relaie `wss://<hôte>/to/<ip>/ws` → `ws://<ip>:7777/ws`, pipe transparent octet par octet (appairage, ping/pong, fermetures de bout en bout) ; IPv4 privées uniquement (RFC 1918 + CGNAT), publique/hostname/loopback/link-local refusées ; requête vers le poste sans `Origin` → rien à configurer sur les postes

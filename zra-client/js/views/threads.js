@@ -156,7 +156,7 @@ export function ThreadsView({ navigate }) {
         const open = Boolean(query) || expandedProjects.has(collapseKey(m, group.project))
         const projectSection = h('div.project')
         parent.append(projectSection)
-        projectSection.append(projectHead(m, group.project, open, () => { toggleProject(m, group.project); paint() }, group.state ?? projectState(group.threads), group.threads))
+        projectSection.append(projectHead(m, group.project, open, () => { toggleProject(m, group.project); paint() }, group.state ?? projectState(group.threads), group.threads, navigate))
         if (!open) return
         for (const t of group.threads) projectSection.append(threadRow(m, t, navigate))
         if (!group.threads.length) projectSection.append(h('div.project__empty', { text: tr`Aucun thread` }))
@@ -323,7 +323,7 @@ function projectIcon(state) {
 }
 
 /** Ligne de titre d'un projet : toute la ligne replie/déplie (comme Zed), « + » à droite. */
-function projectHead(m, project, open, onToggle, state = null, threads = []) {
+function projectHead(m, project, open, onToggle, state = null, threads = [], navigate) {
   // Comme la ligne de projet du sidebar de Zed : threads en cours ou en attente.
   const waiting = threads.filter((t) => t.waiting).length
   const busy = threads.filter((t) => !t.waiting && t.turn === 'busy').length
@@ -340,7 +340,7 @@ function projectHead(m, project, open, onToggle, state = null, threads = []) {
       busy ? h('span.project__activity', { title: tr`En cours`, text: `${busy}` }) : null,
     ),
     project.folderPaths.length
-      ? newSessionButton({ machineId: m.id, project: () => project, title: tr`Nouveau thread dans ${project.name}` })
+      ? newSessionButton({ machineId: m.id, project: () => project, title: tr`Nouveau thread dans ${project.name}`, navigate })
       : null,
   )
 }

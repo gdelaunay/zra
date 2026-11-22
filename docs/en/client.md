@@ -66,6 +66,12 @@ The "normal" screen is the thread: navigation between the two screens goes
 through the two bottom bar buttons (active button = current screen); the
 agent button returns to the last opened discussion.
 
+A project's “+” opens a transient creation screen (`#/new/<machine>`,
+`views/new-thread.js`): Zed's pulsing label while the session opens, then the
+thread once created (`thread_created`). A failure (`new_thread_failed`) shows
+there as a “Failed to Launch” callout — Retry, copy, close — like Zed's panel
+(`docs/en/zed.md`).
+
 Thread actions: on hover on desktop (like Zed), on long press on mobile —
 rename (single-line editor in place of the title), stop generation, delete
 (confirmation). The agent page title is itself an editable input. Rename and
