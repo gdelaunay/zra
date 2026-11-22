@@ -112,10 +112,16 @@ HTTP éphémère dans le binaire, coupé une fois le setup fini. Pas de webview
    appairage local implicite, soit un `GET /status` loopback-only. Le daemon
    a déjà tout (état, code d'appairage), le tray ne fait qu'afficher.
 4. **Distribution binaire** : le seul vrai morceau neuf. CI sur **les deux
-   forges** : Forgejo (source, worker sur l'instance) et GitHub (miroir) —
-   même workflow matrice (`x86_64-pc-windows-msvc`,
+   forges** : Forgejo (source) et GitHub (miroir) — **un seul workflow**
+   (`.github/workflows/release.yml`) : GitHub le lit nativement, Forgejo en
+   repli (il ne lit que le premier dossier trouvé — pas de
+   `.forgejo/workflows`). Runners Forgejo self-hostés : Linux sur le poste
+   Debian/KDE (p350), Windows sur le poste Windows (Dell) — labels
+   `ubuntu-latest`/`windows-latest` (routage, pas l'OS) ; GitHub hébergés.
+   Même workflow matrice (`x86_64-pc-windows-msvc`,
    `x86_64-unknown-linux-gnu`, puis `aarch64`), binaires attachés aux
-   releases des deux côtés. Le téléchargement est **optionnel** : `npm run
+   releases des deux côtés (`scripts/ci-release-asset.mjs` : API de la forge
+   courante, détectée par `github.server_url`, idempotent). Le téléchargement est **optionnel** : `npm run
    setup` pose la question (oui/non/jamais, formulation technique — ce que
    le binaire apporte : supervision, icône tray, deux modes) ; « jamais »
    est mémorisé dans `.zra/` et la question n'est plus posée ensuite. Le
@@ -202,7 +208,11 @@ HTTP éphémère dans le binaire, coupé une fois le setup fini. Pas de webview
    + homelab headless — rapports `reference/`, fiches `tests-tray-*.md`.
    Icône : hôte SNI requis sous Wayland, repli XEmbed en X11
    (`docs/fr/limitations.md`) ;
-3. CI releases + téléchargement au `setup` ;
+3. **Codé** — CI releases (tag `v*`, gate tag == version `Cargo.toml` +
+   `npm test`, matrice win/linux x64, rustup sans action tierce) +
+   téléchargement optionnel au `setup` (oui/non/jamais, repli de forge).
+   À tester : runners Forgejo à enregistrer (Linux p350 + Windows Dell),
+   premier tag `v0.6.0` ;
 4. Sucre : icône qui change d'état (thread live / réponse en attente) — les
    événements existent déjà dans le daemon ;
 5. Option C : l'archive « app » par plateforme, relay compris (une version

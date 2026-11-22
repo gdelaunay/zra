@@ -44,6 +44,7 @@ import { assertParsable, removeAgentServer, removeAgentServerEnv, upsertAgentSer
 import { assignKeys, readZraKeys, removeZraKeymap, upsertZraKeymap } from '../zra-daemon/zed-keymap.js'
 import { npmSafeArgs } from './lib/args.mjs'
 import { daemonStatus } from './lib/daemon-status.mjs'
+import { offerTrayDownload } from './lib/tray-download.mjs'
 import { isWayland, findZedDesktop, patchDesktopForXWayland, unpatchDesktop } from './lib/wayland.mjs'
 import { tr } from '../zra-daemon/i18n.js'
 
@@ -576,7 +577,13 @@ async function main() {
   if (opts.command === 'xwayland') return xwayland(opts)
   const config = await loadConfig()
   if (opts.command === 'status') return status(opts, config)
-  if (opts.command === 'install') return install(opts, config)
+  if (opts.command === 'install') {
+    await install(opts, config)
+    // Binaire tray optionnel : la question n'est posée qu'après une
+    // installation appliquée (oui/non/jamais, « jamais » mémorisé).
+    if (opts.apply) await offerTrayDownload(ROOT)
+    return
+  }
   if (opts.command === 'uninstall') return uninstall(opts, config)
 }
 

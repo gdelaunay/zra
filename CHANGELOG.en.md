@@ -4,6 +4,9 @@
 
 ## In progress
 
+- Dual-forge CI/releases: single workflow `.github/workflows/release.yml` (tag `v*`, gate tag == `Cargo.toml` version + `npm test`, win/linux x64 matrix, rustup installed without third-party action), `zra-tray-<target>` binaries attached to the release on both forges (`scripts/ci-release-asset.mjs`: Forgejo/GitHub API detected via `github.server_url`, release created if absent, asset replaced on re-run); GitHub reads `.github/workflows` natively, Forgejo as fallback (official docs — no `.forgejo/` directory); self-hosted Forgejo runners: Linux Debian/KDE (p350) + Windows (Dell)
+- `npm run setup -- install --apply` offers the prebuilt tray binary: yes/no/never (technical wording), "never" persisted in `.zra/setup.json`, silent outside an interactive terminal or when the binary is already present; download from Forgejo then GitHub as fallback into `.zra/bin/`, failure non-fatal (`scripts/lib/tray-download.mjs`, stubbed-network tests)
+
 - Tray fix: the supervised daemon logs like with the service backends — `--log` passed at spawn (dated local time, rotation by `log.js`), stdout no longer copied (it mixed the UTC console format into the local file format in `daemon.log`), only stderr captured in `daemon.err.log`; the relay, without `--log`, is still captured whole in `relay.log` (MX report §2)
 - Tray: "Copy URL" menu item — manual fallback when the browser does not open (`xdg-open` returns 0 even when the browser is broken); `open::that` failure logged with the URL (onboarding and "Open ZRA") (MX report §4)
 - `npm run service` (Linux without systemd): the announced pid is identified as the tray's when it supervises — `start` and `status` no longer suggest it is node's pid (MX report §5)

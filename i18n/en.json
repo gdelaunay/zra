@@ -1,4 +1,12 @@
 {
+  "Pas de binaire prébuild pour {0}/{1} — build local : cargo build dans zra-tray/.": "No prebuilt binary for {0}/{1} — local build: cargo build in zra-tray/.",
+  "✓ tray {0} téléchargé depuis {1} : {2}": "✓ tray {0} downloaded from {1}: {2}",
+  "Tray : ✓ déjà présent ({0}).": "Tray: ✓ already present ({0}).",
+  "Tray : pas de binaire prébuild pour {0}/{1} — build local : cargo build dans zra-tray/.": "Tray: no prebuilt binary for {0}/{1} — local build: cargo build in zra-tray/.",
+  "\nLe binaire zra-tray prébuild (Rust, ~5 Mo) ajoute : supervision du daemon/relais\n(restart si crash, journaux capturés), icône tray + menu natif, deux modes\nposte/relais basculables, autostart. Facultatif — le flux manuel (npm run\ndaemon, npm run service) est inchangé, et le tray se build aussi localement\n(cargo build dans zra-tray/).\nTélécharger le binaire tray ? [oui/non/jamais] ": "\nThe prebuilt zra-tray binary (Rust, ~5 MB) adds: daemon/relay supervision\n(restart on crash, captured logs), tray icon + native menu, switchable\nmachine/relay modes, autostart. Optional — the manual flow (npm run\ndaemon, npm run service) is unchanged, and the tray can also be built\nlocally (cargo build in zra-tray/).\nDownload the tray binary? [yes/no/never] ",
+  "Noté : la question ne sera plus posée (.zra/setup.json).": "Noted: the question will no longer be asked (.zra/setup.json).",
+  "Tray : non téléchargé. Rebuild local possible : cargo build dans zra-tray/.": "Tray: not downloaded. Local build possible: cargo build in zra-tray/.",
+  "✗ Téléchargement impossible ({0}). Le setup est terminé sans le tray ; réessayer plus tard ou cargo build dans zra-tray/.": "✗ Download failed ({0}). Setup completed without the tray; retry later or cargo build in zra-tray/.",
   "Entrée « {0} » : ✗ absente — `npm run service -- install` pour voir ce qui serait créé.": "Entry \"{0}\": ✗ missing — `npm run service -- install` to see what would be created.",
   "Entrée « {0} » : ✓ installée ({1}).": "Entry \"{0}\": ✓ installed ({1}).",
   "  Lanceur : {0}": "  Launcher: {0}",

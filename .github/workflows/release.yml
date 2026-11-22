@@ -1,0 +1,92 @@
+name: Release
+
+# Binaires zra-tray attachés à la release du tag, sur LES DEUX forges :
+# ce fichier vit dans .github/workflows — GitHub le lit nativement, Forgejo
+# le lit en repli (pas de dossier .forgejo/workflows : Forgejo ne lit que le
+# premier dossier trouvé). Le tag arrive sur GitHub via le push mirror.
+#
+# Runners :
+#   GitHub  : hébergés (ubuntu-latest, windows-latest).
+#   Forgejo : self-hostés — Linux sur le poste Debian/KDE (p350), Windows sur
+#             le poste Windows (Dell), labels ubuntu-latest / windows-latest.
+#             Le label est un nom de routage, pas l'OS.
+#
+# Pas d'action tierce (toolchain Rust) : rustup est préinstallé sur les
+# runners GitHub et self-hostés, installé à la volée sinon (conteneur docker
+# nu) — évite la dépendance au proxy d'actions de l'instance.
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Gate — tag == version de zra-tray/Cargo.toml
+        run: |
+          ver="${GITHUB_REF_NAME#v}"
+          cargo_ver=$(sed -n 's/^version = "\(.*\)"/\1/p' zra-tray/Cargo.toml | head -1)
+          if [ "$ver" != "$cargo_ver" ]; then
+            echo "::error::tag $GITHUB_REF_NAME ≠ zra-tray/Cargo.toml ($cargo_ver) — bumper la version avant de tagger."
+            exit 1
+          fi
+      - name: Gate — tests
+        run: npm test
+
+  build:
+    needs: gate
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Dépendances de build (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          if pkg-config --exists gtk+-3.0 dbus-1 openssl; then
+            echo "Déjà présentes (poste de test tray)."
+          else
+            SUDO=""; [ "$(id -u)" = 0 ] || SUDO="sudo -n"
+            $SUDO apt-get update
+            DEBIAN_FRONTEND=noninteractive $SUDO apt-get install -y \
+              pkg-config libgtk-3-dev libssl-dev libdbus-1-dev
+          fi
+
+      - name: Toolchain Rust
+        shell: bash
+        run: |
+          if ! command -v rustup >/dev/null 2>&1; then
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain stable
+            echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+          fi
+          rustup target add ${{ matrix.target }}
+
+      - name: Build
+        shell: bash
+        run: cargo build --release --manifest-path zra-tray/Cargo.toml --target ${{ matrix.target }}
+
+      - name: Attacher à la release
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/ci-release-asset.mjs --target ${{ matrix.target }}
