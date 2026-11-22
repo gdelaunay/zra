@@ -55,7 +55,10 @@ function render() {
   currentDev = DevBar({ currentKey: () => currentKey })
   app.append(currentDev.el)
 
-  if (route.name === 'thread') updateSettings({ lastThread: currentKey })
+  if (route.name === 'thread') {
+    updateSettings({ lastThread: currentKey })
+    syncPush() // le push suit le poste du thread ouvert
+  }
 }
 
 function parseRoute(hash) {

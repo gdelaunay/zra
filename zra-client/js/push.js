@@ -1,9 +1,10 @@
 // Abonnement Web Push : `sw.js` gère déjà `push` et `notificationclick`.
 //
 // Un navigateur n'a qu'un abonnement push par service worker, lié à une clé
-// VAPID : on s'abonne au premier poste en ligne qui en annonce une (le poste
-// d'origine, servi par le daemon, vient en premier). Changer de poste cible
-// réabonne. `settings.notifications` porte le choix de l'utilisateur.
+// VAPID : il suit le poste du dernier thread ouvert (`settings.lastThread`),
+// celui sur lequel on travaille ; à défaut, le premier poste en ligne qui
+// annonce une clé. Changer de poste cible réabonne. `settings.notifications`
+// porte le choix de l'utilisateur.
 
 import { settings, update } from './settings.js'
 import * as store from './store.js'
@@ -50,13 +51,16 @@ export async function disablePush() {
 let syncing = false
 
 /**
- * (Ré)abonnement au poste cible. Appelé à l'activation et quand un poste
- * passe en ligne ; muet tant que l'utilisateur n'a pas activé les
- * notifications ou que le navigateur ne les a pas accordées.
+ * (Ré)abonnement au poste cible. Appelé à l'activation, quand un poste passe
+ * en ligne et à l'ouverture d'un thread ; muet tant que l'utilisateur n'a pas
+ * activé les notifications ou que le navigateur ne les a pas accordées.
  */
 export async function syncPush() {
   if (syncing || !settings.notifications || !pushSupported() || Notification.permission !== 'granted') return
-  const machine = [...store.state.machines.values()].find((m) => m.status === 'online' && m.info?.pushKey)
+  const online = [...store.state.machines.values()].filter((m) => m.status === 'online' && m.info?.pushKey)
+  // Le poste du dernier thread ouvert prime ; sinon le premier en ligne.
+  const activeId = settings.lastThread && store.splitKey(settings.lastThread).machineId
+  const machine = online.find((m) => m.id === activeId) || online[0]
   if (!machine) return
   syncing = true
   try {

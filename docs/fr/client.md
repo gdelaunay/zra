@@ -213,5 +213,6 @@ d'appairage suivent la cible : même poste, même jeton entre les modes.
 du navigateur puis s'abonne auprès du poste (`js/push.js`, clé VAPID de
 `machine.pushKey`) ; `sw.js` affiche la notification et ouvre le thread au
 clic. Le daemon notifie la fin d'un tour qu'aucun client connecté ne regarde
-en direct. Un navigateur n'a qu'un abonnement push : il va au premier poste
-en ligne qui annonce une clé.
+en direct. Un navigateur n'a qu'un abonnement push : il suit le poste du
+dernier thread ouvert (`settings.lastThread`), à défaut le premier poste en
+ligne qui annonce une clé.

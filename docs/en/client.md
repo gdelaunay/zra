@@ -213,5 +213,6 @@ tokens follow the target: same machine, same token across modes.
 permission then subscribes to the machine (`js/push.js`, VAPID key from
 `machine.pushKey`); `sw.js` shows the notification and opens the thread on
 click. The daemon notifies the end of a turn that no connected client is
-watching live. A browser has only one push subscription: it goes to the first
-online machine advertising a key.
+watching live. A browser has only one push subscription: it follows the
+machine of the last opened thread (`settings.lastThread`), falling back to
+the first online machine advertising a key.
