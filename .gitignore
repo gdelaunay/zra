@@ -34,5 +34,8 @@ zra-daemon/test/fixtures/registry-linux/
 # sources de Zed, en lecture seule (référence pour l'UI et le comportement)
 /_upstream/
 
+# build Rust du tray (binaire distribué prébuild, Cargo.lock committé)
+zra-tray/target/
+
 # notes privées de debug, non versionnées
 /_private/

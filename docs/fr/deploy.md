@@ -351,10 +351,18 @@ npm run service -- stop | uninstall --apply
 Le daemon y est relancé s'il s'arrête sur une erreur. Un daemon de dev déjà
 lancé tient le port : la tâche réessaie jusqu'à ce qu'il s'arrête.
 
-**Politique PowerShell** — le script clavier et la tâche planifiée lancent
-PowerShell avec `-ExecutionPolicy Bypass` : choix assumé pour que le pilotage
-marche quel que soit le poste. Le contournement ne vaut que pour le processus
-lancé ; la politique de la machine (et de l'utilisateur) n'est pas modifiée.
+**Avec le tray** : si le binaire `zra-tray` est présent (`.zra/bin/`, ou
+`zra-tray/target/` release ou debug), la tâche le lance directement — il
+supervise le daemon (relance sur crash, journal, instance unique) et affiche
+l'icône de notification. Sans binaire, repli sur le lanceur PowerShell
+`scripts/daemon-task.ps1`. Le tray se développe avec `npm run tray` (Rust,
+conception : `reference/conception-zra-tray.md`).
+
+**Politique PowerShell** — le script clavier et le lanceur PowerShell de
+repli lancent PowerShell avec `-ExecutionPolicy Bypass` : choix assumé pour
+que le pilotage marche quel que soit le poste. Le contournement ne vaut que
+pour le processus lancé ; la politique de la machine (et de l'utilisateur)
+n'est pas modifiée.
 
 ---
 

@@ -1,0 +1,562 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ZRA — Configuration</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<style>
+  /* Fenêtre de settings de Zed (reference/zed-ui/settings-window.html), sans
+     nav : sections + lignes srow + filets. Thème Gruvbox Dark (tokens de
+     zra-client/css/themes.css). Icônes : paths de reference/zed-ui/shared/icons.js. */
+  :root {
+    color-scheme: light dark;
+    --background: #4c4642;
+    --editor-background: #282828;
+    --surface: #3a3735;
+    --title-bar: #4c4642;
+    --element: #3a3735;
+    --element-hover: #494340;
+    --element-active: #5b524c;
+    --border: #5b534d;
+    --border-variant: #494340;
+    --text: #fbf1c7;
+    --text-muted: #c5b597;
+    --text-placeholder: #998b78;
+    --accent: #b7bb26;
+    --error: #fb4a35;
+    --error-background: #590a0f;
+    --error-border: #771617;
+    --success: #b7bb26;
+    --success-background: #322b11;
+    --success-border: #4a4516;
+    --font-ui: "IBM Plex Sans", ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+    --font-mono: "Lilex", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  }
+  /* Thème clair : tokens Gruvbox Light (zra-client/css/themes.css), l'accent
+     reste le vert ZRA (success du thème). */
+  @media (prefers-color-scheme: light) {
+    :root {
+      --background: #d9c8a4;
+      --editor-background: #fbf1c7;
+      --surface: #ecddb4;
+      --title-bar: #d9c8a4;
+      --element: #ecddb4;
+      --element-hover: #ddcca7;
+      --element-active: #c8b899;
+      --border: #c8b899;
+      --border-variant: #ddcca7;
+      --text: #282828;
+      --text-muted: #5f5650;
+      --text-placeholder: #897b6e;
+      --accent: #797410;
+      --error: #9d0308;
+      --error-background: #f4d1c9;
+      --error-border: #e8ac9e;
+      --success: #797410;
+      --success-background: #e4e0cd;
+      --success-border: #d1cba8;
+    }
+    select {
+      background-image: url('data:image/svg+xml;utf8,<svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><path d="M4.66675 10L8.00008 13.3333L11.3334 10" stroke="%235f5650" stroke-width="1.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M4.66675 6.00002L8.00008 2.66669L11.3334 6.00002" stroke="%235f5650" stroke-width="1.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>');
+    }
+    /* En clair, element_active est plus sombre que element : l'état sélectionné
+       passe par une teinte verte légère + bordure renforcée, pas un overlay. */
+    .mode-card.selected {
+      background: color-mix(in srgb, var(--accent) 10%, var(--editor-background));
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px var(--accent);
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--background); color: var(--text);
+    font: 13px/1.5 var(--font-ui);
+    display: flex; justify-content: center; padding: 40px 16px;
+  }
+  .swindow {
+    width: 100%; max-width: 720px; background: var(--editor-background);
+    border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .35);
+  }
+  .sw-titlebar {
+    height: 32px; background: var(--title-bar); border-bottom: 1px solid var(--border-variant);
+    display: flex; align-items: center; gap: 8px; padding: 0 12px;
+    font-size: 12px; color: var(--text-muted);
+  }
+  .sw-titlebar svg { width: 16px; height: 16px; margin-bottom: 4px; }
+  .sw-content { padding: 24px 28px 28px; }
+  .sw-pagetitle { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+  .sw-intro { color: var(--text-muted); font-size: 12.5px; margin: 0 0 20px; }
+  .ssh { display: flex; align-items: center; gap: 12px; margin: 22px 0 4px; }
+  .ssh-label { font: 12px var(--font-mono); color: var(--text-muted); white-space: nowrap; }
+  .divider-h { flex: 1; height: 1px; background: var(--border); opacity: .6; }
+  .srow { padding: 12px 0; border-bottom: 1px solid var(--border-variant); }
+  .srow.last { border-bottom: 0; padding-bottom: 16px; }
+  .srow-inner { display: flex; align-items: center; gap: 16px; }
+  .srow-text { flex: 1; min-width: 0; }
+  .srow-title { font-size: 13px; display: flex; align-items: center; gap: 8px; }
+  .srow-desc { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+  .srow-desc span { display: block; }
+  .srow-control { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+  .mono { font-family: var(--font-mono); font-size: 12px; }
+  .muted { color: var(--text-muted); }
+  a { color: var(--accent); }
+  code { font-family: var(--font-mono); font-size: 11px; background: var(--element); padding: 1px 4px; border-radius: 3px; }
+
+  button { font: 12px var(--font-ui); cursor: pointer; border-radius: 4px; }
+  .ibtn {
+    width: 24px; height: 24px; padding: 0; border: 0; background: transparent;
+    color: var(--text-muted); display: inline-flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .ibtn:hover { background: var(--element-hover); color: var(--text); }
+  .ibtn svg { width: 14px; height: 14px; }
+  .btn {
+    background: var(--element); color: var(--text); border: 1px solid var(--border);
+    padding: 5px 12px; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+  }
+  .btn:hover { background: var(--element-hover); }
+  .btn svg { width: 14px; height: 14px; }
+  .btn.primary {
+    background: color-mix(in srgb, var(--success) 22%, var(--editor-background));
+    border-color: var(--success); color: var(--text);
+    font-weight: 600; padding: 8px 18px;
+  }
+  .btn.primary:hover { background: color-mix(in srgb, var(--success) 32%, var(--editor-background)); filter: none; }
+  .btn:disabled { opacity: .45; cursor: default; filter: none; }
+
+  input[type=text], input[type=number] {
+    background: var(--element); color: var(--text); border: 1px solid var(--border);
+    border-radius: 4px; padding: 5px 8px; font: 12px var(--font-mono);
+  }
+  input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  input:disabled { color: var(--text); opacity: 1; background: var(--element); }
+  input.short { width: 80px; }
+  /* Champ désactivé : mêmes proportions qu'activé, aucun saut de mise en page. */
+  select {
+    background: var(--element); color: var(--text); border: 1px solid var(--border);
+    border-radius: 4px; padding: 5px 8px; font: 12px var(--font-ui);
+    appearance: none; padding-right: 26px;
+    background-image: url('data:image/svg+xml;utf8,<svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><path d="M4.66675 10L8.00008 13.3333L11.3334 10" stroke="%23c5b597" stroke-width="1.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M4.66675 6.00002L8.00008 2.66669L11.3334 6.00002" stroke="%23c5b597" stroke-width="1.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>');
+    background-repeat: no-repeat; background-position: right 6px center; background-size: 12px;
+  }
+  select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  select option { background: var(--surface); color: var(--text); }
+  select option:checked { background: var(--element-active); color: var(--text); }
+
+  /* Segmenté (TLS) : état sélectionné sans ambiguïté. */
+  .segmented { display: inline-flex; border: 1px solid var(--border); border-radius: 4px; overflow: hidden; }
+  .segmented button {
+    background: var(--element); color: var(--text-muted); border: 0; border-radius: 0;
+    padding: 5px 14px;
+  }
+  .segmented button + button { border-left: 1px solid var(--border); }
+  .segmented button:hover { background: var(--element-hover); }
+  .segmented button.selected { background: var(--element-active); color: var(--text); font-weight: 600; }
+
+  /* Cartes de mode. */
+  .modes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 12px 0 16px; }
+  .mode-card {
+    background: var(--element); border: 1px solid var(--border); border-radius: 6px;
+    padding: 14px; cursor: pointer; text-align: left; color: var(--text);
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .mode-card:hover { background: var(--element-hover); }
+  .mode-card.selected { border-color: var(--accent); background: var(--element-active); }
+  .mode-card .mode-head { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 13px; }
+  .mode-card .mode-head svg { width: 16px; height: 16px; color: var(--text-muted); }
+  .mode-card.selected .mode-head svg { color: var(--accent); }
+  .mode-card .mode-desc { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+  .mode-card .mode-desc span { display: block; }
+
+  /* Ligne Node : description pleine largeur ; en dessous, version à gauche,
+     chemin + crayon à droite sur la même ligne. */
+  .node-line { display: flex; align-items: baseline; gap: 6px; }
+  .node-line .ibtn { align-self: center; }
+  .node-version { padding: 4px 0; font: 12px var(--font-mono); }
+  #node-path { margin-left: auto; max-width: 340px; text-align: right; overflow-wrap: anywhere; padding-top: 4px; }
+  #node-input { width: 320px; margin-left: auto; }
+
+  .banner { display: flex; align-items: flex-start; gap: 8px; border-radius: 4px;
+    padding: 8px 12px; font-size: 12px; margin-top: 12px; border: 1px solid; }
+  .banner svg { width: 14px; height: 14px; flex-shrink: 0; margin-top: 1px; }
+  .banner.error { background: var(--error-background); border-color: var(--error-border); }
+  .banner.error svg { color: var(--error); }
+  .banner.success { background: var(--success-background); border-color: var(--success-border); }
+  .banner.success svg { color: var(--success); }
+  .banner .detail { color: var(--text-muted); display: block; }
+  .footer { display: flex; justify-content: flex-end; align-items: center; gap: 14px; margin-top: 24px; }
+  .hidden { display: none !important; }
+  #done { padding: 32px 0 8px; }
+</style>
+</head>
+<body>
+<div class="swindow">
+  <div class="sw-titlebar"><!--logo--><span>ZRA — Configuration</span></div>
+  <div class="sw-content">
+    <div id="form">
+      <div class="sw-pagetitle">Configuration initiale</div>
+      <p class="sw-intro">ZRA fait tourner un service en arrière-plan sur ce PC et le relance s'il s'arrête. Choisissez ce que ce PC doit faire, vérifiez les réglages réseau, puis enregistrez : l'icône ZRA apparaîtra dans la zone de notification, et tout se pilotera depuis son menu.</p>
+
+      <div class="ssh"><span class="ssh-label">Runtime</span><span class="divider-h"></span></div>
+      <div class="srow last">
+        <div class="srow-text">
+          <div class="srow-title">Node.js</div>
+          <div class="srow-desc"><span>Exécutable Node ≥ 24 utilisé pour lancer le service. Le chemin absolu est figé à l'enregistrement.</span></div>
+        </div>
+        <div class="node-line">
+          <span class="node-version" id="node-version"><span class="muted">détection…</span></span>
+          <span class="mono muted" id="node-path"></span>
+          <input type="text" id="node-input" class="hidden" spellcheck="false" placeholder="Chemin de node.exe">
+          <button class="ibtn hidden" id="node-edit" title="Modifier le chemin"></button>
+        </div>
+        <div class="banner error hidden" id="node-banner">
+          <span id="node-banner-icon"></span>
+          <div><span id="node-banner-text">Aucun exécutable Node ≥ 24 trouvé.</span>
+            <span class="detail">Installer depuis <a href="https://nodejs.org" target="_blank" rel="noopener">nodejs.org</a>, ou saisir un chemin valide.</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="ssh"><span class="ssh-label">Mode de service</span><span class="divider-h"></span></div>
+      <div class="modes">
+        <button class="mode-card selected" id="mode-poste" data-mode="poste">
+          <span class="mode-head"><span id="icon-poste"></span>Poste</span>
+          <span class="mode-desc"><span>Ce PC fait tourner ses propres agents Zed.</span><span>Le téléphone s'y connecte directement, sur le même Wi-Fi, via un VPN ou via un relais.</span></span>
+        </button>
+        <button class="mode-card" id="mode-relais" data-mode="relais">
+          <span class="mode-head"><span id="icon-relais"></span>Relais</span>
+          <span class="mode-desc"><span>Ce PC héberge l'application web et relaie les connexions vers d'autres postes.</span><span>Une seule adresse HTTPS pour tous les postes.</span></span>
+        </button>
+      </div>
+
+      <div class="ssh"><span class="ssh-label">Réseau</span><span class="divider-h"></span></div>
+      <div id="net-poste">
+        <div class="srow last">
+          <div class="srow-inner">
+            <div class="srow-text">
+              <div class="srow-title">Port du daemon</div>
+              <div class="srow-desc"><span>Port sur lequel le service attend les connexions.</span><span>Doit correspondre au port de <code>zra.config.json</code>.</span></div>
+            </div>
+            <div class="srow-control" data-port="port">
+              <button class="ibtn reset hidden" title="Rétablir la valeur par défaut"></button>
+              <input type="number" class="short" min="1" max="65535" value="7777" disabled>
+              <button class="ibtn toggle" title="Modifier"></button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div id="net-relais" class="hidden">
+        <div class="srow">
+          <div class="srow-inner">
+            <div class="srow-text">
+              <div class="srow-title">Port d'écoute</div>
+              <div class="srow-desc"><span>Port sur lequel le service attend les connexions.</span></div>
+            </div>
+            <div class="srow-control" data-port="relayPort">
+              <button class="ibtn reset hidden" title="Rétablir la valeur par défaut"></button>
+              <input type="number" class="short" min="1" max="65535" value="7777" disabled>
+              <button class="ibtn toggle" title="Modifier"></button>
+            </div>
+          </div>
+        </div>
+        <div class="srow">
+          <div class="srow-inner">
+            <div class="srow-text">
+              <div class="srow-title">Hôte d'écoute</div>
+              <div class="srow-desc"><span>« Toutes les interfaces » (<code>0.0.0.0</code>) : joignable depuis le réseau.</span><span>« Loopback seule » (<code>127.0.0.1</code>) : uniquement depuis cette machine — le cas d'un proxy HTTPS installé ici.</span><span>« Adresse précise » : une seule interface, LAN ou VPN.</span></div>
+            </div>
+            <div class="srow-control">
+              <select id="host">
+                <option value="0.0.0.0">Toutes les interfaces</option>
+                <option value="127.0.0.1">Loopback seule</option>
+                <option value="custom">Adresse précise…</option>
+              </select>
+            </div>
+          </div>
+          <div class="hidden" id="host-custom">
+            <div class="srow-inner" style="padding-top:10px">
+              <div class="srow-text"><div class="srow-title">Adresse</div>
+                <div class="srow-desc"><span>IPv4 d'une interface de cette machine.</span></div></div>
+              <div class="srow-control"><input type="text" id="host-input" style="width:130px" placeholder="192.168.1.10" spellcheck="false"></div>
+            </div>
+          </div>
+        </div>
+        <div class="srow last">
+          <div class="srow-inner">
+            <div class="srow-text">
+              <div class="srow-title">TLS</div>
+              <div class="srow-desc"><span>HTTP : le certificat est porté par le proxy placé devant ce serveur (Nginx Proxy Manager, Caddy…).</span><span>HTTPS : ce serveur porte son propre certificat (Let's Encrypt, validation DNS-01).</span></div>
+            </div>
+            <div class="srow-control">
+              <div class="segmented" id="tls">
+                <button data-v="http" class="selected">HTTP</button>
+                <button data-v="https">HTTPS</button>
+              </div>
+            </div>
+          </div>
+          <div class="hidden" id="tls-fields">
+            <div class="srow" style="padding-top:10px">
+              <div class="srow-inner">
+                <div class="srow-text"><div class="srow-title">Certificat</div>
+                  <div class="srow-desc"><span>Fichier <code>.crt</code> — copié dans <code>.zra/tls/</code>.</span></div></div>
+                <div class="srow-control">
+                  <span class="mono muted hidden" id="cert-value" style="max-width:220px;overflow-wrap:anywhere;text-align:right"></span>
+                  <button class="btn" id="cert-pick"><span id="cert-icon"></span>Choisir…</button>
+                  <input type="file" id="cert-file" accept=".crt,.pem,.cer" class="hidden">
+                </div>
+              </div>
+            </div>
+            <div class="srow last">
+              <div class="srow-inner">
+                <div class="srow-text"><div class="srow-title">Clé privée</div>
+                  <div class="srow-desc"><span>Fichier <code>.key</code> — copié dans <code>.zra/tls/</code>.</span></div></div>
+                <div class="srow-control">
+                  <span class="mono muted hidden" id="key-value" style="max-width:220px;overflow-wrap:anywhere;text-align:right"></span>
+                  <button class="btn" id="key-pick"><span id="key-icon"></span>Choisir…</button>
+                  <input type="file" id="key-file" accept=".key,.pem" class="hidden">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="banner error hidden" id="error-banner"><span id="error-icon"></span><div id="error-text"></div></div>
+      <div class="footer">
+        <button class="btn primary" id="start" disabled>Enregistrer et démarrer</button>
+      </div>
+    </div>
+
+    <div id="done" class="hidden">
+      <div class="banner success"><span id="done-icon"></span>
+        <div><strong>Configuration enregistrée.</strong>
+          <span class="detail">Le service est supervisé par le tray. Cet onglet peut être fermé.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const $ = (id) => document.getElementById(id)
+  // Icônes Zed (reference/zed-ui/shared/icons.js) ; « monitor » dessiné dans le
+  // même style (trait 1.2, bouts ronds) pour la carte Poste.
+  const ICONS = {
+    pencil: '<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12.5871 5.40582C12.8514 5.14152 13 4.78304 13 4.40922C13 4.03541 12.8516 3.67688 12.5873 3.41252C12.323 3.14816 11.9645 2.99962 11.5907 2.99957C11.2169 2.99953 10.8584 3.14798 10.594 3.41227L3.92098 10.0869C3.80488 10.2027 3.71903 10.3452 3.67097 10.5019L3.01047 12.678C2.99754 12.7212 2.99657 12.7672 3.00764 12.8109C3.01872 12.8547 3.04143 12.8946 3.07337 12.9265C3.1053 12.9584 3.14528 12.981 3.18905 12.992C3.23282 13.003 3.27875 13.002 3.32197 12.989L5.49849 12.329C5.65508 12.2813 5.79758 12.196 5.91349 12.0805L12.5871 5.40582Z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 5L11 7" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    check: '<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4.625 8.98121L7.03402 10.7714L11.3437 4.75989" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    warning: '<svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="none"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.2" d="M13.84 11.6 9.037 3.199a1.2 1.2 0 0 0-2.089 0l-4.802 8.403a1.2 1.2 0 0 0 1.05 1.8h9.604a1.201 1.201 0 0 0 1.038-1.8ZM8 6v2.667M8 11.333h.007"/></svg>',
+    folder: '<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4.41707 12.4786H6.20854H11.5829C12.5724 12.4786 13.3744 11.6766 13.3744 10.6872V7.55212V7.10426C13.3744 6.11486 12.5724 5.3128 11.5829 5.3128H9.63778C9.16265 5.3128 8.70699 5.12406 8.37102 4.78808L7.62898 4.04604C7.29301 3.71007 6.83735 3.52133 6.36222 3.52133H4.41707C3.42768 3.52133 2.62561 4.3234 2.62561 5.3128V10.6872C2.62561 11.6766 3.42768 12.4786 4.41707 12.4786Z" stroke="currentColor" stroke-width="1.2"/></svg>',
+    undo: '<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M6.125 9.25001L3 6.125L6.125 3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 6.125H9.56251C10.0139 6.125 10.4609 6.21391 10.878 6.38666C11.295 6.55942 11.674 6.81262 11.9932 7.13182C12.3124 7.45102 12.5656 7.82997 12.7383 8.24703C12.9111 8.66408 13 9.11108 13 9.5625C13 10.0139 12.9111 10.4609 12.7383 10.878C12.5656 11.295 12.3124 11.674 11.9932 11.9932C11.674 12.3124 11.295 12.5656 10.878 12.7383C10.4609 12.9111 10.0139 13 9.56251 13H7.375" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    server: '<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12.8 9H3.2C2.53726 9 2 9.44772 2 10V12C2 12.5523 2.53726 13 3.2 13H12.8C13.4627 13 14 12.5523 14 12V10C14 9.44772 13.4627 9 12.8 9Z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M12.8 3H3.2C2.53726 3 2 3.44772 2 4V6C2 6.55228 2.53726 7 3.2 7H12.8C13.4627 7 14 6.55228 14 6V4C14 3.44772 13.4627 3 12.8 3Z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 11H4.00667" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 5H4.00667" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    monitor: '<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="3" width="12" height="8.5" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M6 14H10M8 11.5V14" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>',
+  }
+  for (const [id, icon] of [['node-edit','pencil'],['node-banner-icon','warning'],['error-icon','warning'],['done-icon','check'],['cert-icon','folder'],['key-icon','folder'],['icon-poste','monitor'],['icon-relais','server']]) $(id).innerHTML = ICONS[icon]
+  document.querySelectorAll('.ibtn.reset').forEach((b) => b.innerHTML = ICONS.undo)
+  document.querySelectorAll('.ibtn.toggle').forEach((b) => b.innerHTML = ICONS.pencil)
+
+  const DEFAULT_PORT = 7777
+  const state = {
+    node: null, // { path, version }
+    mode: 'poste',
+    port: DEFAULT_PORT,
+    relayPort: DEFAULT_PORT,
+    host: '0.0.0.0',
+    tls: 'http',
+    certPath: null,
+    keyPath: null,
+  }
+
+  function refresh() {
+    $('start').disabled = !state.node
+      || (state.mode === 'relais' && state.tls === 'https' && (!state.certPath || !state.keyPath))
+    $('net-poste').classList.toggle('hidden', state.mode !== 'poste')
+    $('net-relais').classList.toggle('hidden', state.mode !== 'relais')
+    $('tls-fields').classList.toggle('hidden', state.tls !== 'https')
+    $('host-custom').classList.toggle('hidden', $('host').value !== 'custom')
+    for (const card of document.querySelectorAll('.mode-card')) {
+      card.classList.toggle('selected', card.dataset.mode === state.mode)
+    }
+    for (const btn of document.querySelectorAll('#tls button')) {
+      btn.classList.toggle('selected', btn.dataset.v === state.tls)
+    }
+  }
+
+  function showError(msg) {
+    $('error-text').textContent = msg
+    $('error-banner').classList.remove('hidden')
+  }
+
+  // --- Node : version à droite, chemin pleine largeur sous la ligne ---------
+  function setNode(node) {
+    state.node = node
+    if (node) {
+      $('node-version').textContent = '✓ ' + node.version
+      $('node-version').style.color = 'var(--success)'
+      $('node-path').textContent = node.path
+      $('node-edit').classList.remove('hidden')
+      $('node-banner').classList.add('hidden')
+    } else {
+      $('node-version').textContent = '—'
+      $('node-version').style.color = ''
+      $('node-path').textContent = ''
+      // Crayon visible même sans node trouvé : la saisie manuelle reste possible.
+      $('node-edit').classList.remove('hidden')
+      $('node-banner').classList.remove('hidden')
+    }
+    refresh()
+  }
+
+  function nodeEdit(show) {
+    $('node-path').classList.toggle('hidden', show)
+    $('node-input').classList.toggle('hidden', !show)
+    $('node-edit').innerHTML = show ? ICONS.check : ICONS.pencil
+    $('node-edit').title = show ? 'Vérifier et valider' : 'Modifier le chemin'
+    if (show) {
+      $('node-input').value = state.node?.path ?? ''
+      $('node-input').focus()
+    }
+  }
+
+  async function nodeConfirm() {
+    const path = $('node-input').value.trim()
+    // Feedback immédiat : `node --version` prend quelques centaines de ms.
+    $('node-edit').disabled = true
+    $('node-version').textContent = 'vérification…'
+    $('node-version').style.color = ''
+    let body
+    try {
+      const res = await fetch('/check', { method: 'POST', body: JSON.stringify({ path }) })
+      body = await res.json()
+    } catch {
+      body = { ok: false, error: 'Le tray ne répond plus.' }
+    }
+    $('node-edit').disabled = false
+    if (body.ok) {
+      setNode({ path, version: body.version })
+      nodeEdit(false)
+    } else {
+      setNode(state.node)
+      $('node-banner-text').textContent = body.error
+      $('node-banner').classList.remove('hidden')
+    }
+  }
+
+  fetch('/info').then((r) => r.json()).then((info) => setNode(info.node))
+  $('node-edit').addEventListener('click', () => {
+    if ($('node-input').classList.contains('hidden')) nodeEdit(true)
+    else nodeConfirm()
+  })
+  $('node-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') nodeConfirm()
+    if (e.key === 'Escape') nodeEdit(false)
+  })
+
+  // --- Ports : input number toujours là, disabled par défaut ----------------
+  // Crayon → édition (coche pour valider, pas d'annuler) ; reset si ≠ défaut.
+  for (const control of document.querySelectorAll('[data-port]')) {
+    const key = control.dataset.port
+    const input = control.querySelector('input')
+    const toggle = control.querySelector('.toggle')
+    const reset = control.querySelector('.reset')
+    const syncReset = () => reset.classList.toggle('hidden', Number(input.value) === DEFAULT_PORT)
+    const setEditing = (on) => {
+      input.disabled = !on
+      toggle.innerHTML = on ? ICONS.check : ICONS.pencil
+      toggle.title = on ? 'Valider' : 'Modifier'
+      if (on) input.focus()
+    }
+    toggle.addEventListener('click', () => {
+      if (input.disabled) return setEditing(true)
+      const n = Number(input.value)
+      if (!Number.isInteger(n) || n < 1 || n > 65535) return showError('Port invalide : entier entre 1 et 65535.')
+      state[key] = n
+      $('error-banner').classList.add('hidden')
+      setEditing(false)
+      syncReset()
+    })
+    reset.addEventListener('click', () => {
+      input.value = DEFAULT_PORT
+      state[key] = DEFAULT_PORT
+      syncReset()
+    })
+    input.addEventListener('input', syncReset)
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') toggle.click() })
+    syncReset()
+  }
+
+  // --- Mode, hôte, TLS -------------------------------------------------------
+  for (const card of document.querySelectorAll('.mode-card')) {
+    card.addEventListener('click', () => { state.mode = card.dataset.mode; refresh() })
+  }
+  $('host').addEventListener('change', () => {
+    state.host = $('host').value === 'custom' ? $('host-input').value.trim() : $('host').value
+    refresh()
+  })
+  $('host-input').addEventListener('input', () => { state.host = $('host-input').value.trim() })
+  for (const btn of document.querySelectorAll('#tls button')) {
+    btn.addEventListener('click', () => { state.tls = btn.dataset.v; refresh() })
+  }
+
+  // --- Certificats : upload du contenu, copie dans .zra/tls/ -----------------
+  for (const kind of ['cert', 'key']) {
+    $(kind + '-file').onchange = async () => {
+      const input = $(kind + '-file')
+      const file = input.files[0]
+      if (!file) return
+      const content = await file.text()
+      const res = await fetch('/tls', { method: 'POST', body: JSON.stringify({ kind, name: file.name, content }) })
+      const body = await res.json()
+      if (body.ok) {
+        if (kind === 'cert') state.certPath = body.path
+        else state.keyPath = body.path
+        const v = $(kind + '-value')
+        v.textContent = body.path
+        v.classList.remove('hidden')
+        $(kind + '-pick').lastChild.textContent = 'Remplacer…'
+        $('error-banner').classList.add('hidden')
+        refresh()
+      } else {
+        showError(body.error)
+      }
+      input.value = ''
+    }
+    $(kind + '-pick').addEventListener('click', () => $(kind + '-file').click())
+  }
+
+  // --- Enregistrement ---------------------------------------------------------
+  $('start').addEventListener('click', async () => {
+    $('start').disabled = true
+    $('error-banner').classList.add('hidden')
+    const payload = {
+      mode: state.mode,
+      node: state.node.path,
+      port: state.port,
+      relay: {
+        port: state.relayPort,
+        host: state.host || '0.0.0.0',
+        tlsCert: state.tls === 'https' ? state.certPath : null,
+        tlsKey: state.tls === 'https' ? state.keyPath : null,
+      },
+    }
+    try {
+      const res = await fetch('/done', { method: 'POST', body: JSON.stringify(payload) })
+      const body = await res.json()
+      if (body.ok) {
+        $('form').classList.add('hidden')
+        $('done').classList.remove('hidden')
+      } else {
+        showError(body.error)
+        refresh()
+      }
+    } catch {
+      showError('Le tray ne répond plus.')
+      refresh()
+    }
+  })
+
+  refresh()
+</script>
+</body>
+</html>

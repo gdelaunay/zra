@@ -28,8 +28,10 @@
 // GNOME, KDE et LXQt, et sans sudo.
 //
 // Les deux limites à connaître (elles sont affichées par `status`) :
-//   1. aucune supervision : pas d'équivalent à `Restart=on-failure`. Si le
-//      daemon plante, il reste arrêté jusqu'à la prochaine ouverture de session.
+//   1. sans tray, aucune supervision : pas d'équivalent à `Restart=on-failure`.
+//      Si le daemon plante, il reste arrêté jusqu'à la prochaine ouverture de
+//      session. Avec le tray (lancé par le lanceur s'il est présent), c'est lui
+//      qui supervise node.
 //   2. aucune équivalence à `loginctl enable-linger` : le daemon s'arrête à la
 //      fermeture de session et ne démarre pas au boot d'une machine sans session.
 
@@ -41,6 +43,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { daemonStatus } from './daemon-status.mjs'
+import { trayBinary } from './tray-binary.mjs'
 // Une seule liste de variables de session, partagée avec l'unité systemd : ce
 // sont les mêmes faits (DISPLAY absent d'un service lancé hors session), et les
 // deux backends doivent recopier exactement la même chose.
@@ -122,15 +125,22 @@ export function quoteDesktopArg(value) {
  * les `Environment=` de l'unité systemd : sans le PATH de la session, les
  * agents relancés par le daemon ne trouvent pas leurs exécutables).
  *
- * @param {{ node?:string, log?:string, env?:object }} opts et chemins de `paths()`
+ * @param {{ node?:string, log?:string, env?:object, tray?:string|null }} opts et chemins de `paths()`
  */
 export function buildLauncher({
   node = process.execPath, env = process.env,
   root = ROOT, daemon = paths().daemon, log = LOG,
   pid = paths().pid, serviceLog = paths().serviceLog, delayS = DELAY_S,
+  tray = null,
 } = {}) {
   const vars = GRAPHICS_ENV.filter((k) => env[k]).map((k) => `export ${k}=${quoteShellArg(env[k])}`)
-  const args = [node, '--no-warnings', daemon, '--wait-tunnel', '--log', log].map(quoteShellArg).join(' ')
+  // Avec le tray : il lance node lui-même (--wait-tunnel, journal,
+  // single-instance) ; le lanceur n'a qu'à l'exécuter. Le pidfile porte alors
+  // le pid du tray (exec), et `stop` l'arrête proprement (SIGTERM → son
+  // handler Ctrl-C tue node).
+  const args = tray
+    ? quoteShellArg(tray)
+    : [node, '--no-warnings', daemon, '--wait-tunnel', '--log', log].map(quoteShellArg).join(' ')
   return `#!/bin/sh
 # Généré par \`npm run service -- install --apply\` — ne pas éditer à la main.
 # ZRA — backend « autostart XDG », pour les machines dont l'init n'est pas
@@ -214,12 +224,12 @@ export function pidCmdline(pid) {
  *
  * Un pidfile peut rester d'un lancement précédent et le pid être recyclé par un
  * processus sans rapport : `stop` tuerait alors n'importe quoi. La ligne de
- * commande doit contenir le chemin du daemon, ou celui du lanceur (pendant la
- * temporisation, avant l'`exec`).
+ * commande doit contenir le chemin du daemon, celui du lanceur (pendant la
+ * temporisation, avant l'`exec`), ou celui du tray (le lanceur l'exécute).
  */
-export function pidMatches(cmdline, { daemon, launcher }) {
+export function pidMatches(cmdline, { daemon, launcher, tray = null }) {
   const c = String(cmdline ?? '')
-  return c.includes(String(daemon)) || c.includes(String(launcher))
+  return c.includes(String(daemon)) || c.includes(String(launcher)) || (tray != null && c.includes(String(tray)))
 }
 
 /**
@@ -229,16 +239,18 @@ export function pidMatches(cmdline, { daemon, launcher }) {
  */
 export function autostartState(opts = {}) {
   const p = paths(opts)
+  const tray = trayBinary(p.root)
   const installed = existsSync(p.desktop)
   const launcher = existsSync(p.launcher)
   const raw = existsSync(p.pid) ? readFileSync(p.pid, 'utf8') : null
   const pid = parsePid(raw)
   const cmdline = pid ? pidCmdline(pid) : null
-  const running = Boolean(cmdline && pidMatches(cmdline, p))
+  const running = Boolean(cmdline && pidMatches(cmdline, { ...p, tray }))
   return {
     installed,
     launcher,
     running,
+    tray,
     desktop: p.desktop,
     launcherPath: p.launcher,
     pidFile: p.pid,
@@ -274,7 +286,11 @@ async function status(opts, config, ctx = {}) {
       : tr`  Processus : ✗ arrêté.`)
     if (s.stalePid) console.log(tr`  Pidfile périmé (pid ${s.stalePid} mort ou recyclé) — \`stop\` le nettoiera.`)
     console.log(tr`  Au démarrage : à l’ouverture de session (autostart XDG, sans sudo).`)
-    console.log(tr`  ⚠ pas de supervision : aucun équivalent à Restart=on-failure, un daemon planté reste arrêté.`)
+    if (s.tray) {
+      console.log(tr`  Tray : ✓ ${s.tray} — supervise node (restart si crash).`)
+    } else {
+      console.log(tr`  ⚠ pas de supervision : aucun équivalent à Restart=on-failure, un daemon planté reste arrêté.`)
+    }
     console.log(tr`  ⚠ pas d’équivalent à loginctl enable-linger : arrêt à la fermeture de session.`)
   }
 
@@ -294,10 +310,16 @@ async function status(opts, config, ctx = {}) {
 async function install(opts, config, ctx = {}) {
   const p = paths(ctx)
   const env = ctx.env ?? process.env
-  const launcher = buildLauncher({ node: ctx.node, env, ...p })
+  const tray = trayBinary(p.root)
+  const launcher = buildLauncher({ node: ctx.node, env, tray, ...p })
   const desktop = buildDesktop({ launcher: p.launcher })
   console.log(tr`Entrée « ${DESKTOP} » pour ${env.USER || tr`L’utilisateur courant`} : à l'ouverture de session, sans élévation, dans la session graphique.`)
-  console.log(`  node ${process.execPath}`)
+  if (tray) {
+    console.log(tr`  tray ${tray} — supervise le daemon (restart, journal, single-instance).`)
+  } else {
+    console.log(`  node ${process.execPath}`)
+    console.log(tr`  Tray absent — le lanceur lance node directement (cargo build dans zra-tray/ pour le tray).`)
+  }
   console.log(tr`  Journal ${p.log} (et ${p.serviceLog} pour les crashs au démarrage).`)
   console.log(tr`  Fichiers ${p.desktop}\n           ${p.launcher}`)
   console.log(tr`\n--- lanceur ---\n` + launcher.split(/\r?\n/).map((l) => `  │ ${l}`).join('\n'))
