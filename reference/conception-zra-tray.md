@@ -90,10 +90,9 @@ HTTP éphémère dans le binaire, coupé une fois le setup fini. Pas de webview
 - Écartés : **Electron** (~200 Mo pour une icône), **Tauri** (webview inutile,
   l'UI c'est la PWA), **gpui** (framework de Zed : pas de support tray, API
   jeune, moteur de rendu GPU pour un menu — non).
-- **Pas de popup native au clic** : le menu natif suffit pour les actions, et
-  pour les infos riches (QR, threads, état détaillé) l'item « Ouvrir ZRA »
-  lance le navigateur sur `http://localhost:7777` — la PWA existe déjà, elle
-  est la surface complète, cohérente avec le mobile.
+- Infos riches (QR, threads, état détaillé) : l'item « Ouvrir ZRA » lance
+  le navigateur sur `http://localhost:7777` — la PWA existe déjà, elle est
+  la surface complète, cohérente avec le mobile.
 - Comportement clic gauche/droit selon l'OS : géré par `tray-icon`
   (Windows : menu au clic droit ; KDE/GNOME plus variables — à tester sur les
   postes Linux vérifiés).
@@ -116,18 +115,24 @@ HTTP éphémère dans le binaire, coupé une fois le setup fini. Pas de webview
    forges** : Forgejo (source, worker sur l'instance) et GitHub (miroir) —
    même workflow matrice (`x86_64-pc-windows-msvc`,
    `x86_64-unknown-linux-gnu`, puis `aarch64`), binaires attachés aux
-   releases des deux côtés, `npm run setup` télécharge le bon (l'une des
-   forges en repli si l'autre ne répond pas). Cross-compilation depuis
-   Windows écartée — la CI le fait.
+   releases des deux côtés. Le téléchargement est **optionnel** : `npm run
+   setup` pose la question (oui/non/jamais, formulation technique — ce que
+   le binaire apporte : supervision, icône tray, deux modes) ; « jamais »
+   est mémorisé dans `.zra/` et la question n'est plus posée ensuite. Le
+   flux manuel (`npm run daemon`/`relay`) n'a jamais besoin du binaire.
+   Téléchargement du bon binaire selon la plateforme, l'une des forges en
+   repli si l'autre ne répond pas. Cross-compilation depuis Windows écartée
+   — la CI le fait.
 5. **Rust dans le repo** : nouveau dossier `zra-tray/` (`Cargo.toml`). Personne
    n'a besoin du toolchain pour utiliser ZRA (binaires prébuilds) ni pour le
    développer côté JS. La promesse « aucune dépendance runtime » reste vraie
-   côté utilisateur, à assumer dans la doc (binaire téléchargé au setup).
+   côté utilisateur, à assumer dans la doc (binaire proposé au setup).
 
 ## Distribution : trajectoire A → C
 
-- **MVP (0.6) — le tray seul** : `npm run setup` télécharge le binaire
-  prébuild (releases Forgejo ou GitHub) dans `.zra/bin/` ; il pilote le daemon du repo
+- **MVP (0.6) — le tray seul** : `npm run setup` propose de télécharger le
+  binaire prébuild (releases Forgejo ou GitHub) dans `.zra/bin/` —
+  optionnel, oui/non/jamais comme ci-dessus ; il pilote le daemon du repo
   cloné. Flux dev inchangé, versions tray/daemon cohérentes (même repo).
 - **Cible — l'archive « app » par plateforme** (option C) :
 
@@ -144,6 +149,23 @@ HTTP éphémère dans le binaire, coupé une fois le setup fini. Pas de webview
   binaire (générée par lui, plus de copier-coller depuis la doc). Une archive
   = une version : le relais sert la PWA, client/daemon/relais cohérents par
   construction. `npm` reste le chemin des contributeurs.
+- **Cycle de vie complet, le tray est le seul gestionnaire de ZRA** pour le
+  grand public. La page d'onboarding, réutilisée en mode « installé », sert
+  de console de gestion : à propos (version, liens) et gestion de l'app,
+  dont la **désinstallation**. Pas de fenêtre GUI native à coder (`tao` n'a
+  pas de widgets), pas de nouvelle dépendance.
+- **Désinstaller = rendre la machine comme on l'a trouvée** : arrêt du
+  service (Job Object), retrait de l'autostart (tâche planifiée /
+  `.desktop` / unité systemd), dé-câblage de Zed (entrées agents, keymap,
+  env — la logique chirurgicale de `setup -- uninstall`), retrait des
+  règles pare-feu posées à l'onboarding, suppression du dossier (binaire,
+  `app/`, `.zra/` : journaux, enregistrements, appairage, certs). Sous
+  Windows l'exe vivant est verrouillé → suppression différée après exit.
+  Les prérequis système (Node, Zed) ne sont pas touchés. Deux choix à la
+  confirmation : « tout désinstaller » (défaut, plus aucune trace) ou
+  « garder mes réglages » (export de `zra.config.json` avant suppression,
+  pour une réinstallation). Pas de « désinstaller le tray seul » : sans
+  lui, plus rien ne gère l'app pour ce public.
 - **Runtime Node : système, en prérequis affiché.** ZRA exige déjà Node ≥ 24
   (README). Zed est natif (pas de Node requis), mais ses agents ACP
   (`claude-code-acp`, `qwen-code`…) sont très majoritairement des apps Node —
@@ -180,4 +202,6 @@ HTTP éphémère dans le binaire, coupé une fois le setup fini. Pas de webview
 4. Sucre : icône qui change d'état (thread live / réponse en attente) — les
    événements existent déjà dans le daemon ;
 5. Option C : l'archive « app » par plateforme, relay compris (une version
-   partout, updates via les releases).
+   partout, updates via les releases) ; cycle de vie complet — console de
+   gestion (page d'onboarding en mode « installé » : à propos, gestion),
+   désinstallation propre (cf. Distribution).
