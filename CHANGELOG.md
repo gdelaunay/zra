@@ -7,6 +7,10 @@
 - Création de thread : le « + » navigue directement vers l'écran de création de Zed (`#/new/<poste>`, `views/new-thread.js`) — label centré muted pulsé (opacité 0,3 ↔ 0,7, 2 s) pendant l'ouverture de la session, plus de toast d'attente ; `thread_created` remplace l'écran par le thread
 - Échec de création (`new_thread_failed`) en callout « Échec du lancement » sur cet écran (Réessayer relance `new_thread`, copier, fermer = retour liste), comme le `render_load_error` de Zed ; filet 45 s côté PWA (daemon : 30 s) ; navigation vers le thread seulement sur l'écran de création, ou si aucune création n'était suivie (recharge pendant la création) — pas de focus volé si l'utilisateur est parti ailleurs
 - Doc : `zed.md` (écran de création, `conversation_view.rs` `ServerState::Loading`/`LoadError`), `protocol.md` (`new_thread_failed`, `thread_created`), `client.md` — bilingue
+- Garde éveillé : le poste ne s'endort pas tant qu'un agent travaille (automatique, état dérivé du busy/idle existant, zéro poll), plus une bascule explicite par poste (1 h / 4 h / 12 h / jusqu'à désactivation) dans une feuille de réglages au survol/appui long sur la ligne poste ; TTL et état côté daemon, persistés (`.zra/keep-awake.json`), survivent aux déconnexions de la PWA et au restart
+- Helper résident par OS (`keep-awake.ps1` → `SetThreadExecutionState` sous Windows, `systemd-inhibit` sous Linux) : sa mort relâche l'inhibition, crash du daemon compris ; échec précoce → poste non supporté, dit dans la feuille ; à la relâche, le délai normal de veille de l'OS reprend la main
+- UI : indicateur café sur la ligne poste quand l'inhibition est active (remplace le compte de threads), feuille `views/machine-settings.js` repeinte au `keep_awake` reçu ; protocole `set_keep_awake` (écriture journalisée) / `keep_awake` (bootstrap + diffusion), simulé par le mock
+- Doc : `protocol.md`, `daemon.md`, `client.md`, `limitations.md` (capot Windows, veille manuelle Linux, systèmes non supportés), conception `reference/conception-zra-veille.md` — bilingue
 
 ## v0.5.4 — 2026-11-21 — Relais HTTPS (`5d9583e`)
 

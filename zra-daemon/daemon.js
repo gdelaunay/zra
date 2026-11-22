@@ -17,6 +17,7 @@ import { ShimHost } from './shim-link.js'
 import { SessionLoader } from './session-loader.js'
 import { ThreadOps } from './thread-ops.js'
 import { PushNotifier } from './push.js'
+import { KeepAwake } from './keep-awake.js'
 import { ZedDriver, ZedCli, createKeyboard } from './zed/driver.js'
 import { ZedControl } from './zed/control.js'
 import { createServers } from './server.js'
@@ -201,9 +202,13 @@ export async function startDaemon(config) {
   const push = new PushNotifier({ file: config.pushFile })
   machine.pushKey = push.publicKey
 
+  // Garde éveillé : inhibition de la veille pendant les tours d'agent, plus la
+  // bascule explicite persistée. Le helper résident meurt avec le daemon.
+  const keepAwake = new KeepAwake({ file: config.keepAwakeFile })
+
   hub = new Hub({
     config, threads, states, rings, shims, backend, machine, recordInjection: record, loader,
-    zed: control, covers: (sessionId) => host.covers(sessionId), pairing, ops, push,
+    zed: control, covers: (sessionId) => host.covers(sessionId), pairing, ops, push, keepAwake,
   })
 
   host.on('update', ({ threadId, update, at }) => {
@@ -267,6 +272,7 @@ export async function startDaemon(config) {
       zedRunning: machine.zedRunning,
       clients: hub.clients.size,
       threads: counts,
+      keepAwake: keepAwake.state(),
       degraded: threads.degraded ?? null,
       shims: [...shims.shims.values()].map((s) => ({
         shimId: s.shimId,
@@ -383,7 +389,7 @@ export async function startDaemon(config) {
 
   return {
     config, hub, threads, states, rings, shims, backend, servers, machine, presence,
-    host, loader, control, driver, pairing, ops, push,
+    host, loader, control, driver, pairing, ops, push, keepAwake,
     addresses, tunnel, watch,
     port: config.port,
 
@@ -396,6 +402,7 @@ export async function startDaemon(config) {
       threads.stop()
       host.close()
       loader.close()
+      keepAwake.close()
       backend.close?.()
       for (const client of hub.clients.values()) client.conn.close(1001)
       await servers.close()

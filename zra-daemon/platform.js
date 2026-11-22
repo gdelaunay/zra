@@ -34,6 +34,7 @@ import { execFile } from 'node:child_process'
 import { existsSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { posix, win32 } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 /** Les trois paramètres arrivent par l'appelant : c'est ce qui rend tout testable. */
 function ctx(opts) {
@@ -328,6 +329,39 @@ export function keyboardPreference(opts = {}) {
 
 /** Les backends que ZRA sait jouer. `none` = pas de clavier, refus explicite. */
 export const KEYBOARD_BACKENDS = ['powershell', 'xdotool', 'none']
+
+// ---------------------------------------------------------------------------
+// Garde éveillé (inhibition de veille)
+// ---------------------------------------------------------------------------
+
+/**
+ * Le helper résident qui interdit la veille automatique
+ * (`reference/conception-zra-veille.md`). L'inhibition est portée par la durée
+ * de vie de ce processus : le daemon le spawn pour inhiber, le tue pour
+ * relâcher ; sa mort (crash du daemon compris) relâche tout côté OS.
+ *
+ * Windows : `keep-awake.ps1` appelle `SetThreadExecutionState` puis reste
+ * vivant — un one-shot ne tiendrait rien, l'état meurt avec le processus.
+ * Linux : `systemd-inhibit` (logind) autour d'un `sleep infinity`. La présence
+ * de logind n'est pas acquise (MX Linux est sysvinit) : `keep-awake.js` la
+ * constate à l'exécution, pas ici.
+ * macOS : hors périmètre, pas de helper.
+ *
+ * @param {{ platform?:string, why?:string }} [opts]
+ * @returns {{ command:string, args:string[] }|null}
+ */
+export function keepAwakeHelper(opts = {}) {
+  const { platform } = ctx(opts)
+  if (platform === 'win32') {
+    const script = fileURLToPath(new URL('./keep-awake.ps1', import.meta.url))
+    return { command: 'powershell.exe', args: ['-NoProfile', '-NonInteractive', '-File', script] }
+  }
+  if (platform === 'darwin') return null
+  return {
+    command: 'systemd-inhibit',
+    args: ['--what=sleep', '--mode=block', '--who=ZRA', `--why=${opts.why ?? 'ZRA'}`, 'sleep', 'infinity'],
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Réseaux marqués « Public »

@@ -12,10 +12,11 @@
 import { h, button, clear, debounce } from '../dom.js'
 import { settings, update } from '../settings.js'
 import { icon, agentIcon, brandLogo } from '../icons.js'
-import { zedAge, absTime, baseName, agentLabel, toMs, projectOf, projectNames, displayTime } from '../format.js'
+import { zedAge, absTime, baseName, agentLabel, toMs, projectOf, projectNames, displayTime, formatDuration } from '../format.js'
 import * as store from '../store.js'
 import { openMenu, confirmSheet } from '../ui.js'
 import { openSettings } from './settings.js'
+import { openMachineSheet } from './machine-settings.js'
 import { newSessionButton } from './new-session.js'
 import { openProjectSheet } from './new-project.js'
 import { BottomBar } from './bottombar.js'
@@ -35,6 +36,8 @@ const expandedRecent = new Set()
 const hoverable = globalThis.matchMedia?.('(hover: hover)')?.matches ?? true
 /** Clé du thread dont les actions sont dépliées par appui long. */
 let actionsOpen = null
+/** Idem pour la ligne d'un poste (réglages, même pattern que les threads). */
+let machineActionsOpen = null
 /** Renommage en cours : `{ key, value, selStart, selEnd }`, ou `null`. */
 let renaming = null
 /** Vrai pendant `paint` : le blur d'un input remplacé ne valide rien. */
@@ -45,12 +48,18 @@ let suppressClick = false
 if (!hoverable) {
   document.addEventListener('pointerdown', (ev) => {
     if (actionsOpen && !ev.target.closest?.('.thread-row--actions')) closeActions()
+    if (machineActionsOpen && !ev.target.closest?.('.machine__head--actions')) closeMachineActions()
   }, true)
 }
 
 function closeActions() {
   actionsOpen = null
   document.querySelectorAll('.thread-row--actions').forEach((el) => el.classList.remove('thread-row--actions'))
+}
+
+function closeMachineActions() {
+  machineActionsOpen = null
+  document.querySelectorAll('.machine__head--actions').forEach((el) => el.classList.remove('machine__head--actions'))
 }
 
 const FILTERS = [
@@ -231,22 +240,92 @@ function header({ navigate }) {
   return el
 }
 
-/** Ligne de titre d'un poste : toute la ligne replie/déplie, comme un projet. */
+/**
+ * Ligne de titre d'un poste : toute la ligne replie/déplie, comme un projet.
+ * À droite : l'indicateur garde éveillé quand l'inhibition est active (le
+ * compte de threads n'y est plus, jugé pas utile), puis les réglages au
+ * survol / appui long — même pattern que les actions d'un thread.
+ */
 function machineHead(m, open, onToggle) {
   const status = m.status === 'online' ? tr`En ligne`
     : m.status === 'connecting' ? tr`Connexion…`
       : m.status === 'locked' ? tr`Appairage requis.` : tr`Hors ligne`
   const server = icon('server', `icon--sm group__icon${m.status === 'online' ? ' group__icon--online' : ''}`)
   server.setAttribute('title', status)
-  return button('group__head', { 'aria-expanded': String(open), onclick: onToggle },
-    server,
-    h('span.group__name', { text: m.info?.name || m.label || m.url }),
-    h('span.group__meta', { text: `· ${status}` }),
-    m.info?.zedRunning === false ? h('span.group__meta', { text: tr`· Zed fermé` }) : null,
-    icon(open ? 'chevron-down' : 'chevron-right', 'icon--sm group__chevron'),
-    h('span.spacer'),
-    h('span.group__meta', { text: m.threads.length ? `${m.threads.length}` : '' }),
+  const head = h('div.machine__head', { 'data-machine': m.id },
+    button('group__head machine__toggle', {
+      'aria-expanded': String(open),
+      onclick: () => {
+        if (suppressClick) { suppressClick = false; return }
+        if (machineActionsOpen === m.id) { closeMachineActions(); return }
+        onToggle()
+      },
+    },
+      server,
+      h('span.group__name', { text: m.info?.name || m.label || m.url }),
+      h('span.group__meta', { text: `· ${status}` }),
+      m.info?.zedRunning === false ? h('span.group__meta', { text: tr`· Zed fermé` }) : null,
+      icon(open ? 'chevron-down' : 'chevron-right', 'icon--sm group__chevron'),
+      h('span.spacer'),
+    ),
+    awakeIndicator(m),
+    machineActions(m),
   )
+  if (machineActionsOpen === m.id) head.classList.add('machine__head--actions')
+  if (!hoverable) wireMachineLongPress(head, m.id)
+  return head
+}
+
+/** Indicateur garde éveillé : actif pendant un tour ou par la bascule explicite. */
+function awakeIndicator(m) {
+  const ka = m.keepAwake
+  if (!ka?.active) return null
+  const title = ka.reason === 'turn' ? tr`Garde éveillé : un agent travaille.`
+    : ka.until ? tr`Garde éveillé — ${formatDuration(ka.until - Date.now())} restantes.`
+      : tr`Garde éveillé jusqu'à désactivation.`
+  const el = icon('coffee', 'icon--sm machine__awake')
+  el.setAttribute('title', title)
+  return el
+}
+
+/** Réglages du poste : en ligne seulement — hors ligne, rien à régler. */
+function machineActions(m) {
+  if (m.status !== 'online') return null
+  return h('span.machine__actions', {},
+    button('icon-btn icon-btn--sm', {
+      title: tr`Réglages du poste`,
+      'aria-label': tr`Réglages du poste`,
+      onclick: (ev) => { ev.stopPropagation(); closeMachineActions(); openMachineSheet(m) },
+    }, icon('settings', 'icon--sm')),
+  )
+}
+
+/** Appui long sur la ligne d'un poste : déplie ses réglages (comme les threads). */
+function wireMachineLongPress(head, id) {
+  let timer = null
+  let x0 = 0
+  let y0 = 0
+  const clear = () => { if (timer) { clearTimeout(timer); timer = null } }
+  head.addEventListener('pointerdown', (ev) => {
+    x0 = ev.clientX
+    y0 = ev.clientY
+    clear()
+    timer = setTimeout(() => {
+      timer = null
+      suppressClick = true
+      closeActions()
+      closeMachineActions()
+      machineActionsOpen = id
+      const live = document.querySelector(`.machine__head[data-machine="${CSS.escape(id)}"]`)
+      live?.classList.add('machine__head--actions')
+    }, 500)
+  })
+  head.addEventListener('pointerup', clear)
+  head.addEventListener('pointercancel', clear)
+  head.addEventListener('pointermove', (ev) => {
+    if (timer && (Math.abs(ev.clientX - x0) > 10 || Math.abs(ev.clientY - y0) > 10)) clear()
+  })
+  head.addEventListener('contextmenu', (ev) => ev.preventDefault())
 }
 
 /** Ligne « nouveau projet » : même style que la tête « Projets récents » ;

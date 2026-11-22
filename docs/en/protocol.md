@@ -48,8 +48,9 @@ modules do not load: `.js → text/javascript`, `.css → text/css`,
 
 1. The PWA opens the WS and sends `hello` immediately.
 2. The daemon answers `machine`, then `threads`, then one `thread_state` per known
-   thread. This trio is the **bootstrap**; the PWA shows nothing until it has
-   arrived.
+   thread, then `keep_awake` (keep-awake state). This trio is the **bootstrap**;
+   the PWA shows nothing until it has arrived. `keep_awake` is absent from an
+   older machine: the PWA says so in the machine settings.
 3. On any drop, the PWA reconnects with backoff (1 s → 30 s, then a 60 s
    plateau, jitter), and a WS handshake that drags on is abandoned after 15 s. On
    reconnection it sends `hello` again, then `list_threads`, then a `subscribe`
@@ -327,6 +328,18 @@ the machine as the PWA names it (`machineId`, for the notification URL).
 Answer: `push_subscribed` / `push_unsubscribed`, or `error` (invalid
 subscription). The daemon notifies the end of a turn that no connected client
 is watching live (§4 `machine.pushKey`).
+
+### `set_keep_awake`
+```ts
+{ type: 'set_keep_awake', mode: 'off' | '1h' | '4h' | '12h' | 'on' }
+```
+The machine's "keep awake" toggle (`keep-awake.js`,
+`reference/conception-zra-veille.md`). `1h`/`4h`/`12h`: duration from now;
+`on`: until turned off. The state (TTL included) lives on the daemon side and
+survives PWA disconnections; it is persisted (`keepAwakeFile`). Answer: the
+`keep_awake` rebroadcast to all recognized clients, or `error` `invalid_mode`
+(unknown mode). Logged write (§9). The automatic inhibition during agent turns
+does not depend on this toggle.
 
 ### `zra/trigger` *(stub mode only)*
 ```ts
@@ -606,6 +619,19 @@ leaves the thread.
 Web Push subscription acknowledgements. The PWA setting is already up to date;
 these messages only confirm.
 
+### `keep_awake`
+```ts
+{ type: 'keep_awake', mode: 'off' | '1h' | '4h' | '12h' | 'on',
+  until: number | null, active: boolean, reason: 'turn' | 'manual' | null,
+  supported: boolean }
+```
+Keep-awake state, at bootstrap then on every change (toggle, TTL expiry,
+turn start/end, mechanism unavailable). `until`: toggle deadline in ms, `null`
+for `on`/`off`. `active`: the inhibition is actually held; `reason`: `turn`
+(at least one agent working) or `manual` (toggle). `supported: false`: the
+machine cannot inhibit sleep (no logind, macOS…) — the PWA says so, without
+offering a setting. An older machine does not send this message.
+
 ### `error`
 ```ts
 { type: 'error', code: string, message: string, threadId?: string }
@@ -740,7 +766,8 @@ Duplicate of `elicitation_resolved` in the ring buffer, for the same reason as
    slow, Zed keeps working normally. No message of this protocol
    may be able to block the IDE.
 8. **Logging.** Every write coming from the phone (`send`, `set_option`,
-   `respond_permission`, `respond_elicitation`, `new_thread`) is logged in
+   `respond_permission`, `respond_elicitation`, `new_thread`, `set_keep_awake`)
+   is logged in
    `%LOCALAPPDATA%\zra\injections.log`.
 
 ### What the PWA never does

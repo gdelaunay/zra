@@ -166,3 +166,22 @@ diagnostics de Zed. Conséquences assumées (conception D1, matrice agents dans
 - **Repli clavier** (backend `uia`, agent ayant refusé l'injection ACP) : le
   texte part tel quel dans le composer de Zed — les liens de mention y
   restent littéraux, pas convertis en puces.
+
+## Garde éveillé : ce qu'il ne fait pas
+
+**Décision : assumé, mécanisme OS** (`reference/conception-zra-veille.md`).
+Le garde éveillé (automatique pendant les tours, bascule 1 h / 4 h / 12 h /
+jusqu'à désactivation) interdit la veille **automatique**, rien d'autre :
+
+- **Capot fermé, laptop Windows** : dort quand même — politique matérielle
+  au-dessus de `SetThreadExecutionState`. La changer via `powercfg` serait
+  global et persistant (survit au daemon) : écarté. Sous Linux, l'inhibiteur
+  logind couvre le capot (il passe par logind).
+- **Veille manuelle** : toujours possible sous Windows. Sous Linux, le lock
+  `sleep` block la bloque aussi (même appel D-Bus que l'automatique) ; forçage :
+  `systemctl suspend -i`, ou couper la bascule / fin de tour. Comportement
+  standard de Linux (un lecteur vidéo en lecture fait pareil).
+- **Extinction d'écran** : pas empêchée (voulu — seul le système reste éveillé).
+- **Systèmes sans mécanisme** : Linux sans logind (MX Linux est sysvinit),
+  macOS : `supported: false`, la PWA le dit dans les réglages du poste, sans
+  réglage fantôme. Détection à l'exécution (le helper quitte tôt en erreur).

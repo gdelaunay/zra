@@ -323,6 +323,25 @@ button { cursor: pointer; }
   color: var(--text-muted); font-weight: 600; }
 .group__meta { font-size: var(--fs-sm); color: var(--text-disabled); }
 
+/* Ligne de poste : indicateur garde éveillé + réglages au survol/appui long,
+ * même pattern que les actions d'un thread. Le compte de threads n'y est plus. */
+.machine__head {
+  display: flex; align-items: center;
+  position: sticky; top: 0; z-index: 2;
+  background: var(--panel-background);
+}
+.machine__head .group__head { position: static; flex: 1; min-width: 0; width: auto; padding-right: var(--sp-2); }
+.machine__head:hover { background: var(--ghost-element-hover); }
+.machine__head:hover .group__name { color: var(--text); }
+.machine__awake { color: var(--icon-accent); flex: none; margin-right: var(--sp-2); }
+.machine__actions { display: none; align-items: center; padding-right: var(--sp-3); }
+@media (hover: hover) {
+  .machine__head:hover .machine__actions, .machine__head:focus-within .machine__actions { display: flex; }
+}
+.machine__head--actions { background: var(--ghost-element-hover); }
+.machine__head--actions .machine__actions { display: flex; }
+.machine-awake-status { display: flex; align-items: center; gap: var(--sp-2); color: var(--text-muted); font-size: var(--fs-sm); }
+
 /* Projet — render_project_header : 31 px, pl 8 pr 6, survol ghost_element_hover. */
 .project__head {
   display: flex; align-items: center;

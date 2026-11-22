@@ -77,6 +77,8 @@ export function addMachine(cfg) {
     threads: [],
     /** Projets du sidebar de Zed, dans son ordre ; `null` : le poste ne le dit pas. */
     projects: null,
+    /** Garde éveillé (`keep_awake`) ; `null` : pas encore reçu, ou poste ancien. */
+    keepAwake: null,
     error: null,
     link: state.mock
       ? new MockLink({ id: cfg.id, url: cfg.url, label: cfg.label, clientId: settings.clientId })
@@ -181,6 +183,17 @@ function handle(machine, msg) {
       machine.info = msg
       noteRegistryIcons(msg.agentIcons)
       if (msg.name) machine.label = machine.implicit || !machine.label ? msg.name : machine.label
+      emit('machines')
+      break
+
+    case 'keep_awake':
+      machine.keepAwake = {
+        mode: msg.mode ?? 'off',
+        until: typeof msg.until === 'number' ? msg.until : null,
+        active: Boolean(msg.active),
+        reason: msg.reason ?? null,
+        supported: msg.supported !== false,
+      }
       emit('machines')
       break
 
@@ -822,6 +835,17 @@ export function cancelQueued(k, queueId) {
   const m = machineOf(k)
   if (!m) return
   m.link.send({ type: 'cancel_queued', threadId: splitKey(k).threadId, queueId })
+}
+
+/**
+ * Bascule « garder éveillé » d'un poste (`set_keep_awake`). L'état vit côté
+ * daemon (TTL compris) et revient par `keep_awake` — rien d'optimiste ici :
+ * la socket mobile ne survit pas à l'arrière-plan, le daemon est la vérité.
+ */
+export function setKeepAwake(machineId, mode) {
+  const m = state.machines.get(machineId)
+  if (!m) return
+  m.link.send({ type: 'set_keep_awake', mode })
 }
 
 export function refreshAll() {

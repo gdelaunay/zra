@@ -120,6 +120,7 @@ phone is warned by an explicit `zra/notice`.
 | `acp-client.js` | minimal, disposable ACP client, for that replay and those operations; announces Zed's capabilities |
 | `thread-ops.js` | rename/delete over ACP: tombstones, overlaid titles, per-agent capabilities, persisted |
 | `push.js` | dependency-free Web Push: VAPID (ES256), aes128gcm encryption, subscriptions |
+| `keep-awake.js` | keep awake: resident helper (`keep-awake.ps1` / `systemd-inhibit`), busy turn or TTL toggle, persisted state; its death releases the inhibition |
 | `shell-env.js` | project environment captured as Zed does (login shell, direnv), for that replay |
 | `agent-commands.js` | how to launch an agent: config, `settings.json`, Zed registry |
 | `agents.js` | `agent_servers` registry, Zed presence |

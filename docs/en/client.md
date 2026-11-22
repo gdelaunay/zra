@@ -13,7 +13,7 @@ zra-client/
   js/    main.js store.js link.js settings.js acp.js markdown.js diff.js
          dom.js icons.js file-icons.js format.js ui.js i18n.js en.js elicitation.js
          themes.js + agent-icons.js + file-icons-data.js (generated from Zed)
-         views/  threads.js thread.js entry.js settings.js new-session.js pair.js devbar.js
+         views/  threads.js thread.js entry.js settings.js machine-settings.js new-session.js pair.js devbar.js
          mock/   mock-link.js scenarios.js
   tools/ mock-server.mjs
   test/  *.test.mjs

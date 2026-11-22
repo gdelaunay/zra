@@ -33,16 +33,3 @@ façade optionnelle — et le chemin de distribution « tout-en-un » grand publ
 
 Conception détaillée — choix techniques (`tray-icon` + `tao`), points de
 robustesse, distribution, ordre de réalisation — : `reference/conception-zra-tray.md`.
-
----
-
-## Pistes
-
-### Appui long sur un poste : wake-on-LAN
-
-Dans la liste des threads, appui long sur un poste → bouton pour le réveiller :
-Wake-on-LAN, ou commande plus complexe pour récupérer Zed actif (réveil +
-lancement de Zed). Le daemon (Node) peut émettre le paquet magique UDP ; il lui
-faut l'adresse MAC du poste, et le broadcast n'atteint que le LAN local — depuis
-un autre réseau, passer par une machine toujours allumée du LAN. À instruire si
-le besoin se confirme.

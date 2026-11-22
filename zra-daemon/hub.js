@@ -17,7 +17,7 @@ import { tr } from './i18n.js'
 const log = logger('hub')
 
 /** Messages entrants qui constituent une écriture, donc à journaliser (§9). */
-const WRITES = new Set(['send', 'set_option', 'respond_permission', 'respond_elicitation', 'new_thread', 'new_project', 'interrupt', 'cancel_queued', 'rename_thread', 'delete_thread'])
+const WRITES = new Set(['send', 'set_option', 'respond_permission', 'respond_elicitation', 'new_thread', 'new_project', 'interrupt', 'cancel_queued', 'rename_thread', 'delete_thread', 'set_keep_awake'])
 
 export class Hub {
   /**
@@ -33,12 +33,14 @@ export class Hub {
    *   pairing?: import('./auth.js').Pairing|null,
    *   ops?: import('./thread-ops.js').ThreadOps|null,
    *   push?: import('./push.js').PushNotifier|null,
+   *   keepAwake?: import('./keep-awake.js').KeepAwake|null,
    * }} deps `pairing` : absent, aucun appairage exigé (tests, mode dev).
    */
-  constructor({ config, threads, states, rings, shims, backend, machine, recordInjection, loader = null, zed = null, covers = () => false, pairing = null, ops = null, push = null }) {
+  constructor({ config, threads, states, rings, shims, backend, machine, recordInjection, loader = null, zed = null, covers = () => false, pairing = null, ops = null, push = null, keepAwake = null }) {
     this.pairing = pairing
     this.ops = ops
     this.push = push
+    this.keepAwake = keepAwake
     this.zed = zed
     this.covers = covers
     this.config = config
@@ -72,6 +74,8 @@ export class Hub {
     states.on('dequeue', (threadId, entry) => this.deliverQueued(threadId, entry))
     // Capacités apprises en cours de route : le gating de la liste change.
     ops?.on('change', () => this.broadcastThreads())
+    // Garde éveillé : expiration du TTL, helper indisponible… l'état part à tous.
+    keepAwake?.on('change', () => this.broadcastKeepAwake())
   }
 
   // ---- cycle de vie des clients -------------------------------------------
@@ -122,6 +126,7 @@ export class Hub {
         key: msg.key ?? null, value: msg.value ?? null,
         optionId: msg.optionId ?? null, agentId: msg.agentId ?? null,
         ...(msg.type === 'new_project' ? { name: msg.name ?? null, parent: msg.parent ?? null } : {}),
+        ...(msg.type === 'set_keep_awake' ? { mode: msg.mode ?? null } : {}),
       })
     }
 
@@ -180,6 +185,9 @@ export class Hub {
 
       case 'push_subscribe':
         return this.pushSubscribe(client, msg)
+
+      case 'set_keep_awake':
+        return this.setKeepAwake(conn, msg)
 
       case 'push_unsubscribe':
         return this.pushUnsubscribe(client, msg)
@@ -254,6 +262,7 @@ export class Hub {
     for (const t of this.threads.threads) {
       conn.send(this.states.snapshot(t.threadId, { state: t.state }))
     }
+    if (this.keepAwake) conn.send({ type: 'keep_awake', ...this.keepAwake.state() })
     if (this.threads.degraded) {
       this.error(conn, 'index_degraded', this.threads.degraded)
     }
@@ -648,6 +657,29 @@ export class Hub {
     client.conn.send({ type: 'push_unsubscribed', endpoint: msg.endpoint ?? null })
   }
 
+  // ---- garde éveillé ---------------------------------------------------------
+
+  /**
+   * Bascule « garder éveillé » du poste (`keep-awake.js`). L'état vit côté
+   * daemon (TTL compris) : la PWA ne fait que demander, la réponse est le
+   * `keep_awake` rediffusé par l'événement `change`. L'inhibition automatique
+   * pendant les tours ne dépend pas de cette bascule (`setTurn`).
+   */
+  setKeepAwake(conn, msg) {
+    if (!this.keepAwake) {
+      return this.error(conn, 'internal_error', tr`Garde éveillé indisponible sur ce poste.`)
+    }
+    try {
+      this.keepAwake.setMode(msg.mode)
+    } catch (err) {
+      this.error(conn, 'invalid_mode', err.message)
+    }
+  }
+
+  broadcastKeepAwake() {
+    if (this.keepAwake) this.broadcast({ type: 'keep_awake', ...this.keepAwake.state() })
+  }
+
   /**
    * Fin de tour : une réponse est arrivée. Personne ne regarde ce thread en
    * direct (aucun abonné connecté) : le push prend le relais, comme Zed
@@ -826,6 +858,9 @@ export class Hub {
     if (a.turn === turn && wasWaiting === a.waiting.size > 0) return
     a.turn = turn
     this.broadcastThreads()
+    // Garde éveillé automatique : tant qu'au moins un thread travaille, le
+    // poste ne s'endort pas — même PWA en arrière-plan (état dérivé, zéro poll).
+    this.keepAwake?.setBusy([...this.activity.values()].some((x) => x.turn === 'busy'))
     if (was === 'busy' && turn === 'idle') this.notifyTurnEnd(threadId)
   }
 

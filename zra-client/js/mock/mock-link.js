@@ -52,6 +52,9 @@ export class MockLink {
     // Sidebar de Zed simulé : `new_project` y ajoute ses dossiers.
     this.projects = (this.spec.projects ?? []).map((p) => ({ ...p }))
     this.turns = new Map()   // threadId -> { timers:[], queue:[], turn }
+    // Garde éveillé simulé : même état dérivé que le daemon (tour ou bascule).
+    this.awake = { mode: 'off', until: null }
+    this.lastAwake = null
     this.subs = new Set()
     this.pendingPerms = new Map()  // requestId -> { threadId, toolCallId }
     this.pendingQuestions = new Map()  // requestId -> { threadId }
@@ -79,6 +82,7 @@ export class MockLink {
       })
       this.pushThreads()
       for (const t of this.threads) this.pushState(t.threadId)
+      this.pushKeepAwake()
       if (this.id === 'mock-desk') this.later(900, () => this.play('a1f39c0b', fullTurn('mode ro')))
     })
   }
@@ -114,6 +118,22 @@ export class MockLink {
       case 'ping':
         this.push({ type: 'pong' })
         break
+      case 'set_keep_awake': {
+        const durations = { '1h': 3_600_000, '4h': 14_400_000, '12h': 43_200_000 }
+        if (!['off', '1h', '4h', '12h', 'on'].includes(msg.mode)) break
+        this.awake.mode = msg.mode
+        this.awake.until = durations[msg.mode] ? Date.now() + durations[msg.mode] : null
+        const until = this.awake.until
+        if (until !== null) this.later(until - Date.now(), () => {
+          // Une bascule changée entre-temps a sa propre échéance : pas d'écrasement.
+          if (this.awake.until !== until) return
+          this.awake.mode = 'off'
+          this.awake.until = null
+          this.pushKeepAwake()
+        })
+        this.pushKeepAwake()
+        break
+      }
       case 'list_threads':
         this.pushThreads()
         break
@@ -475,6 +495,22 @@ export class MockLink {
       else delete t.turn
       this.pushThreads()
     }
+    this.pushKeepAwake()
+  }
+
+  /** Garde éveillé : actif si un tour est busy ou si la bascule est en cours. */
+  pushKeepAwake() {
+    const busy = [...this.turns.values()].some((st) => st.turn === 'busy')
+    const manual = this.awake.mode !== 'off' && (this.awake.until === null || this.awake.until > Date.now())
+    const active = busy || manual
+    const msg = {
+      type: 'keep_awake', mode: this.awake.mode, until: this.awake.until,
+      active, reason: active ? (busy ? 'turn' : 'manual') : null, supported: true,
+    }
+    const json = JSON.stringify(msg)
+    if (json === this.lastAwake) return
+    this.lastAwake = json
+    this.push(msg)
   }
 
   pushEvent(threadId, update, at) {

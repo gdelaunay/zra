@@ -48,8 +48,9 @@ modules ne chargent pas : `.js → text/javascript`, `.css → text/css`,
 
 1. La PWA ouvre le WS et envoie `hello` immédiatement.
 2. Le daemon répond `machine`, puis `threads`, puis un `thread_state` par thread
-   connu. Ce trio est le **bootstrap** ; la PWA n'affiche rien tant qu'il n'est
-   pas arrivé.
+   connu, puis `keep_awake` (état du garde éveillé). Ce trio est le **bootstrap** ;
+   la PWA n'affiche rien tant qu'il n'est pas arrivé. `keep_awake` est absent
+   d'un poste ancien : la PWA le dit dans les réglages du poste.
 3. À toute coupure, la PWA reconnecte avec backoff (1 s → 30 s, puis plateau
    60 s, jitter), et un handshake WS qui traîne est abandonné au bout de 15 s. À la
    reconnexion elle renvoie `hello`, puis `list_threads`, puis un `subscribe`
@@ -327,6 +328,18 @@ poste tel que la PWA le nomme (`machineId`, pour l'URL de la notification).
 Réponse : `push_subscribed` / `push_unsubscribed`, ou `error` (abonnement
 invalide). Le daemon notifie la fin d'un tour qu'aucun client connecté ne
 regarde en direct (§4 `machine.pushKey`).
+
+### `set_keep_awake`
+```ts
+{ type: 'set_keep_awake', mode: 'off' | '1h' | '4h' | '12h' | 'on' }
+```
+Bascule « garder éveillé » du poste (`keep-awake.js`,
+`reference/conception-zra-veille.md`). `1h`/`4h`/`12h` : durée à partir de
+maintenant ; `on` : jusqu'à désactivation. L'état (TTL compris) vit côté daemon
+et survit aux déconnexions de la PWA ; il est persisté (`keepAwakeFile`).
+Réponse : le `keep_awake` rediffusé à tous les clients reconnus, ou `error`
+`invalid_mode` (mode inconnu). Écriture journalisée (§9). L'inhibition
+automatique pendant les tours d'agent ne dépend pas de cette bascule.
 
 ### `zra/trigger` *(mode bouchon uniquement)*
 ```ts
@@ -607,6 +620,20 @@ le fil.
 Accusés des abonnements Web Push. Le réglage côté PWA est déjà à jour ; ces
 messages ne font que confirmer.
 
+### `keep_awake`
+```ts
+{ type: 'keep_awake', mode: 'off' | '1h' | '4h' | '12h' | 'on',
+  until: number | null, active: boolean, reason: 'turn' | 'manual' | null,
+  supported: boolean }
+```
+État du garde éveillé, au bootstrap puis à chaque changement (bascule,
+expiration du TTL, début/fin de tour, mécanisme indisponible). `until` :
+échéance ms de la bascule, `null` si `on`/`off`. `active` : l'inhibition est
+réellement posée ; `reason` : `turn` (au moins un agent travaille) ou `manual`
+(bascule). `supported: false` : le poste ne sait pas inhiber la veille (pas de
+logind, macOS…) — la PWA le dit, sans proposer de réglage. Un poste ancien
+n'envoie pas ce message.
+
 ### `error`
 ```ts
 { type: 'error', code: string, message: string, threadId?: string }
@@ -742,8 +769,8 @@ Double de `elicitation_resolved` dans le ring buffer, pour la même raison que
    lent, Zed continue de fonctionner normalement. Aucun message de ce protocole
    ne doit pouvoir bloquer l'IDE.
 8. **Journalisation.** Toute écriture venue du mobile (`send`, `set_option`,
-   `respond_permission`, `respond_elicitation`, `new_thread`) est tracée dans
-   `%LOCALAPPDATA%\zra\injections.log`.
+   `respond_permission`, `respond_elicitation`, `new_thread`, `set_keep_awake`)
+   est tracée dans `%LOCALAPPDATA%\zra\injections.log`.
 
 ### Ce que la PWA ne fait jamais
 

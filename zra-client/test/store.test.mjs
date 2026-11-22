@@ -264,3 +264,23 @@ test('écriture périmée pendant la coupure : écho en échec, texte revenu au 
   assert.equal(store.getDraft(k), 'autre chose\nsecond')
   store.setDraft(k, '')
 })
+
+test('keep_awake : l’état du poste vient du daemon, setKeepAwake ne fait que demander', () => {
+  const m = store.state.machines.get('mock-desk')
+  deliver({ type: 'keep_awake', mode: '4h', until: 123, active: true, reason: 'manual', supported: true })
+  assert.deepEqual(m.keepAwake, { mode: '4h', until: 123, active: true, reason: 'manual', supported: true })
+
+  const sent = []
+  const send = m.link.send.bind(m.link)
+  m.link.send = (msg) => { sent.push(msg); return send(msg) }
+  try {
+    store.setKeepAwake('mock-desk', 'off')
+    assert.deepEqual(sent, [{ type: 'set_keep_awake', mode: 'off' }])
+    // Pas d'optimisme : l'état affiché reste celui du daemon jusqu'au keep_awake.
+    assert.equal(m.keepAwake.mode, '4h')
+  } finally {
+    m.link.send = send
+  }
+  deliver({ type: 'keep_awake', mode: 'off', until: null, active: false, reason: null, supported: true })
+  assert.equal(m.keepAwake.active, false)
+})

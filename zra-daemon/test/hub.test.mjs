@@ -17,6 +17,7 @@ import { Hub } from '../hub.js'
 import { RingBuffers } from '../ring-buffer.js'
 import { ThreadStates } from '../thread-state.js'
 import { ShimRegistry } from '../shim-registry.js'
+import { KeepAwake } from '../keep-awake.js'
 import { InjectionError } from '../inject/backend.js'
 import { AuthError, Pairing } from '../auth.js'
 import { setLevel } from '../log.js'
@@ -114,7 +115,7 @@ function fakeMachine(agents = [{ id: 'claude-zra', wraps: 'claude-acp' }, { id: 
 }
 
 /** Monte un hub avec tout ce qu'il lui faut, factice sauf ring/états/registres. */
-function boot({ threads = defaultThreads(), backend = fakeBackend(), pairing = null, zed = null, loader = null, covers = () => false, config = { auth: {} }, size = 2000, ops = null, push = null } = {}) {
+function boot({ threads = defaultThreads(), backend = fakeBackend(), pairing = null, zed = null, loader = null, covers = () => false, config = { auth: {} }, size = 2000, ops = null, push = null, keepAwake = null } = {}) {
   const rings = new RingBuffers({ size })
   const states = new ThreadStates()
   const shims = new ShimRegistry()
@@ -134,8 +135,23 @@ function boot({ threads = defaultThreads(), backend = fakeBackend(), pairing = n
     pairing,
     ops,
     push,
+    keepAwake,
   })
-  return { hub, threads, states, rings, shims, backend, recorded, zed, loader, ops, push }
+  return { hub, threads, states, rings, shims, backend, recorded, zed, loader, ops, push, keepAwake }
+}
+
+/** Garde éveillé réel, helper factice : aucun PowerShell ni logind en test. */
+function fakeKeepAwake() {
+  const spawned = []
+  const spawn = (command, args) => {
+    const child = new EventEmitter()
+    child.killed = false
+    child.kill = () => { child.killed = true; child.emit('exit', null, 'SIGTERM') }
+    spawned.push({ command, args, child })
+    return child
+  }
+  const keepAwake = new KeepAwake({ spawn, platform: 'win32' })
+  return { keepAwake, spawned }
 }
 
 /** Hub démarré avec un client reconnu (loopback) et ses messages. */
@@ -1638,4 +1654,90 @@ test('fin de tour : push seulement si personne ne regarde le thread en direct', 
   assert.equal(push.calls[0].threadId, A)
   assert.equal(push.calls[0].title, 'fil A')
   assert.equal(push.calls[0].body, 'la réponse')
+})
+
+// ---------------------------------------------------------------------------
+// Garde éveillé
+// ---------------------------------------------------------------------------
+
+test('bootstrap : keep_awake après les thread_state', () => {
+  const { keepAwake } = fakeKeepAwake()
+  const ctx = boot({ keepAwake })
+  const conn = pairedClient(ctx)
+  conn.emit('message', { type: 'hello' })
+  assert.deepEqual(conn.types().slice(-1), ['keep_awake'])
+  assert.equal(conn.last().active, false)
+  assert.equal(conn.last().supported, true)
+  keepAwake.close()
+})
+
+test('set_keep_awake : bascule journalisée, état rediffusé à tous', () => {
+  const { keepAwake } = fakeKeepAwake()
+  const ctx = boot({ keepAwake })
+  const conn = pairedClient(ctx)
+  const conn2 = pairedClient(ctx)
+  conn.emit('message', { type: 'hello' })
+  conn2.emit('message', { type: 'hello' })
+  conn.mark(); conn2.mark()
+  conn.emit('message', { type: 'set_keep_awake', mode: '4h' })
+  assert.equal(conn.last().type, 'keep_awake')
+  assert.equal(conn.last().mode, '4h')
+  assert.equal(conn.last().active, true)
+  assert.equal(conn.last().reason, 'manual')
+  assert.equal(conn2.last().type, 'keep_awake')
+  assert.ok(ctx.recorded.some((e) => e.type === 'set_keep_awake' && e.mode === '4h'))
+  keepAwake.close()
+})
+
+test('set_keep_awake : mode inconnu → error invalid_mode, état inchangé', () => {
+  const { keepAwake } = fakeKeepAwake()
+  const ctx = boot({ keepAwake })
+  const conn = pairedClient(ctx)
+  conn.emit('message', { type: 'hello' })
+  conn.mark()
+  conn.emit('message', { type: 'set_keep_awake', mode: 'toujours' })
+  assert.equal(conn.last().type, 'error')
+  assert.equal(conn.last().code, 'invalid_mode')
+  assert.equal(keepAwake.state().mode, 'off')
+  keepAwake.close()
+})
+
+test('tour busy : inhibition automatique ; idle : relâche — sans bascule', () => {
+  const { keepAwake, spawned } = fakeKeepAwake()
+  const ctx = boot({ keepAwake })
+  const conn = pairedClient(ctx)
+  conn.emit('message', { type: 'hello' })
+  conn.mark()
+  ctx.states.mirror(A, { turn: 'busy' })
+  assert.equal(spawned.length, 1)
+  assert.equal(keepAwake.state().reason, 'turn')
+  assert.ok(conn.only('keep_awake').some((m) => m.active && m.reason === 'turn'))
+  ctx.states.mirror(A, { turn: 'idle' })
+  assert.equal(spawned[0].child.killed, true)
+  assert.equal(keepAwake.state().active, false)
+  keepAwake.close()
+})
+
+test('deux threads busy : un seul idle ne relâche pas', () => {
+  const { keepAwake, spawned } = fakeKeepAwake()
+  const ctx = boot({ keepAwake })
+  ctx.states.mirror(A, { turn: 'busy' })
+  ctx.states.mirror(B, { turn: 'busy' })
+  ctx.states.mirror(A, { turn: 'idle' })
+  assert.equal(spawned[0].child.killed, false)
+  ctx.states.mirror(B, { turn: 'idle' })
+  assert.equal(spawned[0].child.killed, true)
+  keepAwake.close()
+})
+
+test('sans keepAwake (ancien assemblage) : set_keep_awake → error, rien ne casse', () => {
+  const ctx = boot()
+  const conn = pairedClient(ctx)
+  conn.emit('message', { type: 'hello' })
+  assert.ok(!conn.types().includes('keep_awake'))
+  conn.mark()
+  conn.emit('message', { type: 'set_keep_awake', mode: 'on' })
+  assert.equal(conn.last().type, 'error')
+  ctx.states.mirror(A, { turn: 'busy' })
+  ctx.states.mirror(A, { turn: 'idle' })
 })

@@ -7,6 +7,10 @@
 - Thread creation: the “+” navigates straight to Zed's creation screen (`#/new/<machine>`, `views/new-thread.js`) — centered muted pulsing label (opacity 0.3 ↔ 0.7, 2 s) while the session opens, no more waiting toast; `thread_created` replaces the screen with the thread
 - Creation failure (`new_thread_failed`) as a “Failed to Launch” callout on that screen (Retry resends `new_thread`, copy, close = back to list), like Zed's `render_load_error`; 45 s safety net on the PWA side (daemon: 30 s); navigation to the thread only on the creation screen, or if no creation was being tracked (reload during creation) — no stolen focus if the user went elsewhere
 - Docs: `zed.md` (creation screen, `conversation_view.rs` `ServerState::Loading`/`LoadError`), `protocol.md` (`new_thread_failed`, `thread_created`), `client.md` — bilingual
+- Keep awake: the machine never sleeps while an agent is working (automatic, derived from the existing busy/idle state, zero polling), plus an explicit per-machine toggle (1 h / 4 h / 12 h / until turned off) in a settings sheet on hover/long-press of the machine row; TTL and state on the daemon side, persisted (`.zra/keep-awake.json`), survive PWA disconnections and restarts
+- Resident helper per OS (`keep-awake.ps1` → `SetThreadExecutionState` on Windows, `systemd-inhibit` on Linux): its death releases the inhibition, daemon crash included; early failure → machine unsupported, said in the sheet; on release, the OS's normal sleep delay takes over again
+- UI: coffee indicator on the machine row when the inhibition is active (replaces the thread count), `views/machine-settings.js` sheet repainted on received `keep_awake`; protocol `set_keep_awake` (logged write) / `keep_awake` (bootstrap + broadcast), simulated by the mock
+- Docs: `protocol.md`, `daemon.md`, `client.md`, `limitations.md` (Windows lid, Linux manual sleep, unsupported systems), design `reference/conception-zra-veille.md` — bilingual
 
 ## v0.5.4 — 2026-11-21 — HTTPS relay (`5d9583e`)
 

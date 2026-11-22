@@ -166,6 +166,8 @@ export const DEFAULTS = {
   threadOpsFile: '.zra/thread-ops.json',
   /** Web Push : clé VAPID et abonnements des navigateurs (`push.js`). */
   pushFile: '.zra/push.json',
+  /** Garde éveillé : bascule explicite et son échéance (`keep-awake.js`). */
+  keepAwakeFile: '.zra/keep-awake.json',
 
   /** Journal d'injections. Dossier de ZRA : `%LOCALAPPDATA%\zra` en Windows, `$XDG_STATE_HOME/zra` ailleurs. */
   logFile: PATHS.injectionLog,
@@ -231,6 +233,7 @@ export async function loadConfig({ file = process.env.ZRA_CONFIG || (UNDER_TEST 
   cfg.auth.file = cfg.auth.file ? abs(cfg.auth.file) : null
   cfg.threadOpsFile = cfg.threadOpsFile ? abs(cfg.threadOpsFile) : null
   cfg.pushFile = cfg.pushFile ? abs(cfg.pushFile) : null
+  cfg.keepAwakeFile = cfg.keepAwakeFile ? abs(cfg.keepAwakeFile) : null
 
   if (cfg.zedChannel != null && !ZED_CHANNELS.includes(cfg.zedChannel)) {
     throw new Error(tr`zedChannel inconnu : ${cfg.zedChannel} (${ZED_CHANNELS.join(', ')}).`)

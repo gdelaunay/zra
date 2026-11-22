@@ -120,6 +120,7 @@ mobile en est averti par un `zra/notice` explicite.
 | `acp-client.js` | client ACP minimal et jetable, pour cette relecture et ces opérations ; annonce les capacités de Zed |
 | `thread-ops.js` | renommer/supprimer par ACP : tombstones, titres superposés, capacités par agent, persistés |
 | `push.js` | Web Push sans dépendance : VAPID (ES256), chiffrement aes128gcm, abonnements |
+| `keep-awake.js` | garde éveillé : helper résident (`keep-awake.ps1` / `systemd-inhibit`), tour busy ou bascule à TTL, état persisté ; sa mort relâche l'inhibition |
 | `shell-env.js` | environnement du projet relevé comme Zed (shell de connexion, direnv), pour cette relecture |
 | `agent-commands.js` | comment lancer un agent : config, `settings.json`, registry de Zed |
 | `agents.js` | registry `agent_servers`, présence de Zed |

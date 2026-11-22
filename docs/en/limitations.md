@@ -163,3 +163,23 @@ consequences (design D1, agent matrix in `docs/en/acp.md`):
 - **Keyboard fallback** (`uia` backend, agent having refused ACP injection):
   the text goes as-is into Zed's composer — mention links stay literal there,
   not converted to chips.
+
+## Keep awake: what it does not do
+
+**Decision: accepted, OS mechanism** (`reference/conception-zra-veille.md`).
+Keep awake (automatic during turns, toggle 1 h / 4 h / 12 h / until turned off)
+prevents **automatic** sleep, nothing else:
+
+- **Lid closed, Windows laptop**: sleeps anyway — hardware policy above
+  `SetThreadExecutionState`. Changing it via `powercfg` would be global and
+  persistent (outlives the daemon): rejected. On Linux, the logind inhibitor
+  covers the lid (it goes through logind).
+- **Manual sleep**: always possible on Windows. On Linux, the `sleep` block
+  lock blocks it too (same D-Bus call as automatic); forcing:
+  `systemctl suspend -i`, or turning the toggle off / end of turn. Standard
+  Linux behavior (a video player during playback does the same).
+- **Screen off**: not prevented (intended — only the system stays awake).
+- **Systems without the mechanism**: Linux without logind (MX Linux is
+  sysvinit), macOS: `supported: false`, the PWA says so in the machine
+  settings, no phantom setting. Detected at runtime (the helper exits early
+  with an error).
