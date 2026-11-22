@@ -36,7 +36,7 @@ Extension `ubuntu-appindicators@ubuntu.com` active. Session Wayland (`wayland-0`
 | 6 | Quitter | ✅ Plus aucun processus `zra-tray` ni `zra-daemon`, port 7777 libre. Zéro orphelin (daemon en groupe de processus propre, PPID tray). |
 | 7 | Single-instance | ✅ Second lancement : sortie immédiate, code 0, silencieux ; le premier continue, daemon intact. |
 | 8 | Bascule | ✅ Poste → relais : `zra-relay` écoute sur `0.0.0.0:7777`, daemon arrêté, `"mode": "relais"` persisté. Retour poste : daemon relancé, relais arrêté, `"mode": "poste"` persisté. |
-| 9 | Autostart | ✅ (moitié session) `npm run service -- install` annonce bien le **tray** (`ExecStart=…/zra-tray/target/debug/zra-tray`, `Restart=on-failure`, environnement graphique Wayland injecté). `--apply` : unité écrite + activée. `--start` : `systemctl --user status zra-daemon` → active, **Main PID = zra-tray**, daemon fils, port 7777 OK. `Linger=yes` déjà en place. ⏳ Déconnexion/reconnexion : à faire (voir ci-dessous). |
+| 9 | Autostart | ✅ `npm run service -- install` annonce bien le **tray** (`ExecStart=…/zra-tray/target/debug/zra-tray`, `Restart=on-failure`, environnement graphique Wayland injecté). `--apply` : unité écrite + activée. `--start` : `systemctl --user status zra-daemon` → active, **Main PID = zra-tray**, daemon fils, port 7777 OK. `Linger=yes` déjà en place. **Déconnexion/reconnexion GNOME : tray + daemon revenus seuls** (service démarré à l'ouverture de session, Main PID zra-tray, icône enregistrée, port 7777 écoute). |
 | 10 | Pilotage Zed | ✅ Message envoyé depuis la PWA du mobile (client `192.168.1.86` connecté) → frappe reçue dans Zed. Journal : `Pilotage de Zed : backend clavier xdotool` (xdotool 3.20160805.1 présent), `Injection : backend acp`. |
 
 ## Notes
@@ -54,9 +54,8 @@ Extension `ubuntu-appindicators@ubuntu.com` active. Session Wayland (`wayland-0`
   ligne de commande du shell de test lui-même ; utiliser un motif ancré
   (`^/usr/bin/node.*zra-daemon`) pour les vérifications.
 
-## Reste à faire
+## Verdict
 
-- Point 9, moitié session : **déconnexion/reconnexion GNOME** → vérifier icône
-  tray + daemon présents, `systemctl --user status zra-daemon` active.
-  (La déconnexion tue le terminal de l'agent ; test à faire par l'utilisateur,
-  rapport à compléter au retour.)
+**10/10 points validés, aucun bug bloquant.** Seul écart : la fiche demandait
+`libappindicator3-dev` (conflit Ayatana, inutile au build) — corrigée sur cette
+branche. Le suspect presse-papiers Wayland ne se reproduit pas sur ce poste.
