@@ -59,7 +59,7 @@ flowchart LR
 
 ### PWA ↔ daemon: HTTP and WebSocket `/ws`
 
-- Same port for everything (7777 by default). HTTP serves `zra-client/` (`zra-daemon/static.js`).
+- Same port for everything (7777 by default). HTTP serves `zra-client/` (`zra-daemon/static.js`) and answers `GET /zra-daemon` → `{daemon:true}`: a public marker (any port, any address) by which the PWA served by the daemon recognizes its origin — implicit machine, no port guesswork.
 - Through `zra-relay` (optional): the PWA is served by the relay (same origin, `/zra-relay` marker detected at boot) and opens `wss://<host>/to/<ip>[:<port>]/ws`. The relay targets the machine's private IP (port 7777 by default, or the route's), without `Origin` or proxy headers: the daemon treats it as a native client, pairing is required just like direct. A GET probe `/to/<ip>[:<port>]` (200/502/400/403) feeds the client's diagnosis (`link.js`).
 - WebSocket: protocol described in `docs/en/protocol.md`. `zra-daemon/hub.js` is the only module that knows the clients.
 - ACP events are rebroadcast as is in numbered `acp_event`s (`seq`). A ring buffer per thread (`zra-daemon/ring-buffer.js`, 2,000 events) allows resuming after a drop.

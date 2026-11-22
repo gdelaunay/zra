@@ -151,6 +151,15 @@ export async function createServers({ config, addresses, onConnection, onShim, s
     // qui relaie vers 127.0.0.1 n'est plus le poste lui-même (audit, loopback).
     const local = isLoopback(req.socket.remoteAddress) &&
       !req.headers['x-forwarded-for'] && !req.headers.forwarded && !req.headers.via
+    // Marqueur de détection : la PWA servie par le daemon reconnaît son
+    // origine — poste implicite sur cette origine, quel que soit le port
+    // (le pendant du `/zra-relay` du relais). Public, ne révèle rien ; les
+    // routes sensibles restent loopback.
+    if (req.url === '/zra-daemon') {
+      res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' })
+      res.end(JSON.stringify({ daemon: true }))
+      return
+    }
     // Diagnostic du poste (`npm run setup`), en local uniquement : il liste les
     // shims et les sessions, rien à exposer sur le tunnel.
     if (status && req.url === '/status' && local) {

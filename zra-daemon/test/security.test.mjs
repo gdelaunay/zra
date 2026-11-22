@@ -79,6 +79,18 @@ test('HTTP : un Host forgé est refusé, même depuis la loopback (DNS rebinding
   }
 })
 
+test('/zra-daemon : marqueur public, rien de sensible ; Host et Origin toujours vérifiés', async (t) => {
+  await servers(t)
+  const res = await http({ path: '/zra-daemon' })
+  assert.match(res, /200/)
+  assert.match(res, /{"daemon":true}/)
+  // Public : même derrière un en-tête de proxy (la PWA d'un poste distant
+  // doit pouvoir le lire), même sans /status ni statiques.
+  assert.match(await http({ path: '/zra-daemon', headers: { 'X-Forwarded-For': '203.0.113.9' } }), /200/)
+  // Le DNS rebinding reste refusé.
+  assert.match(await http({ path: '/zra-daemon', host: 'evil.example' }), /403/)
+})
+
 test('HTTP : une Origin tierce est refusée sur les routes locales (CSRF)', async (t) => {
   let rotated = false
   await servers(t, { admin: (req, res) => {

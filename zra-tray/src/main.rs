@@ -22,6 +22,10 @@ use std::time::{Duration, Instant};
 
 use config::{Mode, Paths};
 use supervisor::{RunState, Supervisor};
+// X11/Wayland : le presse-papiers est servi par le processus propriétaire ;
+// `.wait()` garde le contenu vivant après l'écriture (voir ID_PAIR).
+#[cfg(target_os = "linux")]
+use arboard::SetExtLinux;
 use tao::event::Event;
 use tao::event_loop::{ControlFlow, EventLoopBuilder};
 use tray_icon::menu::{Menu, MenuEvent, MenuItem, PredefinedMenuItem};
@@ -251,6 +255,17 @@ fn run_gui(sup: Arc<Supervisor>, paths: Arc<Paths>, cfg: config::TrayConfig) {
                             thread::spawn(move || {
                                 if let Some(code) = status::pair_code(port) {
                                     if let Ok(mut clip) = arboard::Clipboard::new() {
+                                        // Linux : le handle doit vivre — droppé
+                                        // aussitôt, arboard relaie vers un
+                                        // gestionnaire de presse-papiers puis
+                                        // coupe son serveur ; sans gestionnaire
+                                        // (session xrdp sans klipper…), le code
+                                        // est perdu. `.wait()` sert les requêtes
+                                        // jusqu'à ce qu'un autre contenu remplace
+                                        // le code — le thread vit dans le tray.
+                                        #[cfg(target_os = "linux")]
+                                        let _ = clip.set().wait().text(code);
+                                        #[cfg(not(target_os = "linux"))]
                                         let _ = clip.set_text(code);
                                     }
                                 }

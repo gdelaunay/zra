@@ -61,6 +61,12 @@ avec sa raison.
 `GET /status`, en loopback uniquement : backend, threads par état, shims et
 leurs sessions. C'est ce qu'affiche `npm run setup`.
 
+`GET /zra-daemon` : marqueur public `{daemon:true}` — tout port, toute adresse,
+même derrière un en-tête de proxy (la PWA d'un poste distant doit pouvoir le
+lire). La PWA servie par le daemon reconnaît ainsi son origine au boot
+(`settings.js` : poste implicite sur cette origine). Ne révèle rien ; `Host` et
+`Origin` restent vérifiés comme sur les autres routes.
+
 ## Le canal des shims
 
 Un deuxième chemin WebSocket sur le même port, **réservé à la loopback** :
