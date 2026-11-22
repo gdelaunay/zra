@@ -1,9 +1,11 @@
 // Chemins du dépôt et config du tray (`.zra/tray.json`).
 //
 // La racine est retrouvée en remontant depuis l'exécutable jusqu'à un dossier
-// contenant `zra-daemon/index.js` — que le binaire soit dans `.zra/bin/`
-// (téléchargé au setup), à la racine d'une archive « app », ou dans
-// `zra-tray/target/debug/` (dev). `ZRA_ROOT` force la racine.
+// contenant `zra-daemon/index.js` (layout dépôt : binaire dans `.zra/bin/` ou
+// `zra-tray/target/debug/`) ou `app/zra-daemon/index.js` (archive « app » :
+// binaire à côté de `app/`). Dans l'archive la racine est `app/` — le daemon
+// y résout sa config et `.zra` (config.js : ROOT = parent de zra-daemon/), le
+// tray s'aligne pour partager les mêmes données. `ZRA_ROOT` force la racine.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -62,16 +64,15 @@ pub struct Paths {
 impl Paths {
     pub fn discover() -> Option<Self> {
         if let Ok(root) = std::env::var("ZRA_ROOT") {
-            let root = PathBuf::from(root);
-            if root.join("zra-daemon/index.js").is_file() {
+            if let Some(root) = root_at(&PathBuf::from(root)) {
                 return Some(Self::from_root(root));
             }
         }
         let exe = std::env::current_exe().ok()?;
         let mut dir: &Path = exe.parent()?;
         for _ in 0..8 {
-            if dir.join("zra-daemon/index.js").is_file() {
-                return Some(Self::from_root(dir.to_path_buf()));
+            if let Some(root) = root_at(dir) {
+                return Some(Self::from_root(root));
             }
             dir = dir.parent()?;
         }
@@ -113,5 +114,61 @@ impl Paths {
     pub fn save_config(&self, cfg: &TrayConfig) -> std::io::Result<()> {
         fs::create_dir_all(&self.zra)?;
         fs::write(self.tray_config(), serde_json::to_string_pretty(cfg).unwrap() + "\n")
+    }
+}
+
+/// Racine ZRA depuis un dossier : layout dépôt (`zra-daemon/` direct) ou
+/// archive « app » (`app/zra-daemon/`). Dans l'archive la racine est `app/`,
+/// pour partager config et `.zra` avec le daemon (ROOT = parent de
+/// zra-daemon/ côté config.js).
+fn root_at(dir: &Path) -> Option<PathBuf> {
+    if dir.join("zra-daemon/index.js").is_file() {
+        return Some(dir.to_path_buf());
+    }
+    let app = dir.join("app");
+    if app.join("zra-daemon/index.js").is_file() {
+        return Some(app);
+    }
+    None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Dossier temporaire unique (pas de dépendance tempfile), nettoyé après.
+    fn tmp(tag: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("zra-tray-test-{tag}-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    fn touch(path: &Path) {
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(path, "").unwrap();
+    }
+
+    #[test]
+    fn racine_layout_depot() {
+        let dir = tmp("depot");
+        touch(&dir.join("zra-daemon/index.js"));
+        assert_eq!(root_at(&dir), Some(dir.clone()));
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn racine_layout_archive_app() {
+        let dir = tmp("archive");
+        touch(&dir.join("app/zra-daemon/index.js"));
+        assert_eq!(root_at(&dir), Some(dir.join("app")));
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn racine_introuvable() {
+        let dir = tmp("vide");
+        assert_eq!(root_at(&dir), None);
+        fs::remove_dir_all(&dir).unwrap();
     }
 }

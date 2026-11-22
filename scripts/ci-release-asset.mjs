@@ -4,6 +4,10 @@
 // GITHUB_REF_NAME, GITHUB_TOKEN) ; c'est server_url qui départage.
 //
 //   node scripts/ci-release-asset.mjs --target x86_64-unknown-linux-gnu
+//   node scripts/ci-release-asset.mjs --target … --file dist/zra-….zip --name zra-….zip
+//
+// --file/--name : attacher un fichier quelconque (l'archive « app ») ; sans,
+// le binaire tray buildé pour --target (nom dérivé).
 //
 // Idempotent : release créée si absente (course entre jobs matrice gérée),
 // asset du même nom remplacé (re-run du tag). Outil de dev : français only.
@@ -18,7 +22,10 @@ const server = process.env.GITHUB_SERVER_URL || 'https://github.com'
 const repo = process.env.GITHUB_REPOSITORY
 const tag = process.env.GITHUB_REF_NAME
 const token = process.env.GITHUB_TOKEN
-const target = process.argv[process.argv.indexOf('--target') + 1]
+const arg = (name) => { const i = process.argv.indexOf(name); return i > -1 ? process.argv[i + 1] : null }
+const target = arg('--target')
+const fileOverride = arg('--file')
+const nameOverride = arg('--name')
 if (!repo || !tag || !token || !target) {
   console.error('Contexte CI manquant (GITHUB_REPOSITORY, GITHUB_REF_NAME, GITHUB_TOKEN, --target).')
   process.exit(1)
@@ -31,8 +38,8 @@ const headers = {
   accept: 'application/json',
 }
 const exe = target.includes('windows') ? '.exe' : ''
-const asset = `zra-tray-${target}${exe}`
-const binary = join(ROOT, 'zra-tray', 'target', target, 'release', `zra-tray${exe}`)
+const asset = nameOverride || `zra-tray-${target}${exe}`
+const binary = fileOverride ? resolve(fileOverride) : join(ROOT, 'zra-tray', 'target', target, 'release', `zra-tray${exe}`)
 
 async function api(path, options = {}) {
   const res = await fetch(`${base}${path}`, { ...options, headers: { ...headers, ...options.headers } })

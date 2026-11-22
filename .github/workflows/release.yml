@@ -85,8 +85,24 @@ jobs:
         shell: bash
         run: cargo build --release --manifest-path zra-tray/Cargo.toml --target ${{ matrix.target }}
 
+      - name: Archive « app » (zip)
+        shell: bash
+        run: |
+          if [ "${{ runner.os }}" = "Linux" ] && ! command -v zip >/dev/null 2>&1; then
+            SUDO=""; [ "$(id -u)" = 0 ] || SUDO="sudo -n"
+            $SUDO apt-get update && DEBIAN_FRONTEND=noninteractive $SUDO apt-get install -y zip
+          fi
+          node scripts/ci-package-app.mjs --target ${{ matrix.target }}
+
       - name: Attacher à la release
         shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: node scripts/ci-release-asset.mjs --target ${{ matrix.target }}
+        run: |
+          # Binaire tray seul (flux contributeur : téléchargement au setup).
+          node scripts/ci-release-asset.mjs --target ${{ matrix.target }}
+          # Archive « app » grand public (même version, gate tag == Cargo.toml).
+          ver="${GITHUB_REF_NAME#v}"
+          node scripts/ci-release-asset.mjs --target ${{ matrix.target }} \
+            --file "dist/zra-${ver}-${{ matrix.target }}.zip" \
+            --name "zra-${ver}-${{ matrix.target }}.zip"

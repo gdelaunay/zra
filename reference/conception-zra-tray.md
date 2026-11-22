@@ -165,8 +165,15 @@ HTTP éphémère dans le binaire, coupé une fois le setup fini. Pas de webview
    ├── zra-tray(.exe)     ← point d'entrée unique, deux modes (poste/relais) :
    │                        onboarding au 1er lancement selon le mode, puis
    │                        supervision ; updates via les releases
-   └── app/               ← daemon + client + shim + relay, même version que le tray
+   └── app/               ← daemon + client + shim + relay + package.json,
+                            même version que le tray
   ```
+
+  Le tray prend `app/` pour racine (`discover()` vise `app/zra-daemon/`) :
+  config et `.zra` y vivent, partagées avec le daemon (config.js : ROOT =
+  parent de zra-daemon/). `package.json` est embarqué — le daemon y lit sa
+  version. Les updates (5.4) remplacent le code en préservant `app/.zra` et
+  `app/zra.config.json`.
 
   Double-clic sur le poste, ça marche. Sur le homelab : la **même archive**,
   extraite, lancée en mode relais — l'unité systemd du relais pointe vers le
