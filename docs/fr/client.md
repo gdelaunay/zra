@@ -78,6 +78,14 @@ génération, supprimer (confirmation). Le titre de la page agent est lui-même
 un input éditable. Renommage et suppression passent par ACP, gatés par les
 capacités de l'agent (`docs/fr/acp.md`).
 
+Réglages d'un poste : au survol sur desktop, à l'appui long sur mobile, une
+icône réglages ouvre la feuille du poste (`views/machine-settings.js`) — garde
+éveillé. Quand l'inhibition est active, la ligne porte un café (vert pour la
+bascule explicite, orange pendant un tour d'agent) et, à sa gauche, le TTL
+restant (style meta, séparé par un « · ») mis à jour chaque seconde ; au
+survol/appui long, le café laisse place au bouton réglages dans la même boîte,
+le TTL reste affiché sans bouger.
+
 Le composer est un contenteditable à façade textarea (`editor.js`) : le
 brouillon reste du texte, Entrée envoie, Maj+Entrée et Ctrl+Entrée sautent une
 ligne, le collage est en texte brut, le champ grandit jusqu'à 40 % de l'écran.

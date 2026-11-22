@@ -242,9 +242,6 @@ button { cursor: pointer; }
   font-size: var(--fs-lg); line-height: var(--lh); background: transparent;
   field-sizing: content;
 }
-.header__title--brand>.icon--lg {
-    margin-bottom: 6px;
-}
 /* Éditer ne change rien à l'apparence (render_title_view) : on édite le texte
  * direct, seul le focus sélectionne tout. Bleu clair d'accent de Zed
  * (player.local_selection, reference/zed-ui/shared/tokens.css). */
@@ -259,6 +256,9 @@ button { cursor: pointer; }
 }
 .header__meta .path { font-family: var(--font-mono); }
 .header__agent { color: var(--icon-muted); flex: none; padding: 0 var(--sp-1); display: flex; }
+/* Logo ZRA : glyphe 18 px (taille d'origine) ; padding réduit pour garder
+ * l'encombrement total de 20 px de l'icône d'agent. */
+.header__agent--brand { padding: 0; margin: 0 1px 0 3px; margin-bottom: 5px; }
 .header__right { display: flex; align-items: center; gap: var(--sp-3); flex: none; }
 /* Un peu d'air entre la pastille live et le filet qui suit. */
 .header__right .dot, .header__right .lock-dot { margin-right: var(--sp-3); }
@@ -320,8 +320,8 @@ button { cursor: pointer; }
   .group__head:not(:hover) .group__chevron { visibility: hidden; }
 }
 .group__name { font-size: var(--fs-sm); text-transform: uppercase; letter-spacing: .06em;
-  color: var(--text-muted); font-weight: 600; }
-.group__meta { font-size: var(--fs-sm); color: var(--text-disabled); }
+  color: var(--text-muted); font-weight: 600; line-height: 1; }
+.group__meta { font-size: var(--fs-sm); color: var(--text-disabled); line-height: 1; }
 
 /* Ligne de poste : indicateur garde éveillé + réglages au survol/appui long,
  * même pattern que les actions d'un thread. Le compte de threads n'y est plus. */
@@ -330,17 +330,33 @@ button { cursor: pointer; }
   position: sticky; top: 0; z-index: 2;
   background: var(--panel-background);
 }
-.machine__head .group__head { position: static; flex: 1; min-width: 0; width: auto; padding-right: var(--sp-2); }
+.machine__head .group__head { position: static; flex: 1; min-width: 0; width: auto; padding-right: var(--sp-2); background: transparent; }
 .machine__head:hover { background: var(--ghost-element-hover); }
 .machine__head:hover .group__name { color: var(--text); }
-.machine__awake { color: var(--icon-accent); flex: none; margin-right: var(--sp-2); }
-.machine__actions { display: none; align-items: center; padding-right: var(--sp-3); }
+/* Indicateur garde éveillé : TTL (style meta) puis café dans la même boîte
+ * que le bouton réglages (28 px + sp-3) — au survol le bouton remplace le
+ * café, le TTL ne bouge pas. Vert bascule, orange tour. line-height 1 : la
+ * boîte de texte épouse les glyphes, centrage vrai avec les icônes. */
+.machine__awake-ttl { font-size: var(--fs-sm); color: var(--text-disabled); line-height: 1; white-space: nowrap; flex: none; margin-right: var(--sp-2); }
+.machine__awake { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; flex: none; margin-right: var(--sp-2); color: var(--created); }
+.machine__awake--turn { color: var(--warning); }
+.machine__actions { display: none; align-items: center; padding-right: var(--sp-2); }
+/* La ligne est déjà teintée au survol : le bouton se distingue par la teinte active. */
+.machine__actions .icon-btn:hover { background: var(--ghost-element-active); }
 @media (hover: hover) {
   .machine__head:hover .machine__actions, .machine__head:focus-within .machine__actions { display: flex; }
+  .machine__head:hover:has(.machine__actions) .machine__awake,
+  .machine__head:focus-within:has(.machine__actions) .machine__awake { display: none; }
 }
 .machine__head--actions { background: var(--ghost-element-hover); }
 .machine__head--actions .machine__actions { display: flex; }
+.machine__head--actions:has(.machine__actions) .machine__awake { display: none; }
 .machine-awake-status { display: flex; align-items: center; gap: var(--sp-2); color: var(--text-muted); font-size: var(--fs-sm); }
+.machine-awake-status .icon { color: var(--created); }
+.machine-awake-status--turn .icon { color: var(--warning); }
+
+span.group__name,span.group__meta,span.machine__awake-ttl,.group__chevron{ margin-top: 3px; }
+.group__chevron.recent__plus { margin-top: 0px; }
 
 /* Projet — render_project_header : 31 px, pl 8 pr 6, survol ghost_element_hover. */
 .project__head {

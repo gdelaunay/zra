@@ -77,6 +77,14 @@ rename (single-line editor in place of the title), stop generation, delete
 (confirmation). The agent page title is itself an editable input. Rename and
 delete go through ACP, gated by the agent's capabilities (`docs/en/acp.md`).
 
+Machine settings: on hover on desktop, on long press on mobile, a settings
+icon opens the machine sheet (`views/machine-settings.js`) — keep awake. When
+the inhibition is active, the row shows a coffee icon (green for the explicit
+toggle, orange during an agent turn) with the remaining TTL on its left
+(meta style, separated by a “·”), updated every second; on hover/long press
+the coffee gives way to the settings button in the same box, the TTL stays
+put.
+
 The composer is a contenteditable with a textarea-like facade (`editor.js`):
 the draft stays plain text, Enter sends, Shift+Enter and Ctrl+Enter insert a
 newline, paste is plain text, and the field grows up to 40% of the screen.

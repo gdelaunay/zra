@@ -3,7 +3,7 @@
 // L'état vit côté daemon : la feuille demande (`set_keep_awake`) et se
 // repeint au `keep_awake` rediffusé — TTL et raison compris.
 
-import { h, button, clear } from '../dom.js'
+import { h, button, clear, tickText } from '../dom.js'
 import { icon } from '../icons.js'
 import { formatDuration } from '../format.js'
 import { openSheet } from '../ui.js'
@@ -59,7 +59,13 @@ function build(body, m, close) {
     return
   }
   const status = awakeLabel(ka)
-  if (status) body.append(h('p.machine-awake-status', {}, icon('coffee', 'icon--sm'), h('span', { text: status })))
+  if (status) {
+    const text = h('span', { text: status })
+    body.append(h(`p.machine-awake-status${ka.reason === 'turn' ? '.machine-awake-status--turn' : ''}`, {},
+      icon('coffee', 'icon--sm'), text))
+    // Le décompte vit tant que la feuille est ouverte (le TTL est figé sinon).
+    if (ka.until) tickText(text, () => awakeLabel(ka))
+  }
   const list = h('div', { role: 'menu', 'aria-label': tr`Garde éveillé` })
   for (const mode of MODES) {
     const on = ka.mode === mode.id

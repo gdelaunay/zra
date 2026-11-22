@@ -728,6 +728,25 @@ test('un poste se replie sur sa ligne de titre, et le reste après un rendu', as
   assert.ok(projectHead('DESK-ZED', 'zra'), 'déplié à nouveau')
 })
 
+test('garde éveillé : café + TTL sur la ligne poste, orange pendant un tour', async () => {
+  const m = ZRA.store.state.machines.get('mock-laptop')
+  const head = () => $$('.machine__head').find((n) => n.dataset.machine === 'mock-laptop')
+  m.link.emit('message', { type: 'keep_awake', mode: '1h', until: Date.now() + 3_600_000, active: true, reason: 'manual', supported: true })
+  await until(() => head()?.querySelector('.machine__awake'), 2000, 'indicateur garde éveillé')
+  const awake = head().querySelector('.machine__awake')
+  assert.ok(!awake.classList.contains('machine__awake--turn'), 'bascule explicite : vert, pas orange')
+  const ttl = head().querySelector('.machine__awake-ttl')
+  assert.match(ttl.textContent, /\d+ (min|h)/, 'TTL style meta')
+  assert.ok(ttl.textContent.endsWith('·'), 'séparé du café par un ·')
+  assert.ok(awake.querySelector('svg'), 'café dans sa boîte 28 px')
+  assert.equal(ttl.nextElementSibling, awake, 'TTL puis café : le survol ne déplace pas le TTL')
+  m.link.emit('message', { type: 'keep_awake', mode: 'on', until: null, active: true, reason: 'turn', supported: true })
+  await until(() => head()?.querySelector('.machine__awake--turn'), 2000, 'café orange pendant un tour')
+  assert.equal(head().querySelector('.machine__awake-ttl'), null, 'pas de TTL pendant un tour')
+  m.link.emit('message', { type: 'keep_awake', mode: 'off', until: null, active: false, reason: null, supported: true })
+  await until(() => !head()?.querySelector('.machine__awake'), 2000, 'indicateur retiré')
+})
+
 test('pas de « + » global : la liste n’en a qu’un par projet', () => {
   assert.ok(!$('.header [aria-label="Nouvelle session"]'), 'plus de + dans la top bar de la liste')
   const heads = $$('.project__head')

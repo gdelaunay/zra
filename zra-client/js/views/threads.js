@@ -9,7 +9,7 @@
 //
 // Ossature commune aux deux écrans : .header (haut) · .scroll · .bottombar (bas).
 
-import { h, button, clear, debounce } from '../dom.js'
+import { h, button, clear, debounce, tickText } from '../dom.js'
 import { settings, update } from '../settings.js'
 import { icon, agentIcon, brandLogo } from '../icons.js'
 import { zedAge, absTime, baseName, agentLabel, toMs, projectOf, projectNames, displayTime, formatDuration } from '../format.js'
@@ -223,7 +223,10 @@ function header({ navigate }) {
   const el = h('div.header')
   const sub = h('span.header__sub')
   el.append(
-    h('div.header__title.header__title--brand', {}, brandLogo('icon--lg'), h('span', { text: 'ZRA' })),
+    // Même boîte que l'icône d'agent de la page thread (header__agent) :
+    // taille et marges identiques, navigation sans saut visuel.
+    h('span.header__agent.header__agent--brand', {}, brandLogo('icon--lg')),
+    h('div.header__title.header__title--brand', {}, h('span', { text: 'ZRA' })),
     h('div.header__meta', {}, sub),
     button('icon-btn icon-btn--sm', { title: tr`Rafraîchir`, onclick: () => store.refreshAll() }, icon('refresh', 'icon--sm')),
     button('icon-btn icon-btn--sm', { title: tr`Réglages`, onclick: () => openSettings() }, icon('settings', 'icon--sm')),
@@ -263,7 +266,7 @@ function machineHead(m, open, onToggle) {
     },
       server,
       h('span.group__name', { text: m.info?.name || m.label || m.url }),
-      h('span.group__meta', { text: `· ${status}` }),
+      h('span.group__meta', { text: `·\u00A0 ${status}` }),
       m.info?.zedRunning === false ? h('span.group__meta', { text: tr`· Zed fermé` }) : null,
       icon(open ? 'chevron-down' : 'chevron-right', 'icon--sm group__chevron'),
       h('span.spacer'),
@@ -276,16 +279,24 @@ function machineHead(m, open, onToggle) {
   return head
 }
 
-/** Indicateur garde éveillé : actif pendant un tour ou par la bascule explicite. */
+/** Indicateur garde éveillé : TTL (style meta, séparé par un « · ») puis café
+ * dans la même boîte que le bouton réglages — au survol le bouton remplace le
+ * café, le TTL ne bouge pas. Vert bascule, orange tour. */
 function awakeIndicator(m) {
   const ka = m.keepAwake
-  if (!ka?.active) return null
-  const title = ka.reason === 'turn' ? tr`Garde éveillé : un agent travaille.`
+  if (!ka?.active) return []
+  const turn = ka.reason === 'turn'
+  const title = turn ? tr`Garde éveillé : un agent travaille.`
     : ka.until ? tr`Garde éveillé — ${formatDuration(ka.until - Date.now())} restantes.`
       : tr`Garde éveillé jusqu'à désactivation.`
-  const el = icon('coffee', 'icon--sm machine__awake')
-  el.setAttribute('title', title)
-  return el
+  const out = []
+  if (ka.until) {
+    const ttl = h('span.machine__awake-ttl', { title })
+    tickText(ttl, () => `${formatDuration(ka.until - Date.now())} \u00A0·`)
+    out.push(ttl)
+  }
+  out.push(h(`span.machine__awake${turn ? '.machine__awake--turn' : ''}`, { title }, icon('coffee', 'icon--sm')))
+  return out
 }
 
 /** Réglages du poste : en ligne seulement — hors ligne, rien à régler. */
@@ -333,7 +344,7 @@ function wireMachineLongPress(head, id) {
 function newProjectRow(m) {
   return button('recent__head', { onclick: () => openProjectSheet(m) },
     h('span.group__name', { text: tr`Nouveau projet` }),
-    icon('plus', 'icon--sm group__chevron'),
+    icon('plus', 'icon--sm group__chevron recent__plus'),
   )
 }
 

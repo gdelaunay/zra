@@ -90,6 +90,26 @@ test('la feuille ouverte se repeint au keep_awake reçu (fin de tour, expiration
   closeAllOverlays()
 })
 
+test('le TTL de la feuille se met à jour chaque seconde', (t) => {
+  closeAllOverlays()
+  const m = laptop()
+  const ka = m.keepAwake
+  const now = Date.now()
+  m.keepAwake = { active: true, supported: true, mode: '1h', reason: 'manual', until: now + 3_600_000 }
+  t.mock.timers.enable({ apis: ['setInterval', 'Date'], now })
+  try {
+    const sheet = openMachineSheet(m)
+    const text = $('.machine-awake-status span', sheet)
+    assert.match(text.textContent, /restantes/)
+    const before = text.textContent
+    t.mock.timers.tick(2000)
+    assert.notEqual(text.textContent, before, 'le décompte avance sans événement daemon')
+    closeAllOverlays()
+  } finally {
+    m.keepAwake = ka
+  }
+})
+
 test('poste sans mécanisme : le dire, ne pas proposer de réglage', async () => {
   closeAllOverlays()
   laptop().link.emit('message', { type: 'keep_awake', mode: 'off', until: null, active: false, reason: null, supported: false })

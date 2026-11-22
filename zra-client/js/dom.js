@@ -50,6 +50,15 @@ export function button(sel, props, ...kids) {
 
 export function clear(el) { while (el.firstChild) el.firstChild.remove() }
 
+/** Texte recalculé chaque seconde ; le timer s'arrête quand l'élément quitte le DOM. */
+export function tickText(el, render) {
+  el.textContent = render()
+  const timer = setInterval(() => {
+    if (!el.isConnected) { clearInterval(timer); return }
+    el.textContent = render()
+  }, 1000)
+}
+
 export function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => (
     { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
