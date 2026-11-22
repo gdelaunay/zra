@@ -68,16 +68,34 @@ HTTP éphémère dans le binaire, coupé une fois le setup fini. Pas de webview
 (le choix « l'UI c'est le web » tient), pas de dialogues natifs à la chaîne.
 
 - Étapes : détection Node ≥ 24 (écran clair « Node 24 requis » + lien
-  nodejs.org s'il manque, et c'est tout), choix du mode, puis les questions
-  du mode — poste : agents Zed, keymap, autostart, pare-feu ; relais : écoute
-  (port/hôte), TLS ou proxy. Le chemin absolu de `node` est figé à ce
-  moment-là.
+  nodejs.org s'il manque, et c'est tout), **détection de Zed sur le même
+  modèle** (chemin/canal via `platform.js`, écran clair s'il manque), choix
+  du mode, puis les questions du mode — poste : agents Zed, keymap, autostart
+  (toggle), écoute ; relais : écoute (port/hôte), TLS ou proxy. Le chemin
+  absolu de `node` est figé à ce moment-là.
+- **Câblage de Zed et autostart : le tray orchestre les scripts Node
+  existants** (`setup.mjs`, `service.mjs`) en non interactif — la page
+  collecte les réponses, le tray les passe en args (`yes`, agents…), node
+  exécute. Pas de réimplémentation de la chirurgie JSONC en Rust.
+- **Pare-feu : aucune règle créée.** Une section « Tester l'écoute » relance
+  l'écoute du service et sonde ce qui est lisible — Windows : l'invite
+  système « autoriser l'accès » peut apparaître, sans retour fiable
+  (« à vérifier ») ; Linux : état ufw/firewalld best-effort (« port
+  autorisé », « actif, règles illisibles sans droits », « pas de pare-feu
+  détecté »). « Joignable depuis l'extérieur » ne se teste pas fiablement en
+  local : le résultat est un indice, pas une preuve ; l'utilisateur ouvre le
+  port lui-même si besoin.
+- **Messages utilisateur : strictement techniques et informatifs**, sans
+  jargon de dev (« bind », « spawn », « shim »…) — uniquement des termes que
+  l'utilisateur connaît depuis l'OS (« port », « écoute », « pare-feu »,
+  « autoriser l'accès »).
 - HTML sans build, comme la PWA. Design : les références `reference/zed-ui/`
   servent de base, mais l'onboarding est une UI propre à ZRA — c'est l'endroit
   où on se permet le plus de déviation et d'invention.
 - Setup fini : la page rend la main à la PWA (« Ouvrir ZRA »), le serveur
-  d'onboarding s'arrête. La bascule de mode après coup passe par le menu,
-  pas par une nouvelle page.
+  d'onboarding s'arrête. La bascule de mode après coup passe par le menu ;
+  la page, elle, est réutilisée en mode « installé » comme console de
+  gestion (cf. Distribution).
 
 ## Choix techniques
 
@@ -157,17 +175,28 @@ HTTP éphémère dans le binaire, coupé une fois le setup fini. Pas de webview
   construction. `npm` reste le chemin des contributeurs.
 - **Cycle de vie complet, le tray est le seul gestionnaire de ZRA** pour le
   grand public. La page d'onboarding, réutilisée en mode « installé », sert
-  de console de gestion : à propos (version, liens) et gestion de l'app,
-  dont la **désinstallation**. Pas de fenêtre GUI native à coder (`tao` n'a
-  pas de widgets), pas de nouvelle dépendance.
+  de console de gestion — **c'est l'UI du tray** : à propos (version, liens)
+  et gestion de l'app, dont la **désinstallation**. Pas de fenêtre GUI native
+  à coder (`tao` n'a pas de widgets), pas de nouvelle dépendance.
+- **Updates : un seul canal, la dernière release stable.** Réglage « mises à
+  jour automatiques » (console, défaut activé) + bouton « vérifier ». Le tray
+  télécharge l'archive de la release et l'applique au prochain arrêt /
+  redémarrage — sous Windows l'exe vivant est verrouillé, le remplacement est
+  différé (même mécanique que la désinstallation). Pas de nightly/beta.
+- **Windows « Applications installées »** : clé HKCU
+  `…\CurrentVersion\Uninstall\ZRA` (nom, version, chemin, UninstallString)
+  posée à l'installation, sans élévation — ZRA apparaît dans les réglages
+  « Applications », point de désinstallation standard. Retirée à la
+  désinstallation.
 - **Désinstaller = rendre la machine comme on l'a trouvée** : arrêt du
   service (Job Object), retrait de l'autostart (tâche planifiée /
   `.desktop` / unité systemd), dé-câblage de Zed (entrées agents, keymap,
-  env — la logique chirurgicale de `setup -- uninstall`), retrait des
-  règles pare-feu posées à l'onboarding, suppression du dossier (binaire,
-  `app/`, `.zra/` : journaux, enregistrements, appairage, certs). Sous
-  Windows l'exe vivant est verrouillé → suppression différée après exit.
-  Les prérequis système (Node, Zed) ne sont pas touchés. Deux choix à la
+  env — la logique chirurgicale de `setup -- uninstall`), suppression du
+  dossier (binaire, `app/`, `.zra/` : journaux, enregistrements, appairage,
+  certs). Le pare-feu n'a aucune règle à retirer (rien n'a été posé). Sous
+  Windows : retrait de la clé « Applications installées » (HKCU, posée à
+  l'installation) et, l'exe vivant étant verrouillé, suppression différée
+  après exit. Les prérequis système (Node, Zed) ne sont pas touchés. Deux choix à la
   confirmation : « tout désinstaller » (défaut, plus aucune trace) ou
   « garder mes réglages » (export de `zra.config.json` avant suppression,
   pour une réinstallation). Pas de « désinstaller le tray seul » : sans
@@ -216,7 +245,18 @@ HTTP éphémère dans le binaire, coupé une fois le setup fini. Pas de webview
 4. **Facultatif — skippé pour l'instant** (décision utilisateur) : sucre,
    icône qui change d'état (thread live / réponse en attente) — les
    événements existent déjà dans le daemon ;
-5. Option C : l'archive « app » par plateforme, relay compris (une version
-   partout, updates via les releases) ; cycle de vie complet — console de
-   gestion (page d'onboarding en mode « installé » : à propos, gestion),
-   désinstallation propre (cf. Distribution).
+5. Option C — l'archive « app » par plateforme, relay compris (une version
+   partout), cycle de vie complet (cf. Distribution). Découpé :
+   - **5.1** archive + CI : layout `app/` (daemon + client + shim + relay,
+     zéro dépendance runtime), zip `zra-<version>-<plateforme>.zip`, gate
+     version, attach double forge ; `Paths::discover()` vise `app/`.
+   - **5.2** onboarding grand public : détection Zed, autostart, câblage via
+     les scripts Node en non interactif, section « Tester l'écoute ».
+   - **5.3** console de gestion : page d'onboarding en mode « installé »
+     (à propos, gestion, désinstallation) — l'UI du tray.
+   - **5.4** updates : canal stable unique, auto-update (défaut activé),
+     application au restart (swap différé Windows).
+   - **5.5** désinstallation « machine comme on l'a trouvée » + clé HKCU.
+   - **5.6** unité systemd du relais générée par le binaire (homelab).
+   Le test CI de l'étape 3 est mutualisé avec le premier tag de test de
+   l'étape 5 (même pipeline) ; `offerTrayDownload` au setup reste à part.
