@@ -40,12 +40,9 @@ Rien n'est poussé/taggé par l'agent : les branches attendent la review.
 
 ### 2. Observation d'une page — nécessite d'autoriser le navigateur (user présent)
 
-- **Rendu onboarding + i18n** : racine sans `tray.json` (`ZRA_ROOT`
-  temporaire) ou `?mock=missing`.
-- **Bouton « Installer sur ce poste »** : visible en portable, masqué une
-  fois installé ; **option onboarding cochée par défaut**, décocher →
-  portable mémorisé (`.zra/setup.json`). (L'action *installer* elle-même =
-  catégorie 3.)
+- **Bouton « Installer sur ce poste » (console)** : visible en portable,
+  masqué une fois installé ; portable mémorisé (`.zra/setup.json`) après
+  décoche + enregistrement. (L'action *installer* elle-même = catégorie 3.)
 
 ### 3. Nécessite manipulation user (desktop, autres machines, destructif, release, TTY)
 
