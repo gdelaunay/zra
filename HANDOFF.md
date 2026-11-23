@@ -246,6 +246,14 @@ Aucun pour l'instant.
 
 ## Notes
 
+- **État final de session** : les deux branches sont vertes (`npm test`
+  complet + `cargo test` 19/19 sur `feat/0.6-tray`), working tree propre,
+  rien de poussé/taggé. Repo laissé sur `feat/0.6-tray` : cette branche ne
+  touche pas au client, le daemon vivant sert donc la même PWA que `main`
+  (pas de surprise sur le téléphone). Le daemon de la tâche planifiée n'a
+  jamais été touché (tests tray en mode observateur, lecture seule).
+- `HANDOFF.md` vit sur les deux branches : au merge, prendre l'union des
+  sections (conflit add/add attendu, trivial).
 - `npm test` complet vert sur `fix/client-issues` (1030 pass, 17 skipped).
   Un échec isolé de `service.test.mjs` (« Unable to deserialize cloned
   data ») observé une fois sous charge du runner parallèle, passé au rerun
