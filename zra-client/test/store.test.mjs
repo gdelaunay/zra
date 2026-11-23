@@ -30,6 +30,23 @@ const user = (text, origin) => ({
 const deliver = (msg) => machine.link.emit('message', msg)
 const texts = (k) => store.ensureTimeline(k).entries.map((e) => `${e.type}:${blocksText(e.blocks ?? []).trim()}`)
 
+test('turnSince : la date du daemon fait foi, repli local sinon', () => {
+  const k = 'mock-desk/thread-duree'
+  const since = Date.now() - 90_000
+  deliver({ type: 'thread_state', threadId: 'thread-duree', state: 'live', turn: 'busy', queue: [], turnSince: since })
+  assert.equal(store.ensureState(k).turnSince, since, 'départ réel du prompt, pas l’observation locale')
+  // Rediffusion sans date : la date connue n’est pas écrasée.
+  deliver({ type: 'thread_state', threadId: 'thread-duree', state: 'live', turn: 'busy', queue: [] })
+  assert.equal(store.ensureState(k).turnSince, since)
+  deliver({ type: 'thread_state', threadId: 'thread-duree', state: 'live', turn: 'idle', queue: [] })
+  assert.equal(store.ensureState(k).turnSince, null, 'fin de tour')
+  // Busy sans date (ancien daemon) : repli sur l’observation locale.
+  const t0 = Date.now()
+  deliver({ type: 'thread_state', threadId: 'thread-duree', state: 'live', turn: 'busy', queue: [] })
+  assert.ok(store.ensureState(k).turnSince >= t0)
+  deliver({ type: 'thread_state', threadId: 'thread-duree', state: 'live', turn: 'idle', queue: [] })
+})
+
 test('rejeu du subscribe + historique : chaque événement une seule fois', () => {
   const k = 'mock-desk/thread-doublon'
   store.ensureState(k).historyPending = true

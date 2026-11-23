@@ -28,6 +28,9 @@ export class ThreadStates extends EventEmitter {
       st = {
         threadId,
         turn: 'idle',
+        /** Départ du tour (ms) : daté par le shim (prompt réel) ; sans shim,
+         * par la transition vers `busy` vue d'ici. `null` au repos. */
+        turnSince: null,
         /** @type {QueueEntry[]} */
         queue: [],
         modes: null,
@@ -53,6 +56,7 @@ export class ThreadStates extends EventEmitter {
       turn: st.turn,
       queue: st.queue,
     }
+    if (st.turn === 'busy' && st.turnSince) out.turnSince = st.turnSince
     // `modes`/`models` absents => sélecteurs grisés côté PWA, ce n'est pas une
     // erreur : tant qu'aucun shim n'a lu l'`initialize`, on ne les connaît pas.
     if (st.modes) out.modes = st.modes
@@ -103,6 +107,7 @@ export class ThreadStates extends EventEmitter {
     const st = this.get(threadId)
     if (st.turn === turn) return null
     st.turn = turn
+    st.turnSince = turn === 'busy' ? Date.now() : null
     this.changed(threadId)
     if (turn !== 'idle') return null
     const next = st.queue.shift()
@@ -131,9 +136,13 @@ export class ThreadStates extends EventEmitter {
    * pas `dequeue` ici — le dépilage a déjà eu lieu de l'autre côté ; on se
    * contente de publier un `thread_state` à jour (invariant §6.6 du protocole).
    */
-  mirror(threadId, { turn, queue, modes, models, options, commands, currentModeId, currentModelId } = {}) {
+  mirror(threadId, { turn, turnSince, queue, modes, models, options, commands, currentModeId, currentModelId } = {}) {
     const st = this.get(threadId)
     if (turn === 'idle' || turn === 'busy') st.turn = turn
+    // Le shim date le départ réel du prompt ; à défaut, la transition vue d'ici.
+    if (st.turn !== 'busy') st.turnSince = null
+    else if (typeof turnSince === 'number') st.turnSince = turnSince
+    else if (!st.turnSince) st.turnSince = Date.now()
     if (Array.isArray(queue)) st.queue = queue
     if (modes !== undefined) st.modes = modes
     if (models !== undefined) st.models = models

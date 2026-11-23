@@ -234,9 +234,10 @@ function handle(machine, msg) {
         currentModeId: msg.currentModeId ?? st.currentModeId,
         currentModelId: msg.currentModelId ?? st.currentModelId,
       })
-      // Début du tour, vu d'ici : un tour déjà en cours à la connexion part de
-      // maintenant, faute de mieux — le protocole ne le date pas.
+      // Départ du tour : le shim date l'envoi réel du prompt (`turnSince`) ;
+      // à défaut (ancien daemon), on part de maintenant, faute de mieux.
       if (st.turn !== 'busy') st.turnSince = null
+      else if (typeof msg.turnSince === 'number') st.turnSince = msg.turnSince
       else if (!wasBusy || !st.turnSince) st.turnSince = Date.now()
       if (st.summary) st.summary = { ...st.summary, state: st.state }
       emit(`state:${k}`, st)

@@ -71,7 +71,7 @@ test('snapshot() : la projection du protocole §4, sans les champs internes', ()
   const snap = s.snapshot('a')
   assert.deepEqual(Object.keys(snap).sort(), [
     'commands', 'currentModeId', 'currentModelId', 'models', 'modes',
-    'options', 'queue', 'sessionId', 'turn',
+    'options', 'queue', 'sessionId', 'turn', 'turnSince',
   ])
   assert.equal(snap.turn, 'busy')
   assert.deepEqual(snap.queue, [e])
@@ -118,6 +118,26 @@ test('promptSent sur un tour déjà busy ne réémet pas de change', () => {
   s.promptSent('a', 'k2')
   assert.deepEqual(events.filter((e) => e[0] === 'change'), [])
   assert.equal(s.get('a').turn, 'busy')
+})
+
+test('turnSince : daté au premier prompt du tour, effacé à la clôture', () => {
+  const s = make()
+  assert.equal(s.get('a').turnSince, null, 'au repos, pas de départ')
+  const t0 = Date.now()
+  s.promptSent('a', 'k1')
+  const since = s.get('a').turnSince
+  assert.ok(since >= t0 && since <= Date.now(), 'départ réel du premier prompt')
+  assert.equal(s.snapshot('a').turnSince, since, 'projeté dans le miroir')
+  s.promptSent('a', 'k2')
+  assert.equal(s.get('a').turnSince, since, 'un second prompt en vol ne redate pas le tour')
+  s.promptSettled('a', 'k1')
+  assert.equal(s.get('a').turnSince, since, 'tour toujours en vol')
+  s.promptSettled('a', 'k2')
+  assert.equal(s.get('a').turnSince, null, 'fin de tour')
+  assert.equal(s.snapshot('a').turnSince, null)
+  s.promptSent('a', 'k3')
+  s.forceIdle('a')
+  assert.equal(s.get('a').turnSince, null, 'clôture d’office aussi')
 })
 
 test('promptSettled sur une clé inconnue : ignoré, silencieusement', () => {

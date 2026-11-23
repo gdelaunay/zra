@@ -366,6 +366,67 @@ test('scrollbar révélée sur geste, pas sur le tail-following ; masquée au re
   await until(() => { const st = ZRA.store.ensureState('mock-desk/a1f39c0b'); return st.turn === 'idle' && !st.queue.length }, 6000, 'tour fini')
 })
 
+test('repli d’une réflexion pendant le stream : l’auto-scroll suit toujours le bas', async () => {
+  const key = 'mock-desk/a1f39c0b'
+  ZRA.navigate(`#/t/${key}`)
+  await until(() => /Refactor/.test(headerTitle()), 3000)
+  const feed = $('.thread__scroll')
+  const jump = $('.jump')
+  // jsdom n'a pas de layout : géométrie simulée, fil collé en bas. Le setter
+  // clampe comme un vrai navigateur (un repli qui rétrécit le fil ramène le
+  // scrollTop au nouveau bas, il ne le laisse pas au-delà).
+  let height = 4000, top = 3400
+  Object.defineProperty(feed, 'scrollHeight', { get: () => height, configurable: true })
+  Object.defineProperty(feed, 'clientHeight', { get: () => 600, configurable: true })
+  Object.defineProperty(feed, 'scrollTop', {
+    get: () => top,
+    set: (v) => { top = Math.max(0, Math.min(v, height - 600)) },
+    configurable: true,
+  })
+  feed.dispatchEvent(new win.Event('scroll'))
+  assert.ok(jump.classList.contains('hidden'), 'suivi actif en bas du fil')
+
+  const thoughtsBefore = $$('.thought').length
+  ZRA.store.state.machines.get('mock-desk').link.send({ type: 'zra/trigger', name: 'long', threadId: 'a1f39c0b' })
+  const thought = await until(() => {
+    const ts = $$('.thought')
+    return ts.length > thoughtsBefore ? ts[ts.length - 1] : null
+  }, 3000, 'réflexion du tour long')
+  const head = thought.querySelector('.thought__head')
+  if (!thought.classList.contains('is-open')) click(head)
+  assert.ok(thought.classList.contains('is-open'), 'réflexion dépliée (choix utilisateur persistant)')
+  // Repli pendant l'écriture : le contenu rétrécit, le navigateur clampe en bas.
+  click(head)
+  assert.ok(!thought.classList.contains('is-open'), 'réflexion repliée')
+  height -= 800
+  top = Math.min(top, height - 600) // clamp de layout du navigateur
+  feed.dispatchEvent(new win.Event('scroll'))
+  assert.equal(top, height - 600, 'clamp : toujours en bas après le repli')
+  assert.ok(jump.classList.contains('hidden'), 'le repli ne coupe pas le suivi')
+  // Les chunks suivants arrivent : le fil retourne en bas à chaque rendu.
+  top -= 300 // simule un instant où le bas a bougé sans suivi
+  await until(() => top === height - 600, 3000, 'chunk suivant : retour en bas')
+  assert.ok(jump.classList.contains('hidden'), 'suivi toujours actif')
+
+  click($('.composer .send-btn--stop'))
+  await until(() => ZRA.store.ensureState(key).turn === 'idle', 3000, 'tour long coupé')
+  delete feed.scrollHeight; delete feed.clientHeight; delete feed.scrollTop
+})
+
+test('durée de génération : le départ daté par le daemon, pas l’ouverture de la page', async () => {
+  const key = 'mock-desk/a1f39c0b'
+  ZRA.navigate(`#/t/${key}`)
+  await until(() => /Refactor/.test(headerTitle()), 3000)
+  const m = ZRA.store.state.machines.get('mock-desk')
+  // Tour déjà en cours depuis 90 s, daté par le shim : la page ouverte à
+  // l'instant doit afficher 1 min 30 s, pas 0 s.
+  m.link.emit('message', { type: 'thread_state', threadId: 'a1f39c0b', state: 'live', turn: 'busy', queue: [], turnSince: Date.now() - 90_000 })
+  const time = await until(() => $('.generating .turn__time'), 2000, 'indicateur de tour')
+  assert.match(time.textContent, /^1 min 3\d s$/, 'durée depuis le départ réel du prompt')
+  m.link.emit('message', { type: 'thread_state', threadId: 'a1f39c0b', state: 'live', turn: 'idle', queue: [] })
+  await until(() => !$('.generating'), 2000, 'tour fini')
+})
+
 test('mentions @ : menu fichiers, puce insérée, sérialisation D3, rendu en bulle', async () => {
   const input = $('.composer__input')
   const key = 'mock-desk/a1f39c0b'
@@ -743,8 +804,36 @@ test('garde éveillé : café + TTL sur la ligne poste, orange pendant un tour',
   m.link.emit('message', { type: 'keep_awake', mode: 'on', until: null, active: true, reason: 'turn', supported: true })
   await until(() => head()?.querySelector('.machine__awake--turn'), 2000, 'café orange pendant un tour')
   assert.equal(head().querySelector('.machine__awake-ttl'), null, 'pas de TTL pendant un tour')
+  // Bascule à TTL active pendant un tour : le décompte reste masqué (l'ancien
+  // TTL n'a pas de sens tant que l'agent travaille).
+  m.link.emit('message', { type: 'keep_awake', mode: '1h', until: Date.now() + 3_600_000, active: true, reason: 'turn', supported: true })
+  await new Promise((r) => setTimeout(r, 50))
+  assert.ok(head().querySelector('.machine__awake--turn'), 'toujours orange pendant le tour')
+  assert.equal(head().querySelector('.machine__awake-ttl'), null, 'TTL masqué pendant un tour, même échéance connue')
+  // Hors ligne : l'état garde éveillé est périmé, rien sur la ligne du poste.
+  m.link.emit('status', 'offline')
+  await until(() => !head()?.querySelector('.machine__awake') && !head()?.querySelector('.machine__awake-ttl'), 2000, 'indicateur masqué hors ligne')
+  m.link.emit('status', 'online')
+  await until(() => head()?.querySelector('.machine__awake--turn'), 2000, 'indicateur de retour en ligne')
   m.link.emit('message', { type: 'keep_awake', mode: 'off', until: null, active: false, reason: null, supported: true })
   await until(() => !head()?.querySelector('.machine__awake'), 2000, 'indicateur retiré')
+})
+
+test('en-têtes « Projets récents » / « Nouveau projet » : ligne projet, dossier neutre', async () => {
+  ZRA.navigate('#/')
+  await expandAll()
+  const heads = $$('.recent__head')
+  assert.ok(heads.length >= 2, 'au moins une tête de groupe et la ligne nouveau projet')
+  for (const n of heads) {
+    const folder = n.querySelector('.project__icon')
+    assert.ok(folder, 'icône dossier devant, comme les lignes projet')
+    assert.ok(!folder.classList.contains('project__icon--live'), 'jamais vert (couleur « live »)')
+    assert.ok(n.querySelector('.project__name'), 'même police que les lignes projet')
+    assert.equal(n.querySelector('.group__name'), null, 'plus le style capitale des groupes')
+  }
+  const recent = heads.find((n) => n.hasAttribute('aria-expanded'))
+  assert.ok(recent, 'tête « Projets récents » repliable')
+  assert.ok(heads.some((n) => !n.hasAttribute('aria-expanded') && n.querySelector('.recent__plus')), 'ligne « Nouveau projet » avec son +')
 })
 
 test('pas de « + » global : la liste n’en a qu’un par projet', () => {

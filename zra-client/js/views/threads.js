@@ -184,8 +184,11 @@ export function ThreadsView({ navigate }) {
             'aria-expanded': String(recentOpen),
             onclick: () => { if (expandedRecent.has(m.id)) expandedRecent.delete(m.id); else expandedRecent.add(m.id); paint() },
           },
-            h('span.group__name', { text: tr`Projets récents` }),
-            icon(recentOpen ? 'chevron-down' : 'chevron-right', 'icon--sm group__chevron'),
+            // Même ligne qu'un projet : dossier + nom, mais toujours neutre
+            // (jamais vert — ce n'est pas un projet ouvert dans Zed).
+            icon('folder', 'icon--sm project__icon'),
+            h('span.project__name.truncate', { text: tr`Projets récents` }),
+            icon(recentOpen ? 'chevron-down' : 'chevron-right', 'icon--sm project__chevron'),
             h('span.spacer'),
             h('span.group__meta', { text: `${recent.length}` }),
           ))
@@ -281,16 +284,18 @@ function machineHead(m, open, onToggle) {
 
 /** Indicateur garde éveillé : TTL (style meta, séparé par un « · ») puis café
  * dans la même boîte que le bouton réglages — au survol le bouton remplace le
- * café, le TTL ne bouge pas. Vert bascule, orange tour. */
+ * café, le TTL ne bouge pas. Vert bascule, orange tour. Hors ligne : rien —
+ * l'état affiché serait périmé. Pendant un tour : pas de TTL, le décompte de
+ * la bascule n'a pas de sens tant que l'agent travaille (café orange seul). */
 function awakeIndicator(m) {
   const ka = m.keepAwake
-  if (!ka?.active) return []
+  if (m.status !== 'online' || !ka?.active) return []
   const turn = ka.reason === 'turn'
   const title = turn ? tr`Garde éveillé : un agent travaille.`
     : ka.until ? tr`Garde éveillé — ${formatDuration(ka.until - Date.now())} restantes.`
       : tr`Garde éveillé jusqu'à désactivation.`
   const out = []
-  if (ka.until) {
+  if (ka.until && !turn) {
     const ttl = h('span.machine__awake-ttl', { title })
     tickText(ttl, () => `${formatDuration(ka.until - Date.now())} \u00A0·`)
     out.push(ttl)
@@ -339,12 +344,14 @@ function wireMachineLongPress(head, id) {
   head.addEventListener('contextmenu', (ev) => ev.preventDefault())
 }
 
-/** Ligne « nouveau projet » : même style que la tête « Projets récents » ;
- * le « + » après le libellé, visible au survol seulement (comme les chevrons). */
+/** Ligne « nouveau projet » : même style que la tête « Projets récents »
+ * (dossier neutre + nom de projet) ; le « + » après le libellé, visible au
+ * survol seulement (comme les chevrons). */
 function newProjectRow(m) {
   return button('recent__head', { onclick: () => openProjectDialog(m) },
-    h('span.group__name', { text: tr`Nouveau projet` }),
-    icon('plus', 'icon--sm group__chevron recent__plus'),
+    icon('folder', 'icon--sm project__icon'),
+    h('span.project__name.truncate', { text: tr`Nouveau projet` }),
+    icon('plus', 'icon--sm project__chevron recent__plus'),
   )
 }
 

@@ -328,6 +328,7 @@ export class MockLink {
     const st = this.turnOf(threadId)
     this.cancel(threadId)
     st.turn = 'busy'
+    st.since = Date.now()
     this.markLive(threadId)
     this.pushState(threadId)
     // Comme le shim (publishUserMessage) : tous les blocs d'un même prompt
@@ -481,6 +482,7 @@ export class MockLink {
       threadId,
       state: t?.state ?? 'unknown',
       turn: st.turn,
+      turnSince: st.turn === 'busy' ? st.since ?? Date.now() : null,
       queue: st.queue,
       modes: MODES,
       models: MODELS,

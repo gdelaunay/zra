@@ -465,6 +465,7 @@ Dossiers déduits des chemins (git ne liste pas les dossiers vides).
   threadId: string,
   state: 'live' | 'closed' | 'unknown',
   turn: 'idle' | 'busy',
+  turnSince?: number,
   queue: Array<{ queueId: string, text: string, at?: string }>,
   modes?: Array<{ id: string, name?: string }>,
   models?: Array<{ id: string, name?: string }>,
@@ -481,6 +482,12 @@ Dossiers déduits des chemins (git ne liste pas les dossiers vides).
 ```
 L'état vivant d'un thread. À envoyer : au bootstrap, sur `subscribe`, et à
 **chaque** transition `idle ⇄ busy`, changement de file, d'option ou d'état.
+
+`turnSince` : départ du tour en ms (epoch), présent seulement quand `turn` est
+`busy`. Daté par le shim à l'envoi réel du premier `session/prompt` du tour
+(l'ACP ne date pas les tours) ; sans shim, par la transition vers `busy` vue
+par le daemon. La PWA l'utilise pour la durée de génération ; absent (ancien
+daemon), elle part de sa propre observation.
 
 C'est ce message qui pilote l'UI : bouton Stop, entrées en file annulables,
 sélecteurs de mode/modèle. `modes`/`models` absents ou vides ⇒ pas de sélecteur, ce n'est

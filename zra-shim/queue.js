@@ -27,6 +27,9 @@ export class SessionState {
     this.cwd = null
     /** Requêtes `session/prompt` en vol, par clé d'`id` JSON-RPC. */
     this.pendingPrompts = new Set()
+    /** Départ réel du tour (ms) : premier `session/prompt` envoyé, rien en vol
+     * avant. L'ACP ne date pas les tours ; c'est la seule mesure vraie. */
+    this.turnSince = null
     /** @type {QueueEntry[]} */
     this.queue = []
     /** Options demandées pendant un tour, appliquées au retour à `idle`. */
@@ -107,7 +110,10 @@ export class Sessions extends EventEmitter {
     const before = st.turn
     st.pendingPrompts.add(idKey)
     st.lastActivity = Date.now()
-    if (before !== st.turn) this.changed(sessionId)
+    if (before !== st.turn) {
+      if (st.turn === 'busy') st.turnSince = st.lastActivity
+      this.changed(sessionId)
+    }
   }
 
   /**
@@ -119,6 +125,7 @@ export class Sessions extends EventEmitter {
     if (!st.pendingPrompts.delete(idKey)) return null
     if (st.pendingPrompts.size) return null
     st.cancelling = false
+    st.turnSince = null
     this.changed(sessionId)
     return st.queue.length ? st.queue[0] : null
   }
@@ -151,6 +158,7 @@ export class Sessions extends EventEmitter {
     if (!keys.length) return keys
     st.pendingPrompts.clear()
     st.cancelling = false
+    st.turnSince = null
     this.changed(sessionId)
     return keys
   }
@@ -236,6 +244,7 @@ export class Sessions extends EventEmitter {
     return {
       sessionId,
       turn: st.turn,
+      turnSince: st.turnSince,
       queue: st.queue,
       modes: st.modes,
       models: st.models,

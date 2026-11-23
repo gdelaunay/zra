@@ -464,6 +464,7 @@ Folders deduced from paths (git does not list empty folders).
   threadId: string,
   state: 'live' | 'closed' | 'unknown',
   turn: 'idle' | 'busy',
+  turnSince?: number,
   queue: Array<{ queueId: string, text: string, at?: string }>,
   modes?: Array<{ id: string, name?: string }>,
   models?: Array<{ id: string, name?: string }>,
@@ -480,6 +481,12 @@ Folders deduced from paths (git does not list empty folders).
 ```
 The live state of a thread. To send: at bootstrap, on `subscribe`, and on
 **every** `idle ⇄ busy` transition, queue, option or state change.
+
+`turnSince`: turn start in ms (epoch), present only when `turn` is `busy`.
+Dated by the shim when the turn's first `session/prompt` is actually sent
+(ACP does not date turns); without a shim, by the daemon's own transition to
+`busy`. The PWA uses it for the generation duration; absent (old daemon), it
+falls back to its own observation.
 
 This is the message that drives the UI: Stop button, cancellable queued entries,
 mode/model selectors. `modes`/`models` absent or empty ⇒ no selector, it is not

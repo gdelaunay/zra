@@ -445,6 +445,29 @@ test('thread-state : `mirror` recopie l’état du shim sans redépiler', () => 
   assert.deepEqual(states.get('t1').modes, [{ id: 'plan' }])
 })
 
+test('thread-state : `turnSince` — date du shim, repli local, projeté au snapshot', () => {
+  const states = new ThreadStates()
+  assert.equal(states.snapshot('t1').turnSince, undefined, 'au repos, pas de départ')
+
+  // Le shim date le départ réel du prompt : le miroir le recopie tel quel.
+  const since = Date.now() - 90_000
+  states.mirror('t1', { turn: 'busy', turnSince: since })
+  assert.equal(states.get('t1').turnSince, since)
+  assert.equal(states.snapshot('t1').turnSince, since, 'la PWA reçoit la vraie date')
+  states.mirror('t1', { turn: 'idle', queue: [] })
+  assert.equal(states.get('t1').turnSince, null, 'fin de tour')
+
+  // Sans date du shim (ancien shim, backend d'injection) : la transition vue
+  // d'ici fait foi, plutôt que rien.
+  const t0 = Date.now()
+  states.mirror('t1', { turn: 'busy' })
+  assert.ok(states.get('t1').turnSince >= t0)
+  states.setTurn('t1', 'idle')
+  assert.equal(states.get('t1').turnSince, null)
+  states.setTurn('t1', 'busy')
+  assert.ok(states.get('t1').turnSince >= t0, 'setTurn date aussi (sans shim)')
+})
+
 test('shim-link : les événements d’une session inconnue sont gardés puis rejoués', () => {
   // L'index de Zed écrit la ligne d'un thread neuf avec un temps de retard :
   // sans mise de côté, ses premières trames seraient perdues.

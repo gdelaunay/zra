@@ -370,7 +370,6 @@ button { cursor: pointer; }
 .machine-awake-status--turn .icon { color: var(--warning); }
 
 span.group__name,span.group__meta,span.machine__awake-ttl,.group__chevron{ margin-top: 3px; }
-.group__chevron.recent__plus { margin-top: 0px; }
 
 /* Projet — render_project_header : 31 px, pl 8 pr 6, survol ghost_element_hover. */
 .project__head {
@@ -397,15 +396,19 @@ span.group__name,span.group__meta,span.machine__awake-ttl,.group__chevron{ margi
 }
 .project__empty { padding: var(--sp-2) var(--sp-4) var(--sp-4) calc(var(--sp-4) + var(--indent-step) * 2);
   font-size: var(--fs-sm); color: var(--text-placeholder); }
+/* Têtes « Projets récents » / « Nouveau projet » : même ligne qu'un projet
+ * (dossier neutre + nom), jamais la couleur « live ». */
 .recent__head {
-  display: flex; align-items: center; gap: var(--sp-3);
+  display: flex; align-items: center; gap: var(--sp-2);
   width: 100%; text-align: left;
   height: var(--group-head-h);
   padding: 0 var(--sp-4) 0 calc(var(--sp-4) + var(--indent-step));
+  color: var(--text-muted);
 }
-.recent__head:hover { background: var(--ghost-element-hover); }
+.recent__head:hover { background: var(--ghost-element-hover); color: var(--text); }
+.recent__head .group__meta { margin-top: 0; }
 @media (hover: hover) {
-  .recent__head:not(:hover) .group__chevron { visibility: hidden; }
+  .recent__head:not(:hover) .project__chevron { visibility: hidden; }
 }
 
 /* Ligne de thread — thread_item.rs : py 4 px 6, ligne principale h 24 gap 8,
