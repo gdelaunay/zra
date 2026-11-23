@@ -170,10 +170,15 @@ HTTP éphémère dans le binaire, coupé une fois le setup fini. Pas de webview
   ```
 
   Le tray prend `app/` pour racine (`discover()` vise `app/zra-daemon/`) :
-  config et `.zra` y vivent, partagées avec le daemon (config.js : ROOT =
-  parent de zra-daemon/). `package.json` est embarqué — le daemon y lit sa
-  version. Les updates (5.4) remplacent le code en préservant `app/.zra` et
-  `app/zra.config.json`.
+  le code y vit, partagé avec le daemon (config.js : ROOT = parent de
+  zra-daemon/). `package.json` est embarqué — le daemon y lit sa version.
+  **Deux emplacements de données** (layout installé) : la config (réglages
+  `zra.config.json`/`tray.json` + données précieuses : appairage, abonnements,
+  certs, garde éveillé) vit dans le dossier config utilisateur
+  (`%APPDATA%\zra` / `~/.config/zra`), hors de `app/` ; le `.zra` jetable
+  (journaux, verrou, updates, bin) reste dans `app/`. Portable/dépôt : tout à
+  la racine. Les updates (5.4) remplacent le code ; la config est hors zone
+  swappée (préservée), le `.zra` jetable est skippé par le merge.
 
   Double-clic sur le poste, ça marche. Sur le homelab : la **même archive**,
   extraite, lancée en mode relais — l'unité systemd du relais pointe vers le
@@ -199,15 +204,17 @@ HTTP éphémère dans le binaire, coupé une fois le setup fini. Pas de webview
   service (Job Object), retrait de l'autostart (tâche planifiée /
   `.desktop` / unité systemd), dé-câblage de Zed (entrées agents, keymap,
   env — la logique chirurgicale de `setup -- uninstall`), suppression du
-  dossier (binaire, `app/`, `.zra/` : journaux, enregistrements, appairage,
-  certs). Le pare-feu n'a aucune règle à retirer (rien n'a été posé). Sous
-  Windows : retrait de la clé « Applications installées » (HKCU, posée à
-  l'installation) et, l'exe vivant étant verrouillé, suppression différée
-  après exit. Les prérequis système (Node, Zed) ne sont pas touchés. Deux choix à la
-  confirmation : « tout désinstaller » (défaut, plus aucune trace) ou
-  « garder mes réglages » (export de `zra.config.json` avant suppression,
-  pour une réinstallation). Pas de « désinstaller le tray seul » : sans
-  lui, plus rien ne gère l'app pour ce public.
+  dossier d'application (binaire, `app/`, `.zra` jetable : journaux,
+  enregistrements). Le pare-feu n'a aucune règle à retirer (rien n'a été
+  posé). Sous Windows : retrait de la clé « Applications installées » (HKCU,
+  posée à l'installation) et, l'exe vivant étant verrouillé, suppression
+  différée après exit. Les prérequis système (Node, Zed) ne sont pas touchés.
+  La config (réglages, appairage, certs) vit dans le dossier config utilisateur,
+  hors du dossier supprimé. Deux choix à la confirmation : « garder mes
+  paramètres » (défaut, conserve la config pour une réinstallation) ou
+  « tout désinstaller » (plus aucune trace, config comprise). Pas de
+  « désinstaller le tray seul » : sans lui, plus rien ne gère l'app pour ce
+  public.
 - **Runtime Node : système, en prérequis affiché.** ZRA exige déjà Node ≥ 24
   (README). Zed est natif (pas de Node requis), mais ses agents ACP
   (`claude-code-acp`, `qwen-code`…) sont très majoritairement des apps Node —
@@ -244,8 +251,9 @@ tue le piège « dossier déplacé → chemins absolus périmés » du portable.
 - **La copie** : un exe Windows vivant est verrouillé, il ne peut pas se
   déplacer lui-même. Dance : copier `zra-tray(.exe)` + `app/` vers la cible →
   lancer la copie → l'originale se ferme. Pas d'exe helper dédié (sur-ingénierie).
-  `.zra/` et `zra.config.json` voyagent dans `app/` : rien à réécrire côté
-  données.
+  Le code va dans `app/` (sans `.zra` ni `zra.config.json`) ; la config et les
+  données précieuses vont dans le dossier config utilisateur (le jetable est
+  régénéré au runtime). TLS en chemins relatifs : rien à recalibrer.
 - **Après migration, recâbler les chemins absolus** : `setup install apply`
   (preload Zed, entrées agents) + `service install --apply` (autostart) — le
   tray spawn déjà ces scripts en non interactif. Sans ça, l'app installée ne
@@ -314,7 +322,8 @@ tue le piège « dossier déplacé → chemins absolus périmés » du portable.
    - **5.4 — Fait** updates : canal stable unique (`update.rs`), vérification
      au démarrage + chaque jour, téléchargement de l'archive si auto activé
      (défaut) ou sur « Vérifier », application au prochain arrêt/redémarrage
-     du tray — merge de `app/` en préservant `.zra` et `zra.config.json`,
+     du tray — merge de `app/` (code) ; la config est hors zone swappée
+     (dossier config utilisateur), le `.zra` jetable est skippé,
      exe renommé puis remplacé sous Windows (script détaché : suppression de
      l'ancien après exit + relance), `exec` en place sous Linux (même pid,
      systemd ne voit rien). Layout dépôt : pas d'update par le tray (git).
@@ -324,8 +333,9 @@ tue le piège « dossier déplacé → chemins absolus périmés » du portable.
      `service.mjs uninstall` (dé-câblage Zed, autostart), clé HKCU
      `…\Uninstall\ZRA` retirée (reg.exe, idempotent), suppression du dossier
      — différée après exit sous Windows (exe verrouillé, script détaché
-     `Wait-Process`), directe sous Linux. Deux choix : tout désinstaller /
-     garder mes réglages (export `zra.config.json` dans le dossier personnel).
+     `Wait-Process`), directe sous Linux. La config (dossier config utilisateur)
+     est hors du dossier supprimé. Deux choix : garder mes paramètres (défaut,
+     conserve la config) / tout désinstaller (retire aussi la config).
      Layout dépôt : le dossier cloné n'est pas supprimé. UI : section
      « Désinstallation » de la console (panneau de confirmation, étapes).
    - **5.6 — Fait** unité systemd du relais générée par le binaire
@@ -337,7 +347,8 @@ tue le piège « dossier déplacé → chemins absolus périmés » du portable.
      La doc deploy garde l'unité système manuelle pour le flux sans tray.
    - **5.7 — Fait** self-install par le tray (`install.rs`) : option
      d'onboarding cochée par défaut (liste principale, pas repliée), copie
-     exe + `app/` vers `%LOCALAPPDATA%\Programs\zra` / `~/.local/share/zra`,
+     exe + `app/` (code) vers `%LOCALAPPDATA%\Programs\zra` / `~/.local/share/zra`
+     et config + précieux vers le dossier config utilisateur,
      orchestration depuis la cible (chemins absolus), raccourci Menu Démarrer
      (WScript.Shell) + clé HKCU posés, lancement de la copie puis exit de
      l'originale. Portable choisi : mémorisé (`.zra/setup.json`, fusion) ;

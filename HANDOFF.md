@@ -87,10 +87,21 @@ Rien n'est poussé/taggé par l'agent : les branches attendent la review.
 
 ## Issues (à corriger)
 
-- **i18n du tray (fr/en)** : menu, onboarding et console sont en français
-  seul ; il faut les traduire en anglais (catalogue + mécanique i18n côté
-  Rust, inexistante à ce jour). Décision review 5.3. Chantier à part entière
-  — prévu avant la release 0.6 (décision review).
+- **i18n du tray (fr/en)** — prévu avant la release 0.6 (décision review 5.3).
+  Tout le tray est en français seul, aucune mécanique i18n côté Rust.
+  **Surfaces à traduire :**
+  - Rust : menu (`main.rs` : « Ouvrir ZRA », « Console de gestion », « Copier
+    l'URL », « Copier le code d'appairage », « Ouvrir le journal »,
+    « Redémarrer », « Quitter », statut, bascule de mode) + messages / labels
+    d'étapes / erreurs (`console.rs`, `onboarding.rs`, `uninstall.rs`,
+    `install.rs`, `update.rs`, `supervisor.rs`).
+  - HTML/JS : `console.html` et `onboarding.html` (texte inline + chaînes JS).
+  **Référence (mécanique existante à porter) :** `zra-daemon/i18n.js`
+  (`` tr`…` ``, `ZRA_LANG`, catalogue `i18n/en.json`), PWA `zra-client/js/i18n.js`
+  + `en.js` (module ES sans build), `scripts/i18n-test.mjs` (complétude).
+  **À concevoir :** catalogue i18n Rust (embarqué, fonction `tr`, langue via
+  `ZRA_LANG` / locale OS) + i18n client des pages HTML (comme la PWA).
+  **Règle :** fr = référence, en = traduction, même commit (AGENTS).
 
 - **Deux emplacements : install (code + jetable) / config (réglages +
   précieux)** — ✅ **implémenté** (commits `d21d43f` → `1fa1adc` : fondation
