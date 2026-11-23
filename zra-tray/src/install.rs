@@ -60,17 +60,54 @@ pub fn installed_exists() -> bool {
 /// cloné ne s'« installe » pas en se copiant (guard côté appelant).
 pub fn copy_to_target(paths: &Paths) -> Result<PathBuf, String> {
     let target = target().ok_or("emplacement d'installation introuvable (LOCALAPPDATA/HOME)")?;
-    copy_to(paths, &target)
+    let config_dir = crate::config::zra_config_dir().ok_or("dossier config introuvable (APPDATA/HOME)")?;
+    copy_to(paths, &target, &config_dir)
 }
 
-/// Cœur de la copie, cible explicite (testable sans variables d'env).
-pub(crate) fn copy_to(paths: &Paths, target: &Path) -> Result<PathBuf, String> {
+/// Cœur de la copie, cible et dossier config explicites (testables sans env).
+/// Le code va dans `target/app` (sans `.zra` ni `zra.config.json`) ; la config et
+/// les données précieuses vont dans le dossier config utilisateur (hors zone
+/// swappée à l'update). Le jetable est régénéré au runtime par le daemon installé.
+pub(crate) fn copy_to(paths: &Paths, target: &Path, config_dir: &Path) -> Result<PathBuf, String> {
     let exe = std::env::current_exe().map_err(|e| e.to_string())?;
     fs::create_dir_all(target).map_err(|e| format!("création de {} : {e}", target.display()))?;
     let new_exe = target.join(if cfg!(windows) { "zra-tray.exe" } else { "zra-tray" });
     // Lecture d'un exe vivant permise (Windows) ; l'ancien reste en place.
     fs::copy(&exe, &new_exe).map_err(|e| format!("copie de l'exécutable : {e}"))?;
-    copy_rec(&paths.root, &target.join("app")).map_err(|e| format!("copie de app/ : {e}"))?;
+    // Code → target/app, sans la config ni les données.
+    let app = target.join("app");
+    for entry in fs::read_dir(&paths.root).map_err(|e| e.to_string())? {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let name = entry.file_name();
+        if name == ".zra" || name == "zra.config.json" {
+            continue;
+        }
+        copy_rec(&entry.path(), &app.join(&name)).map_err(|e| format!("copie de app/ : {e}"))?;
+    }
+    // Config + précieux → dossier config utilisateur (jetable exclu).
+    fs::create_dir_all(config_dir).map_err(|e| format!("création du dossier config : {e}"))?;
+    let cfg = paths.root.join("zra.config.json");
+    if cfg.is_file() {
+        fs::copy(&cfg, config_dir.join("zra.config.json")).map_err(|e| format!("copie de zra.config.json : {e}"))?;
+    }
+    let config_zra = config_dir.join(".zra");
+    fs::create_dir_all(&config_zra).map_err(|e| format!("création de .zra config : {e}"))?;
+    if paths.zra.is_dir() {
+        for entry in fs::read_dir(&paths.zra).map_err(|e| e.to_string())? {
+            let entry = entry.map_err(|e| e.to_string())?;
+            let name = entry.file_name();
+            if crate::config::JETABLE.contains(&name.to_string_lossy().as_ref()) {
+                continue;
+            }
+            let src = entry.path();
+            let dst = config_zra.join(&name);
+            if src.is_dir() {
+                copy_rec(&src, &dst).map_err(|e| format!("copie de .zra : {e}"))?;
+            } else {
+                fs::copy(&src, &dst).map_err(|e| format!("copie de .zra : {e}"))?;
+            }
+        }
+    }
     Ok(target.to_path_buf())
 }
 
@@ -176,13 +213,13 @@ pub fn launch(exe: &Path, workdir: &Path) -> Result<(), String> {
 /// Mémorise le choix portable (même pattern que le « jamais » du
 /// téléchargement tray, `.zra/setup.json`) — fusion avec l'existant.
 pub fn remember_portable(paths: &Paths) {
-    let file = paths.zra.join("setup.json");
+    let file = paths.config_zra.join("setup.json");
     let mut v: serde_json::Value = fs::read_to_string(&file)
         .ok()
         .and_then(|t| serde_json::from_str(&t).ok())
         .unwrap_or_else(|| serde_json::json!({}));
     v["portable"] = serde_json::json!(true);
-    let _ = fs::create_dir_all(&paths.zra);
+    let _ = fs::create_dir_all(&paths.config_zra);
     let _ = fs::write(&file, serde_json::to_string_pretty(&v).unwrap() + "\n");
 }
 
@@ -208,16 +245,23 @@ mod tests {
         let _ = fs::remove_dir_all(&dir);
         let root = dir.join("portable").join("app");
         fs::create_dir_all(root.join("zra-daemon")).unwrap();
-        fs::create_dir_all(root.join(".zra")).unwrap();
+        fs::create_dir_all(root.join(".zra/logs")).unwrap();
         fs::write(root.join("zra-daemon/index.js"), "daemon").unwrap();
         fs::write(root.join("zra.config.json"), "config").unwrap();
         fs::write(root.join(".zra/tray.json"), "tray").unwrap();
+        fs::write(root.join(".zra/logs/daemon.log"), "log").unwrap();
         let fake_local = dir.join("local");
+        let config_dir = dir.join("config").join("zra");
         let paths = Paths::from_root(root);
-        let target = copy_to(&paths, &fake_local.join("zra")).expect("copie");
+        let target = copy_to(&paths, &fake_local.join("zra"), &config_dir).expect("copie");
+        // Code dans target/app, sans config ni données.
         assert!(target.join("app/zra-daemon/index.js").is_file());
-        assert_eq!(fs::read_to_string(target.join("app/zra.config.json")).unwrap(), "config");
-        assert_eq!(fs::read_to_string(target.join("app/.zra/tray.json")).unwrap(), "tray", "les données voyagent");
+        assert!(!target.join("app/zra.config.json").exists());
+        assert!(!target.join("app/.zra").exists());
+        // Config + précieux dans le dossier config, jetable exclu.
+        assert_eq!(fs::read_to_string(config_dir.join("zra.config.json")).unwrap(), "config");
+        assert_eq!(fs::read_to_string(config_dir.join(".zra/tray.json")).unwrap(), "tray");
+        assert!(!config_dir.join(".zra/logs").exists(), "jetable exclu");
         // L'exe copié est le binaire de test lui-même (current_exe).
         let exe = target.join(if cfg!(windows) { "zra-tray.exe" } else { "zra-tray" });
         assert!(exe.is_file());
@@ -233,7 +277,7 @@ mod tests {
         fs::write(root.join(".zra/setup.json"), "{\"trayDownload\":\"never\"}").unwrap();
         let paths = Paths::from_root(root);
         remember_portable(&paths);
-        let v: serde_json::Value = serde_json::from_str(&fs::read_to_string(paths.zra.join("setup.json")).unwrap()).unwrap();
+        let v: serde_json::Value = serde_json::from_str(&fs::read_to_string(paths.config_zra.join("setup.json")).unwrap()).unwrap();
         assert_eq!(v["trayDownload"], "never", "l'existant est préservé");
         assert_eq!(v["portable"], true);
         fs::remove_dir_all(&dir).unwrap();

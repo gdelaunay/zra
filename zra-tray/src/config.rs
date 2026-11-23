@@ -57,7 +57,11 @@ pub struct TrayConfig {
 
 pub struct Paths {
     pub root: PathBuf,
+    /// `.zra` de la racine — jetable (logs, verrou, updates, bin).
     pub zra: PathBuf,
+    /// `.zra` du dossier config — précieux (tray.json, setup.json, tls).
+    /// Installé : dossier config utilisateur ; portable/dépôt : égal à `zra`.
+    pub config_zra: PathBuf,
     pub logs: PathBuf,
 }
 
@@ -82,11 +86,12 @@ impl Paths {
     pub(crate) fn from_root(root: PathBuf) -> Self {
         let zra = root.join(".zra");
         let logs = zra.join("logs");
-        Self { root, zra, logs }
+        let config_zra = config_root(&root).join(".zra");
+        Self { root, zra, config_zra, logs }
     }
 
     pub fn tray_config(&self) -> PathBuf {
-        self.zra.join("tray.json")
+        self.config_zra.join("tray.json")
     }
 
     pub fn lock_file(&self) -> PathBuf {
@@ -112,10 +117,41 @@ impl Paths {
     }
 
     pub fn save_config(&self, cfg: &TrayConfig) -> std::io::Result<()> {
-        fs::create_dir_all(&self.zra)?;
+        fs::create_dir_all(&self.config_zra)?;
         fs::write(self.tray_config(), serde_json::to_string_pretty(cfg).unwrap() + "\n")
     }
 }
+
+/// Dossier config utilisateur ZRA (layout installé) : `%APPDATA%\zra` (Windows)
+/// / `$XDG_CONFIG_HOME/zra` (Linux, défaut `~/.config/zra`). Miroir de
+/// `zra-daemon/platform.js::zedPaths().zraConfigDir`.
+pub fn zra_config_dir() -> Option<PathBuf> {
+    if cfg!(windows) {
+        Some(PathBuf::from(std::env::var("APPDATA").ok()?).join("zra"))
+    } else {
+        let base = match std::env::var("XDG_CONFIG_HOME") {
+            Ok(v) if !v.is_empty() => PathBuf::from(v),
+            _ => PathBuf::from(std::env::var("HOME").ok()?).join(".config"),
+        };
+        Some(base.join("zra"))
+    }
+}
+
+/// Racine de la config + données précieuses : dossier config utilisateur en
+/// layout installé (hors zone swappée à l'update), racine sinon (portable/dépôt).
+/// Miroir de `platform.js::configRoot`.
+pub fn config_root(root: &Path) -> PathBuf {
+    if crate::install::is_installed() {
+        if let Some(dir) = zra_config_dir() {
+            return dir;
+        }
+    }
+    root.to_path_buf()
+}
+
+/// Entrées `.zra` jetables (régénérées au runtime, dans le dossier d'install) :
+/// tout le reste de `.zra` est précieux et vit dans le dossier config.
+pub const JETABLE: &[&str] = &["logs", "bin", "records", "updates", "tray.lock", "injections.log"];
 
 /// Racine ZRA depuis un dossier : layout dépôt (`zra-daemon/` direct) ou
 /// archive « app » (`app/zra-daemon/`). Dans l'archive la racine est `app/`,

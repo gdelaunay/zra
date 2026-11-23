@@ -302,15 +302,15 @@
       <div class="srow-inner">
         <div class="srow-text">
           <div class="srow-title">Désinstaller ZRA</div>
-          <div class="srow-desc" id="uninstall-desc"><span>Arrête le service, retire le démarrage automatique, débranche Zed et supprime le dossier de l'application (journaux, appairage, certificats compris). Node et Zed ne sont pas touchés.</span></div>
+          <div class="srow-desc" id="uninstall-desc"><span>Arrête le service, retire le démarrage automatique, débranche Zed et supprime le dossier de l'application (code, journaux). La config (réglages, appairage, certificats) est conservée, sauf « tout désinstaller ». Node et Zed ne sont pas touchés.</span></div>
         </div>
         <div class="srow-control"><button class="btn danger" id="uninstall">Désinstaller…</button></div>
       </div>
       <div id="uninstall-panel" class="hidden">
-        <div class="panel-text">Deux choix : <strong>tout désinstaller</strong> (plus aucune trace), ou <strong>garder mes réglages</strong> (<code>zra.config.json</code> exporté dans votre dossier personnel, pour une réinstallation).</div>
+        <div class="panel-text">Deux choix : <strong>tout désinstaller</strong> (plus aucune trace, config comprise), ou <strong>garder mes paramètres</strong> (config conservée dans votre dossier config, pour une réinstallation).</div>
         <div class="panel-actions">
           <button class="btn danger" id="uninstall-all">Tout désinstaller</button>
-          <button class="btn" id="uninstall-keep">Garder mes réglages</button>
+          <button class="btn" id="uninstall-keep">Garder mes paramètres</button>
           <button class="btn" id="uninstall-cancel">Annuler</button>
         </div>
       </div>

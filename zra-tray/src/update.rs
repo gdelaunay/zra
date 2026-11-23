@@ -433,7 +433,7 @@ mod tests {
         fs::write(inner.join("app/.zra/tray.json"), "écraserait").unwrap();
         fs::write(inner.join("app/zra.config.json"), "écraserait").unwrap();
 
-        merge_app(&inner, &Paths { root: root.clone(), zra: root.join(".zra"), logs: root.join(".zra/logs") }).unwrap();
+        merge_app(&inner, &Paths { root: root.clone(), zra: root.join(".zra"), config_zra: root.join(".zra"), logs: root.join(".zra/logs") }).unwrap();
         assert_eq!(fs::read_to_string(root.join(".zra/tray.json")).unwrap(), "données");
         assert_eq!(fs::read_to_string(root.join("zra.config.json")).unwrap(), "réglages");
         assert_eq!(fs::read_to_string(root.join("zra-daemon/index.js")).unwrap(), "neuf");
@@ -477,7 +477,7 @@ mod tests {
     fn etat_defaut_auto_active() {
         let dir = std::env::temp_dir().join(format!("zra-update-state-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
-        let paths = Paths { root: dir.clone(), zra: dir.join(".zra"), logs: dir.join(".zra/logs") };
+        let paths = Paths { root: dir.clone(), zra: dir.join(".zra"), config_zra: dir.join(".zra"), logs: dir.join(".zra/logs") };
         let st = UpdateState::load(&paths);
         assert!(st.auto_update, "défaut activé (conception)");
         assert!(st.pending.is_none());

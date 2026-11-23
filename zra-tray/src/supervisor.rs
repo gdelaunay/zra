@@ -228,7 +228,14 @@ fn spawn_child(cfg: &TrayConfig, paths: &Paths) -> std::io::Result<Child> {
                 .env("ZRA_RELAY_PORT", cfg.relay.port.to_string())
                 .env("ZRA_RELAY_HOST", &cfg.relay.host);
             if let (Some(cert), Some(key)) = (&cfg.relay.tls_cert, &cfg.relay.tls_key) {
-                cmd.env("ZRA_RELAY_TLS_CERT", cert).env("ZRA_RELAY_TLS_KEY", key);
+                // Chemins relatifs (.zra/tls/…) résolus contre la racine config
+                // (installé : dossier config utilisateur) ; le relais reçoit de l'absolu.
+                let base = crate::config::config_root(&paths.root);
+                let abs = |p: &str| {
+                    let pp = std::path::Path::new(p);
+                    if pp.is_absolute() { pp.to_path_buf() } else { base.join(pp) }
+                };
+                cmd.env("ZRA_RELAY_TLS_CERT", abs(cert)).env("ZRA_RELAY_TLS_KEY", abs(key));
             }
             paths.log_file(Mode::Relais)
         }

@@ -129,7 +129,8 @@ pub fn run(paths: &Paths) -> TrayConfig {
             }
             (Method::Post, "/tls") => {
                 // Upload du contenu (le navigateur ne donne pas le chemin
-                // absolu) : copie dans .zra/tls/, le chemin absolu est renvoyé.
+                // absolu) : copie dans .zra/tls/ (dossier config), chemin relatif
+                // renvoyé — résolu contre configRoot, pas de recalibrage à l'install.
                 #[derive(Deserialize)]
                 struct P { kind: String, name: String, content: String }
                 let result = (|| -> Result<String, String> {
@@ -143,11 +144,11 @@ pub fn run(paths: &Paths) -> TrayConfig {
                         .map(|n| n.to_string_lossy().to_string())
                         .filter(|n| !n.is_empty())
                         .ok_or("Nom de fichier invalide.")?;
-                    let dir = paths.zra.join("tls");
+                    let dir = paths.config_zra.join("tls");
                     std::fs::create_dir_all(&dir).map_err(|e| format!("Création de .zra/tls/ impossible : {e}"))?;
                     let file = dir.join(&name);
                     std::fs::write(&file, &p.content).map_err(|e| format!("Écriture impossible : {e}"))?;
-                    Ok(file.to_string_lossy().to_string())
+                    Ok(format!(".zra/tls/{name}"))
                 })();
                 json_response(match result {
                     Ok(path) => serde_json::json!({ "ok": true, "path": path }),

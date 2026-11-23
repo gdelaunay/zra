@@ -47,18 +47,37 @@ pub fn base_dir(paths: &Paths) -> Option<PathBuf> {
     paths.root.parent().map(Path::to_path_buf)
 }
 
-/// Export de `zra.config.json` dans le dossier personnel (« garder mes
-/// réglages »). Renvoie le chemin écrit, ou None si pas de config.
-pub fn export_settings(paths: &Paths) -> Option<PathBuf> {
-    let config = paths.root.join("zra.config.json");
-    if !config.is_file() {
-        return None;
+/// « Garder mes paramètres » : la config + données précieuses restent dans le
+/// dossier config utilisateur. Installé : elles y sont déjà. Portable : copie
+/// depuis la racine (le jetable reste dehors). Idempotent.
+fn keep_config(paths: &Paths) -> Option<PathBuf> {
+    let dest = crate::config::zra_config_dir()?;
+    if crate::install::is_installed() {
+        return Some(dest);
     }
-    let home = std::env::var("USERPROFILE")
-        .or_else(|_| std::env::var("HOME"))
-        .ok()?;
-    let dest = PathBuf::from(home).join("zra.config.json");
-    fs::copy(&config, &dest).ok()?;
+    let _ = fs::create_dir_all(&dest);
+    let cfg = paths.root.join("zra.config.json");
+    if cfg.is_file() {
+        let _ = fs::copy(&cfg, dest.join("zra.config.json"));
+    }
+    let dest_zra = dest.join(".zra");
+    let _ = fs::create_dir_all(&dest_zra);
+    if let Ok(entries) = fs::read_dir(&paths.zra) {
+        for e in entries.flatten() {
+            let name = e.file_name();
+            let name = name.to_string_lossy();
+            if crate::config::JETABLE.contains(&name.as_ref()) {
+                continue;
+            }
+            let src = e.path();
+            let dst = dest_zra.join(&*name);
+            if src.is_dir() {
+                let _ = crate::update::copy_rec(&src, &dst);
+            } else {
+                let _ = fs::copy(&src, &dst);
+            }
+        }
+    }
     Some(dest)
 }
 
@@ -143,22 +162,26 @@ pub fn run(paths: &Paths, node: &str, keep_settings: bool) -> Value {
     #[cfg(windows)]
     steps.push(remove_registry_key());
 
-    let mut exported: Option<String> = None;
+    // Config utilisateur (dossier config XDG/APPDATA, hors du dossier d'install) :
+    // « garder mes paramètres » (défaut) la conserve ; « tout désinstaller » la
+    // retire aussi (installé seulement — en portable/dépôt elle est locale).
     if keep_settings {
-        match export_settings(paths) {
-            Some(dest) => {
-                exported = Some(dest.to_string_lossy().to_string());
-                steps.push(Step {
-                    label: "Réglages conservés".into(),
-                    ok: true,
-                    output: format!("zra.config.json exporté : {}", dest.display()),
-                });
+        let kept = keep_config(paths);
+        steps.push(Step {
+            label: "Paramètres conservés".into(),
+            ok: true,
+            output: match kept {
+                Some(d) => format!("Config conservée : {}", d.display()),
+                None => "Dossier config introuvable (LOCALAPPDATA/HOME).".into(),
+            },
+        });
+    } else if crate::install::is_installed() {
+        if let Some(d) = crate::config::zra_config_dir() {
+            match fs::remove_dir_all(&d) {
+                Ok(()) => steps.push(Step { label: "Config supprimée".into(), ok: true, output: format!("Dossier config retiré : {}", d.display()) }),
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => steps.push(Step { label: "Config supprimée".into(), ok: true, output: "Dossier config déjà absent.".into() }),
+                Err(e) => steps.push(Step { label: "Config supprimée".into(), ok: false, output: format!("Suppression config impossible : {e}") }),
             }
-            None => steps.push(Step {
-                label: "Réglages conservés".into(),
-                ok: true,
-                output: "Pas de zra.config.json à exporter.".into(),
-            }),
         }
     }
 
@@ -166,7 +189,6 @@ pub fn run(paths: &Paths, node: &str, keep_settings: bool) -> Value {
     let body = json!({
         "ok": true,
         "steps": orchestrate::steps_json(&steps),
-        "exported": exported,
         "removed": base.as_ref().map(|p| p.to_string_lossy().to_string()),
     });
 
@@ -198,23 +220,30 @@ mod tests {
     use super::*;
 
     #[test]
-    fn export_settings_copie_la_config() {
+    fn keep_config_portable_copie_config_et_precieux() {
         let _g = crate::testutil::env_guard();
-        let dir = std::env::temp_dir().join(format!("zra-uninstall-test-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("zra-keep-test-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         let root = dir.join("app");
-        fs::create_dir_all(&root).unwrap();
-        let paths = Paths { root: root.clone(), zra: root.join(".zra"), logs: root.join(".zra/logs") };
-        assert!(export_settings(&paths).is_none(), "pas de config : rien à exporter");
+        fs::create_dir_all(root.join(".zra/logs")).unwrap();
+        let paths = Paths { root: root.clone(), zra: root.join(".zra"), config_zra: root.join(".zra"), logs: root.join(".zra/logs") };
         fs::write(root.join("zra.config.json"), "{ \"port\": 7777 }").unwrap();
-        // USERPROFILE/HOME détournés vers le dossier de test.
+        fs::write(root.join(".zra/tray.json"), "{}").unwrap();
+        fs::write(root.join(".zra/auth.json"), "{}").unwrap();
+        fs::write(root.join(".zra/logs/daemon.log"), "log").unwrap();
+        fs::write(root.join(".zra/tray.lock"), "").unwrap();
         let fake_home = dir.join("home");
         fs::create_dir_all(&fake_home).unwrap();
-        std::env::set_var("USERPROFILE", &fake_home);
+        std::env::set_var("APPDATA", &fake_home);
         std::env::set_var("HOME", &fake_home);
-        let dest = export_settings(&paths).expect("export");
-        assert_eq!(dest, fake_home.join("zra.config.json"));
-        assert_eq!(fs::read_to_string(dest).unwrap(), "{ \"port\": 7777 }");
+        std::env::set_var("LOCALAPPDATA", &fake_home);
+        let dest = keep_config(&paths).expect("dossier config");
+        assert_eq!(dest, crate::config::zra_config_dir().unwrap());
+        assert!(dest.join("zra.config.json").is_file());
+        assert!(dest.join(".zra/tray.json").is_file());
+        assert!(dest.join(".zra/auth.json").is_file());
+        assert!(!dest.join(".zra/logs").exists(), "jetable exclu");
+        assert!(!dest.join(".zra/tray.lock").exists(), "jetable exclu");
         fs::remove_dir_all(&dir).unwrap();
     }
 
@@ -224,7 +253,7 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("zra-uninstall-base-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).unwrap();
-        let paths = Paths { root: dir.clone(), zra: dir.join(".zra"), logs: dir.join(".zra/logs") };
+        let paths = Paths { root: dir.clone(), zra: dir.join(".zra"), config_zra: dir.join(".zra"), logs: dir.join(".zra/logs") };
         // current_exe() est le binaire de test, pas à côté de dir : None.
         assert!(base_dir(&paths).is_none());
         fs::remove_dir_all(&dir).unwrap();
