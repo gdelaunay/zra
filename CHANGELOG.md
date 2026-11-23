@@ -4,6 +4,13 @@
 
 ## En cours
 
+- Lot issues PWA (`ISSUES.md`, toutes traitées) :
+  - Garde éveillé : TTL + coffee masqués quand le poste n'est pas `online` (état périmé) ; TTL masqué pendant un tour (café orange seul) — le daemon ne relance pas le TTL à la fin du tour (`keep-awake.js` : `tick()` ignore `busy`), la valeur fixe « 1 h » aurait promis un comportement inexistant
+  - En-têtes « Projets récents » / « Nouveau projet » : icône dossier + police des lignes projet (`project__name`, plus de capitales), dossier toujours neutre (jamais la couleur « live ») ; compte de projets conservé à droite en style meta
+  - Auto-scroll au repli des réflexions : confirmé corrigé (lecture du code : le clamp de layout atterrit en bas, ne coupe pas le suivi ; `d99ec34` avait supprimé la max-height cause du saut) + test de régression (géométrie simulée, jsdom sans layout)
+  - **Durée de génération réelle** : l'ACP ne date pas les tours (schéma vérifié : `UsageUpdate` = tokens/coût) ; le shim date l'envoi réel du premier `session/prompt` (`queue.js` : `promptSent` → `turnSince`), miroir daemon (`thread-state.js`) puis `thread_state.turnSince` (protocole §4) ; replis : transition `busy` vue par le daemon (backend d'injection, ancien shim), puis observation locale de la PWA (ancien daemon) — la page ouverte en plein tour affiche la durée depuis le départ réel, plus une invention
+  - Tests : `pwa.test.mjs` (TTL hors ligne/tour, en-têtes, auto-scroll, durée affichée), `store.test.mjs` (`turnSince`), `queue.test.mjs` + `unit.test.mjs` (cycle de vie `turnSince`) ; doc `protocol.md`, `acp.md` (`session/prompt`) — bilingue ; arbitrages et tests réels dans `HANDOFF.md`
+
 - CI/releases double forge : workflow unique `.github/workflows/release.yml` (tag `v*`, gate tag == version `Cargo.toml` + `npm test`, matrice win/linux x64, rustup installé sans action tierce), binaires `zra-tray-<target>` attachés à la release des deux forges (`scripts/ci-release-asset.mjs` : API Forgejo/GitHub détectée par `github.server_url`, release créée si absente, asset remplacé au re-run) ; GitHub lit `.github/workflows` nativement, Forgejo en repli (doc officielle — pas de dossier `.forgejo/`) ; runners Forgejo self-hostés : Linux Debian/KDE (p350) + Windows (Dell)
 - `npm run setup -- install --apply` propose le binaire tray prébuild : oui/non/jamais (formulation technique), « jamais » persisté dans `.zra/setup.json`, muet hors terminal interactif ou binaire déjà présent ; téléchargement Forgejo puis GitHub en repli dans `.zra/bin/`, échec non fatal (`scripts/lib/tray-download.mjs`, tests réseau stubé)
 

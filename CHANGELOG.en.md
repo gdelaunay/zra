@@ -4,6 +4,13 @@
 
 ## In progress
 
+- PWA issues batch (`ISSUES.md`, all addressed):
+  - Keep awake: TTL + coffee hidden when the machine is not `online` (stale state); TTL hidden during a turn (orange coffee only) — the daemon does not restart the TTL at turn end (`keep-awake.js`: `tick()` ignores `busy`), the fixed "1 h" value would have promised nonexistent behavior
+  - "Recent projects" / "New project" headers: folder icon + project-row font (`project__name`, no more uppercase), folder always neutral (never the "live" color); project count kept on the right in meta style
+  - Auto-scroll on thought collapse: confirmed fixed (code reading: the layout clamp lands at the bottom, does not cut following; `d99ec34` had removed the max-height that caused the jump) + regression test (simulated geometry, jsdom has no layout)
+  - **Real generation duration**: ACP does not date turns (schema verified: `UsageUpdate` = tokens/cost); the shim dates the actual send of the turn's first `session/prompt` (`queue.js`: `promptSent` → `turnSince`), daemon mirror (`thread-state.js`) then `thread_state.turnSince` (protocol §4); fallbacks: `busy` transition seen by the daemon (injection backend, old shim), then the PWA's local observation (old daemon) — a page opened mid-turn shows the duration since the real start, no longer an invention
+  - Tests: `pwa.test.mjs` (offline/turn TTL, headers, auto-scroll, displayed duration), `store.test.mjs` (`turnSince`), `queue.test.mjs` + `unit.test.mjs` (`turnSince` lifecycle); docs `protocol.md`, `acp.md` (`session/prompt`) — bilingual; decisions and real tests in `HANDOFF.md`
+
 - Dual-forge CI/releases: single workflow `.github/workflows/release.yml` (tag `v*`, gate tag == `Cargo.toml` version + `npm test`, win/linux x64 matrix, rustup installed without third-party action), `zra-tray-<target>` binaries attached to the release on both forges (`scripts/ci-release-asset.mjs`: Forgejo/GitHub API detected via `github.server_url`, release created if absent, asset replaced on re-run); GitHub reads `.github/workflows` natively, Forgejo as fallback (official docs — no `.forgejo/` directory); self-hosted Forgejo runners: Linux Debian/KDE (p350) + Windows (Dell)
 - `npm run setup -- install --apply` offers the prebuilt tray binary: yes/no/never (technical wording), "never" persisted in `.zra/setup.json`, silent outside an interactive terminal or when the binary is already present; download from Forgejo then GitHub as fallback into `.zra/bin/`, failure non-fatal (`scripts/lib/tray-download.mjs`, stubbed-network tests)
 
