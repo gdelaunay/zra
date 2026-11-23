@@ -220,6 +220,47 @@ HTTP éphémère dans le binaire, coupé une fois le setup fini. Pas de webview
 - Écarté : tirer le repo git à l'installation (git requis, fragile hors-ligne,
   découplage des versions). Artefacts versionnés uniquement.
 
+## Installation sur le poste : self-install par le tray
+
+Le zip est le produit : lancé tel quel il tourne en **portable** ; sur choix
+de l'utilisateur il s'**auto-installe** dans un emplacement fixe. Pas
+d'installeur tiers (Inno Setup, MSI) — le tray fait tout, l'emplacement fixe
+tue le piège « dossier déplacé → chemins absolus périmés » du portable.
+
+- **Emplacements cibles** : `%LOCALAPPDATA%\Programs\zra` (Windows, convention
+  VS Code, sans élévation) ; `~/.local/share/zra` (Linux). Détection de l'état
+  « installé » : le tray tourne-t-il depuis là ?
+- **Onboarding (1er lancement)** : option « Installer sur ce poste » **cochée
+  par défaut, visible** dans la liste principale (pas repliée avec les
+  réglages avancés) — c'est une décision de distribution, pas un détail
+  technique. Ligne d'explication : emplacement cible + désinstallable
+  proprement. Décocher = rester portable.
+- **Portable choisi** : mémorisé (même pattern que le « jamais » du
+  téléchargement tray, `.zra/setup.json`). Aux runs suivants, simple bouton
+  « Installer sur ce poste » dans la console/réglages. Installable à tout
+  moment.
+- **Installé** : le bouton disparaît. **Pas de retour arrière** (pas de toggle
+  bi-directionnel) — la sortie est la désinstallation classique ci-dessus.
+- **La copie** : un exe Windows vivant est verrouillé, il ne peut pas se
+  déplacer lui-même. Dance : copier `zra-tray(.exe)` + `app/` vers la cible →
+  lancer la copie → l'originale se ferme. Pas d'exe helper dédié (sur-ingénierie).
+  `.zra/` et `zra.config.json` voyagent dans `app/` : rien à réécrire côté
+  données.
+- **Après migration, recâbler les chemins absolus** : `setup install apply`
+  (preload Zed, entrées agents) + `service install --apply` (autostart) — le
+  tray spawn déjà ces scripts en non interactif. Sans ça, l'app installée ne
+  pilote plus Zed.
+- **Raccourci Menu Démarrer** (+ clé HKCU « Applications installées », déjà
+  prévue ci-dessus) posés à l'installation ; sous Linux, `.desktop` et unité
+  systemd `--user` via le backend service existant.
+- **Cas limite** : une copie portable relancée alors qu'une instance installée
+  existe → détecter et proposer de lancer l'installée (single-instance), pas
+  deux vies parallèles.
+- **Évolution possible (autre chantier)** : un exe unique embarquant `app/`
+  (`include_dir`/`rust-embed`), extrait à l'exécution vers l'emplacement
+  d'install ou un cache portable. Node reste prérequis système. Le zip
+  actuel est plus simple et déjà produit par la CI.
+
 ## Noté pour après le MVP
 
 - **TLS du daemon dans l'onboarding — fait** : le mode poste expose la même
@@ -242,11 +283,12 @@ HTTP éphémère dans le binaire, coupé une fois le setup fini. Pas de webview
    + homelab headless — rapports `reference/`, fiches `tests-tray-*.md`.
    Icône : hôte SNI requis sous Wayland, repli XEmbed en X11
    (`docs/fr/limitations.md`) ;
-3. **Codé** — CI releases (tag `v*`, gate tag == version `Cargo.toml` +
-   `npm test`, matrice win/linux x64, rustup sans action tierce) +
-   téléchargement optionnel au `setup` (oui/non/jamais, repli de forge).
-   À tester : runners Forgejo à enregistrer (Linux p350 + Windows Dell),
-   premier tag `v0.6.0` ;
+3. **Fait** — CI releases (tag `v*`, gate tag == version `Cargo.toml` +
+   `npm test`, matrice win/linux x64, rustup sans action tierce) : vérifiée
+   sur les deux forges avec le tag `v0.6.0-dev` (runners Forgejo p350 +
+   Dell, GitHub hébergés ; release + 4 assets des deux côtés). Reste : le
+   téléchargement optionnel au `setup` (oui/non/jamais, repli de forge) à
+   tester ;
 4. **Facultatif — skippé pour l'instant** (décision utilisateur) : sucre,
    icône qui change d'état (thread live / réponse en attente) — les
    événements existent déjà dans le daemon ;
@@ -269,23 +311,28 @@ HTTP éphémère dans le binaire, coupé une fois le setup fini. Pas de webview
      application au restart (swap différé Windows).
    - **5.5** désinstallation « machine comme on l'a trouvée » + clé HKCU.
    - **5.6** unité systemd du relais générée par le binaire (homelab).
-   Le test CI de l'étape 3 est mutualisé avec le premier tag de test de
-   l'étape 5 (même pipeline) ; `offerTrayDownload` au setup reste à part.
+   - **5.7** self-install par le tray (conception figée, section dédiée) :
+     option d'onboarding, copie vers l'emplacement fixe, recâblage des
+     chemins absolus.
+   Le test CI (étape 3) est fait via le tag `v0.6.0-dev` (même pipeline que
+   l'étape 5) ; `offerTrayDownload` au setup reste à tester.
 
 ## Reprise (handoff)
 
 **État** : 5.1 + 5.2 faits (archive « app », onboarding grand public, TLS
-poste, pare-feu best-effort). Restent 5.3 (console « installé »), 5.4
-(updates), 5.5 (désinstallation + HKCU), 5.6 (unité systemd relais).
-Prochaine étape par défaut : **5.3**.
+poste, pare-feu best-effort) ; CI + release vérifiées sur les deux forges
+(tag `v0.6.0-dev`, 4 assets). Restent 5.3 (console « installé »), 5.4 (updates),
+5.5 (désinstallation + HKCU), 5.6 (unité systemd relais), 5.7 (self-install,
+conception figée). Prochaine étape par défaut : **5.3**.
 
 **À vérifier sur les postes Linux** (fait sur Windows seulement) : warning
 XWayland affiché sous Wayland, sonde pare-feu ufw/firewalld (`listen-test.mjs`).
 
-**Test CI** : mutualisé étapes 3 + 5 (même pipeline), tag `v0.6.0-dev`,
-runners Forgejo p350 (`ubuntu-latest`) + Dell (`windows-latest`) en cours
-d'enregistrement ; GitHub miroir + sync des tags. `offerTrayDownload` au
-setup (flux contributeur) à cocher à part.
+**CI/release** : vérifiée sur les deux forges (tag `v0.6.0-dev`, runners
+Forgejo p350 `ubuntu-latest` + Dell `windows-latest`, GitHub hébergés sur le
+miroir ; release + 4 assets attachés des deux côtés).
+`offerTrayDownload` au setup (flux contributeur) reste à tester ; release
+et tag de test à nettoyer avant la vraie `v0.6.0`.
 
 **État machine** : rustup dans `~/.cargo/bin` (profil minimal, MSVC VS2022) ;
 `npm run tray` = dev. La tâche planifiée pointe encore vers PowerShell

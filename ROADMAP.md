@@ -15,7 +15,7 @@ datés, avec le hash du commit de référence ; ROADMAP à jour ; puis commit
 - **0.5.2 — composer** (fait — commandes `/`, mentions `@`, icônes de fichiers ; voir `CHANGELOG.md`) ;
 - **0.5.3 — tous les threads par le shim** (fait — entrée d'origine shimée par preload node, threads anciens compris ; voir `CHANGELOG.md`) ;
 - **0.5.4 — relais HTTPS** (fait — la PWA servie avec un relais, plus de proxy par poste ; voir `CHANGELOG.md`) ;
-- **0.6 — `zra-tray`** : le tray natif Rust et la distribution binaire. Windows + Linux faits, archive « app » + onboarding grand public faits (vérifiés sur les trois postes de référence et le homelab headless) ; restent console « installé », updates, désinstallation, unité systemd relais, et CI double forge (codée, à tester) ; icône d'état facultative, skippée pour l'instant.
+- **0.6 — `zra-tray`** : le tray natif Rust et la distribution binaire. Windows + Linux faits, archive « app » + onboarding grand public faits (vérifiés sur les trois postes de référence et le homelab headless) ; restent console « installé », updates, désinstallation, unité systemd relais, et self-install par le tray (conception figée) ; CI + release vérifiées sur les deux forges (tag `v0.6.0-dev`, Windows + Linux) ; icône d'état facultative, skippée pour l'instant.
 
 ---
 
@@ -27,28 +27,21 @@ Windows + Linux faits (tray deux modes, onboarding navigateur, supervision
 sans orphelin, autostart tâche planifiée / systemd --user / XDG, headless) —
 vérifiés sur les trois postes de référence (Ubuntu/GNOME/Wayland, Debian/KDE,
 MX/Xfce/sysvinit) et le homelab headless. Archive « app » + onboarding grand
-public faits (TLS poste, pare-feu best-effort) ; restent console de gestion
-« installé », updates, désinstallation (+ HKCU), unité systemd du relais, et
-le test CI double forge (codé, à tester) — ordre et handoff dans la
-conception. Icône d'état (étape 4) : facultative, skippée pour l'instant.
+public faits (TLS poste, pare-feu best-effort) ; CI + release vérifiées sur
+les deux forges (tag `v0.6.0-dev`, les deux plateformes, 4 assets) ; restent console
+de gestion « installé », updates, désinstallation (+ HKCU), unité systemd du
+relais, et self-install par le tray (conception figée) — ordre et handoff
+dans la conception. Icône d'état (étape 4) : facultative, skippée pour l'instant.
 
-**Test de l'étape 3 (CI/releases + téléchargement au setup) :**
-
-1. Forgejo : Actions activées sur le repo ; enregistrer les runners —
-   **p350** (Debian/KDE) label `ubuntu-latest`, **Dell** (Windows) label
-   `windows-latest` (shell ou docker ; le label est un routage, pas l'OS).
-2. GitHub : Actions activées sur le miroir `gdelaunay/zra` ; le push mirror
-   doit syncer les **tags**.
-3. Tag de test **`v0.6.0-dev`** (le gate exige tag == version
-   `zra-tray/Cargo.toml`, actuellement `0.6.0-dev`) → la release se crée et
-   se remplit sur les **deux** forges (binaire tray seul + archive
-   `zra-<version>-<target>.zip` par plateforme). Test mutualisé avec l'étape 5.
-4. `npm run setup -- install --apply` → question oui/non/jamais,
-   téléchargement dans `.zra/bin/` (Forgejo d'abord, GitHub en repli) ;
-   vérifier « jamais » mémorisé (`.zra/setup.json`) et le repli en coupant
-   l'une des forges.
-5. Nettoyer la release et le tag de test après coup ; la vraie release
-   `v0.6.0` attend la fin du jalon (version bumpée dans `Cargo.toml`).
+**CI/release (étape 3, mutualisée avec l'étape 5) — vérifiée sur les deux
+forges :** runners Forgejo enregistrés (p350 `ubuntu-latest`, Dell
+`windows-latest`), GitHub hébergés sur le miroir (tags syncés), tag
+`v0.6.0-dev` → gate + tests verts, release créée avec les 4 assets (binaire
+tray seul + archive « app », Windows + Linux) des deux côtés. Restent : le
+téléchargement au setup
+(`npm run setup -- install --apply`, oui/non/jamais, repli de forge,
+`.zra/setup.json`) ; nettoyer release et tag de test avant la vraie
+`v0.6.0` (version bumpée dans `Cargo.toml`).
 
 Un petit binaire Rust par plateforme, à la fois **icône de zone de
 notification** et **superviseur**, avec deux modes : poste (spawn et surveille
