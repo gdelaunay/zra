@@ -211,6 +211,12 @@ function abs(p) {
 // activé pour de vrai ferait taper les tests dans la fenêtre Zed ouverte.
 const UNDER_TEST = Boolean(process.env.NODE_TEST_CONTEXT)
 
+/** Chemin du fichier de config utilisateur : `ZRA_CONFIG` sinon dossier config
+ * (installé) ou racine (portable/dépôt). Partagé par setup et le shim. */
+export function configFilePath(root = ROOT) {
+  return process.env.ZRA_CONFIG || join(configRoot({ root }), 'zra.config.json')
+}
+
 export async function loadConfig({ file, overrides = {}, root = ROOT } = {}) {
   // Config + données précieuses : dossier config utilisateur en layout installé
   // (XDG/APPDATA, hors zone swappée), racine sinon (portable/dépôt inchangés).

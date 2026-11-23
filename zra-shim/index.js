@@ -34,7 +34,7 @@ import { pipeFrames } from './proxy.js'
 import { createRecorder } from './record.js'
 import { parseJsonc } from '../zra-daemon/jsonc.js'
 import { resolveAgentCommand } from '../zra-daemon/agent-commands.js'
-import { PATHS } from '../zra-daemon/platform.js'
+import { PATHS, configRoot } from '../zra-daemon/platform.js'
 import { tr } from '../zra-daemon/i18n.js'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -206,7 +206,7 @@ export function parseArgs(raw) {
 }
 
 async function readConfig() {
-  const file = process.env.ZRA_CONFIG || join(ROOT, 'zra.config.json')
+  const file = process.env.ZRA_CONFIG || join(configRoot({ root: ROOT }), 'zra.config.json')
   if (!existsSync(file)) return {}
   try {
     return parseJsonc(await readFile(file, 'utf8')) ?? {}

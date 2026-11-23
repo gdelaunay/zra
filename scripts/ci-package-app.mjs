@@ -10,7 +10,10 @@
 //                           même version que le tray (gate tag == Cargo.toml)
 //
 // `app/` est la racine vue du daemon (config.js : ROOT = parent de
-// zra-daemon/) : config et `.zra` y vivent, le tray s'aligne (config.rs).
+// zra-daemon/) : le code y vit, le `.zra` jetable y est régénéré au runtime.
+// La config utilisateur (réglages + données précieuses) est créée à l'onboarding
+// dans le dossier config (installé : XDG/APPDATA) ou la racine (portable) — voir
+// config.js/config.rs. `.zra` est exclu de l'archive (PRUNE).
 // Zéro dépendance runtime : les quatre dossiers sont 100 % stdlib Node, pas
 // de node_modules. Les scripts d'orchestration (setup/service) arriveront
 // avec l'onboarding grand public (étape 5.2).

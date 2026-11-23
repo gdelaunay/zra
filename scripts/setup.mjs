@@ -36,7 +36,7 @@ import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises'
 import { basename, dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { loadConfig } from '../zra-daemon/config.js'
+import { configFilePath, loadConfig } from '../zra-daemon/config.js'
 import { agentLabel, isZedRunning } from '../zra-daemon/agents.js'
 import { defaultZedCli, detectZedChannel } from '../zra-daemon/platform.js'
 import { parseJsonc } from '../zra-daemon/jsonc.js'
@@ -580,7 +580,7 @@ async function tls(opts) {
   if ((opts.cert || opts.key) && !(opts.cert && opts.key)) {
     throw new Error(tr`--cert et --key sont requis ensemble.`)
   }
-  const file = process.env.ZRA_CONFIG || join(ROOT, 'zra.config.json')
+  const file = configFilePath(ROOT)
   const before = existsSync(file) ? await readFile(file, 'utf8') : '{}'
   const result = opts.cert
     ? upsertRootMember(before, 'tls', { cert: opts.cert, key: opts.key })
