@@ -32,8 +32,19 @@
     --success-border: #4a4516;
     --font-ui: "IBM Plex Sans", ui-sans-serif, system-ui, "Segoe UI", sans-serif;
     --font-mono: "Lilex", ui-monospace, "Cascadia Mono", Consolas, monospace;
+    --scrollbar-thumb-background: #a899844c;
+    --scrollbar-thumb-hover-background: #fbf1c74c;
   }
   * { box-sizing: border-box; }
+  /* Scrollbar fine comme la PWA (thumb 6 px), révélée au scroll, masquée au
+     repos (cf. zra-client/css/app.css). */
+  @property --sb-alpha { syntax: '<number>'; inherits: true; initial-value: 0; }
+  * { transition: --sb-alpha 400ms; scrollbar-width: thin; scrollbar-color: var(--scrollbar-thumb-background) transparent; }
+  .is-scrolling { --sb-alpha: 1; transition-duration: 50ms; }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--scrollbar-thumb-background) calc(var(--sb-alpha) * 100%), transparent); border-radius: 6px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover-background); }
+  ::-webkit-scrollbar-track { background: transparent; }
   body {
     margin: 0; background: var(--background); color: var(--text);
     font: 13px/1.5 var(--font-ui);
@@ -154,6 +165,8 @@
       --success: #98971a;
       --success-background: #eef2d3;
       --success-border: #d8e0a3;
+      --scrollbar-thumb-background: #7c6f644c;
+      --scrollbar-thumb-hover-background: #2828284c;
     }
     .swindow { box-shadow: 0 8px 24px rgba(0, 0, 0, .12); }
   }
@@ -347,6 +360,15 @@
   }
   for (const el of document.querySelectorAll('[data-i18n-title]')) el.title = tr([el.title])
   for (const el of document.querySelectorAll('[data-i18n-placeholder]')) el.placeholder = tr([el.placeholder])
+
+  // Scrollbar révélée au scroll (comme la PWA), masquée au repos après 1 s.
+  document.addEventListener('scroll', (e) => {
+    const el = e.target === document ? document.documentElement : e.target
+    if (!(el instanceof Element)) return
+    el.classList.add('is-scrolling')
+    clearTimeout(el._sbT)
+    el._sbT = setTimeout(() => el.classList.remove('is-scrolling'), 1000)
+  }, true)
 
   const $ = (id) => document.getElementById(id)
   const ICONS = {

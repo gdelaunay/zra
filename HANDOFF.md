@@ -40,9 +40,6 @@ Rien n'est poussé/taggé par l'agent : les branches attendent la review.
 
 ### 2. Observation d'une page — nécessite d'autoriser le navigateur (user présent)
 
-- **Rendu visuel console** : clair/sombre, viewport mobile, **i18n fr/en**
-  (`ZRA_LANG=en` puis `fr`), libellés anglais plus longs → pas de régression
-  de layout.
 - **Rendu onboarding + i18n** : racine sans `tray.json` (`ZRA_ROOT`
   temporaire) ou `?mock=missing`.
 - **Bouton « Installer sur ce poste »** : visible en portable, masqué une
