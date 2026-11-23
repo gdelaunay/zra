@@ -18,7 +18,7 @@ taggé** : une ou deux phrases de description du jalon + « See CHANGELOG.md »
 - **0.5.2 — composer** (fait — commandes `/`, mentions `@`, icônes de fichiers ; voir `CHANGELOG.md`) ;
 - **0.5.3 — tous les threads par le shim** (fait — entrée d'origine shimée par preload node, threads anciens compris ; voir `CHANGELOG.md`) ;
 - **0.5.4 — relais HTTPS** (fait — la PWA servie avec un relais, plus de proxy par poste ; voir `CHANGELOG.md`) ;
-- **0.6 — `zra-tray`** : le tray natif Rust et la distribution binaire. Windows + Linux faits, archive « app » + onboarding grand public + console de gestion + updates faits (vérifiés sur les trois postes de référence et le homelab headless) ; restent unité systemd relais et self-install par le tray (conception figée) ; CI + release vérifiées sur les deux forges (tag `v0.6.0-dev`, Windows + Linux) ; icône d'état facultative, skippée pour l'instant.
+- **0.6 — `zra-tray`** : le tray natif Rust et la distribution binaire. Windows + Linux faits, archive « app » + onboarding grand public + console de gestion + updates faits (vérifiés sur les trois postes de référence et le homelab headless) ; restent self-install par le tray (conception figée) ; CI + release vérifiées sur les deux forges (tag `v0.6.0-dev`, Windows + Linux) ; icône d'état facultative, skippée pour l'instant.
 
 ---
 
@@ -33,11 +33,12 @@ MX/Xfce/sysvinit) et le homelab headless. Archive « app » + onboarding grand
 public faits (TLS poste, pare-feu best-effort) ; console de gestion faite
 (page locale ouverte depuis le menu : état, bascule, autostart, journal,
 à propos) ; CI + release vérifiées sur
-les deux forges (tag `v0.6.0-dev`, les deux plateformes, 4 assets) ; restent
-unité systemd du relais et self-install par le tray (conception figée) — ordre et handoff
+les deux forges (tag `v0.6.0-dev`, les deux plateformes, 4 assets) ; reste
+le self-install par le tray (conception figée) — ordre et handoff
 dans la conception. Updates faits (canal stable, application au
 restart, merge préservant les données) ; désinstallation faite (dé-câblage,
-autostart, HKCU, suppression différée Windows, export des réglages).
+autostart, HKCU, suppression différée Windows, export des réglages) ;
+unité systemd du relais générée par le binaire (console, linger).
 Icône d'état (étape 4) : facultative, skippée pour l'instant.
 
 **CI/release (étape 3, mutualisée avec l'étape 5) — vérifiée sur les deux

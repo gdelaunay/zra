@@ -15,6 +15,7 @@ mod console;
 mod node;
 mod onboarding;
 mod orchestrate;
+mod relay_unit;
 mod status;
 mod supervisor;
 mod uninstall;

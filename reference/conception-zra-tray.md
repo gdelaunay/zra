@@ -328,7 +328,13 @@ tue le piège « dossier déplacé → chemins absolus périmés » du portable.
      garder mes réglages (export `zra.config.json` dans le dossier personnel).
      Layout dépôt : le dossier cloné n'est pas supprimé. UI : section
      « Désinstallation » de la console (panneau de confirmation, étapes).
-   - **5.6** unité systemd du relais générée par le binaire (homelab).
+   - **5.6 — Fait** unité systemd du relais générée par le binaire
+     (`relay_unit.rs`) : `zra-relay.service` (--user), ExecStart = tray
+     `--headless` (il lit le mode relais de tray.json), linger vérifié/activé
+     sans sudo. Pilotée depuis la console (case autostart en mode relais sous
+     Linux/systemd) ; retirée à la désinstallation. Sans systemd en init
+     (MX/sysvinit) : l'autostart XDG existant lance le tray, qui suit le mode.
+     La doc deploy garde l'unité système manuelle pour le flux sans tray.
    - **5.7** self-install par le tray (conception figée, section dédiée) :
      option d'onboarding, copie vers l'emplacement fixe, recâblage des
      chemins absolus.
@@ -337,11 +343,11 @@ tue le piège « dossier déplacé → chemins absolus périmés » du portable.
 
 ## Reprise (handoff)
 
-**État** : 5.1 + 5.2 + 5.3 + 5.4 + 5.5 faits (archive « app », onboarding
-grand public, TLS poste, pare-feu best-effort, console de gestion, updates,
-désinstallation) ; CI + release vérifiées sur les deux forges (tag
-`v0.6.0-dev`, 4 assets). Restent 5.6 (unité systemd relais) et
-5.7 (self-install, conception figée). Prochaine étape par défaut : **5.6**.
+**État** : 5.1 → 5.6 faits (archive « app », onboarding grand public, TLS
+poste, pare-feu best-effort, console de gestion, updates, désinstallation,
+unité systemd relais) ; CI + release vérifiées sur les deux forges (tag
+`v0.6.0-dev`, 4 assets). Reste 5.7 (self-install, conception figée).
+Prochaine étape par défaut : **5.7**.
 Le flux update n'est testable de bout en qu'avec une vraie release stable
 (`v0.6.0-dev` est une pré-release, rejetée à dessein par le canal stable).
 

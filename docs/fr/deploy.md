@@ -204,8 +204,16 @@ npm run relay               # écoute http://0.0.0.0:7777 — PWA + relais
    annoncée au journal. `ZRA_RELAY_PORT` et `ZRA_RELAY_HOST` changent l'écoute
    (7777, toutes interfaces par défaut).
 
-**Démarrage automatique** (homelab Linux) : comme tout service Node, par
-exemple une unité systemd système :
+**Démarrage automatique** (homelab Linux) :
+
+- **Avec le tray** (archive « app », mode relais) : la console de gestion
+  génère l'unité `systemd --user` `zra-relay.service` — case « Lancer ZRA à
+  l'ouverture de session ». L'unité lance le binaire en `--headless` ; il
+  supervise le relais avec l'écoute et le TLS de `.zra/tray.json`. Le linger
+  est vérifié et activé si besoin (`loginctl enable-linger`, sans sudo) :
+  sans lui, pas de démarrage au boot sur une machine sans session ouverte.
+  Plus de copier-coller d'unité.
+- **Sans tray** (`npm run relay`), par exemple une unité systemd système :
 
 ```ini
 [Unit]

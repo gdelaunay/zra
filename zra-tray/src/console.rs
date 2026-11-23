@@ -15,6 +15,7 @@ use tiny_http::{Header, Method, Response, Server};
 
 use crate::config::{Mode, Paths};
 use crate::orchestrate;
+use crate::relay_unit;
 use crate::status;
 use crate::supervisor::{RunState, Supervisor};
 use crate::uninstall;
@@ -137,11 +138,16 @@ fn handle(mut request: tiny_http::Request, sup: &Supervisor, paths: &Paths) {
         ),
         (Method::Get, "/state") => ok_json(state_json(sup, paths)),
         (Method::Get, "/autostart") => {
-            // État réel via le script Node (backend de la machine) — pas de
-            // devinette côté Rust.
+            // Relais sous Linux/systemd : l'unité zra-relay.service, générée
+            // par le binaire (5.6). Sinon : état réel via le script Node
+            // (backend de la machine) — pas de devinette côté Rust.
             let cfg = sup.config();
-            let d = orchestrate::discover(paths, &cfg.node);
-            ok_json(json!({ "ok": true, "autostart": d.get("autostart").cloned().unwrap_or(Value::Null) }))
+            if cfg.mode == Mode::Relais && relay_unit::is_systemd_user() {
+                ok_json(json!({ "ok": true, "autostart": relay_unit::state() }))
+            } else {
+                let d = orchestrate::discover(paths, &cfg.node);
+                ok_json(json!({ "ok": true, "autostart": d.get("autostart").cloned().unwrap_or(Value::Null) }))
+            }
         }
         (Method::Post, "/autostart") => {
             #[derive(serde::Deserialize)]
@@ -149,6 +155,15 @@ fn handle(mut request: tiny_http::Request, sup: &Supervisor, paths: &Paths) {
             let result = (|| -> Result<Value, String> {
                 let p: P = serde_json::from_str(&body).map_err(|e| format!("Requête invalide : {e}"))?;
                 let cfg = sup.config();
+                if cfg.mode == Mode::Relais && relay_unit::is_systemd_user() {
+                    let exe = std::env::current_exe().map_err(|e| e.to_string())?;
+                    let out = if p.enabled {
+                        relay_unit::install(&exe, &paths.root)?
+                    } else {
+                        relay_unit::uninstall()?
+                    };
+                    return Ok(json!({ "ok": true, "output": out }));
+                }
                 let verb = if p.enabled { "install" } else { "uninstall" };
                 let step = orchestrate::run_script(paths, &cfg.node, "Démarrage automatique", "service.mjs",
                     &[verb.to_string(), "--apply".to_string()]);

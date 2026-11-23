@@ -111,7 +111,24 @@ merge, prendre l'union des sections.
   l'utilisateur (dé-câblage Zed + retrait de la tâche planifiée) — destructif,
   remis à « À tester ». Couvert par tests unitaires + jsdom.
 
-(5.6 et suivantes : à compléter au fil des lots)
+**5.6 — unité systemd du relais** :
+- `zra-relay.service` en `--user` (pas système) : cohérent avec le backend
+  poste et sans élévation ; ExecStart = le tray `--headless`, qui lit le mode
+  relais de `tray.json` (un seul point d'entrée, l'écoute et le TLS restent
+  dans la config du tray, pas dans l'unité).
+- Linger vérifié et activé sans sudo à l'installation (le piège du --user
+  sur homelab headless, établi dans scripts/lib/systemd.mjs).
+- La case autostart de la console pilote l'unité en mode relais sous
+  Linux/systemd ; ailleurs (Windows, MX/sysvinit) le backend existant de
+  service.mjs lance le tray, qui suit le mode — rien de neuf.
+- L'onboarding relais ne demande pas l'autostart (conception : écoute + TLS
+  seulement) ; elle se gère après coup depuis la console. Choix par défaut.
+- Désinstallation : l'unité relais est retirée en plus de service.mjs.
+- Compilation Linux non vérifiable depuis Windows (libdbus-sys exige les
+  libs Linux ; cross-compilation écartée par la conception) — la CI le fait.
+  Le code unix ajouté est simple (Command/fs), risque faible.
+
+(5.7 : à compléter au fil des lots)
 
 ## À tester
 
@@ -155,7 +172,15 @@ merge, prendre l'union des sections.
 - « Garder mes réglages » : l'export atterrit bien dans le dossier personnel.
 - Désinstallation en layout dépôt : le repo doit rester intact.
 
-(5.6 et suivantes : à compléter au fil des lots)
+**5.6** :
+- Sur le homelab headless : case autostart de la console (via tunnel SSH)
+  → unité générée, linger activé, relais démarré au boot ; retrait propre.
+- Sur les postes Linux de référence (Ubuntu/GNOME, Debian/KDE, MX/Xfce) :
+  vérification du comportement en mode relais (MX sans systemd → XDG).
+- Build Linux par la CI (tag de test) — le cross-check depuis Windows est
+  impossible (libdbus-sys).
+
+(5.7 : à compléter au fil des lots)
 
 ## Points bloqués
 

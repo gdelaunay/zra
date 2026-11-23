@@ -31,6 +31,7 @@ use serde_json::{json, Value};
 
 use crate::config::Paths;
 use crate::orchestrate::{self, Step};
+use crate::relay_unit;
 use crate::update::is_app_layout;
 
 /// Clé « Applications installées » (HKCU, sans élévation) — posée à
@@ -64,12 +65,22 @@ pub fn export_settings(paths: &Paths) -> Option<PathBuf> {
 /// Étapes Node : dé-câblage Zed + retrait autostart. Idempotents — un poste
 /// relais sans Zed câblé ne produit pas d'erreur bloquante.
 pub fn unwire(paths: &Paths, node: &str) -> Vec<Step> {
-    vec![
+    let mut steps = vec![
         orchestrate::run_script(paths, node, "Dé-câblage de Zed", "setup.mjs",
             &["uninstall".to_string(), "--apply".to_string()]),
         orchestrate::run_script(paths, node, "Démarrage automatique", "service.mjs",
             &["uninstall".to_string(), "--apply".to_string()]),
-    ]
+    ];
+    // Unité du relais (5.6), si elle a été générée — service.mjs ne connaît
+    // que l'unité poste.
+    if cfg!(unix) && relay_unit::unit_file().is_file() {
+        let (ok, output) = match relay_unit::uninstall() {
+            Ok(out) => (true, out),
+            Err(e) => (false, e),
+        };
+        steps.push(Step { label: "Unité systemd du relais".into(), ok, output });
+    }
+    steps
 }
 
 /// Retrait de la clé HKCU (reg.exe, HKCU ne demande pas d'élévation).
