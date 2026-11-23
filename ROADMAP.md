@@ -5,9 +5,12 @@ jalons, un numéro de correctif (0.5.1…) pour un lot retenu — corrections co
 petites fonctions — quand ce lot est fini. L'historique est dans `CHANGELOG.md`.
 
 Release d'un jalon : `npm test` vert ; version bumpée (`package.json`,
-`package-lock.json`, README bilingues) ; `CHANGELOG.md` et `CHANGELOG.en.md`
+`package-lock.json`, `zra-tray/Cargo.toml` — le gate CI exige tag == cette
+version, README bilingues) ; `CHANGELOG.md` et `CHANGELOG.en.md`
 datés, avec le hash du commit de référence ; ROADMAP à jour ; puis commit
-`chore(release)` et tag `v0.x.0` poussé.
+`chore(release)` et tag `v0.x.0` poussé. **Soigner le message du commit
+taggé** : une ou deux phrases de description du jalon + « See CHANGELOG.md »
+— la forge s'en sert comme body de la release (pas de body posé par la CI).
 
 - **0.4 — audit, sécurité, conformité à Zed** (fait — comparaison au code de Zed, constats en réel ; voir `CHANGELOG.md`) ;
 - **0.5 — coller au panneau agent de Zed** (fait — retouches d'interface, recopie du panel ; voir `CHANGELOG.md`) ;
