@@ -355,7 +355,9 @@ running holds the port: the task retries until it stops.
 supervises the daemon (restart on crash, logs, single instance) and shows the
 notification icon. Without the binary, fallback to the PowerShell launcher
 `scripts/daemon-task.ps1`. Develop the tray with `npm run tray` (Rust,
-design: `reference/conception-zra-tray.md`).
+design: `reference/conception-zra-tray.md`). Its menu opens a **management
+console** (local page in the browser): service state, workstation/relay
+switch, autostart, logs, versions, tray quit.
 
 **PowerShell policy** — the keyboard script and the fallback PowerShell
 launcher launch PowerShell with `-ExecutionPolicy Bypass`: a deliberate

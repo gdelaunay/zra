@@ -11,6 +11,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod config;
+mod console;
 mod node;
 mod onboarding;
 mod orchestrate;
@@ -38,6 +39,7 @@ enum UserEvent {
 }
 
 const ID_OPEN: &str = "open";
+const ID_CONSOLE: &str = "console";
 const ID_URL: &str = "url";
 const ID_PAIR: &str = "pair";
 const ID_LOGS: &str = "logs";
@@ -83,6 +85,10 @@ fn main() {
     let sup = Arc::new(Supervisor::new(cfg.clone(), paths.clone()));
     sup.spawn_monitor();
 
+    // Console de gestion (mode « installé ») : page locale persistante,
+    // ouverte depuis le menu — l'UI du tray.
+    let console = console::start(sup.clone(), paths.clone());
+
     // Adopter un service déjà vivant plutôt que spawner un second. En mode
     // relais, un /status qui répond trahit un daemon sur le port : ce n'est
     // pas un relais, on n'adopte pas (et on ne spawn pas dans le vide).
@@ -106,6 +112,7 @@ fn main() {
     }
 
     if headless {
+        eprintln!("[zra-tray] console de gestion : {}", console.url);
         let sup2 = sup.clone();
         ctrlc::set_handler(move || {
             sup2.stop();
@@ -117,10 +124,10 @@ fn main() {
         }
     }
 
-    run_gui(sup, paths, cfg);
+    run_gui(sup, paths, cfg, console);
 }
 
-fn run_gui(sup: Arc<Supervisor>, paths: Arc<Paths>, cfg: config::TrayConfig) {
+fn run_gui(sup: Arc<Supervisor>, paths: Arc<Paths>, cfg: config::TrayConfig, console: console::Console) {
     let event_loop = EventLoopBuilder::<UserEvent>::with_user_event().build();
     let proxy = event_loop.create_proxy();
 
@@ -134,6 +141,7 @@ fn run_gui(sup: Arc<Supervisor>, paths: Arc<Paths>, cfg: config::TrayConfig) {
     let menu = Menu::new();
     let status_item = MenuItem::with_id("status", "ZRA — démarrage…", false, None);
     let open_item = MenuItem::with_id(ID_OPEN, "Ouvrir ZRA", true, None);
+    let console_item = MenuItem::with_id(ID_CONSOLE, "Console de gestion", true, None);
     let url_item = MenuItem::with_id(ID_URL, "Copier l'URL", true, None);
     let pair_item = MenuItem::with_id(ID_PAIR, "Copier le code d'appairage", false, None);
     let logs_item = MenuItem::with_id(ID_LOGS, "Ouvrir le journal", true, None);
@@ -145,6 +153,7 @@ fn run_gui(sup: Arc<Supervisor>, paths: Arc<Paths>, cfg: config::TrayConfig) {
         &status_item as &dyn tray_icon::menu::IsMenuItem,
         &sep(),
         &open_item,
+        &console_item,
         &url_item,
         &pair_item,
         &logs_item,
@@ -251,6 +260,11 @@ fn run_gui(sup: Arc<Supervisor>, paths: Arc<Paths>, cfg: config::TrayConfig) {
                             // « Copier l'URL » sert de repli manuel.
                             if let Err(err) = open::that(&url) {
                                 eprintln!("[zra-tray] ouverture du navigateur impossible ({err}) — URL : {url}");
+                            }
+                        }
+                        ID_CONSOLE => {
+                            if let Err(err) = open::that(&console.url) {
+                                eprintln!("[zra-tray] ouverture du navigateur impossible ({err}) — console : {}", console.url);
                             }
                         }
                         ID_URL => {

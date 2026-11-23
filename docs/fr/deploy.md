@@ -356,7 +356,9 @@ lancé tient le port : la tâche réessaie jusqu'à ce qu'il s'arrête.
 supervise le daemon (relance sur crash, journal, instance unique) et affiche
 l'icône de notification. Sans binaire, repli sur le lanceur PowerShell
 `scripts/daemon-task.ps1`. Le tray se développe avec `npm run tray` (Rust,
-conception : `reference/conception-zra-tray.md`).
+conception : `reference/conception-zra-tray.md`). Son menu ouvre une
+**console de gestion** (page locale dans le navigateur) : état du service,
+bascule poste/relais, démarrage automatique, journal, versions, arrêt du tray.
 
 **Politique PowerShell** — le script clavier et le lanceur PowerShell de
 repli lancent PowerShell avec `-ExecutionPolicy Bypass` : choix assumé pour

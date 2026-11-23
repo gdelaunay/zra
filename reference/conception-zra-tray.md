@@ -305,8 +305,12 @@ tue le piège « dossier déplacé → chemins absolus périmés » du portable.
      `/done` câble Zed+autostart+XWayland+TLS via les scripts Node) ; pare-feu
      (5.2c : « Tester l'écoute » best-effort, aucune règle). TLS poste écrit
      dans `zra.config.json` (`setup tls`, JSONC préservé).
-   - **5.3** console de gestion : page d'onboarding en mode « installé »
-     (à propos, gestion, désinstallation) — l'UI du tray.
+   - **5.3 — Fait** console de gestion : serveur loopback persistant dans le
+     binaire (`console.rs`), page « installé » (`console.html`, mêmes tokens
+     que l'onboarding) ouverte depuis le menu — état du service, bascule de
+     mode, démarrage automatique (via `service.mjs`), journal, à propos
+     (versions, chemins, liens), quitter le tray. Updates et désinstallation
+     s'y ajoutent aux étapes 5.4/5.5.
    - **5.4** updates : canal stable unique, auto-update (défaut activé),
      application au restart (swap différé Windows).
    - **5.5** désinstallation « machine comme on l'a trouvée » + clé HKCU.
@@ -319,11 +323,11 @@ tue le piège « dossier déplacé → chemins absolus périmés » du portable.
 
 ## Reprise (handoff)
 
-**État** : 5.1 + 5.2 faits (archive « app », onboarding grand public, TLS
-poste, pare-feu best-effort) ; CI + release vérifiées sur les deux forges
-(tag `v0.6.0-dev`, 4 assets). Restent 5.3 (console « installé »), 5.4 (updates),
+**État** : 5.1 + 5.2 + 5.3 faits (archive « app », onboarding grand public,
+TLS poste, pare-feu best-effort, console de gestion) ; CI + release vérifiées
+sur les deux forges (tag `v0.6.0-dev`, 4 assets). Restent 5.4 (updates),
 5.5 (désinstallation + HKCU), 5.6 (unité systemd relais), 5.7 (self-install,
-conception figée). Prochaine étape par défaut : **5.3**.
+conception figée). Prochaine étape par défaut : **5.4**.
 
 **À vérifier sur les postes Linux** (fait sur Windows seulement) : warning
 XWayland affiché sous Wayland, sonde pare-feu ufw/firewalld (`listen-test.mjs`).
