@@ -1,160 +1,14 @@
-# Handoff — session autonome
+# Handoff — fin 0.6 tray
 
-Travail en autonomie complète (autorisation de commit explicite pour cette
-série), branches séparées, jamais `main`. Ce fichier rassemble tout ce qui
-aurait été une question : arbitrages pris par défaut, tests réels remis au
-retour de l'utilisateur, points bloqués. Français seulement.
+Branche `feat/0.6-tray` : fin du jalon 0.6 (étapes 5.3 → 5.7 de
+`reference/conception-zra-tray.md`), repartant de `main`. Dev complet,
+baseline verte. Tous les arbitrages 5.3 → 5.7 ont été validés en review ;
+restent les **tests réels** et **deux issues** (i18n tray, config XDG) à
+traiter avant la release 0.6. Français seulement.
 
-Branches :
-- `fix/client-issues` — les issues PWA de `ISSUES.md` (toutes traitées).
-- `feat/0.6-tray` — fin du jalon 0.6 (étapes 5.3 → 5.7 de
-  `reference/conception-zra-tray.md`), repartant de `main`.
-
-Ce fichier vit sur les deux branches (chacune documente ses lots) : au
-merge, prendre l'union des sections.
-
-## Arbitrages
-
-### Lot issues PWA (`fix/client-issues`)
-
-1. **TTL + coffee hors ligne** : masqués pour tout statut non `online`
-   (offline, connecting, locked) — l'état garde éveillé affiché serait
-   périmé, et il n'y a rien à régler hors ligne (même logique que
-   `machineActions`).
-2. **TTL pendant un tour** : masqué (café orange seul), plutôt que la valeur
-   future fixe « 1 h » proposée en alternative dans l'issue. Raison : le
-   daemon ne « repart » pas le TTL à la fin du tour — `keep-awake.js` fait
-   tourner le timer pendant le tour (`tick()` ignore `busy`), contrairement à
-   ce que décrivait l'issue. Afficher « 1 h » promettrait un comportement qui
-   n'existe pas. Si le comportement voulu est « TTL relancé à la fin du
-   tour », c'est un changement daemon à part entière (à arbitrer).
-3. **Auto-scroll / repli des thinking blocks** : confirmé corrigé par lecture
-   du code (`thread.js` : le clamp de layout atterrit en bas, ne coupe pas le
-   suivi ; `d99ec34` a supprimé la max-height qui causait le saut) + nouveau
-   test de régression dans `pwa.test.mjs` (géométrie simulée : jsdom n'a pas
-   de layout). Confirmation visuelle en vrai navigateur remise à « À tester ».
-4. **Durée de génération** : l'ACP n'expose aucune durée de tour (schéma
-   vérifié dans `_upstream/acp` : `UsageUpdate` = tokens/coût, pas de
-   timing). Le vrai temps est donc mesuré là où le trafic réel est visible :
-   le shim date l'envoi du premier `session/prompt` du tour
-   (`queue.js` : `promptSent` → `turnSince`), projeté dans le miroir daemon
-   (`thread-state.js`) puis `thread_state.turnSince` (protocole §4, doc
-   fr/en à jour). Replis : transition `busy` vue par le daemon (backend
-   d'injection, ancien shim), puis observation locale de la PWA (ancien
-   daemon). Ce n'est plus une invention : c'est le départ réel du prompt.
-5. **En-têtes « Projets récents » / « Nouveau projet »** : icône dossier +
-   police des lignes projet (`project__name`, plus de capitales), dossier
-   toujours neutre (jamais `project__icon--live`). Le compte de projets
-   reste à droite en style meta.
-
-### Fin 0.6 (`feat/0.6-tray`)
-
-**5.3 — console de gestion** :
-- Page dédiée `console.html` (mêmes tokens visuels que l'onboarding) plutôt
-  que le formulaire d'onboarding réutilisé : la conception dit « page
-  d'onboarding en mode installé », l'intention (UI web locale, pas de GUI
-  native) est tenue, mais un dashboard et un formulaire de premier lancement
-  sont deux choses distinctes — les mélanger dans un fichier de 900 lignes
-  était fragile. Servie par le même mécanisme (tiny_http loopback).
-- Serveur **persistant** tant que le tray tourne (l'onboarding reste
-  éphémère), port loopback choisi par l'OS ; item de menu « Console de
-  gestion » ; en headless l'URL est journalisée (pas de navigateur à ouvrir).
-- Actions sensibles (restart, bascule, autostart, quit) sur loopback seul,
-  même niveau de confiance que `/pair` du daemon : être sur le poste suffit.
-- Textes utilisateur du tray : **français seulement**, comme le menu et
-  l'onboarding existants — pas de mécanique i18n côté Rust à ce jour.
-  L'extension fr/en du tray est un chantier à part (à arbitrer).
-- Tests : page vérifiée en jsdom (`zra-tray/test/console-page.test.mjs`,
-  fetch bouchonné = mêmes réponses que `console.rs`) ; `npm test` inclut
-  désormais `zra-tray/test/`. Endpoints vérifiés en réel contre le daemon
-  vivant (mode observateur, lecture seule).
-
-**5.4 — updates** :
-- Canal stable unique : les tags pré-release (`v0.6.0-dev`) sont rejetés —
-  vérifié en réel sur les deux forges (réponse actuelle = `v0.6.0-dev`).
-  Le flux complet (téléchargement + application) n'est donc testable qu'avec
-  une vraie release stable → « À tester ».
-- Updates seulement en layout « app » (archive grand public). En layout
-  dépôt, le code vient de git : la console l'affiche, le tray ne touche à
-  rien (écraser un repo cloné serait une surprise).
-- « Application au restart » = à l'arrêt du **tray** (Quitter menu/console,
-  Ctrl-C) ou via « Installer et redémarrer ». Le « Redémarrer » du menu
-  redémarre le *service*, pas le tray : il n'applique pas l'update (distinction
-  volontaire, documentée dans la console).
-- Windows : exe vivant renommé en `zra-tray.old.exe` (permis à chaud), neuf
-  copié à la place, script PowerShell détaché (`Wait-Process` sur notre pid)
-  qui supprime l'ancien et relance. Pas d'exe helper dédié (conception).
-  Linux : `rename` par-dessus l'exe vivant + `exec` en place (même pid —
-  l'unité systemd --user ne voit pas d'arrêt, pas de problème KillMode).
-- Merge de `app/` : `.zra` et `zra.config.json` préservés (test unitaire) ;
-  les fichiers supprimés en amont ne sont pas purgés (pas de prune — simple).
-- Nouvelle dépendance Cargo : `zip` (deflate seul) pour l'extraction ;
-  traversal ignoré (`enclosed_name`, testé).
-- État dans `.zra/updates/state.json` (autoUpdate défaut true, pending,
-  latest, lastCheck epoch secondes formaté par la page, error).
-
-**5.5 — désinstallation** :
-- « Garder mes réglages » exporte `zra.config.json` dans le dossier personnel
-  (`~/zra.config.json` ou `%USERPROFILE%\zra.config.json`) — emplacement
-  visible et facile à retrouver pour une réinstallation (choix par défaut,
-  la conception ne précisait pas la destination).
-- Layout dépôt : dé-câblage + autostart + arrêt, mais **pas de suppression
-  du dossier cloné** (le contributeur gère son repo ; supprimer un repo git
-  serait une surprise). Dit dans la console.
-- Clé HKCU retirée via `reg.exe` (pas de nouvelle API Windows) ; absente =
-  succès (idempotent — la clé n'est posée qu'à l'installation 5.7).
-- Windows : script PowerShell détaché `Wait-Process` + `Remove-Item -Recurse`
-  sur le dossier de base (exe + app/), après exit. Linux : suppression
-  directe (l'exe vivant peut être unlinké).
-- **Pas exécuté en réel ce soir** : `/uninstall` lancerait `setup.mjs
-  uninstall --apply` et `service.mjs uninstall --apply` sur la machine de
-  l'utilisateur (dé-câblage Zed + retrait de la tâche planifiée) — destructif,
-  remis à « À tester ». Couvert par tests unitaires + jsdom.
-
-**5.6 — unité systemd du relais** :
-- `zra-relay.service` en `--user` (pas système) : cohérent avec le backend
-  poste et sans élévation ; ExecStart = le tray `--headless`, qui lit le mode
-  relais de `tray.json` (un seul point d'entrée, l'écoute et le TLS restent
-  dans la config du tray, pas dans l'unité).
-- Linger vérifié et activé sans sudo à l'installation (le piège du --user
-  sur homelab headless, établi dans scripts/lib/systemd.mjs).
-- La case autostart de la console pilote l'unité en mode relais sous
-  Linux/systemd ; ailleurs (Windows, MX/sysvinit) le backend existant de
-  service.mjs lance le tray, qui suit le mode — rien de neuf.
-- L'onboarding relais ne demande pas l'autostart (conception : écoute + TLS
-  seulement) ; elle se gère après coup depuis la console. Choix par défaut.
-- Désinstallation : l'unité relais est retirée en plus de service.mjs.
-- Compilation Linux non vérifiable depuis Windows (libdbus-sys exige les
-  libs Linux ; cross-compilation écartée par la conception) — la CI le fait.
-  Le code unix ajouté est simple (Command/fs), risque faible.
-
-**5.7 — self-install** :
-- Emplacements conformes à la conception : `%LOCALAPPDATA%\Programs\zra`
-  (Windows, convention VS Code, sans élévation), `~/.local/share/zra`
-  (Linux). Détection « installé » : l'exe tourne-t-il depuis là ?
-- La copie lit l'exe vivant (permis sous Windows, seul le renommage/la
-  suppression sont bloqués) : exe + `app/` copiés, `.zra/` et
-  `zra.config.json` voyagent dedans, orchestration **depuis la cible**
-  (chemins absolus justes), lancement de la copie, exit de l'originale.
-  Pas d'exe helper. Le supervisor portable n'est jamais créé dans le flux
-  onboarding-install (exit dans `/done`).
-- Recâblage : `setup install --apply yes` sans agent nommé = tous les agents
-  lançables (sémantique vérifiée dans setup.mjs) + `service install --apply`.
-- Raccourci Menu Démarrer via WScript.Shell (PowerShell, pas de crate COM) ;
-  clé HKCU posée avec DisplayName/DisplayVersion/Publisher/InstallLocation/
-  UninstallString (= l'exe ; la désinstallation se fait depuis la console).
-  Linux : le backend service pose le .desktop/l'unité (recâblage).
-- Portable choisi : mémorisé dans `.zra/setup.json` (fusion avec
-  `trayDownload` existant). Le bouton console reste disponible tant que non
-  installé ; installé = pas de bouton (pas de retour arrière, conception).
-- Cas limite : portable relancé avec instance installée → lancement de
-  l'installée + exit, **layout app seulement** (le dev en layout dépôt n'est
-  pas détourné — choix nécessaire pour ne pas casser `npm run tray`).
-- Self-install refusé en layout dépôt (un repo cloné ne se copie pas en
-  « installation ») — dit dans la console.
-- Tests : unitaires (copie, fusion setup.json, cible) + jsdom (console et
-  onboarding). **Pas exécuté en réel** (copierait vers LOCALAPPDATA, poserait
-  la clé HKCU, recâblerait Zed) — remis à « À tester ».
+Le lot issues PWA est mergé dans `main` (branche `fix/client-issues`
+supprimée, `HANDOFF.md`/`ISSUES.md` retirés de `main`). Ce fichier ne vit
+plus que sur cette branche ; il sera supprimé au merge, comme sur `main`.
 
 ## Release 0.6 — checklist (au retour de l'utilisateur)
 
@@ -177,18 +31,6 @@ la review. Procédure (ROADMAP.md) :
 Rien n'est poussé/taggé par l'agent : les branches attendent la review.
 
 ## À tester
-
-### Lot issues PWA
-
-- Rendu visuel des nouveaux en-têtes de groupe sur appareil réel :
-  alignement, troncature des longs libellés, survol.
-- Auto-scroll au repli d'une réflexion pendant le stream, sur mobile réel
-  (tactile) — le test jsdom simule la géométrie, pas le layout du navigateur.
-- `turnSince` de bout en bout avec un vrai agent : ouvrir la PWA en plein
-  tour d'un agent lancé depuis Zed — la durée affichée doit partir du départ
-  réel du prompt, pas de l'ouverture de la page.
-- TTL masqué hors ligne : vérifier sur un poste réellement éteint (le test
-  simule le statut).
 
 ### Fin 0.6
 
@@ -215,7 +57,10 @@ Rien n'est poussé/taggé par l'agent : les branches attendent la review.
 - Désinstallation réelle sur une installation « app » (Windows + Linux) :
   vérifier le dé-câblage Zed, le retrait de l'autostart, la suppression du
   dossier (différée Windows : le script attend l'exit), la clé HKCU.
-- « Garder mes réglages » : l'export atterrit bien dans le dossier personnel.
+- « Garder mes réglages » : après l'issue config XDG, la config survit à la
+  désinstallation (hors du dossier supprimé) ; « tout désinstaller » la
+  nettoie aussi. L'export actuel vers le dossier personnel disparaît avec
+  l'issue.
 - Désinstallation en layout dépôt : le repo doit rester intact.
 
 **5.6** :
@@ -240,21 +85,38 @@ Rien n'est poussé/taggé par l'agent : les branches attendent la review.
   oui/non/jamais en TTY réel, repli de forge, `.zra/setup.json` — code et
   tests unitaires existants (`tray-download.test.mjs`), pas de TTY ce soir.
 
+## Issues (à corriger)
+
+- **i18n du tray (fr/en)** : menu, onboarding et console sont en français
+  seul ; il faut les traduire en anglais (catalogue + mécanique i18n côté
+  Rust, inexistante à ce jour). Décision review 5.3. Chantier à part entière
+  — prévu avant la release 0.6 (décision review).
+
+- **Deux emplacements : install (code + jetable) / config (réglages +
+  précieux)** — ✅ **implémenté** (commits `d21d43f` → `1fa1adc` : fondation
+  `platform.js`, daemon, tray, scripts/shim, jetable hérité rapatrié, doc).
+  Config + précieux dans le dossier config utilisateur en installé
+  (`%APPDATA%\zra` / `~/.config/zra`), jetable dans le `.zra` de l'install ;
+  portable/dépôt à la racine. TLS relatif, uninstall garder/tout, `appDir`
+  XDG_STATE_HOME retiré. Pas de migration (clean uninstall avant 0.6).
+  Détail : `docs/fr/architecture.md` + CHANGELOG. **Reste : tests réels**
+  (self-install, uninstall, update — voir « À tester »).
+
+Les bugs trouvés en testant la 0.6 seront notés ici au fil de l'eau, puis
+corrigés.
+
 ## Points bloqués
 
 Aucun pour l'instant.
 
 ## Notes
 
-- **État final de session** : les deux branches sont vertes (`npm test`
-  complet + `cargo test` 19/19 sur `feat/0.6-tray`), working tree propre,
-  rien de poussé/taggé. Repo laissé sur `feat/0.6-tray` : cette branche ne
-  touche pas au client, le daemon vivant sert donc la même PWA que `main`
-  (pas de surprise sur le téléphone). Le daemon de la tâche planifiée n'a
-  jamais été touché (tests tray en mode observateur, lecture seule).
-- `HANDOFF.md` vit sur les deux branches : au merge, prendre l'union des
-  sections (conflit add/add attendu, trivial).
-- `npm test` complet vert sur `fix/client-issues` (1030 pass, 17 skipped).
-  Un échec isolé de `service.test.mjs` (« Unable to deserialize cloned
-  data ») observé une fois sous charge du runner parallèle, passé au rerun
-  et sur toute la suite ensuite — hoquet IPC de Node, pas une régression.
+- **Baseline verte** sur `feat/0.6-tray` : `npm test` complet (1045 pass,
+  17 skipped) + `cargo test` 19/19, working tree propre, rien de poussé/taggé.
+  Cette branche ne touche pas au client : le daemon vivant sert la même PWA
+  que `main` (pas de surprise sur le téléphone). Le daemon de la tâche
+  planifiée n'a jamais été touché (tests tray en mode observateur, lecture
+  seule).
+- Un échec isolé de `service.test.mjs` (« Unable to deserialize cloned
+  data ») déjà observé sous charge du runner parallèle, passé au rerun —
+  hoquet IPC de Node, pas une régression.
