@@ -78,6 +78,8 @@ jobs:
           if ! command -v rustup >/dev/null 2>&1; then
             curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain stable
             echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+            # GITHUB_PATH ne s'applique qu'aux steps suivants : pour la fin de CE step.
+            export PATH="$HOME/.cargo/bin:$PATH"
           fi
           rustup target add ${{ matrix.target }}
 
