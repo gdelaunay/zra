@@ -12,8 +12,6 @@ supprimé au merge. Français seulement.
 - **Console tray + onboarding = loopback-only** (port aléatoire lié à
   127.0.0.1) : non joignables depuis le mobile via VPN sans tunnel. La PWA
   du daemon (7777) est joignable, pas la console.
-- **Navigateur** : l'agent ne peut pas l'utiliser sans autorisation user
-  (pas de browser autonome) ; rendu visuel des pages = catégorie 2.
 - **Postes Linux de référence + homelab** = autres machines, non
   accessibles d'ici (Windows).
 - Rebuild impossible tray vivant (exe verrouillé, os error 5) → tuer le
@@ -36,15 +34,9 @@ supprimé au merge. Français seulement.
 
 Rien n'est poussé/taggé par l'agent : les branches attendent la review.
 
-## À tester — par catégorie
+## À tester
 
-### 2. Observation d'une page — nécessite d'autoriser le navigateur (user présent)
-
-- **Bouton « Installer sur ce poste » (console)** : visible en portable,
-  masqué une fois installé ; portable mémorisé (`.zra/setup.json`) après
-  décoche + enregistrement. (L'action *installer* elle-même = catégorie 3.)
-
-### 3. Nécessite manipulation user (desktop, autres machines, destructif, release, TTY)
+### Manipulation user (desktop, autres machines, destructif, release, TTY)
 
 - **Menu natif tray** : item « Console de gestion », « Copier l'URL/code »,
   « Ouvrir le journal », bascule de mode, **langue du menu selon la locale**
@@ -53,7 +45,9 @@ Rien n'est poussé/taggé par l'agent : les branches attendent la review.
   modifie le système → accord user ; systemd/XDG sur les postes Linux.
 - **Self-install réel** (Windows + Linux) : copie, recâblage Zed/autostart,
   raccourci Menu Démarrer, clé HKCU, relance depuis la cible ; cas limite
-  « portable relancé → l'installée se lance, pas deux trays ».
+  « portable relancé → l'installée se lance, pas deux trays » ; bouton
+  console « Installer sur ce poste » masqué une fois installé ; portable
+  mémorisé (`.zra/setup.json`) si décoché à l'onboarding.
 - **Désinstallation réelle** (Windows + Linux) : dé-câblage Zed, retrait
   autostart, suppression du dossier (différée Windows), clé HKCU ; « garder
   mes paramètres » (config conservée) / « tout désinstaller » (config
