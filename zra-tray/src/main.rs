@@ -12,6 +12,7 @@
 
 mod config;
 mod console;
+mod i18n;
 mod install;
 mod node;
 mod onboarding;
@@ -27,6 +28,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use config::{Mode, Paths};
+use crate::i18n::tr;
 use supervisor::{RunState, Supervisor};
 // X11/Wayland : le presse-papiers est servi par le processus propriétaire ;
 // `.wait()` garde le contenu vivant après l'écriture (voir copy_to_clipboard).
@@ -69,12 +71,12 @@ fn main() {
         && std::env::var("WAYLAND_DISPLAY").unwrap_or_default().is_empty();
     let headless = std::env::args().skip(1).any(|a| a == "--headless") || (cfg!(unix) && no_display);
     if std::env::args().skip(1).any(|a| a == "--help" || a == "-h") {
-        println!("zra-tray — tray et superviseur ZRA (modes poste et relais)\n\n  --headless   supervision sans icône (automatique si pas de session graphique)\n\nConfig : .zra/tray.json (onboarding au premier lancement).");
+        println!("{}", tr!("zra-tray — tray et superviseur ZRA (modes poste et relais)\n\n  --headless   supervision sans icône (automatique si pas de session graphique)\n\nConfig : .zra/tray.json (onboarding au premier lancement)."));
         return;
     }
 
     let paths = Arc::new(Paths::discover().unwrap_or_else(|| {
-        eprintln!("Racine ZRA introuvable depuis l'exécutable (zra-daemon/index.js attendu en remontant). ZRA_ROOT peut la forcer.");
+        eprintln!("{}", tr!("Racine ZRA introuvable depuis l'exécutable (zra-daemon/index.js attendu en remontant). ZRA_ROOT peut la forcer."));
         std::process::exit(1);
     }));
     let _ = std::fs::create_dir_all(&paths.zra);
@@ -84,7 +86,7 @@ fn main() {
     // Layout app seulement : le dev en layout dépôt n'est pas détourné.
     if update::is_app_layout(&paths) && !install::is_installed() && install::installed_exists() {
         if let Some(t) = install::target() {
-            eprintln!("[zra-tray] instance installée détectée ({}) — lancement de celle-ci.", t.display());
+            eprintln!("{}", tr!("[zra-tray] instance installée détectée ({0}) — lancement de celle-ci.", t.display()));
             let exe = t.join(if cfg!(windows) { "zra-tray.exe" } else { "zra-tray" });
             if install::launch(&exe, &t).is_ok() {
                 return;
@@ -104,7 +106,7 @@ fn main() {
     let cfg = match paths.load_config() {
         Some(cfg) => cfg,
         None if headless => {
-            eprintln!("Pas de .zra/tray.json : lancer zra-tray avec une session graphique pour l'onboarding, ou copier une config existante.");
+            eprintln!("{}", tr!("Pas de .zra/tray.json : lancer zra-tray avec une session graphique pour l'onboarding, ou copier une config existante."));
             std::process::exit(1);
         }
         None => onboarding::run(&paths),
@@ -147,16 +149,16 @@ fn main() {
     let daemon_on_port = status::daemon_status(port).is_some();
     let already_up = tcp_up && (cfg.mode == Mode::Poste || !daemon_on_port);
     if tcp_up && cfg.mode == Mode::Relais && daemon_on_port {
-        eprintln!("[zra-tray] le port {} est tenu par un daemon : relais non lancé.", cfg.relay.port);
+        eprintln!("{}", tr!("[zra-tray] le port {0} est tenu par un daemon : relais non lancé.", cfg.relay.port));
     } else if already_up {
-        eprintln!("[zra-tray] un service répond déjà sur le port — mode observateur.");
+        eprintln!("{}", tr!("[zra-tray] un service répond déjà sur le port — mode observateur."));
         sup.adopt();
     } else {
         sup.start();
     }
 
     if headless {
-        eprintln!("[zra-tray] console de gestion : {}", console.url);
+        eprintln!("{}", tr!("[zra-tray] console de gestion : {0}", console.url));
         let sup2 = sup.clone();
         let paths2 = paths.clone();
         ctrlc::set_handler(move || {
@@ -183,15 +185,15 @@ fn run_gui(sup: Arc<Supervisor>, paths: Arc<Paths>, cfg: config::TrayConfig, con
     let icon = Icon::from_rgba(img.into_raw(), w, h).expect("icône tray");
 
     let menu = Menu::new();
-    let status_item = MenuItem::with_id("status", "ZRA — démarrage…", false, None);
-    let open_item = MenuItem::with_id(ID_OPEN, "Ouvrir ZRA", true, None);
-    let console_item = MenuItem::with_id(ID_CONSOLE, "Console de gestion", true, None);
-    let url_item = MenuItem::with_id(ID_URL, "Copier l'URL", true, None);
-    let pair_item = MenuItem::with_id(ID_PAIR, "Copier le code d'appairage", false, None);
-    let logs_item = MenuItem::with_id(ID_LOGS, "Ouvrir le journal", true, None);
-    let restart_item = MenuItem::with_id(ID_RESTART, "Redémarrer", true, None);
+    let status_item = MenuItem::with_id("status", tr!("ZRA — démarrage…"), false, None);
+    let open_item = MenuItem::with_id(ID_OPEN, tr!("Ouvrir ZRA"), true, None);
+    let console_item = MenuItem::with_id(ID_CONSOLE, tr!("Console de gestion"), true, None);
+    let url_item = MenuItem::with_id(ID_URL, tr!("Copier l'URL"), true, None);
+    let pair_item = MenuItem::with_id(ID_PAIR, tr!("Copier le code d'appairage"), false, None);
+    let logs_item = MenuItem::with_id(ID_LOGS, tr!("Ouvrir le journal"), true, None);
+    let restart_item = MenuItem::with_id(ID_RESTART, tr!("Redémarrer"), true, None);
     let mode_item = MenuItem::with_id(ID_MODE, mode_switch_label(cfg.mode), true, None);
-    let quit_item = MenuItem::with_id(ID_QUIT, "Quitter", true, None);
+    let quit_item = MenuItem::with_id(ID_QUIT, tr!("Quitter"), true, None);
     let sep = || PredefinedMenuItem::separator();
     for item in [
         &status_item as &dyn tray_icon::menu::IsMenuItem,
@@ -230,18 +232,18 @@ fn run_gui(sup: Arc<Supervisor>, paths: Arc<Paths>, cfg: config::TrayConfig, con
             let (mode, run) = sup.snapshot();
             let cfg = sup.config();
             let adopted = run == RunState::Adopted;
-            let ext = if adopted { " (externe)" } else { "" };
+            let ext = if adopted { tr!(" (externe)") } else { String::new() };
             let (text, url, up) = match mode {
                 Mode::Poste => match status::daemon_status(cfg.port) {
                     Some((scheme, body)) => {
                         let live = body["threads"]["live"].as_u64().unwrap_or(0);
                         let clients = body["clients"].as_u64().unwrap_or(0);
                         let url = format!("{scheme}://127.0.0.1:{}", cfg.port);
-                        (format!("Poste : ✓ {url} — {live} live, {clients} client(s){ext}"), Some(url), true)
+                        (tr!("Poste : ✓ {0} — {1} live, {2} client(s){3}", url, live, clients, ext), Some(url), true)
                     }
                     None => match run {
-                        RunState::Running => ("Poste : … démarrage".to_string(), None, false),
-                        _ => ("Poste : ✗ arrêté".to_string(), None, false),
+                        RunState::Running => (tr!("Poste : … démarrage"), None, false),
+                        _ => (tr!("Poste : ✗ arrêté"), None, false),
                     },
                 },
                 Mode::Relais => {
@@ -249,11 +251,11 @@ fn run_gui(sup: Arc<Supervisor>, paths: Arc<Paths>, cfg: config::TrayConfig, con
                     let scheme = if cfg.relay.tls_cert.is_some() { "https" } else { "http" };
                     let url = format!("{scheme}://127.0.0.1:{}", cfg.relay.port);
                     let text = if up {
-                        format!("Relais : ✓ {url}{ext}")
+                        tr!("Relais : ✓ {0}{1}", url, ext)
                     } else if run == RunState::Running {
-                        "Relais : … démarrage".to_string()
+                        tr!("Relais : … démarrage")
                     } else {
-                        "Relais : ✗ arrêté".to_string()
+                        tr!("Relais : ✗ arrêté")
                     };
                     (text, up.then_some(url), up)
                 }
@@ -302,12 +304,12 @@ fn run_gui(sup: Arc<Supervisor>, paths: Arc<Paths>, cfg: config::TrayConfig, con
                             // cassé : l'échec détectable est journalisé, et
                             // « Copier l'URL » sert de repli manuel.
                             if let Err(err) = open::that(&url) {
-                                eprintln!("[zra-tray] ouverture du navigateur impossible ({err}) — URL : {url}");
+                                eprintln!("{}", tr!("[zra-tray] ouverture du navigateur impossible ({0}) — URL : {1}", err, url));
                             }
                         }
                         ID_CONSOLE => {
                             if let Err(err) = open::that(&console.url) {
-                                eprintln!("[zra-tray] ouverture du navigateur impossible ({err}) — console : {}", console.url);
+                                eprintln!("{}", tr!("[zra-tray] ouverture du navigateur impossible ({0}) — console : {1}", err, console.url));
                             }
                         }
                         ID_URL => {
@@ -357,19 +359,19 @@ pub(crate) fn quit_with_update(sup: &Supervisor, paths: &Paths) {
     let st = update::UpdateState::load(paths);
     if let Some(version) = st.pending.as_deref() {
         if let Some(inner) = update::pending_inner(paths, version) {
-            eprintln!("[zra-tray] update {version} : application au redémarrage.");
+            eprintln!("{}", tr!("[zra-tray] update {0} : application au redémarrage.", version));
             if let Err(err) = update::apply_and_relaunch(paths, &inner) {
-                eprintln!("[zra-tray] update impossible ({err}) — arrêt sans update.");
+                eprintln!("{}", tr!("[zra-tray] update impossible ({0}) — arrêt sans update.", err));
             }
         }
     }
     std::process::exit(0);
 }
 
-fn mode_switch_label(current: Mode) -> &'static str {
+fn mode_switch_label(current: Mode) -> String {
     match current {
-        Mode::Poste => "Passer en mode relais",
-        Mode::Relais => "Passer en mode poste",
+        Mode::Poste => tr!("Passer en mode relais"),
+        Mode::Relais => tr!("Passer en mode poste"),
     }
 }
 

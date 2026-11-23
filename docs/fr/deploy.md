@@ -393,10 +393,12 @@ l'installée — pas deux vies parallèles.
 **Désinstallation** : depuis la console, « Désinstaller… » rend la machine
 comme elle a été trouvée — arrêt du service, retrait du démarrage
 automatique, dé-câblage de Zed (entrées agents, keymap, env), suppression du
-dossier (journaux, appairage, certificats compris) et de la clé Windows
-« Applications installées ». Deux choix : tout désinstaller, ou garder ses
-réglages (`zra.config.json` exporté dans le dossier personnel). Node et Zed
-ne sont pas touchés ; aucune règle de pare-feu n'a été posée, rien à retirer.
+dossier d'application (code, jetable) et de la clé Windows « Applications
+installées ». Deux choix : tout désinstaller (la config utilisateur est
+retirée aussi), ou garder ses paramètres (la config — réglages, appairage,
+certificats — reste dans le dossier config utilisateur, hors du dossier
+supprimé). Node et Zed ne sont pas touchés ; aucune règle de pare-feu n'a été
+posée, rien à retirer.
 Sous Windows l'exe vivant est verrouillé : la suppression du dossier est
 différée après exit. En layout dépôt, le dossier cloné n'est pas supprimé.
 

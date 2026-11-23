@@ -391,7 +391,8 @@ tient 7777 ; l'adoption vérifie l'identité du service).
 **Pièges** : rebuild impossible tray vivant (exe verrouillé, os error 5) →
 tuer le process avant `cargo build` ; l'arrêt du tray tue ses children (Job
 Object Windows, groupe + PDEATHSIG unix — pas d'orphelins) ; textes
-utilisateur via `tr` + `i18n/en.json` + `node scripts/i18n-test.mjs --write`
+utilisateur via `tr!` (Rust) / `tr` + `data-i18n` (pages) +
+`zra-tray/i18n/en.json` + `node scripts/i18n-test.mjs --write`
 (`reference/` et outils de dev : français only) ; doc fr/en même commit ;
 demander confirmation avant tout commit ; ne pas toucher au daemon vivant
 pour tester (mode relais sur port libre, certs dummy rejetés = crash loop

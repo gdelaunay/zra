@@ -50,12 +50,13 @@ XEmbed n'y existe pas). La supervision marche quand même : `--headless`
 sous GNOME, greffon Status Notifier sous Xfce/Wayland) ; rien à coder côté ZRA —
 forcer SNI sans hôte n'afficherait rien non plus.
 
-## Tray : interface en français, console en loopback
+## Tray : console en loopback
 
-Les textes du tray (menu natif, onboarding, console de gestion) sont en
-**français seulement** : pas de mécanique i18n côté Rust à ce jour (la PWA,
-le daemon et les scripts sont bilingues). L'extension fr/en du tray est un
-chantier à part.
+Les textes du tray (menu natif, onboarding, console de gestion) sont
+**bilingues fr/en**, comme le reste de ZRA : catalogue `zra-tray/i18n/en.json`
+(clés = texte français), langue via `ZRA_LANG` ou la locale du système —
+côté Rust (`tr!`) comme côté pages (`tr` inline + texte statique `data-i18n`,
+catalogue injecté par le serveur).
 
 La console de gestion et l'onboarding sont servis sur **loopback uniquement**
 (port choisi par l'OS, ouvert depuis le menu). Sur un homelab headless, y

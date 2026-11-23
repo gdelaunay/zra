@@ -51,11 +51,13 @@ terminal.
 GNOME, Status Notifier plugin on Xfce/Wayland); nothing to code on the ZRA
 side — forcing SNI without a host would display nothing either.
 
-## Tray: French-only interface, loopback console
+## Tray: loopback console
 
-The tray's texts (native menu, onboarding, management console) are in
-**French only**: no i18n mechanism on the Rust side today (the PWA, daemon
-and scripts are bilingual). Extending the tray to fr/en is a separate task.
+The tray's texts (native menu, onboarding, management console) are
+**bilingual fr/en**, like the rest of ZRA: catalog `zra-tray/i18n/en.json`
+(keys = French text), language via `ZRA_LANG` or the system locale — on the
+Rust side (`tr!`) as well as the pages (inline `tr` + `data-i18n` static text,
+catalog injected by the server).
 
 The management console and onboarding are served on **loopback only** (OS-
 chosen port, opened from the menu). On a headless homelab, reaching them

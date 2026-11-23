@@ -3,8 +3,8 @@
 Branche `feat/0.6-tray` : fin du jalon 0.6 (étapes 5.3 → 5.7 de
 `reference/conception-zra-tray.md`), repartant de `main`. Dev complet,
 baseline verte. Tous les arbitrages 5.3 → 5.7 ont été validés en review ;
-restent les **tests réels** et **deux issues** (i18n tray, config XDG) à
-traiter avant la release 0.6. Français seulement.
+restent les **tests réels** avant la release 0.6 (les deux issues — i18n
+tray, config XDG — sont implémentées). Français seulement.
 
 Le lot issues PWA est mergé dans `main` (branche `fix/client-issues`
 supprimée, `HANDOFF.md`/`ISSUES.md` retirés de `main`). Ce fichier ne vit
@@ -34,6 +34,13 @@ Rien n'est poussé/taggé par l'agent : les branches attendent la review.
 
 ### Fin 0.6
 
+**i18n** :
+- Rendu fr/en en vrai navigateur (console + onboarding) : `ZRA_LANG=en`
+  puis `fr`, texte statique et chaînes JS traduits, pas de régression de
+  layout (les libellés anglais sont plus longs).
+- Langue du menu natif et des messages tray selon la locale OS / `ZRA_LANG`
+  (Windows : `GetUserDefaultLocaleName` ; Linux : `LC_*`).
+
 **5.3** :
 - Rendu visuel de la console en vrai navigateur (clair/sombre, mobile) —
   les tests jsdom couvrent la logique, pas le layout.
@@ -57,10 +64,9 @@ Rien n'est poussé/taggé par l'agent : les branches attendent la review.
 - Désinstallation réelle sur une installation « app » (Windows + Linux) :
   vérifier le dé-câblage Zed, le retrait de l'autostart, la suppression du
   dossier (différée Windows : le script attend l'exit), la clé HKCU.
-- « Garder mes réglages » : après l'issue config XDG, la config survit à la
-  désinstallation (hors du dossier supprimé) ; « tout désinstaller » la
-  nettoie aussi. L'export actuel vers le dossier personnel disparaît avec
-  l'issue.
+- « Garder mes paramètres » : la config reste dans le dossier config
+  utilisateur (hors du dossier supprimé) ; « tout désinstaller » la retire
+  aussi.
 - Désinstallation en layout dépôt : le repo doit rester intact.
 
 **5.6** :
@@ -85,23 +91,18 @@ Rien n'est poussé/taggé par l'agent : les branches attendent la review.
   oui/non/jamais en TTY réel, repli de forge, `.zra/setup.json` — code et
   tests unitaires existants (`tray-download.test.mjs`), pas de TTY ce soir.
 
-## Issues (à corriger)
+## Issues (implémentées)
 
-- **i18n du tray (fr/en)** — prévu avant la release 0.6 (décision review 5.3).
-  Tout le tray est en français seul, aucune mécanique i18n côté Rust.
-  **Surfaces à traduire :**
-  - Rust : menu (`main.rs` : « Ouvrir ZRA », « Console de gestion », « Copier
-    l'URL », « Copier le code d'appairage », « Ouvrir le journal »,
-    « Redémarrer », « Quitter », statut, bascule de mode) + messages / labels
-    d'étapes / erreurs (`console.rs`, `onboarding.rs`, `uninstall.rs`,
-    `install.rs`, `update.rs`, `supervisor.rs`).
-  - HTML/JS : `console.html` et `onboarding.html` (texte inline + chaînes JS).
-  **Référence (mécanique existante à porter) :** `zra-daemon/i18n.js`
-  (`` tr`…` ``, `ZRA_LANG`, catalogue `i18n/en.json`), PWA `zra-client/js/i18n.js`
-  + `en.js` (module ES sans build), `scripts/i18n-test.mjs` (complétude).
-  **À concevoir :** catalogue i18n Rust (embarqué, fonction `tr`, langue via
-  `ZRA_LANG` / locale OS) + i18n client des pages HTML (comme la PWA).
-  **Règle :** fr = référence, en = traduction, même commit (AGENTS).
+- **i18n du tray (fr/en)** — ✅ **implémenté**. Mécanique du daemon/PWA
+  portée : catalogue embarqué `zra-tray/i18n/en.json` (clés = texte français),
+  macro `tr!` côté Rust (`i18n.rs` : `ZRA_LANG` → locale OS, repli fr), `tr`
+  inline + texte statique `data-i18n` côté pages console/onboarding (catalogue
+  et langue injectés par le serveur dans le head, `replacen` 1). Toutes les
+  surfaces traduites : menu/statut/messages/labels/erreurs Rust + HTML/JS.
+  `scripts/i18n-test.mjs` étendu (brique « tray ») ; 301 textes traduits,
+  baseline verte (1047 pass + cargo 26). Doc `limitations.md`/`architecture.md`
+  + CHANGELOG bilingues. **Reste : tests réels** (rendu fr/en en vrai
+  navigateur, langue du menu natif — voir « À tester »).
 
 - **Deux emplacements : install (code + jetable) / config (réglages +
   précieux)** — ✅ **implémenté** (commits `d21d43f` → `1fa1adc` : fondation
@@ -122,8 +123,8 @@ Aucun pour l'instant.
 
 ## Notes
 
-- **Baseline verte** sur `feat/0.6-tray` : `npm test` complet (1045 pass,
-  17 skipped) + `cargo test` 19/19, working tree propre, rien de poussé/taggé.
+- **Baseline verte** sur `feat/0.6-tray` : `npm test` complet (1047 pass,
+  17 skipped) + `cargo test` 26/26, working tree propre, rien de poussé/taggé.
   Cette branche ne touche pas au client : le daemon vivant sert la même PWA
   que `main` (pas de surprise sur le téléphone). Le daemon de la tâche
   planifiée n'a jamais été touché (tests tray en mode observateur, lecture

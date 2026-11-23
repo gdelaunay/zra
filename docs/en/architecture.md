@@ -38,6 +38,8 @@ flowchart LR
 
 `scripts/` holds installation (`setup`), the service (`service`), pairing (`pair`) and keyboard tuning (`zed`).
 
+i18n: the tray (`zra-tray/`, native menu + console/onboarding pages) shares the daemon's and PWA's mechanism — French reference in the code, English catalog `zra-tray/i18n/en.json` (keys = French text, values `{0}`, `{1}…`), language via `ZRA_LANG` or the system locale. Rust side: `tr!` macro; page side: inline `tr` + `data-i18n` static text, catalog and language injected by the server. `scripts/i18n-test.mjs` (the “tray” brick) checks completeness, as for the other bricks.
+
 ## The exchanges
 
 ### Zed ↔ shim ↔ agent: stdio ACP

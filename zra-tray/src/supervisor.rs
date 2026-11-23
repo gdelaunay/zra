@@ -16,6 +16,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use crate::config::{Mode, Paths, TrayConfig};
+use crate::i18n::tr;
 
 const ROTATE_BYTES: u64 = 5 * 1024 * 1024;
 const MAX_BACKOFF: u64 = 30;
@@ -86,7 +87,7 @@ impl Supervisor {
                 Ok(Some(status)) => {
                     let uptime = s.started.map(|t| t.elapsed()).unwrap_or_default();
                     s.backoff = if uptime >= STABLE_AFTER { 1 } else { (s.backoff * 2).min(MAX_BACKOFF) };
-                    eprintln!("[zra-tray] {} sorti ({status}) — relance dans {} s", s.cfg.mode.label(), s.backoff);
+                    eprintln!("{}", tr!("[zra-tray] {0} sorti ({1}) — relance dans {2} s", s.cfg.mode.label(), status, s.backoff));
                     s.child = None;
                     s.started = None;
                     s.next_retry = Instant::now() + Duration::from_secs(s.backoff);
@@ -107,7 +108,7 @@ impl Supervisor {
                     s.started = Some(Instant::now());
                 }
                 Err(err) => {
-                    eprintln!("[zra-tray] spawn impossible : {err} — retry dans {} s", s.backoff);
+                    eprintln!("{}", tr!("[zra-tray] spawn impossible : {0} — retry dans {1} s", err, s.backoff));
                     s.next_retry = Instant::now() + Duration::from_secs(s.backoff);
                     s.backoff = (s.backoff * 2).min(MAX_BACKOFF);
                 }

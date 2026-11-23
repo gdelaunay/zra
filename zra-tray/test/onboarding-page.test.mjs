@@ -28,7 +28,7 @@ function fakeFetch(info) {
   }
 }
 
-async function loadPage(info) {
+async function loadPage(info, i18n) {
   dom?.window?.close()
   const html = (await readFile(join(ROOT, 'src', 'onboarding.html'), 'utf8'))
     .replace('<!--logo-->', '<svg></svg>')
@@ -39,6 +39,7 @@ async function loadPage(info) {
     beforeParse(window) {
       window.fetch = fakeFetch(info)
       window.confirm = () => true
+      if (i18n) window.ZRA_I18N = i18n
     },
   })
   return dom.window
@@ -98,4 +99,19 @@ test('payload /done : install true si coché, false si décoché', async () => {
   $2('start').dispatchEvent(new win2.MouseEvent('click', { bubbles: true }))
   await until(() => calls.some((c) => c.path === '/done'))
   assert.equal(calls.find((c) => c.path === '/done').body.install, false)
+})
+
+test('i18n : catalogue injecté (en) → texte statique traduit', async () => {
+  const en = {
+    'Configuration initiale': 'Initial setup',
+    'Enregistrer et démarrer': 'Save and start',
+    'Installer sur ce poste': 'Install on this machine',
+  }
+  const win = await loadPage({ ...NODE_INFO, appLayout: true, installTarget: 'C:/local/Programs/zra' }, { lang: 'en', en })
+  const $ = (id) => win.document.getElementById(id)
+  await until(() => !$('install-row').classList.contains('hidden'))
+  assert.equal(win.document.documentElement.lang, 'en')
+  assert.equal(win.document.querySelector('.sw-pagetitle').textContent, 'Initial setup')
+  assert.equal($('start').textContent, 'Save and start')
+  assert.equal(win.document.querySelector('#install-row .srow-title').textContent, 'Install on this machine')
 })

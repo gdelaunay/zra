@@ -12,6 +12,8 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
+use crate::i18n::tr;
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Mode {
@@ -20,10 +22,10 @@ pub enum Mode {
 }
 
 impl Mode {
-    pub fn label(self) -> &'static str {
+    pub fn label(self) -> String {
         match self {
-            Mode::Poste => "Poste",
-            Mode::Relais => "Relais",
+            Mode::Poste => tr!("Poste"),
+            Mode::Relais => tr!("Relais"),
         }
     }
 }

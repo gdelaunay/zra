@@ -14,7 +14,9 @@ use serde_json::{json, Value};
 use tiny_http::{Header, Method, Response, Server};
 
 use crate::config::{Mode, Paths};
+use crate::i18n;
 use crate::install;
+use crate::i18n::tr;
 use crate::orchestrate;
 use crate::relay_unit;
 use crate::status;
@@ -133,7 +135,7 @@ fn handle(mut request: tiny_http::Request, sup: &Supervisor, paths: &Paths) {
     let _ = request.as_reader().read_to_string(&mut body);
 
     let response: Response<std::io::Cursor<Vec<u8>>> = match (method, path.as_str()) {
-        (Method::Get, "/") => Response::from_string(PAGE.replace("<!--logo-->", LOGO)).with_header(
+        (Method::Get, "/") => Response::from_string(PAGE.replace("<!--logo-->", LOGO).replacen("<!--i18n-->", &i18n::script(), 1)).with_header(
             Header::from_bytes(&b"Content-Type"[..], &b"text/html; charset=utf-8"[..]).unwrap(),
         ),
         (Method::Get, "/favicon.svg") => Response::from_string(LOGO.to_string()).with_header(
@@ -156,7 +158,7 @@ fn handle(mut request: tiny_http::Request, sup: &Supervisor, paths: &Paths) {
             #[derive(serde::Deserialize)]
             struct P { enabled: bool }
             let result = (|| -> Result<Value, String> {
-                let p: P = serde_json::from_str(&body).map_err(|e| format!("Requête invalide : {e}"))?;
+                let p: P = serde_json::from_str(&body).map_err(|e| tr!("Requête invalide : {0}", e))?;
                 let cfg = sup.config();
                 if cfg.mode == Mode::Relais && relay_unit::is_systemd_user() {
                     let exe = std::env::current_exe().map_err(|e| e.to_string())?;
@@ -168,7 +170,7 @@ fn handle(mut request: tiny_http::Request, sup: &Supervisor, paths: &Paths) {
                     return Ok(json!({ "ok": true, "output": out }));
                 }
                 let verb = if p.enabled { "install" } else { "uninstall" };
-                let step = orchestrate::run_script(paths, &cfg.node, "Démarrage automatique", "service.mjs",
+                let step = orchestrate::run_script(paths, &cfg.node, &tr!("Démarrage automatique"), "service.mjs",
                     &[verb.to_string(), "--apply".to_string()]);
                 Ok(json!({ "ok": step.ok, "output": step.output }))
             })();
@@ -191,12 +193,12 @@ fn handle(mut request: tiny_http::Request, sup: &Supervisor, paths: &Paths) {
             let file = paths.log_file(mode);
             match open::that(&file) {
                 Ok(()) => ok_json(json!({ "ok": true })),
-                Err(e) => err_json(format!("Ouverture impossible : {e}")),
+                Err(e) => err_json(tr!("Ouverture impossible : {0}", e)),
             }
         }
         (Method::Post, "/restart") => {
             if sup.snapshot().1 == RunState::Adopted {
-                err_json("Service externe : le tray ne le pilote pas.".into())
+                err_json(tr!("Service externe : le tray ne le pilote pas."))
             } else {
                 sup.restart();
                 ok_json(json!({ "ok": true }))
@@ -206,9 +208,9 @@ fn handle(mut request: tiny_http::Request, sup: &Supervisor, paths: &Paths) {
             #[derive(serde::Deserialize)]
             struct P { mode: Mode }
             let result = (|| -> Result<Value, String> {
-                let p: P = serde_json::from_str(&body).map_err(|e| format!("Requête invalide : {e}"))?;
+                let p: P = serde_json::from_str(&body).map_err(|e| tr!("Requête invalide : {0}", e))?;
                 if sup.snapshot().1 == RunState::Adopted {
-                    return Err("Service externe : bascule impossible depuis le tray.".into());
+                    return Err(tr!("Service externe : bascule impossible depuis le tray."));
                 }
                 sup.switch_mode(p.mode);
                 Ok(json!({ "ok": true }))
@@ -233,7 +235,7 @@ fn handle(mut request: tiny_http::Request, sup: &Supervisor, paths: &Paths) {
                     st.save(paths);
                     ok_json(json!({ "ok": true }))
                 }
-                Err(e) => err_json(format!("Requête invalide : {e}")),
+                Err(e) => err_json(tr!("Requête invalide : {0}", e)),
             }
         }
         (Method::Post, "/update/apply") => {
@@ -244,22 +246,22 @@ fn handle(mut request: tiny_http::Request, sup: &Supervisor, paths: &Paths) {
                     sup.stop();
                     let _ = request.respond(ok_json(json!({ "ok": true })));
                     if let Err(err) = update::apply_and_relaunch(paths, &inner) {
-                        eprintln!("[zra-tray] update impossible ({err}) — arrêt.");
+                        eprintln!("{}", tr!("[zra-tray] update impossible ({0}) — arrêt.", err));
                         std::process::exit(1);
                     }
                     return; // succès : le processus est remplacé (exit ou exec)
                 }
-                None => err_json("Aucune update prête à installer.".into()),
+                None => err_json(tr!("Aucune update prête à installer.")),
             }
         }
         (Method::Post, "/install") => {
             // Self-install (5.7) : layout app seulement, pas déjà installé.
             if !crate::update::is_app_layout(paths) {
-                let _ = request.respond(err_json("Installation depuis le dépôt : pas de self-install (flux contributeur).".into()));
+                let _ = request.respond(err_json(tr!("Installation depuis le dépôt : pas de self-install (flux contributeur).")));
                 return;
             }
             if install::is_installed() {
-                let _ = request.respond(err_json("ZRA est déjà installé sur ce poste.".into()));
+                let _ = request.respond(err_json(tr!("ZRA est déjà installé sur ce poste.")));
                 return;
             }
             sup.stop();
@@ -306,7 +308,7 @@ fn handle(mut request: tiny_http::Request, sup: &Supervisor, paths: &Paths) {
             crate::quit_with_update(sup, paths);
             return;
         }
-        _ => err_json("Introuvable.".into()),
+        _ => err_json(tr!("Introuvable.")),
     };
     let _ = request.respond(response);
 }
@@ -332,5 +334,12 @@ mod tests {
         assert_eq!(run_label(RunState::Running), "running");
         assert_eq!(run_label(RunState::Stopped), "stopped");
         assert_eq!(run_label(RunState::Adopted), "adopted");
+    }
+
+    #[test]
+    fn page_un_seul_placeholder_i18n() {
+        // L'injection (replacen 1) ne doit pas tomber sur un commentaire : un
+        // </script> injecté dans le bloc script le fermerait prématurément.
+        assert_eq!(PAGE.matches("<!--i18n-->").count(), 1);
     }
 }

@@ -17,6 +17,8 @@ use std::process::Command;
 
 use serde_json::{json, Value};
 
+use crate::i18n::tr;
+
 pub const UNIT: &str = "zra-relay.service";
 
 /// systemd est-il l'init (user session disponible) ? Détection standard.
@@ -79,7 +81,7 @@ fn systemctl(args: &[&str]) -> (bool, String) {
             o.status.success(),
             format!("{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr)).trim().to_string(),
         ),
-        Err(e) => (false, format!("systemctl impossible : {e}")),
+        Err(e) => (false, tr!("systemctl impossible : {0}", e)),
     }
 }
 
@@ -116,23 +118,23 @@ pub fn state() -> Value {
 /// si un autre tray tient déjà le verrou, celui de l'unité sort proprement).
 pub fn install(exe: &Path, workdir: &Path) -> Result<String, String> {
     let file = unit_file();
-    std::fs::create_dir_all(file.parent().unwrap()).map_err(|e| format!("création du dossier systemd : {e}"))?;
-    std::fs::write(&file, build_unit(exe, workdir)).map_err(|e| format!("écriture de l'unité : {e}"))?;
+    std::fs::create_dir_all(file.parent().unwrap()).map_err(|e| tr!("création du dossier systemd : {0}", e))?;
+    std::fs::write(&file, build_unit(exe, workdir)).map_err(|e| tr!("écriture de l'unité : {0}", e))?;
     let (ok, out) = systemctl(&["daemon-reload"]);
     if !ok {
-        return Err(format!("daemon-reload : {out}"));
+        return Err(tr!("daemon-reload : {0}", out));
     }
     let (ok, out) = systemctl(&["enable", UNIT]);
     if !ok {
-        return Err(format!("enable : {out}"));
+        return Err(tr!("enable : {0}", out));
     }
-    let mut note = format!("Unité {UNIT} écrite et activée ({}).", file.display());
+    let mut note = tr!("Unité {0} écrite et activée ({1}).", UNIT, file.display());
     if linger() == Some(false) {
         let user = std::env::var("USER").or_else(|_| std::env::var("LOGNAME")).unwrap_or_default();
         let out = Command::new("loginctl").args(["enable-linger", &user]).output();
         match out {
-            Ok(o) if o.status.success() => note.push_str(" Linger activé (démarre au boot, survit à la déconnexion)."),
-            _ => note.push_str(" ⚠ linger désactivé : activer `loginctl enable-linger $USER` pour un démarrage au boot."),
+            Ok(o) if o.status.success() => note.push_str(&tr!(" Linger activé (démarre au boot, survit à la déconnexion).")),
+            _ => note.push_str(&tr!(" ⚠ linger désactivé : activer `loginctl enable-linger $USER` pour un démarrage au boot.")),
         }
     }
     Ok(note)
@@ -142,15 +144,15 @@ pub fn install(exe: &Path, workdir: &Path) -> Result<String, String> {
 pub fn uninstall() -> Result<String, String> {
     let file = unit_file();
     if !file.is_file() {
-        return Ok(format!("Unité {UNIT} : déjà absente."));
+        return Ok(tr!("Unité {0} : déjà absente.", UNIT));
     }
     systemctl(&["disable", "--now", UNIT]);
-    std::fs::remove_file(&file).map_err(|e| format!("suppression de l'unité : {e}"))?;
+    std::fs::remove_file(&file).map_err(|e| tr!("suppression de l'unité : {0}", e))?;
     let (ok, out) = systemctl(&["daemon-reload"]);
     if !ok {
-        return Err(format!("daemon-reload : {out}"));
+        return Err(tr!("daemon-reload : {0}", out));
     }
-    Ok(format!("Unité {UNIT} supprimée."))
+    Ok(tr!("Unité {0} supprimée.", UNIT))
 }
 
 #[cfg(test)]

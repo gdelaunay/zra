@@ -38,9 +38,11 @@ les deux forges (tag `v0.6.0-dev`, les deux plateformes, 4 assets).
 le menu : état, bascule, autostart, journal, à propos), updates (canal
 stable, application au restart, merge préservant les données),
 désinstallation (dé-câblage, autostart, HKCU, suppression différée Windows,
-export des réglages), unité systemd du relais générée par le binaire
+config conservée ou retirée — garder mes paramètres / tout désinstaller), unité systemd du relais générée par le binaire
 (console, linger), self-install (onboarding coché par défaut, copie vers
-l'emplacement fixe, recâblage, raccourci + HKCU, pas de retour arrière).
+l'emplacement fixe, recâblage, raccourci + HKCU, pas de retour arrière),
+i18n fr/en (menu natif + pages console/onboarding, catalogue embarqué
+`zra-tray/i18n/en.json`, `ZRA_LANG` / locale système).
 Restent les tests réels sur les postes de référence et le homelab
 (`HANDOFF.md` « À tester »), le nettoyage des release/tag de test, et la
 vraie release `v0.6.0`. Icône d'état (étape 4) : facultative, skippée pour

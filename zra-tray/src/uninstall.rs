@@ -32,6 +32,7 @@ use serde_json::{json, Value};
 use crate::config::Paths;
 use crate::orchestrate::{self, Step};
 use crate::relay_unit;
+use crate::i18n::tr;
 use crate::update::is_app_layout;
 
 /// Clé « Applications installées » (HKCU, sans élévation) — posée à
@@ -85,9 +86,9 @@ fn keep_config(paths: &Paths) -> Option<PathBuf> {
 /// relais sans Zed câblé ne produit pas d'erreur bloquante.
 pub fn unwire(paths: &Paths, node: &str) -> Vec<Step> {
     let mut steps = vec![
-        orchestrate::run_script(paths, node, "Dé-câblage de Zed", "setup.mjs",
+        orchestrate::run_script(paths, node, &tr!("Dé-câblage de Zed"), "setup.mjs",
             &["uninstall".to_string(), "--apply".to_string()]),
-        orchestrate::run_script(paths, node, "Démarrage automatique", "service.mjs",
+        orchestrate::run_script(paths, node, &tr!("Démarrage automatique"), "service.mjs",
             &["uninstall".to_string(), "--apply".to_string()]),
     ];
     // Unité du relais (5.6), si elle a été générée — service.mjs ne connaît
@@ -97,7 +98,7 @@ pub fn unwire(paths: &Paths, node: &str) -> Vec<Step> {
             Ok(out) => (true, out),
             Err(e) => (false, e),
         };
-        steps.push(Step { label: "Unité systemd du relais".into(), ok, output });
+        steps.push(Step { label: tr!("Unité systemd du relais"), ok, output });
     }
     steps
 }
@@ -111,9 +112,9 @@ fn remove_registry_key() -> Step {
         .output();
     match out {
         Ok(o) if o.status.success() => Step {
-            label: "Applications installées (registre)".into(),
+            label: tr!("Applications installées (registre)"),
             ok: true,
-            output: "Clé ZRA retirée.".into(),
+            output: tr!("Clé ZRA retirée."),
         },
         Ok(o) => {
             let stderr = String::from_utf8_lossy(&o.stderr);
@@ -121,15 +122,15 @@ fn remove_registry_key() -> Step {
             let absent = stderr.contains("introuvable") || stderr.contains("unable to find")
                 || String::from_utf8_lossy(&o.stdout).contains("introuvable");
             Step {
-                label: "Applications installées (registre)".into(),
+                label: tr!("Applications installées (registre)"),
                 ok: absent,
-                output: if absent { "Clé déjà absente.".into() } else { stderr.trim().to_string() },
+                output: if absent { tr!("Clé déjà absente.") } else { stderr.trim().to_string() },
             }
         }
         Err(e) => Step {
-            label: "Applications installées (registre)".into(),
+            label: tr!("Applications installées (registre)"),
             ok: false,
-            output: format!("reg.exe impossible : {e}"),
+            output: tr!("reg.exe impossible : {0}", e),
         },
     }
 }
@@ -149,7 +150,7 @@ fn deferred_remove(base: &Path) -> Result<(), String> {
         .args(["-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", &script])
         .creation_flags(0x0800_0000) // CREATE_NO_WINDOW
         .spawn()
-        .map_err(|e| format!("script de suppression : {e}"))?;
+        .map_err(|e| tr!("script de suppression : {0}", e))?;
     Ok(())
 }
 
@@ -168,19 +169,19 @@ pub fn run(paths: &Paths, node: &str, keep_settings: bool) -> Value {
     if keep_settings {
         let kept = keep_config(paths);
         steps.push(Step {
-            label: "Paramètres conservés".into(),
+            label: tr!("Paramètres conservés"),
             ok: true,
             output: match kept {
-                Some(d) => format!("Config conservée : {}", d.display()),
-                None => "Dossier config introuvable (LOCALAPPDATA/HOME).".into(),
+                Some(d) => tr!("Config conservée : {0}", d.display()),
+                None => tr!("Dossier config introuvable (LOCALAPPDATA/HOME)."),
             },
         });
     } else if crate::install::is_installed() {
         if let Some(d) = crate::config::zra_config_dir() {
             match fs::remove_dir_all(&d) {
-                Ok(()) => steps.push(Step { label: "Config supprimée".into(), ok: true, output: format!("Dossier config retiré : {}", d.display()) }),
-                Err(e) if e.kind() == std::io::ErrorKind::NotFound => steps.push(Step { label: "Config supprimée".into(), ok: true, output: "Dossier config déjà absent.".into() }),
-                Err(e) => steps.push(Step { label: "Config supprimée".into(), ok: false, output: format!("Suppression config impossible : {e}") }),
+                Ok(()) => steps.push(Step { label: tr!("Config supprimée"), ok: true, output: tr!("Dossier config retiré : {0}", d.display()) }),
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => steps.push(Step { label: tr!("Config supprimée"), ok: true, output: tr!("Dossier config déjà absent.") }),
+                Err(e) => steps.push(Step { label: tr!("Config supprimée"), ok: false, output: tr!("Suppression config impossible : {0}", e) }),
             }
         }
     }
@@ -204,7 +205,7 @@ pub fn run(paths: &Paths, node: &str, keep_settings: bool) -> Value {
             {
                 // L'exe vivant peut être unlinké : suppression directe.
                 if let Err(e) = fs::remove_dir_all(&base) {
-                    return json!({ "ok": false, "error": format!("Suppression impossible : {e}"), "steps": orchestrate::steps_json(&steps) });
+                    return json!({ "ok": false, "error": tr!("Suppression impossible : {0}", e), "steps": orchestrate::steps_json(&steps) });
                 }
             }
         }

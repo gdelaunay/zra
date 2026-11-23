@@ -53,7 +53,7 @@ function fakeFetch(state) {
   }
 }
 
-async function loadPage(state) {
+async function loadPage(state, i18n) {
   dom?.window?.close() // les setInterval de la page précédente ne doivent pas survivre
   const html = (await readFile(join(ROOT, 'src', 'console.html'), 'utf8'))
     .replace('<!--logo-->', '<svg></svg>')
@@ -64,6 +64,7 @@ async function loadPage(state) {
     beforeParse(window) {
       window.fetch = fakeFetch(state)
       window.confirm = () => true
+      if (i18n) window.ZRA_I18N = i18n
       window.addEventListener('error', (ev) => { throw ev.error ?? new Error(ev.message) })
     },
   })
@@ -237,4 +238,23 @@ test('self-install : installé → pas de bouton, emplacement affiché ; dépôt
   const $2 = (id) => win2.document.getElementById(id)
   await until(() => $2('about-version').textContent === '0.6.0')
   assert.ok($2('install-row').classList.contains('hidden'), 'layout dépôt : pas de self-install')
+})
+
+test('i18n : catalogue injecté (en) → texte statique et chaînes JS traduits', async () => {
+  const en = {
+    'Console de gestion': 'Management console',
+    'Ouvrir ZRA': 'Open ZRA',
+    'Poste': 'Machine',
+    '✓ en ligne': '✓ online',
+    ' — {0} thread(s) en cours, {1} client(s)': ' — {0} active thread(s), {1} client(s)',
+  }
+  const win = await loadPage(STATE, { lang: 'en', en })
+  const $ = (id) => win.document.getElementById(id)
+  await until(() => $('about-version').textContent === '0.6.0')
+  assert.equal(win.document.documentElement.lang, 'en')
+  assert.equal(win.document.querySelector('.sw-pagetitle').textContent, 'Management console')
+  assert.equal($('open-zra').textContent, 'Open ZRA')
+  assert.equal($('svc-badge').textContent, '✓ online')
+  assert.match($('svc-desc').textContent, /Machine : http:\/\/127\.0\.0\.1:7777/)
+  assert.match($('svc-desc').textContent, /2 active thread\(s\), 1 client\(s\)/)
 })

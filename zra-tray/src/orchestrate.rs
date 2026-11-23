@@ -8,6 +8,7 @@
 use std::process::{Command, Stdio};
 
 use crate::config::Paths;
+use crate::i18n::tr;
 
 /// Résultat d'une étape d'orchestration, renvoyé à la page.
 pub struct Step {
@@ -51,7 +52,7 @@ pub fn run_script(paths: &Paths, node: &str, label: &str, script: &str, args: &[
             let output = if ok { stdout.trim().to_string() } else { format!("{stdout}{stderr}").trim().to_string() };
             Step { label: label.to_string(), ok, output }
         }
-        Err(err) => Step { label: label.to_string(), ok: false, output: format!("Lancement impossible : {err}") },
+        Err(err) => Step { label: label.to_string(), ok: false, output: tr!("Lancement impossible : {0}", err) },
     }
 }
 

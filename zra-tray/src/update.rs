@@ -20,6 +20,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 use crate::config::Paths;
+use crate::i18n::tr;
 
 const REPO: &str = "gdelaunay/zra";
 /// (nom, serveur, API) — la forge source d'abord, le miroir en repli.
@@ -161,19 +162,19 @@ pub fn check_latest() -> Result<(String, &'static str), String> {
                 .get(&url)
                 .set("Accept", "application/json")
                 .call()
-                .map_err(|e| format!("releases/latest : {e}"))?
+                .map_err(|e| tr!("releases/latest : {0}", e))?
                 .into_string()
-                .map_err(|e| format!("lecture : {e}"))?;
-            let v: Value = serde_json::from_str(&body).map_err(|e| format!("JSON : {e}"))?;
-            let tag = v.get("tag_name").and_then(Value::as_str).ok_or("release sans tag")?;
+                .map_err(|e| tr!("lecture : {0}", e))?;
+            let v: Value = serde_json::from_str(&body).map_err(|e| tr!("JSON : {0}", e))?;
+            let tag = v.get("tag_name").and_then(Value::as_str).ok_or(tr!("release sans tag"))?;
             if parse_version(tag).is_none() {
-                return Err(format!("tag non stable : {tag}"));
+                return Err(tr!("tag non stable : {0}", tag));
             }
             Ok(tag.trim_start_matches('v').to_string())
         })();
         match result {
             Ok(version) => return Ok((version, name)),
-            Err(e) => errors.push(format!("{name} : {e}")),
+            Err(e) => errors.push(tr!("{0} : {1}", name, e)),
         }
     }
     Err(errors.join(" ; "))
@@ -182,7 +183,7 @@ pub fn check_latest() -> Result<(String, &'static str), String> {
 /// Télécharge l'archive de la version et l'extrait dans pending-<version>/.
 /// Renvoie le dossier racine extrait (celui qui contient l'exe et app/).
 pub fn download(paths: &Paths, version: &str) -> Result<PathBuf, String> {
-    let target = target_triple().ok_or("plateforme non couverte par la CI")?;
+    let target = target_triple().ok_or(tr!("plateforme non couverte par la CI"))?;
     let asset = format!("zra-{version}-{target}.zip");
     let mut errors = Vec::new();
     let mut bytes: Option<Vec<u8>> = None;
@@ -193,26 +194,26 @@ pub fn download(paths: &Paths, version: &str) -> Result<PathBuf, String> {
                 let mut buf = Vec::new();
                 use std::io::Read;
                 if let Err(e) = resp.into_reader().take(200 * 1024 * 1024).read_to_end(&mut buf) {
-                    errors.push(format!("{name} : lecture : {e}"));
+                    errors.push(tr!("{0} : lecture : {1}", name, e));
                     continue;
                 }
                 if buf.is_empty() {
-                    errors.push(format!("{name} : fichier vide"));
+                    errors.push(tr!("{0} : fichier vide", name));
                     continue;
                 }
                 bytes = Some(buf);
                 break;
             }
-            Err(e) => errors.push(format!("{name} : {e}")),
+            Err(e) => errors.push(tr!("{0} : {1}", name, e)),
         }
     }
     let bytes = bytes.ok_or_else(|| errors.join(" ; "))?;
 
     let dir = pending_dir(paths, version);
     let _ = fs::remove_dir_all(&dir);
-    fs::create_dir_all(&dir).map_err(|e| format!("création de {} : {e}", dir.display()))?;
+    fs::create_dir_all(&dir).map_err(|e| tr!("création de {0} : {1}", dir.display(), e))?;
     let zip_path = updates_dir(paths).join(&asset);
-    fs::write(&zip_path, &bytes).map_err(|e| format!("écriture du zip : {e}"))?;
+    fs::write(&zip_path, &bytes).map_err(|e| tr!("écriture du zip : {0}", e))?;
     extract_zip(&zip_path, &dir)?;
     let _ = fs::remove_file(&zip_path);
 
@@ -222,30 +223,30 @@ pub fn download(paths: &Paths, version: &str) -> Result<PathBuf, String> {
         .filter_map(Result::ok)
         .map(|e| e.path())
         .find(|p| p.is_dir())
-        .ok_or("archive sans dossier racine")?;
+        .ok_or(tr!("archive sans dossier racine"))?;
     let exe = inner.join(if cfg!(windows) { "zra-tray.exe" } else { "zra-tray" });
     if !exe.is_file() || !inner.join("app/zra-daemon/index.js").is_file() {
-        return Err("archive incomplète (exe ou app/ manquant)".into());
+        return Err(tr!("archive incomplète (exe ou app/ manquant)"));
     }
     Ok(inner)
 }
 
 /// Extraction zip (crate `zip`, deflate) — chemins sûrs : pas de traversal.
 fn extract_zip(zip_path: &Path, dest: &Path) -> Result<(), String> {
-    let file = fs::File::open(zip_path).map_err(|e| format!("ouverture du zip : {e}"))?;
-    let mut archive = zip::ZipArchive::new(file).map_err(|e| format!("zip illisible : {e}"))?;
+    let file = fs::File::open(zip_path).map_err(|e| tr!("ouverture du zip : {0}", e))?;
+    let mut archive = zip::ZipArchive::new(file).map_err(|e| tr!("zip illisible : {0}", e))?;
     for i in 0..archive.len() {
-        let mut entry = archive.by_index(i).map_err(|e| format!("entrée {i} : {e}"))?;
+        let mut entry = archive.by_index(i).map_err(|e| tr!("entrée {0} : {1}", i, e))?;
         let Some(rel) = entry.enclosed_name() else { continue }; // traversal : ignoré
         let out = dest.join(rel);
         if entry.is_dir() {
-            fs::create_dir_all(&out).map_err(|e| format!("{} : {e}", out.display()))?;
+            fs::create_dir_all(&out).map_err(|e| tr!("{0} : {1}", out.display(), e))?;
         } else {
             if let Some(parent) = out.parent() {
-                fs::create_dir_all(parent).map_err(|e| format!("{} : {e}", parent.display()))?;
+                fs::create_dir_all(parent).map_err(|e| tr!("{0} : {1}", parent.display(), e))?;
             }
-            let mut f = fs::File::create(&out).map_err(|e| format!("{} : {e}", out.display()))?;
-            std::io::copy(&mut entry, &mut f).map_err(|e| format!("{} : {e}", out.display()))?;
+            let mut f = fs::File::create(&out).map_err(|e| tr!("{0} : {1}", out.display(), e))?;
+            std::io::copy(&mut entry, &mut f).map_err(|e| tr!("{0} : {1}", out.display(), e))?;
         }
     }
     Ok(())
@@ -276,7 +277,7 @@ pub fn merge_app(inner: &Path, paths: &Paths) -> Result<(), String> {
         if name == ".zra" || name == "zra.config.json" {
             continue; // les données de l'utilisateur voyagent à travers l'update
         }
-        copy_rec(&entry.path(), &paths.root.join(&name)).map_err(|e| format!("{} : {e}", name.to_string_lossy()))?;
+        copy_rec(&entry.path(), &paths.root.join(&name)).map_err(|e| tr!("{0} : {1}", name.to_string_lossy(), e))?;
     }
     Ok(())
 }
@@ -295,10 +296,10 @@ pub fn apply_and_relaunch(paths: &Paths, inner: &Path) -> Result<(), String> {
         // script détaché attend notre exit pour supprimer .old et relancer.
         let old = exe.with_file_name("zra-tray.old.exe");
         let _ = fs::remove_file(&old);
-        fs::rename(&exe, &old).map_err(|e| format!("renommage de l'exe : {e}"))?;
+        fs::rename(&exe, &old).map_err(|e| tr!("renommage de l'exe : {0}", e))?;
         if let Err(e) = fs::copy(&new_exe, &exe) {
             let _ = fs::rename(&old, &exe); // marche arrière : l'ancien reprend sa place
-            return Err(format!("copie du nouvel exe : {e}"));
+            return Err(tr!("copie du nouvel exe : {0}", e));
         }
         let base = paths.root.parent().unwrap_or(&paths.root);
         let script = format!(
@@ -313,7 +314,7 @@ pub fn apply_and_relaunch(paths: &Paths, inner: &Path) -> Result<(), String> {
             .args(["-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", &script])
             .creation_flags(0x0800_0000) // CREATE_NO_WINDOW
             .spawn()
-            .map_err(|e| format!("script de relance : {e}"))?;
+            .map_err(|e| tr!("script de relance : {0}", e))?;
         cleanup_pending(paths);
         std::process::exit(0);
     }
@@ -323,12 +324,12 @@ pub fn apply_and_relaunch(paths: &Paths, inner: &Path) -> Result<(), String> {
         // Renommer par-dessus l'exe vivant est permis (l'ancien inode reste
         // mapped) ; exec remplace le processus en place — même pid, l'unité
         // systemd --user ne voit pas d'arrêt.
-        fs::rename(&new_exe, &exe).map_err(|e| format!("remplacement de l'exe : {e}"))?;
+        fs::rename(&new_exe, &exe).map_err(|e| tr!("remplacement de l'exe : {0}", e))?;
         use std::os::unix::process::CommandExt;
         let base = paths.root.parent().unwrap_or(&paths.root).to_path_buf();
         cleanup_pending(paths);
         let err = Command::new(&exe).current_dir(base).exec();
-        Err(format!("exec : {err}"))
+        Err(tr!("exec : {0}", err))
     }
 }
 

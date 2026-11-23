@@ -389,10 +389,12 @@ launches the installed one — no two parallel lives.
 
 **Uninstall**: from the console, "Uninstall…" leaves the machine as it was
 found — service stopped, autostart removed, Zed unwired (agent entries,
-keymap, env), the folder deleted (logs, pairing, certificates included) and
-the Windows "Installed apps" key removed. Two choices: uninstall everything,
-or keep your settings (`zra.config.json` exported to your home folder). Node
-and Zed are not touched; no firewall rule was ever added, nothing to remove.
+keymap, env), the application folder deleted (code, disposable) and the
+Windows "Installed apps" key removed. Two choices: uninstall everything (the
+user config is removed too), or keep your settings (the config — settings,
+pairing, certificates — stays in the user config folder, outside the deleted
+folder). Node and Zed are not touched; no firewall rule was ever added,
+nothing to remove.
 On Windows the running exe is locked: folder deletion is deferred until after
 exit. In repo layout, the cloned folder is not deleted.
 
