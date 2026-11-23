@@ -169,8 +169,9 @@ export const DEFAULTS = {
   /** Garde éveillé : bascule explicite et son échéance (`keep-awake.js`). */
   keepAwakeFile: '.zra/keep-awake.json',
 
-  /** Journal d'injections. Dossier de ZRA : `%LOCALAPPDATA%\zra` en Windows, `$XDG_STATE_HOME/zra` ailleurs. */
-  logFile: PATHS.injectionLog,
+  /** Journal d'injections (audit des écritures mobile) : jetable, dans le `.zra`
+   * de la racine (dossier d'installation), résolu par `abs`. */
+  logFile: '.zra/injections.log',
   /** Journal du daemon sur disque, en plus de la console (`--log`). `null` : console seule. */
   daemonLogFile: null,
   /** Nom du poste affiché dans la PWA. `null` => hostname. */

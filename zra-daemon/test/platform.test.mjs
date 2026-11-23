@@ -41,12 +41,6 @@ test('windows (gelé) : les chemins de Zed sont ceux d’avant le module platefo
   assert.equal(win.configDir, 'C:\\Users\\test\\AppData\\Roaming\\Zed')
 })
 
-test('windows (gelé) : les fichiers de ZRA restent sous %LOCALAPPDATA%\\zra', () => {
-  assert.equal(win.appDir, 'C:\\Users\\test\\AppData\\Local\\zra')
-  assert.equal(win.injectionLog, 'C:\\Users\\test\\AppData\\Local\\zra\\injections.log')
-  assert.equal(win.recordsDir, 'C:\\Users\\test\\AppData\\Local\\zra\\records')
-})
-
 test('windows (gelé) : sans variables d’environnement, on retombe sur le home', () => {
   const p = zedPaths({ platform: 'win32', env: {}, home: WIN_HOME })
   assert.equal(p.db, 'C:\\Users\\test\\AppData\\Local\\Zed\\db\\0-stable\\db.sqlite')
@@ -128,23 +122,16 @@ test('linux : les chemins de Zed suivent XDG, comme sur la machine de portage', 
   assert.equal(lx.registryDir, '/home/test/.local/share/zed/external_agents/registry')
 })
 
-test('linux : XDG_DATA_HOME / XDG_CONFIG_HOME / XDG_STATE_HOME priment', () => {
+test('linux : XDG_DATA_HOME / XDG_CONFIG_HOME priment', () => {
   const p = zedPaths({
     platform: 'linux',
-    env: { XDG_DATA_HOME: '/data', XDG_CONFIG_HOME: '/conf', XDG_STATE_HOME: '/state' },
+    env: { XDG_DATA_HOME: '/data', XDG_CONFIG_HOME: '/conf' },
     home: LX_HOME,
   })
   assert.equal(p.db, '/data/zed/db/0-stable/db.sqlite')
   assert.equal(p.settings, '/conf/zed/settings.json')
   assert.equal(p.registryDir, '/data/zed/external_agents/registry')
-  assert.equal(p.injectionLog, '/state/zra/injections.log')
-  assert.equal(p.recordsDir, '/state/zra/records')
-})
-
-test('linux : les fichiers de ZRA vont dans XDG_STATE_HOME, par défaut ~/.local/state/zra', () => {
-  assert.equal(lx.appDir, '/home/test/.local/state/zra')
-  assert.equal(lx.injectionLog, '/home/test/.local/state/zra/injections.log')
-  assert.equal(lx.recordsDir, '/home/test/.local/state/zra/records')
+  assert.equal(p.zraConfigDir, '/conf/zra')
 })
 
 // ---- config utilisateur ZRA : 2 emplacements (install / config) ------------

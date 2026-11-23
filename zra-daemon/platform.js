@@ -68,8 +68,7 @@ function ctx(opts) {
  * @param {{ platform?:string, env?:object, home?:string, channel?:string }} [opts]
  * @returns {{
  *   platform:string, channel:string, dataDir:string, configDir:string, db:string, settings:string,
- *   keymap:string, registryDir:string, appDir:string, injectionLog:string,
- *   recordsDir:string, zraConfigDir:string,
+ *   keymap:string, registryDir:string, zraConfigDir:string,
  * }}
  */
 export function zedPaths(opts = {}) {
@@ -84,7 +83,6 @@ export function zedPaths(opts = {}) {
     return finish(platform, join, channel, {
       dataDir,
       configDir,
-      appDir: join(local, 'zra'),
       zraConfigDir: join(roaming, 'zra'),
       registryDir: join(dataDir, 'external_agents', 'registry'),
     })
@@ -95,23 +93,20 @@ export function zedPaths(opts = {}) {
   // défaut `~/.local/share`, `~/.config`, `~/.local/state`.
   const data = env.XDG_DATA_HOME || join(home, '.local', 'share')
   const config = env.XDG_CONFIG_HOME || join(home, '.config')
-  const state = env.XDG_STATE_HOME || join(home, '.local', 'state')
   const dataDir = join(data, 'zed')
   const configDir = join(config, 'zed')
   return finish(platform, join, channel, {
     dataDir,
     configDir,
-    // Journaux et enregistrements de ZRA : `XDG_STATE_HOME` est le rôle prévu
-    // par la spec XDG pour ce qui s'écrit en continu (Windows : `%LOCALAPPDATA%\zra`).
-    appDir: join(state, 'zra'),
     // Config utilisateur ZRA (layout installé) : réglages + données précieuses.
+    // Le jetable (journaux, enregistrements) vit dans le `.zra` de l'installation.
     zraConfigDir: join(config, 'zra'),
     registryDir: join(dataDir, 'external_agents', 'registry'),
   })
 }
 
 /** Les chemins qui se déduisent des deux dossiers racine, et ceux de ZRA. */
-function finish(platform, join, channel, { dataDir, configDir, appDir, zraConfigDir, registryDir }) {
+function finish(platform, join, channel, { dataDir, configDir, zraConfigDir, registryDir }) {
   return {
     platform,
     channel,
@@ -123,9 +118,6 @@ function finish(platform, join, channel, { dataDir, configDir, appDir, zraConfig
     // Zed fonctionne sans, le chemin reste le bon.
     keymap: join(configDir, 'keymap.json'),
     registryDir,
-    appDir,
-    injectionLog: join(appDir, 'injections.log'),
-    recordsDir: join(appDir, 'records'),
     zraConfigDir,
   }
 }
