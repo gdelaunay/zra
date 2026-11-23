@@ -13,8 +13,7 @@ supprimé au merge. Français seulement.
   127.0.0.1) : non joignables depuis le mobile via VPN sans tunnel. La PWA
   du daemon (7777) est joignable, pas la console.
 - **Navigateur** : l'agent ne peut pas l'utiliser sans autorisation user
-  (pas de browser autonome). Inspection statique des pages via curl :
-  faisable seul (catégorie 1) ; rendu visuel : catégorie 2.
+  (pas de browser autonome) ; rendu visuel des pages = catégorie 2.
 - **Postes Linux de référence + homelab** = autres machines, non
   accessibles d'ici (Windows).
 - Rebuild impossible tray vivant (exe verrouillé, os error 5) → tuer le
@@ -38,23 +37,6 @@ supprimé au merge. Français seulement.
 Rien n'est poussé/taggé par l'agent : les branches attendent la review.
 
 ## À tester — par catégorie
-
-### 1. Agent seul, sans navigateur (bash/curl/cargo, ici Windows)
-
-- **Quitter le tray + enfants tués (Job Object)** : tray observateur (ou
-  relais sur port libre), `POST /quit`, vérifier l'absence de node orphelin
-  (`tasklist`).
-- **Endpoints console en réel, lecture seule** : `/state`, `/logs`,
-  `/autostart` (GET), `/update` (GET) via curl.
-- **Update check réel** (`POST /update/check`) contre les forges : la
-  version courante `0.6.0-dev` (pré-release) est rejetée → pas de
-  téléchargement, lecture seule.
-- **Console headless : URL journalisée** : lancer `--headless`, lire l'URL
-  dans le journal.
-- **`offerTrayDownload` hors TTY** : muet + `.zra/setup.json` inchangé.
-- **Injection i18n côté serveur** (curl sur la page servie) : présence de
-  `window.ZRA_I18N`, langue selon `ZRA_LANG`, catalogue embarqué. (Le rendu
-  traduit côté client = catégorie 2.)
 
 ### 2. Observation d'une page — nécessite d'autoriser le navigateur (user présent)
 
