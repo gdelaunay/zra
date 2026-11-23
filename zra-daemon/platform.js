@@ -69,7 +69,7 @@ function ctx(opts) {
  * @returns {{
  *   platform:string, channel:string, dataDir:string, configDir:string, db:string, settings:string,
  *   keymap:string, registryDir:string, appDir:string, injectionLog:string,
- *   recordsDir:string,
+ *   recordsDir:string, zraConfigDir:string,
  * }}
  */
 export function zedPaths(opts = {}) {
@@ -85,6 +85,7 @@ export function zedPaths(opts = {}) {
       dataDir,
       configDir,
       appDir: join(local, 'zra'),
+      zraConfigDir: join(roaming, 'zra'),
       registryDir: join(dataDir, 'external_agents', 'registry'),
     })
   }
@@ -103,12 +104,14 @@ export function zedPaths(opts = {}) {
     // Journaux et enregistrements de ZRA : `XDG_STATE_HOME` est le rôle prévu
     // par la spec XDG pour ce qui s'écrit en continu (Windows : `%LOCALAPPDATA%\zra`).
     appDir: join(state, 'zra'),
+    // Config utilisateur ZRA (layout installé) : réglages + données précieuses.
+    zraConfigDir: join(config, 'zra'),
     registryDir: join(dataDir, 'external_agents', 'registry'),
   })
 }
 
 /** Les chemins qui se déduisent des deux dossiers racine, et ceux de ZRA. */
-function finish(platform, join, channel, { dataDir, configDir, appDir, registryDir }) {
+function finish(platform, join, channel, { dataDir, configDir, appDir, zraConfigDir, registryDir }) {
   return {
     platform,
     channel,
@@ -123,7 +126,46 @@ function finish(platform, join, channel, { dataDir, configDir, appDir, registryD
     appDir,
     injectionLog: join(appDir, 'injections.log'),
     recordsDir: join(appDir, 'records'),
+    zraConfigDir,
   }
+}
+
+/**
+ * Cible d'installation du tray (miroir de `zra-tray/src/install.rs::target`) :
+ * `%LOCALAPPDATA%\Programs\zra` (Windows) / `~/.local/share/zra` (Linux).
+ * Sert à détecter le layout « installé ».
+ */
+export function installTarget(opts = {}) {
+  const { platform, env, home, join } = ctx(opts)
+  if (platform === 'win32') {
+    const local = env.LOCALAPPDATA || join(home, 'AppData', 'Local')
+    return join(local, 'Programs', 'zra')
+  }
+  return join(home, '.local', 'share', 'zra')
+}
+
+/**
+ * Où vivent la config et les données précieuses de ZRA (`zra.config.json`,
+ * `tray.json`, appairage, abonnements, certs…) :
+ * - layout **installé** (racine sous la cible d'installation) → dossier config
+ *   utilisateur (`zraConfigDir`, XDG/APPDATA), hors du dossier swappé à l'update ;
+ * - **portable** ou **dépôt** → racine (`root`), config locale à côté de l'exe.
+ *
+ * `root` : racine résolue par l'appelant (ROOT du daemon). La détection
+ * « installé » miroite `install.rs::is_installed` (racine sous la cible), en
+ * plus strict : séparateur exigé après la cible (pas de faux positif
+ * `zra-portable`), comparaison insensible à la casse sous Windows.
+ */
+export function configRoot(opts = {}) {
+  const { platform } = ctx(opts)
+  const root = opts.root
+  if (!root) return root
+  const target = installTarget(opts)
+  const sep = platform === 'win32' ? '\\' : '/'
+  const norm = (p) => (platform === 'win32' ? p.toLowerCase() : p)
+  const r = norm(root), t = norm(target)
+  if (r === t || r.startsWith(t + sep)) return zedPaths(opts).zraConfigDir
+  return root
 }
 
 /**

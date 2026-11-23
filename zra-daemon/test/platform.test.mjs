@@ -19,7 +19,7 @@ import { resolve } from 'node:path'
 import { loadConfig } from '../config.js'
 
 import {
-  KEYBOARD_BACKENDS, PATHS, defaultZedCli, detectZedChannel, keyboardPreference, processProbe,
+  KEYBOARD_BACKENDS, PATHS, configRoot, defaultZedCli, detectZedChannel, installTarget, keyboardPreference, processProbe,
   serviceBackend, systemdIsInit, zedCliCandidates, zedPaths, zedProcessNames,
 } from '../platform.js'
 
@@ -145,6 +145,57 @@ test('linux : les fichiers de ZRA vont dans XDG_STATE_HOME, par défaut ~/.local
   assert.equal(lx.appDir, '/home/test/.local/state/zra')
   assert.equal(lx.injectionLog, '/home/test/.local/state/zra/injections.log')
   assert.equal(lx.recordsDir, '/home/test/.local/state/zra/records')
+})
+
+// ---- config utilisateur ZRA : 2 emplacements (install / config) ------------
+
+test('windows : zraConfigDir = %APPDATA%\\zra ; installTarget = %LOCALAPPDATA%\\Programs\\zra', () => {
+  assert.equal(win.zraConfigDir, 'C:\\Users\\test\\AppData\\Roaming\\zra')
+  assert.equal(installTarget({ platform: 'win32', env: WIN_ENV, home: WIN_HOME }),
+    'C:\\Users\\test\\AppData\\Local\\Programs\\zra')
+})
+
+test('linux : zraConfigDir = ~/.config/zra ; installTarget = ~/.local/share/zra', () => {
+  assert.equal(lx.zraConfigDir, '/home/test/.config/zra')
+  assert.equal(installTarget({ platform: 'linux', env: {}, home: LX_HOME }),
+    '/home/test/.local/share/zra')
+})
+
+test('linux : XDG_CONFIG_HOME prime pour zraConfigDir', () => {
+  const p = zedPaths({ platform: 'linux', env: { XDG_CONFIG_HOME: '/conf' }, home: LX_HOME })
+  assert.equal(p.zraConfigDir, '/conf/zra')
+})
+
+test('configRoot : installé → dossier config utilisateur (Windows et Linux)', () => {
+  assert.equal(configRoot({ platform: 'win32', env: WIN_ENV, home: WIN_HOME,
+    root: 'C:\\Users\\test\\AppData\\Local\\Programs\\zra\\app' }),
+    'C:\\Users\\test\\AppData\\Roaming\\zra')
+  assert.equal(configRoot({ platform: 'linux', env: {}, home: LX_HOME,
+    root: '/home/test/.local/share/zra/app' }),
+    '/home/test/.config/zra')
+})
+
+test('configRoot : portable et dépôt → racine (config locale)', () => {
+  assert.equal(configRoot({ platform: 'linux', env: {}, home: LX_HOME, root: '/opt/zra/app' }),
+    '/opt/zra/app')
+  assert.equal(configRoot({ platform: 'linux', env: {}, home: LX_HOME, root: '/home/test/dev/zra' }),
+    '/home/test/dev/zra')
+})
+
+test('configRoot : Windows insensible à la casse ; pas de faux positif zra-portable', () => {
+  assert.equal(configRoot({ platform: 'win32', env: WIN_ENV, home: WIN_HOME,
+    root: 'C:\\USERS\\TEST\\APPDATA\\LOCAL\\PROGRAMS\\ZRA\\APP' }),
+    'C:\\Users\\test\\AppData\\Roaming\\zra')
+  // « zra-portable » ne doit pas être pris pour la cible « zra ».
+  assert.equal(configRoot({ platform: 'linux', env: {}, home: LX_HOME,
+    root: '/home/test/.local/share/zra-portable/app' }),
+    '/home/test/.local/share/zra-portable/app')
+})
+
+test('configRoot : installé + XDG_CONFIG_HOME → dossier config surchargé', () => {
+  assert.equal(configRoot({ platform: 'linux', env: { XDG_CONFIG_HOME: '/conf' }, home: LX_HOME,
+    root: '/home/test/.local/share/zra/app' }),
+    '/conf/zra')
 })
 
 test('linux : le séparateur suit la plateforme visée, pas l’OS hôte', () => {
