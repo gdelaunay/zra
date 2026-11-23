@@ -368,6 +368,15 @@ restart ("Install and restart" for right now). `app/.zra` and
 then replaced, the old one deleted after exit. In repo layout (contributor),
 updates come from git — the tray does not touch them.
 
+**Uninstall**: from the console, "Uninstall…" leaves the machine as it was
+found — service stopped, autostart removed, Zed unwired (agent entries,
+keymap, env), the folder deleted (logs, pairing, certificates included) and
+the Windows "Installed apps" key removed. Two choices: uninstall everything,
+or keep your settings (`zra.config.json` exported to your home folder). Node
+and Zed are not touched; no firewall rule was ever added, nothing to remove.
+On Windows the running exe is locked: folder deletion is deferred until after
+exit. In repo layout, the cloned folder is not deleted.
+
 **PowerShell policy** — the keyboard script and the fallback PowerShell
 launcher launch PowerShell with `-ExecutionPolicy Bypass`: a deliberate
 choice so that control works whatever the machine. The bypass only applies

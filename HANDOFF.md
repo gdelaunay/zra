@@ -93,7 +93,25 @@ merge, prendre l'union des sections.
 - État dans `.zra/updates/state.json` (autoUpdate défaut true, pending,
   latest, lastCheck epoch secondes formaté par la page, error).
 
-(5.5 et suivantes : à compléter au fil des lots)
+**5.5 — désinstallation** :
+- « Garder mes réglages » exporte `zra.config.json` dans le dossier personnel
+  (`~/zra.config.json` ou `%USERPROFILE%\zra.config.json`) — emplacement
+  visible et facile à retrouver pour une réinstallation (choix par défaut,
+  la conception ne précisait pas la destination).
+- Layout dépôt : dé-câblage + autostart + arrêt, mais **pas de suppression
+  du dossier cloné** (le contributeur gère son repo ; supprimer un repo git
+  serait une surprise). Dit dans la console.
+- Clé HKCU retirée via `reg.exe` (pas de nouvelle API Windows) ; absente =
+  succès (idempotent — la clé n'est posée qu'à l'installation 5.7).
+- Windows : script PowerShell détaché `Wait-Process` + `Remove-Item -Recurse`
+  sur le dossier de base (exe + app/), après exit. Linux : suppression
+  directe (l'exe vivant peut être unlinké).
+- **Pas exécuté en réel ce soir** : `/uninstall` lancerait `setup.mjs
+  uninstall --apply` et `service.mjs uninstall --apply` sur la machine de
+  l'utilisateur (dé-câblage Zed + retrait de la tâche planifiée) — destructif,
+  remis à « À tester ». Couvert par tests unitaires + jsdom.
+
+(5.6 et suivantes : à compléter au fil des lots)
 
 ## À tester
 
@@ -130,7 +148,14 @@ merge, prendre l'union des sections.
 - Auto-update en arrière-plan (thread 24 h) sur une vraie installation.
 - Repli de forge : couper Forgejo et vérifier que GitHub prend le relais.
 
-(5.5 et suivantes : à compléter au fil des lots)
+**5.5** :
+- Désinstallation réelle sur une installation « app » (Windows + Linux) :
+  vérifier le dé-câblage Zed, le retrait de l'autostart, la suppression du
+  dossier (différée Windows : le script attend l'exit), la clé HKCU.
+- « Garder mes réglages » : l'export atterrit bien dans le dossier personnel.
+- Désinstallation en layout dépôt : le repo doit rester intact.
+
+(5.6 et suivantes : à compléter au fil des lots)
 
 ## Points bloqués
 

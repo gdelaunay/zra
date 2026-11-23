@@ -121,6 +121,17 @@
   }
   .about-value { font-family: var(--font-mono); font-size: 12px; text-align: right; overflow-wrap: anywhere; max-width: 420px; }
 
+  /* Désinstallation : panneau de confirmation + étapes (comme l'onboarding). */
+  .steps { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
+  .step { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; }
+  .step svg { width: 14px; height: 14px; flex-shrink: 0; margin-top: 1px; }
+  .step.ok svg { color: var(--success); }
+  .step.ko svg { color: var(--error); }
+  .step-output { color: var(--text-muted); font-family: var(--font-mono); font-size: 11px; white-space: pre-wrap; overflow-wrap: anywhere; margin-top: 2px; }
+  #uninstall-panel { margin-top: 12px; padding: 12px; border: 1px solid var(--error-border); border-radius: 4px; background: var(--error-background); }
+  #uninstall-panel .panel-text { font-size: 12px; margin-bottom: 10px; }
+  #uninstall-panel .panel-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
   @media (prefers-color-scheme: light) {
     :root {
       --background: #dcdcdd;
@@ -274,6 +285,26 @@
       </div>
     </div>
 
+    <div class="ssh"><span class="ssh-label">Désinstallation</span><span class="divider-h"></span></div>
+    <div class="srow last">
+      <div class="srow-inner">
+        <div class="srow-text">
+          <div class="srow-title">Désinstaller ZRA</div>
+          <div class="srow-desc" id="uninstall-desc"><span>Arrête le service, retire le démarrage automatique, débranche Zed et supprime le dossier de l'application (journaux, appairage, certificats compris). Node et Zed ne sont pas touchés.</span></div>
+        </div>
+        <div class="srow-control"><button class="btn danger" id="uninstall">Désinstaller…</button></div>
+      </div>
+      <div id="uninstall-panel" class="hidden">
+        <div class="panel-text">Deux choix : <strong>tout désinstaller</strong> (plus aucune trace), ou <strong>garder mes réglages</strong> (<code>zra.config.json</code> exporté dans votre dossier personnel, pour une réinstallation).</div>
+        <div class="panel-actions">
+          <button class="btn danger" id="uninstall-all">Tout désinstaller</button>
+          <button class="btn" id="uninstall-keep">Garder mes réglages</button>
+          <button class="btn" id="uninstall-cancel">Annuler</button>
+        </div>
+      </div>
+      <div class="steps" id="uninstall-steps"></div>
+    </div>
+
     <div class="banner error hidden" id="error-banner"><span id="error-icon"></span><div id="error-text"></div></div>
     <div class="banner success hidden" id="ok-banner"><span id="ok-icon"></span><div id="ok-text"></div></div>
     <div class="footer">
@@ -349,6 +380,12 @@
     $('about-root').textContent = state.root
     $('about-node').textContent = state.node
     $('log-path').textContent = state.logFile
+    if (state.appLayout === false) {
+      $('uninstall-desc').innerHTML = ''
+      const s = document.createElement('span')
+      s.textContent = 'Installation depuis le dépôt (flux contributeur) : le dé-câblage de Zed et le démarrage automatique seront retirés ; le dossier cloné n\'est pas supprimé.'
+      $('uninstall-desc').append(s)
+    }
   }
 
   async function refresh() {
@@ -511,6 +548,56 @@
       if (!body.ok) showError(body.error)
     } catch { showError('Le tray ne répond plus.') }
   })
+
+  // --- Désinstallation (5.5) ---------------------------------------------------
+  $('uninstall').addEventListener('click', () => {
+    clearBanners()
+    $('uninstall-panel').classList.remove('hidden')
+    $('uninstall').disabled = true
+  })
+  $('uninstall-cancel').addEventListener('click', () => {
+    $('uninstall-panel').classList.add('hidden')
+    $('uninstall').disabled = false
+  })
+  for (const [id, keep] of [['uninstall-all', false], ['uninstall-keep', true]]) {
+    $(id).addEventListener('click', async () => {
+      $('uninstall-panel').classList.add('hidden')
+      clearBanners()
+      let body = null
+      try {
+        const res = await fetch('/uninstall', { method: 'POST', body: JSON.stringify({ keepSettings: keep }) })
+        body = await res.json()
+      } catch { /* le processus meurt après la réponse : connexion coupée, attendu */ }
+      if (body && !body.ok) {
+        showError(body.error || 'Échec de la désinstallation.')
+        $('uninstall').disabled = false
+        return
+      }
+      if (body?.steps) {
+        const box = $('uninstall-steps')
+        for (const s of body.steps) {
+          const row = document.createElement('div')
+          row.className = 'step ' + (s.ok ? 'ok' : 'ko')
+          row.innerHTML = s.ok ? ICONS.check : ICONS.warning
+          const txt = document.createElement('div')
+          const t = document.createElement('div')
+          t.textContent = s.label + (s.ok ? '' : ' — échec')
+          txt.append(t)
+          if (s.output) {
+            const o = document.createElement('div')
+            o.className = 'step-output'
+            o.textContent = s.output
+            txt.append(o)
+          }
+          row.append(txt)
+          box.append(row)
+        }
+      }
+      showOk('Désinstallation terminée. Cet onglet peut être fermé.')
+      $('uninstall').disabled = true
+      $('quit').disabled = true
+    })
+  }
 
   $('quit').addEventListener('click', async () => {
     if (!confirm('Quitter le tray ? Le service supervisé sera arrêté. Le démarrage automatique le relancera à la prochaine ouverture de session.')) return

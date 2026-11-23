@@ -370,6 +370,16 @@ vivant est renommé puis remplacé, l'ancien supprimé après exit. En layout
 dépôt (contributeur), les mises à jour viennent de git — le tray n'y touche
 pas.
 
+**Désinstallation** : depuis la console, « Désinstaller… » rend la machine
+comme elle a été trouvée — arrêt du service, retrait du démarrage
+automatique, dé-câblage de Zed (entrées agents, keymap, env), suppression du
+dossier (journaux, appairage, certificats compris) et de la clé Windows
+« Applications installées ». Deux choix : tout désinstaller, ou garder ses
+réglages (`zra.config.json` exporté dans le dossier personnel). Node et Zed
+ne sont pas touchés ; aucune règle de pare-feu n'a été posée, rien à retirer.
+Sous Windows l'exe vivant est verrouillé : la suppression du dossier est
+différée après exit. En layout dépôt, le dossier cloné n'est pas supprimé.
+
 **Politique PowerShell** — le script clavier et le lanceur PowerShell de
 repli lancent PowerShell avec `-ExecutionPolicy Bypass` : choix assumé pour
 que le pilotage marche quel que soit le poste. Le contournement ne vaut que

@@ -17,6 +17,7 @@ use crate::config::{Mode, Paths};
 use crate::orchestrate;
 use crate::status;
 use crate::supervisor::{RunState, Supervisor};
+use crate::uninstall;
 use crate::update;
 
 const PAGE: &str = include_str!("console.html");
@@ -76,6 +77,7 @@ fn state_json(sup: &Supervisor, paths: &Paths) -> Value {
         "port": cfg.port,
         "relay": cfg.relay,
         "root": paths.root.to_string_lossy(),
+        "appLayout": crate::update::is_app_layout(paths),
         "logFile": paths.log_file(mode).to_string_lossy(),
     });
     match mode {
@@ -231,6 +233,23 @@ fn handle(mut request: tiny_http::Request, sup: &Supervisor, paths: &Paths) {
                 }
                 None => err_json("Aucune update prête à installer.".into()),
             }
+        }
+        (Method::Post, "/uninstall") => {
+            #[derive(serde::Deserialize)]
+            #[serde(rename_all = "camelCase")]
+            struct P { #[serde(default)] keep_settings: bool }
+            let keep = serde_json::from_str::<P>(&body).map(|p| p.keep_settings).unwrap_or(false);
+            sup.stop();
+            let cfg = sup.config();
+            let result = uninstall::run(paths, &cfg.node, keep);
+            let ok = result.get("ok").and_then(Value::as_bool).unwrap_or(false);
+            let _ = request.respond(ok_json(result));
+            if ok {
+                // Windows : le script détaché attend notre exit pour supprimer
+                // le dossier (exe verrouillé). Unix : déjà supprimé.
+                std::process::exit(0);
+            }
+            return;
         }
         (Method::Post, "/quit") => {
             let _ = request.respond(ok_json(json!({ "ok": true })));

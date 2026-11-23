@@ -47,6 +47,7 @@ function fakeFetch(state) {
     if (path === '/update/check') return json({ ...UPDATE, latest: '0.7.0', pending: '0.7.0', lastCheck: '1700000000' })
     if (path === '/update/toggle') return json({ ok: true })
     if (path === '/update/apply') return json({ ok: true })
+    if (path === '/uninstall') return json({ ok: true, steps: [{ label: 'Dé-câblage de Zed', ok: true, output: 'retiré' }], exported: null, removed: 'C:/zra' })
     return json({ ok: false, error: 'inattendu : ' + path })
   }
 }
@@ -172,4 +173,38 @@ test('updates : pending → bouton installer, statut, toggle et vérifier', asyn
   await until(() => !$('update-apply').classList.contains('hidden'))
   assert.match($('update-status').textContent, /0\.7\.0 prête/)
   assert.match($('ok-text').textContent, /téléchargée/)
+})
+
+test('désinstallation : panneau, deux choix, étapes rendues', async () => {
+  const win = await loadPage({ ...STATE, appLayout: true })
+  const $ = (id) => win.document.getElementById(id)
+  await until(() => $('about-version').textContent === '0.6.0')
+  assert.ok($('uninstall-panel').classList.contains('hidden'), 'panneau caché au repos')
+  $('uninstall').dispatchEvent(new win.MouseEvent('click', { bubbles: true }))
+  assert.ok(!$('uninstall-panel').classList.contains('hidden'), 'panneau de confirmation ouvert')
+  $('uninstall-cancel').dispatchEvent(new win.MouseEvent('click', { bubbles: true }))
+  assert.ok($('uninstall-panel').classList.contains('hidden'), 'annuler referme')
+
+  calls.length = 0
+  $('uninstall').dispatchEvent(new win.MouseEvent('click', { bubbles: true }))
+  $('uninstall-keep').dispatchEvent(new win.MouseEvent('click', { bubbles: true }))
+  await until(() => calls.some((c) => c.path === '/uninstall'))
+  assert.deepEqual(calls.find((c) => c.path === '/uninstall').body, { keepSettings: true })
+  await until(() => $('uninstall-steps').textContent.includes('Dé-câblage de Zed'))
+  assert.match($('ok-text').textContent, /Désinstallation terminée/)
+
+  // Tout désinstaller : keepSettings false.
+  calls.length = 0
+  $('uninstall').disabled = false
+  $('uninstall').dispatchEvent(new win.MouseEvent('click', { bubbles: true }))
+  $('uninstall-all').dispatchEvent(new win.MouseEvent('click', { bubbles: true }))
+  await until(() => calls.some((c) => c.path === '/uninstall'))
+  assert.deepEqual(calls.find((c) => c.path === '/uninstall').body, { keepSettings: false })
+})
+
+test('désinstallation en layout dépôt : le dossier cloné est conservé (dit)', async () => {
+  const win = await loadPage({ ...STATE, appLayout: false })
+  const $ = (id) => win.document.getElementById(id)
+  await until(() => $('about-version').textContent === '0.6.0')
+  await until(() => /dossier cloné/.test($('uninstall-desc').textContent))
 })

@@ -17,6 +17,7 @@ mod onboarding;
 mod orchestrate;
 mod status;
 mod supervisor;
+mod uninstall;
 mod update;
 
 use std::sync::{Arc, Mutex};

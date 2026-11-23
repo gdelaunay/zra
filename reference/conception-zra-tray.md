@@ -319,7 +319,15 @@ tue le piège « dossier déplacé → chemins absolus périmés » du portable.
      l'ancien après exit + relance), `exec` en place sous Linux (même pid,
      systemd ne voit rien). Layout dépôt : pas d'update par le tray (git).
      Réglage + boutons dans la console ; état dans `.zra/updates/state.json`.
-   - **5.5** désinstallation « machine comme on l'a trouvée » + clé HKCU.
+   - **5.5 — Fait** désinstallation « machine comme on l'a trouvée »
+     (`uninstall.rs`) : arrêt du service, `setup.mjs uninstall` +
+     `service.mjs uninstall` (dé-câblage Zed, autostart), clé HKCU
+     `…\Uninstall\ZRA` retirée (reg.exe, idempotent), suppression du dossier
+     — différée après exit sous Windows (exe verrouillé, script détaché
+     `Wait-Process`), directe sous Linux. Deux choix : tout désinstaller /
+     garder mes réglages (export `zra.config.json` dans le dossier personnel).
+     Layout dépôt : le dossier cloné n'est pas supprimé. UI : section
+     « Désinstallation » de la console (panneau de confirmation, étapes).
    - **5.6** unité systemd du relais générée par le binaire (homelab).
    - **5.7** self-install par le tray (conception figée, section dédiée) :
      option d'onboarding, copie vers l'emplacement fixe, recâblage des
@@ -329,11 +337,11 @@ tue le piège « dossier déplacé → chemins absolus périmés » du portable.
 
 ## Reprise (handoff)
 
-**État** : 5.1 + 5.2 + 5.3 + 5.4 faits (archive « app », onboarding grand
-public, TLS poste, pare-feu best-effort, console de gestion, updates) ;
-CI + release vérifiées sur les deux forges (tag `v0.6.0-dev`, 4 assets).
-Restent 5.5 (désinstallation + HKCU), 5.6 (unité systemd relais),
-5.7 (self-install, conception figée). Prochaine étape par défaut : **5.5**.
+**État** : 5.1 + 5.2 + 5.3 + 5.4 + 5.5 faits (archive « app », onboarding
+grand public, TLS poste, pare-feu best-effort, console de gestion, updates,
+désinstallation) ; CI + release vérifiées sur les deux forges (tag
+`v0.6.0-dev`, 4 assets). Restent 5.6 (unité systemd relais) et
+5.7 (self-install, conception figée). Prochaine étape par défaut : **5.6**.
 Le flux update n'est testable de bout en qu'avec une vraie release stable
 (`v0.6.0-dev` est une pré-release, rejetée à dessein par le canal stable).
 
