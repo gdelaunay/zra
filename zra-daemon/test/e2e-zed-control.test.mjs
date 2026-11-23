@@ -11,7 +11,7 @@ import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
 import { writeFileSync } from 'node:fs'
 import { DatabaseSync } from 'node:sqlite'
-import { dirname, join, resolve } from 'node:path'
+import { basename, dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { loadConfig } from '../config.js'
@@ -343,7 +343,7 @@ test('new_thread dans un projet : Zed ouvre ses dossiers, la recette vise sa fen
   const created = await client.until((m) => m.type === 'thread_created', { label: 'thread_created' })
   assert.equal(created.threadId, NOUVEAU)
   assert.deepEqual(cli.calls, [[CWD]], 'la CLI ouvre les dossiers tels que l’index les écrit')
-  assert.equal(keyboard.calls[0].project, 'zra', 'la recette vise la fenêtre du projet')
+  assert.equal(keyboard.calls[0].project, basename(CWD), 'la recette vise la fenêtre du projet')
   assert.equal(keyboard.calls[0].window, undefined)
 
   // Même dossier : aucune alerte dans le fil.
@@ -451,7 +451,7 @@ test('thread fermé : Zed le rouvre, le shim le recharge, le message part par AC
   assert.equal(client.messages.filter((m) => m.type === 'error').length, 0)
   // Le projet du thread est ouvert (ou ramené devant) avant la recette, qui vise sa fenêtre.
   assert.deepEqual(cli.calls, [[CWD]])
-  assert.equal(keyboard.calls[0].project, 'zra')
+  assert.equal(keyboard.calls[0].project, basename(CWD))
 })
 
 test('thread fermé sans recette openThread : inject_failed, aucune touche', async (t) => {
