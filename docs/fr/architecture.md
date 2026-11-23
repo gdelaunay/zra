@@ -124,7 +124,11 @@ Aucune dépendance npm en production. En développement : `jsdom` (tests).
 
 Les entrées écrites dans Zed et dans le service contiennent le chemin absolu du dépôt et de Node.
 
-État local : `.zra/` dans le dépôt (jetons hachés, journaux, sauvegardes, trames enregistrées avec `--record`) et le dossier d'application (`%LOCALAPPDATA%\zra` ou `$XDG_STATE_HOME/zra`) pour le journal des injections.
+Emplacements des données — deux, selon le layout :
+- **Config** : réglages (`zra.config.json`, `tray.json`) et données précieuses (`.zra/` : appairage `auth.json`, abonnements `push.json`, certs `tls/`, garde éveillé, `thread-ops.json`, `setup.json`). En layout **installé** : dossier config utilisateur (`%APPDATA%\zra` / `$XDG_CONFIG_HOME/zra`, défaut `~/.config/zra`), hors du dossier d'application — survit aux updates et à la désinstallation. En **portable/dépôt** : à la racine, à côté de l'exe. Résolu par `configRoot` (`platform.js`, `config.rs`).
+- **Install** : le code (`app/`) et le `.zra` jetable (journaux, `injections.log`, trames `records/`, verrou `tray.lock`, `updates/`, `bin/`), régénéré au runtime. En installé : `%LOCALAPPDATA%\Programs\zra` / `~/.local/share/zra` — swappé à l'update, supprimé à la désinstallation.
+
+Écart XDG assumé : les données précieuses (des données, pas des réglages) vivent dans le dossier config plutôt que `XDG_DATA_HOME`, compromis pour deux emplacements. Désinstallation : « garder mes paramètres » conserve la config ; « tout désinstaller » la retire aussi.
 
 ## Fragilités
 
