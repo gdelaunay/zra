@@ -33,41 +33,6 @@
     --font-ui: "IBM Plex Sans", ui-sans-serif, system-ui, "Segoe UI", sans-serif;
     --font-mono: "Lilex", ui-monospace, "Cascadia Mono", Consolas, monospace;
   }
-  /* Thème clair : tokens Gruvbox Light (zra-client/css/themes.css), l'accent
-     reste le vert ZRA (success du thème). */
-  @media (prefers-color-scheme: light) {
-    :root {
-      --background: #d9c8a4;
-      --editor-background: #fbf1c7;
-      --surface: #ecddb4;
-      --title-bar: #d9c8a4;
-      --element: #ecddb4;
-      --element-hover: #ddcca7;
-      --element-active: #c8b899;
-      --border: #c8b899;
-      --border-variant: #ddcca7;
-      --text: #282828;
-      --text-muted: #5f5650;
-      --text-placeholder: #897b6e;
-      --accent: #797410;
-      --error: #9d0308;
-      --error-background: #f4d1c9;
-      --error-border: #e8ac9e;
-      --success: #797410;
-      --success-background: #e4e0cd;
-      --success-border: #d1cba8;
-    }
-    select {
-      background-image: url('data:image/svg+xml;utf8,<svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><path d="M4.66675 10L8.00008 13.3333L11.3334 10" stroke="%235f5650" stroke-width="1.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M4.66675 6.00002L8.00008 2.66669L11.3334 6.00002" stroke="%235f5650" stroke-width="1.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>');
-    }
-    /* En clair, element_active est plus sombre que element : l'état sélectionné
-       passe par une teinte verte légère + bordure renforcée, pas un overlay. */
-    .mode-card.selected {
-      background: color-mix(in srgb, var(--accent) 10%, var(--editor-background));
-      border-color: var(--accent);
-      box-shadow: 0 0 0 1px var(--accent);
-    }
-  }
   * { box-sizing: border-box; }
   body {
     margin: 0; background: var(--background); color: var(--text);
@@ -188,6 +153,7 @@
   .banner .detail { color: var(--text-muted); display: block; }
   .footer { display: flex; justify-content: flex-end; align-items: center; gap: 14px; margin-top: 24px; }
   .hidden { display: none !important; }
+  .dimmed { opacity: .45; }
   #done { padding: 32px 0 8px; }
 
   /* Cases à cocher (agents, autostart, XWayland) et liste d'agents. */
@@ -208,6 +174,44 @@
   .step.ok svg { color: var(--success); }
   .step.ko svg { color: var(--error); }
   .step-output { color: var(--text-muted); font-family: var(--font-mono); font-size: 11px; white-space: pre-wrap; overflow-wrap: anywhere; margin-top: 2px; }
+
+  /* Thème clair : tokens One Light (zra-client/css/themes.css), l'accent
+     reste le vert Gruvbox de ZRA (marque). En fin de feuille pour primer sur
+     les règles de base (même spécificité, dernier gagne). */
+  @media (prefers-color-scheme: light) {
+    :root {
+      --background: #dcdcdd;
+      --editor-background: #fafafa;
+      --surface: #ebebec;
+      --title-bar: #dcdcdd;
+      --element: #ebebec;
+      --element-hover: #dfdfe0;
+      --element-active: #cacaca;
+      --border: #c9c9ca;
+      --border-variant: #dfdfe0;
+      --text: #242529;
+      --text-muted: #58585a;
+      --text-placeholder: #7e8086;
+      --accent: #98971a;
+      --error: #de3e35;
+      --error-background: #fbe9e7;
+      --error-border: #f3c1bd;
+      --success: #98971a;
+      --success-background: #eef2d3;
+      --success-border: #d8e0a3;
+    }
+    /* Ombre de la fenêtre adoucie en clair (le .35 du dark fait noir sur fond clair). */
+    .swindow { box-shadow: 0 8px 24px rgba(0, 0, 0, .12); }
+    select {
+      background-image: url('data:image/svg+xml;utf8,<svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><path d="M4.66675 10L8.00008 13.3333L11.3334 10" stroke="%2358585a" stroke-width="1.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M4.66675 6.00002L8.00008 2.66669L11.3334 6.00002" stroke="%2358585a" stroke-width="1.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>');
+    }
+    /* Carte sélectionnée plus claire que les autres : voile léger en dur +
+       bordure accent, pas un overlay sombre. */
+    .mode-card.selected {
+      border-color: var(--accent);
+      background: #cacaca0f;
+    }
+  }
 </style>
 </head>
 <body>
@@ -498,7 +502,7 @@
     const eff = effective()
     $('start').disabled = !state.node
       || (eff.tls === 'https' && (!eff.certPath || !eff.keyPath))
-    $('zed-row').classList.toggle('hidden', state.mode !== 'poste')
+    $('zed-row').classList.toggle('dimmed', state.mode !== 'poste')
     $('custom-settings').classList.toggle('hidden', state.settingsMode !== 'custom')
     $('poste-sections').classList.toggle('hidden', state.mode !== 'poste')
     $('xwayland-row').classList.toggle('hidden', !state.wayland)
