@@ -413,6 +413,51 @@ test('repli d’une réflexion pendant le stream : l’auto-scroll suit toujours
   delete feed.scrollHeight; delete feed.clientHeight; delete feed.scrollTop
 })
 
+test('auto-scroll : un clamp de layout sans geste ne coupe pas le suivi ; molette et pouce le coupent', async () => {
+  const key = 'mock-desk/a1f39c0b'
+  ZRA.navigate(`#/t/${key}`)
+  await until(() => /Refactor/.test(headerTitle()), 3000)
+  const feed = $('.thread__scroll')
+  const jump = $('.jump')
+  let height = 4000, top = 3400
+  Object.defineProperty(feed, 'scrollHeight', { get: () => height, configurable: true })
+  Object.defineProperty(feed, 'clientHeight', { get: () => 600, configurable: true })
+  Object.defineProperty(feed, 'scrollTop', {
+    get: () => top,
+    set: (v) => { top = Math.max(0, Math.min(v, height - 600)) },
+    configurable: true,
+  })
+  const scroll = () => feed.dispatchEvent(new win.Event('scroll'))
+  scroll()
+  assert.ok(jump.classList.contains('hidden'), 'suivi actif en bas')
+
+  // Clamp transitoire : le scrollTop remonte mais le contenu est déjà restauré
+  // (top < max), sans aucun geste utilisateur. Le suivi ne doit pas s'arrêter —
+  // sinon scrollToEnd ne suit plus et le bouton reste coincé (régression réelle).
+  top = 2600
+  scroll()
+  assert.ok(jump.classList.contains('hidden'), 'clamp sans geste : suivi conservé')
+
+  // Molette vers le haut : geste → coupe, bouton visible ; retour en bas → reprise.
+  feed.dispatchEvent(new win.WheelEvent('wheel', { deltaY: -10 }))
+  assert.ok(!jump.classList.contains('hidden'), 'molette haut : suivi coupé, bouton visible')
+  top = 2000; scroll()
+  top = height - 600; scroll()
+  assert.ok(jump.classList.contains('hidden'), 'retour en bas : suivi repris')
+
+  // Pouce de scrollbar (pointerdown + scroll vers le haut) : geste → coupe.
+  feed.dispatchEvent(new win.Event('pointerdown'))
+  top = 2600; scroll()
+  assert.ok(!jump.classList.contains('hidden'), 'pouce : suivi coupé')
+  win.dispatchEvent(new win.Event('pointerup'))
+  // La même remontée sans pouce ne coupe pas.
+  top = height - 600; scroll()
+  top = 2600; scroll()
+  assert.ok(jump.classList.contains('hidden'), 'remontée sans pouce : suivi conservé')
+
+  delete feed.scrollHeight; delete feed.clientHeight; delete feed.scrollTop
+})
+
 test('durée de génération : le départ daté par le daemon, pas l’ouverture de la page', async () => {
   const key = 'mock-desk/a1f39c0b'
   ZRA.navigate(`#/t/${key}`)

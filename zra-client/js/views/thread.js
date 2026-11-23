@@ -746,7 +746,7 @@ export function ThreadView({ key, navigate }) {
   // Le geste utilisateur coupe le suivi dès l'entrée, avant la frame qui
   // suivrait le bas : l'événement `scroll` arrive trop tard (les rAF du stream
   // passent avant lui dans la frame) et le pouce se ferait ramener en bas.
-  // Molette vers le haut, ou doigt qui descend (= on remonte le fil).
+  // Molette vers le haut, doigt qui descend (= on remonte le fil), clavier.
   const cutStick = () => { stick = false; jump.classList.remove('hidden') }
   feed.addEventListener('wheel', (ev) => { if (ev.deltaY < 0) cutStick() }, { passive: true })
   let touchY = null
@@ -756,16 +756,23 @@ export function ThreadView({ key, navigate }) {
     if (touchY !== null && y > touchY + 2) cutStick()
     touchY = y
   }, { passive: true })
+  feed.addEventListener('keydown', (ev) => {
+    if (ev.key === 'ArrowUp' || ev.key === 'PageUp' || ev.key === 'Home') cutStick()
+  })
+  // Pouce de scrollbar : pointerdown sur le fil puis scroll vers le haut = geste.
+  // On ne coupe le suivi que sur un geste avéré. Un clamp de mise en page (un
+  // re-render qui rétrécit le fil, p.ex. le repli d'une réflexion) remonte le
+  // scrollTop sans geste : le couper arrêterait le suivi pour de bon — scrollToEnd
+  // ne suit plus, et la reprise ne se déclenche qu'en redescendant vers le bas.
+  let pointerDown = false
+  feed.addEventListener('pointerdown', () => { pointerDown = true }, { passive: true })
+  const onPointerUp = () => { pointerDown = false }
+  window.addEventListener('pointerup', onPointerUp)
+  window.addEventListener('pointercancel', onPointerUp)
   feed.addEventListener('scroll', () => {
     const top = feed.scrollTop
     const max = feed.scrollHeight - feed.clientHeight
-    // L'utilisateur remonte, même d'un pixel : le suivi s'arrête aussitôt,
-    // sans attendre de sortir de la fenêtre du bas — sinon un chunk qui arrive
-    // pendant le geste ramène en bas et « coince » le pouce (tail-following
-    // de Zed : ListState s'arrête au premier scroll vers le haut).
-    // Un clamp de mise en page (le composer grandit, le fil rétrécit) atterrit
-    // exactement en bas : ce n'est pas un geste utilisateur, on ne coupe pas.
-    if (top < lastTop - 1 && top < max) stick = false
+    if (pointerDown && top < lastTop - 1 && top < max) cutStick()
     // Il redescend tout en bas : le suivi reprend. Notre propre autoscroll
     // ne va que vers le bas : il ne coupe jamais le suivi par erreur.
     if (max - top < 60 && top > lastTop) stick = true
@@ -821,6 +828,8 @@ export function ThreadView({ key, navigate }) {
     mounted() { scrollToEnd(true) },
     destroy() {
       offs.forEach((off) => off())
+      window.removeEventListener('pointerup', onPointerUp)
+      window.removeEventListener('pointercancel', onPointerUp)
       clearInterval(turnTimer)
       clearTimeout(reopenTimer)
       bottombar.destroy()
