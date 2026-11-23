@@ -50,6 +50,20 @@ XEmbed n'y existe pas). La supervision marche quand même : `--headless`
 sous GNOME, greffon Status Notifier sous Xfce/Wayland) ; rien à coder côté ZRA —
 forcer SNI sans hôte n'afficherait rien non plus.
 
+## Tray : interface en français, console en loopback
+
+Les textes du tray (menu natif, onboarding, console de gestion) sont en
+**français seulement** : pas de mécanique i18n côté Rust à ce jour (la PWA,
+le daemon et les scripts sont bilingues). L'extension fr/en du tray est un
+chantier à part.
+
+La console de gestion et l'onboarding sont servis sur **loopback uniquement**
+(port choisi par l'OS, ouvert depuis le menu). Sur un homelab headless, y
+accéder depuis une autre machine passe par un tunnel SSH
+(`ssh -L 8080:127.0.0.1:<port> …`) — l'URL est journalisée au démarrage.
+Choix assumé : les actions sensibles (restart, désinstallation) restent au
+niveau de confiance « être sur le poste », comme `/pair` du daemon.
+
 ## WSL2
 
 Jamais lancé. systemd pas toujours init, WSLg fournit X11/Wayland mais `xdotool`
