@@ -8,7 +8,7 @@ name: Release
 # Runners :
 #   GitHub  : hébergés (ubuntu-latest, windows-latest).
 #   Forgejo : self-hostés — Linux sur le poste Debian/KDE (p350), Windows sur
-#             le poste Windows (Dell), labels ubuntu-latest / windows-latest.
+  #             le poste Windows (Fractal), labels ubuntu-latest / windows-latest.
 #             Le label est un nom de routage, pas l'OS.
 #
 # Pas d'action tierce (toolchain Rust) : rustup est préinstallé sur les
