@@ -180,6 +180,7 @@ mod tests {
 
     #[test]
     fn unit_file_suit_xdg() {
+        let _g = crate::testutil::env_guard();
         std::env::set_var("XDG_CONFIG_HOME", "/tmp/zra-xdg-test");
         assert_eq!(unit_file(), PathBuf::from("/tmp/zra-xdg-test/systemd/user/zra-relay.service"));
         std::env::remove_var("XDG_CONFIG_HOME");

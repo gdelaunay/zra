@@ -14,6 +14,7 @@ use serde_json::{json, Value};
 use tiny_http::{Header, Method, Response, Server};
 
 use crate::config::{Mode, Paths};
+use crate::install;
 use crate::orchestrate;
 use crate::relay_unit;
 use crate::status;
@@ -79,6 +80,8 @@ fn state_json(sup: &Supervisor, paths: &Paths) -> Value {
         "relay": cfg.relay,
         "root": paths.root.to_string_lossy(),
         "appLayout": crate::update::is_app_layout(paths),
+        "installed": install::is_installed(),
+        "installTarget": install::target().map(|p| p.to_string_lossy().to_string()),
         "logFile": paths.log_file(mode).to_string_lossy(),
     });
     match mode {
@@ -247,6 +250,38 @@ fn handle(mut request: tiny_http::Request, sup: &Supervisor, paths: &Paths) {
                     return; // succès : le processus est remplacé (exit ou exec)
                 }
                 None => err_json("Aucune update prête à installer.".into()),
+            }
+        }
+        (Method::Post, "/install") => {
+            // Self-install (5.7) : layout app seulement, pas déjà installé.
+            if !crate::update::is_app_layout(paths) {
+                let _ = request.respond(err_json("Installation depuis le dépôt : pas de self-install (flux contributeur).".into()));
+                return;
+            }
+            if install::is_installed() {
+                let _ = request.respond(err_json("ZRA est déjà installé sur ce poste.".into()));
+                return;
+            }
+            sup.stop();
+            let cfg = sup.config();
+            match install::copy_to_target(paths) {
+                Ok(t) => {
+                    let tp = Paths::from_root(t.join("app"));
+                    let mut steps = install::rewire(&tp, &cfg.node);
+                    steps.extend(install::shortcuts(&t, app_version(&tp)));
+                    let _ = request.respond(ok_json(json!({
+                        "ok": true,
+                        "steps": orchestrate::steps_json(&steps),
+                        "target": t.to_string_lossy(),
+                    })));
+                    let exe = t.join(if cfg!(windows) { "zra-tray.exe" } else { "zra-tray" });
+                    if let Err(e) = install::launch(&exe, &t) {
+                        eprintln!("[zra-tray] {e}");
+                        std::process::exit(1);
+                    }
+                    std::process::exit(0);
+                }
+                Err(e) => err_json(e),
             }
         }
         (Method::Post, "/uninstall") => {

@@ -443,6 +443,17 @@
       </div>
       </div>
 
+      <div class="ssh" id="install-ssh"><span class="ssh-label">Installation</span><span class="divider-h"></span></div>
+      <div class="srow last" id="install-row">
+        <div class="srow-inner">
+          <div class="srow-text">
+            <div class="srow-title">Installer sur ce poste</div>
+            <div class="srow-desc"><span id="install-desc">ZRA sera copié dans un emplacement fixe, avec un raccourci Menu Démarrer. Désinstallable proprement depuis la console de gestion.</span><span>Décocher pour rester portable : ZRA tournera depuis le dossier actuel (le déplacer casserait les chemins).</span></div>
+          </div>
+          <div class="srow-control"><input type="checkbox" id="install" checked></div>
+        </div>
+      </div>
+
       <div class="banner error hidden" id="error-banner"><span id="error-icon"></span><div id="error-text"></div></div>
       <div class="footer">
         <button class="btn primary" id="start" disabled>Enregistrer et démarrer</button>
@@ -496,6 +507,9 @@
     wayland: false,
     autostart: true,
     xwayland: true,
+    install: true,
+    appLayout: false,
+    installTarget: null,
   }
 
   function refresh() {
@@ -517,6 +531,12 @@
     }
     for (const btn of document.querySelectorAll('#tls button')) {
       btn.classList.toggle('selected', btn.dataset.v === state.tls)
+    }
+    // Self-install : layout archive seulement, liste principale (pas repliée).
+    $('install-ssh').classList.toggle('hidden', !state.appLayout)
+    $('install-row').classList.toggle('hidden', !state.appLayout)
+    if (state.installTarget) {
+      $('install-desc').textContent = `ZRA sera copié dans ${state.installTarget}, avec un raccourci Menu Démarrer. Désinstallable proprement depuis la console de gestion.`
     }
   }
 
@@ -586,10 +606,18 @@
   if (mock === 'missing') {
     populateDiscover({ zed: { settingsExists: false, channel: 'stable', cli: 'zed' }, agents: [], wayland: true, autostart: { backend: 'systemd', installed: false } })
     setNode(null)
-    state.settingsMode = 'custom'; $('settings-mode').value = 'custom'; refresh()
+    state.settingsMode = 'custom'; $('settings-mode').value = 'custom'
+    state.appLayout = true; state.installTarget = '%LOCALAPPDATA%\\Programs\\zra'
+    refresh()
   } else {
-    fetch('/info').then((r) => r.json()).then((info) => { setNode(info.node); if (info.node) loadDiscover(info.node.path) })
+    fetch('/info').then((r) => r.json()).then((info) => {
+      state.appLayout = Boolean(info.appLayout)
+      state.installTarget = info.installTarget
+      setNode(info.node)
+      if (info.node) loadDiscover(info.node.path)
+    })
   }
+  $('install').addEventListener('change', () => { state.install = $('install').checked })
   $('node-edit').addEventListener('click', () => {
     if ($('node-input').classList.contains('hidden')) nodeEdit(true)
     else nodeConfirm()
@@ -865,6 +893,7 @@
       xwayland: state.mode === 'poste' && state.wayland && eff.xwayland,
       tlsCert: state.mode === 'poste' && https ? eff.certPath : null,
       tlsKey: state.mode === 'poste' && https ? eff.keyPath : null,
+      install: state.appLayout && state.install,
     }
     try {
       const res = await fetch('/done', { method: 'POST', body: JSON.stringify(payload) })
@@ -873,6 +902,12 @@
         $('form').classList.add('hidden')
         $('done').classList.remove('hidden')
         renderSteps(body.steps || [])
+        if (body.installed) {
+          const d = document.createElement('span')
+          d.className = 'detail'
+          d.textContent = `ZRA est installé dans ${body.installed} et redémarre depuis cet emplacement. Cet onglet peut être fermé.`
+          $('done').querySelector('.banner.success div').append(d)
+        }
       } else {
         showError(body.error)
         refresh()

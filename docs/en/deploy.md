@@ -376,6 +376,17 @@ restart ("Install and restart" for right now). `app/.zra` and
 then replaced, the old one deleted after exit. In repo layout (contributor),
 updates come from git — the tray does not touch them.
 
+**Install on the machine (self-install)**: the "app" archive launched as-is
+runs **portable**. At onboarding, the "Install on this machine" option
+(checked by default) copies the binary and `app/` to a fixed location —
+`%LOCALAPPDATA%\Programs\zra` (Windows) or `~/.local/share/zra` (Linux) —
+then rewires the absolute paths (Zed, autostart), adds the Start Menu
+shortcut and the "Installed apps" key (HKCU, no elevation), and relaunches
+ZRA from the target. Unchecking = stay portable (choice remembered); the
+button remains available in the console. Installed: no going back, the exit
+is uninstall. A portable copy relaunched while an installed instance exists
+launches the installed one — no two parallel lives.
+
 **Uninstall**: from the console, "Uninstall…" leaves the machine as it was
 found — service stopped, autostart removed, Zed unwired (agent entries,
 keymap, env), the folder deleted (logs, pairing, certificates included) and

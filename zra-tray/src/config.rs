@@ -79,7 +79,7 @@ impl Paths {
         None
     }
 
-    fn from_root(root: PathBuf) -> Self {
+    pub(crate) fn from_root(root: PathBuf) -> Self {
         let zra = root.join(".zra");
         let logs = zra.join("logs");
         Self { root, zra, logs }

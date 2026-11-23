@@ -48,6 +48,7 @@ function fakeFetch(state) {
     if (path === '/update/toggle') return json({ ok: true })
     if (path === '/update/apply') return json({ ok: true })
     if (path === '/uninstall') return json({ ok: true, steps: [{ label: 'Dé-câblage de Zed', ok: true, output: 'retiré' }], exported: null, removed: 'C:/zra' })
+    if (path === '/install') return json({ ok: true, steps: [{ label: 'Agents Zed (recâblage)', ok: true, output: 'recâblé' }], target: 'C:/local/Programs/zra' })
     return json({ ok: false, error: 'inattendu : ' + path })
   }
 }
@@ -207,4 +208,33 @@ test('désinstallation en layout dépôt : le dossier cloné est conservé (dit)
   const $ = (id) => win.document.getElementById(id)
   await until(() => $('about-version').textContent === '0.6.0')
   await until(() => /dossier cloné/.test($('uninstall-desc').textContent))
+})
+
+test('self-install : bouton en layout app non installé, POST /install, étapes', async () => {
+  const win = await loadPage({ ...STATE, appLayout: true, installed: false, installTarget: 'C:/local/Programs/zra' })
+  const $ = (id) => win.document.getElementById(id)
+  await until(() => $('about-version').textContent === '0.6.0')
+  await until(() => !$('install-row').classList.contains('hidden'))
+  assert.ok(!$('install-btn').classList.contains('hidden'))
+  assert.match($('install-desc').textContent, /C:\/local\/Programs\/zra/)
+  calls.length = 0
+  $('install-btn').dispatchEvent(new win.MouseEvent('click', { bubbles: true }))
+  await until(() => calls.some((c) => c.path === '/install' && c.method === 'POST'))
+  await until(() => $('install-steps').textContent.includes('recâblage'))
+  assert.match($('ok-text').textContent, /installé/)
+})
+
+test('self-install : installé → pas de bouton, emplacement affiché ; dépôt → section masquée', async () => {
+  const win = await loadPage({ ...STATE, appLayout: true, installed: true, installTarget: 'C:/local/Programs/zra' })
+  const $ = (id) => win.document.getElementById(id)
+  await until(() => $('about-version').textContent === '0.6.0')
+  await until(() => $('install-title').textContent === 'Installé sur ce poste')
+  assert.ok($('install-btn').classList.contains('hidden'), 'pas de retour arrière')
+  assert.match($('install-desc').textContent, /désinstallation/)
+  dom.window.close()
+
+  const win2 = await loadPage({ ...STATE, appLayout: false })
+  const $2 = (id) => win2.document.getElementById(id)
+  await until(() => $2('about-version').textContent === '0.6.0')
+  assert.ok($2('install-row').classList.contains('hidden'), 'layout dépôt : pas de self-install')
 })

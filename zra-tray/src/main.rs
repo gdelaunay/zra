@@ -12,6 +12,7 @@
 
 mod config;
 mod console;
+mod install;
 mod node;
 mod onboarding;
 mod orchestrate;
@@ -41,6 +42,17 @@ enum UserEvent {
     Quit,
 }
 
+/// Verrou partagé des tests qui touchent aux variables d'environnement
+/// (HOME, LOCALAPPDATA, XDG…) : cargo test tourne en parallèle.
+#[cfg(test)]
+pub(crate) mod testutil {
+    use std::sync::{Mutex, MutexGuard};
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
+    pub fn env_guard() -> MutexGuard<'static, ()> {
+        ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner())
+    }
+}
+
 const ID_OPEN: &str = "open";
 const ID_CONSOLE: &str = "console";
 const ID_URL: &str = "url";
@@ -66,6 +78,19 @@ fn main() {
         std::process::exit(1);
     }));
     let _ = std::fs::create_dir_all(&paths.zra);
+
+    // Cas limite 5.7 : une copie portable relancée alors qu'une instance
+    // installée existe → lancer l'installée, pas deux vies parallèles.
+    // Layout app seulement : le dev en layout dépôt n'est pas détourné.
+    if update::is_app_layout(&paths) && !install::is_installed() && install::installed_exists() {
+        if let Some(t) = install::target() {
+            eprintln!("[zra-tray] instance installée détectée ({}) — lancement de celle-ci.", t.display());
+            let exe = t.join(if cfg!(windows) { "zra-tray.exe" } else { "zra-tray" });
+            if install::launch(&exe, &t).is_ok() {
+                return;
+            }
+        }
+    }
 
     // Single-instance : verrou fichier tenu jusqu'à la mort du processus
     // (l'OS le libère même après un crash).

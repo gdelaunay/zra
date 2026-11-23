@@ -253,7 +253,7 @@ fn extract_zip(zip_path: &Path, dest: &Path) -> Result<(), String> {
 
 /// Copie récursive (le merge de l'update) : écrase les fichiers, crée les
 /// dossiers. Les données (.zra, zra.config.json) sont filtrées en amont.
-fn copy_rec(src: &Path, dst: &Path) -> std::io::Result<()> {
+pub(crate) fn copy_rec(src: &Path, dst: &Path) -> std::io::Result<()> {
     if src.is_dir() {
         fs::create_dir_all(dst)?;
         for entry in fs::read_dir(src)? {

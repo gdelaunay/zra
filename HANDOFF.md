@@ -128,7 +128,53 @@ merge, prendre l'union des sections.
   libs Linux ; cross-compilation écartée par la conception) — la CI le fait.
   Le code unix ajouté est simple (Command/fs), risque faible.
 
-(5.7 : à compléter au fil des lots)
+**5.7 — self-install** :
+- Emplacements conformes à la conception : `%LOCALAPPDATA%\Programs\zra`
+  (Windows, convention VS Code, sans élévation), `~/.local/share/zra`
+  (Linux). Détection « installé » : l'exe tourne-t-il depuis là ?
+- La copie lit l'exe vivant (permis sous Windows, seul le renommage/la
+  suppression sont bloqués) : exe + `app/` copiés, `.zra/` et
+  `zra.config.json` voyagent dedans, orchestration **depuis la cible**
+  (chemins absolus justes), lancement de la copie, exit de l'originale.
+  Pas d'exe helper. Le supervisor portable n'est jamais créé dans le flux
+  onboarding-install (exit dans `/done`).
+- Recâblage : `setup install --apply yes` sans agent nommé = tous les agents
+  lançables (sémantique vérifiée dans setup.mjs) + `service install --apply`.
+- Raccourci Menu Démarrer via WScript.Shell (PowerShell, pas de crate COM) ;
+  clé HKCU posée avec DisplayName/DisplayVersion/Publisher/InstallLocation/
+  UninstallString (= l'exe ; la désinstallation se fait depuis la console).
+  Linux : le backend service pose le .desktop/l'unité (recâblage).
+- Portable choisi : mémorisé dans `.zra/setup.json` (fusion avec
+  `trayDownload` existant). Le bouton console reste disponible tant que non
+  installé ; installé = pas de bouton (pas de retour arrière, conception).
+- Cas limite : portable relancé avec instance installée → lancement de
+  l'installée + exit, **layout app seulement** (le dev en layout dépôt n'est
+  pas détourné — choix nécessaire pour ne pas casser `npm run tray`).
+- Self-install refusé en layout dépôt (un repo cloné ne se copie pas en
+  « installation ») — dit dans la console.
+- Tests : unitaires (copie, fusion setup.json, cible) + jsdom (console et
+  onboarding). **Pas exécuté en réel** (copierait vers LOCALAPPDATA, poserait
+  la clé HKCU, recâblerait Zed) — remis à « À tester ».
+
+## Release 0.6 — checklist (au retour de l'utilisateur)
+
+Le développement est complet ; la release publique attend les tests réels et
+la review. Procédure (ROADMAP.md) :
+
+1. Tests réels de `HANDOFF.md` « À tester » sur les postes de référence +
+   homelab (surtout : self-install, désinstallation, update au restart).
+2. Nettoyer la release et le tag de test `v0.6.0-dev` sur les deux forges.
+3. Bumper la version : `package.json`, `package-lock.json`,
+   `zra-tray/Cargo.toml` → `0.6.0` (le gate CI exige tag == version Cargo).
+4. `CHANGELOG.md` + `CHANGELOG.en.md` datés, hash du commit de référence ;
+   ROADMAP à jour (0.6 fait).
+5. `npm test` vert, commit `chore(release)` soigné (1-2 phrases +
+   « See CHANGELOG.md » — body de la release), tag `v0.6.0` poussé.
+6. Vérifier la release sur les deux forges (4 assets : tray seul + archive
+   app, Windows + Linux), puis tester le flux update de bout en bout avec
+   cette vraie release stable.
+
+Rien n'est poussé/taggé par l'agent : les branches attendent la review.
 
 ## À tester
 
@@ -180,7 +226,19 @@ merge, prendre l'union des sections.
 - Build Linux par la CI (tag de test) — le cross-check depuis Windows est
   impossible (libdbus-sys).
 
-(5.7 : à compléter au fil des lots)
+**5.7** :
+- Self-install réel depuis une archive « app » extraite (Windows + Linux) :
+  copie, recâblage Zed/autostart, raccourci Menu Démarrer, clé HKCU, relance
+  depuis la cible ; l'ancienne copie portable ne tourne plus.
+- Cas limite : relancer la copie portable après installation → l'installée
+  se lance, pas deux trays.
+- Console : bouton « Installer sur ce poste » en portable ; disparaît une
+  fois installé.
+- Onboarding : option cochée par défaut, décocher → portable mémorisé
+  (`.zra/setup.json`), bouton console disponible ensuite.
+- `offerTrayDownload` au setup (flux contributeur, étape 3 restante) :
+  oui/non/jamais en TTY réel, repli de forge, `.zra/setup.json` — code et
+  tests unitaires existants (`tray-download.test.mjs`), pas de TTY ce soir.
 
 ## Points bloqués
 

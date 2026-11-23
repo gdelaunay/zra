@@ -378,6 +378,18 @@ vivant est renommé puis remplacé, l'ancien supprimé après exit. En layout
 dépôt (contributeur), les mises à jour viennent de git — le tray n'y touche
 pas.
 
+**Installation sur le poste (self-install)** : l'archive « app » lancée
+telle quel tourne en **portable**. À l'onboarding, l'option « Installer sur
+ce poste » (cochée par défaut) copie le binaire et `app/` dans un emplacement
+fixe — `%LOCALAPPDATA%\Programs\zra` (Windows) ou `~/.local/share/zra`
+(Linux) — puis recâble les chemins absolus (Zed, démarrage automatique),
+posé le raccourci Menu Démarrer et la clé « Applications installées »
+(HKCU, sans élévation), et relance ZRA depuis la cible. Décocher = rester
+portable (choix mémorisé) ; le bouton reste disponible dans la console.
+Installé : pas de retour arrière, la sortie est la désinstallation. Une
+copie portable relancée alors qu'une instance installée existe lance
+l'installée — pas deux vies parallèles.
+
 **Désinstallation** : depuis la console, « Désinstaller… » rend la machine
 comme elle a été trouvée — arrêt du service, retrait du démarrage
 automatique, dé-câblage de Zed (entrées agents, keymap, env), suppression du

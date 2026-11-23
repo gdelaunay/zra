@@ -335,19 +335,30 @@ tue le piège « dossier déplacé → chemins absolus périmés » du portable.
      Linux/systemd) ; retirée à la désinstallation. Sans systemd en init
      (MX/sysvinit) : l'autostart XDG existant lance le tray, qui suit le mode.
      La doc deploy garde l'unité système manuelle pour le flux sans tray.
-   - **5.7** self-install par le tray (conception figée, section dédiée) :
-     option d'onboarding, copie vers l'emplacement fixe, recâblage des
-     chemins absolus.
+   - **5.7 — Fait** self-install par le tray (`install.rs`) : option
+     d'onboarding cochée par défaut (liste principale, pas repliée), copie
+     exe + `app/` vers `%LOCALAPPDATA%\Programs\zra` / `~/.local/share/zra`,
+     orchestration depuis la cible (chemins absolus), raccourci Menu Démarrer
+     (WScript.Shell) + clé HKCU posés, lancement de la copie puis exit de
+     l'originale. Portable choisi : mémorisé (`.zra/setup.json`, fusion) ;
+     bouton « Installer sur ce poste » dans la console tant que non installé
+     (layout app seulement) ; installé : pas de bouton (pas de retour
+     arrière). Cas limite : portable relancé avec instance installée →
+     lancement de l'installée (layout app seulement, le dev dépôt n'est pas
+     détourné).
    Le test CI (étape 3) est fait via le tag `v0.6.0-dev` (même pipeline que
    l'étape 5) ; `offerTrayDownload` au setup reste à tester.
 
 ## Reprise (handoff)
 
-**État** : 5.1 → 5.6 faits (archive « app », onboarding grand public, TLS
-poste, pare-feu best-effort, console de gestion, updates, désinstallation,
-unité systemd relais) ; CI + release vérifiées sur les deux forges (tag
-`v0.6.0-dev`, 4 assets). Reste 5.7 (self-install, conception figée).
-Prochaine étape par défaut : **5.7**.
+**État** : **toutes les étapes de développement sont faites** (5.1 → 5.7 :
+archive « app », onboarding grand public, TLS poste, pare-feu best-effort,
+console de gestion, updates, désinstallation, unité systemd relais,
+self-install) ; CI + release vérifiées sur les deux forges (tag
+`v0.6.0-dev`, 4 assets). Reste pour le jalon : les tests réels sur les
+postes de référence et le homelab (HANDOFF.md « À tester »), le nettoyage
+des release/tag de test, et la vraie release `v0.6.0` (version bumpée dans
+`Cargo.toml`, CHANGELOG datés, tag soigné — procédure dans ROADMAP.md).
 Le flux update n'est testable de bout en qu'avec une vraie release stable
 (`v0.6.0-dev` est une pré-release, rejetée à dessein par le canal stable).
 

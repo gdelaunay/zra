@@ -9,8 +9,10 @@ use serde::Deserialize;
 use tiny_http::{Header, Method, Response, Server};
 
 use crate::config::{Mode, Paths, RelayConfig, TrayConfig};
+use crate::install;
 use crate::node;
 use crate::orchestrate;
+use crate::update;
 
 const PAGE: &str = include_str!("onboarding.html");
 // Le logo suit les régénérations de scripts/gen-icons.mjs (SVG complet, signal
@@ -35,6 +37,9 @@ struct DonePayload {
     tls_cert: Option<String>,
     #[serde(default)]
     tls_key: Option<String>,
+    /// Self-install (5.7) : coché par défaut dans la page, layout app only.
+    #[serde(default)]
+    install: bool,
 }
 
 fn json_response(body: String) -> Response<std::io::Cursor<Vec<u8>>> {
@@ -77,6 +82,9 @@ pub fn run(paths: &Paths) -> TrayConfig {
                     Some((path, version)) => serde_json::json!({ "node": { "path": path, "version": version } }),
                     None => serde_json::json!({ "node": null }),
                 };
+                let mut info = info;
+                info["appLayout"] = serde_json::json!(update::is_app_layout(paths));
+                info["installTarget"] = serde_json::json!(install::target().map(|p| p.to_string_lossy().to_string()));
                 json_response(info.to_string())
             }
             (Method::Post, "/check") => {
@@ -174,6 +182,29 @@ pub fn run(paths: &Paths) -> TrayConfig {
                     ));
                     continue;
                 }
+                // Self-install (5.7) : copier exe + app/ vers l'emplacement
+                // fixe, puis orchestrer DEPUIS LA CIBLE (chemins absolus).
+                // `.zra/` et zra.config.json voyagent dans app/ : rien à
+                // réécrire côté données. Portable choisi : mémorisé.
+                let want_install = payload.install
+                    && update::is_app_layout(paths)
+                    && !install::is_installed();
+                let (work_paths, install_target) = if want_install {
+                    match install::copy_to_target(paths) {
+                        Ok(t) => (Paths::from_root(t.join("app")), Some(t)),
+                        Err(e) => {
+                            let _ = request.respond(json_response(
+                                serde_json::json!({ "ok": false, "error": format!("Installation impossible : {e}") }).to_string(),
+                            ));
+                            continue;
+                        }
+                    }
+                } else {
+                    if !payload.install {
+                        install::remember_portable(paths);
+                    }
+                    (Paths::from_root(paths.root.clone()), None)
+                };
                 // Orchestration (poste) : câblage Zed, autostart, XWayland — les
                 // scripts Node en non interactif, la page a collecté les choix.
                 let mut steps: Vec<orchestrate::Step> = Vec::new();
@@ -184,14 +215,14 @@ pub fn run(paths: &Paths) -> TrayConfig {
                             args.push("--agent".to_string());
                             args.push(a.clone());
                         }
-                        steps.push(orchestrate::run_script(paths, &cfg.node, "Agents Zed", "setup.mjs", &args));
+                        steps.push(orchestrate::run_script(&work_paths, &cfg.node, "Agents Zed", "setup.mjs", &args));
                     }
                     if payload.autostart {
-                        steps.push(orchestrate::run_script(paths, &cfg.node, "Démarrage automatique", "service.mjs",
+                        steps.push(orchestrate::run_script(&work_paths, &cfg.node, "Démarrage automatique", "service.mjs",
                             &["install".to_string(), "--apply".to_string()]));
                     }
                     if payload.xwayland {
-                        steps.push(orchestrate::run_script(paths, &cfg.node, "Zed sous XWayland", "setup.mjs",
+                        steps.push(orchestrate::run_script(&work_paths, &cfg.node, "Zed sous XWayland", "setup.mjs",
                             &["xwayland".to_string(), "--apply".to_string()]));
                     }
                     // TLS du daemon : écrit dans zra.config.json (HTTPS) ou retiré
@@ -200,10 +231,27 @@ pub fn run(paths: &Paths) -> TrayConfig {
                         (Some(cert), Some(key)) => vec!["tls".to_string(), "--cert".to_string(), cert.clone(), "--key".to_string(), key.clone(), "--apply".to_string()],
                         _ => vec!["tls".to_string(), "--apply".to_string()],
                     };
-                    steps.push(orchestrate::run_script(paths, &cfg.node, "TLS du daemon", "setup.mjs", &tls_args));
+                    steps.push(orchestrate::run_script(&work_paths, &cfg.node, "TLS du daemon", "setup.mjs", &tls_args));
                 }
-                let body = serde_json::json!({ "ok": true, "steps": orchestrate::steps_json(&steps) });
+                if let Some(t) = &install_target {
+                    steps.extend(install::shortcuts(t, crate::console::app_version(&work_paths)));
+                }
+                let body = serde_json::json!({
+                    "ok": true,
+                    "steps": orchestrate::steps_json(&steps),
+                    "installed": install_target.as_ref().map(|t| t.to_string_lossy().to_string()),
+                });
                 let _ = request.respond(json_response(body.to_string()));
+                if let Some(t) = install_target {
+                    // Lancer la copie installée, l'originale se ferme — pas
+                    // deux vies parallèles. Le supervisor portable n'est jamais
+                    // créé (onboarding::run ne rend pas la main).
+                    let exe = t.join(if cfg!(windows) { "zra-tray.exe" } else { "zra-tray" });
+                    if let Err(e) = install::launch(&exe, &t) {
+                        eprintln!("[zra-tray] {e} — ouvrir ZRA depuis {t:?} manuellement.");
+                    }
+                    std::process::exit(0);
+                }
                 let _ = tx.send(cfg);
                 break;
             }

@@ -199,6 +199,7 @@ mod tests {
 
     #[test]
     fn export_settings_copie_la_config() {
+        let _g = crate::testutil::env_guard();
         let dir = std::env::temp_dir().join(format!("zra-uninstall-test-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         let root = dir.join("app");

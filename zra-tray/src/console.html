@@ -285,6 +285,18 @@
       </div>
     </div>
 
+    <div class="ssh" id="install-ssh"><span class="ssh-label">Installation</span><span class="divider-h"></span></div>
+    <div class="srow last" id="install-row">
+      <div class="srow-inner">
+        <div class="srow-text">
+          <div class="srow-title" id="install-title">Installer sur ce poste</div>
+          <div class="srow-desc" id="install-desc"><span>ZRA sera copié dans un emplacement fixe, avec un raccourci Menu Démarrer ; les chemins absolus (Zed, démarrage automatique) seront recâblés. Désinstallable proprement. Pas de retour arrière : la sortie est la désinstallation.</span></div>
+        </div>
+        <div class="srow-control"><button class="btn" id="install-btn">Installer sur ce poste</button></div>
+      </div>
+      <div class="steps" id="install-steps"></div>
+    </div>
+
     <div class="ssh"><span class="ssh-label">Désinstallation</span><span class="divider-h"></span></div>
     <div class="srow last">
       <div class="srow-inner">
@@ -385,6 +397,24 @@
       const s = document.createElement('span')
       s.textContent = 'Installation depuis le dépôt (flux contributeur) : le dé-câblage de Zed et le démarrage automatique seront retirés ; le dossier cloné n\'est pas supprimé.'
       $('uninstall-desc').append(s)
+    }
+    // Installation (5.7) : layout app seulement ; installé = pas de bouton.
+    $('install-ssh').classList.toggle('hidden', !state.appLayout)
+    $('install-row').classList.toggle('hidden', !state.appLayout)
+    if (state.appLayout) {
+      if (state.installed) {
+        $('install-title').textContent = 'Installé sur ce poste'
+        $('install-btn').classList.add('hidden')
+        $('install-desc').innerHTML = ''
+        const s = document.createElement('span')
+        s.textContent = `Emplacement : ${state.installTarget}. Pour sortir : la désinstallation ci-dessous.`
+        $('install-desc').append(s)
+      } else if (state.installTarget) {
+        $('install-desc').innerHTML = ''
+        const s = document.createElement('span')
+        s.textContent = `ZRA sera copié dans ${state.installTarget}, avec un raccourci Menu Démarrer ; les chemins absolus (Zed, démarrage automatique) seront recâblés. Désinstallable proprement. Pas de retour arrière : la sortie est la désinstallation.`
+        $('install-desc').append(s)
+      }
     }
   }
 
@@ -547,6 +577,44 @@
       const body = await post('/open-logs')
       if (!body.ok) showError(body.error)
     } catch { showError('Le tray ne répond plus.') }
+  })
+
+  // --- Self-install (5.7) ------------------------------------------------------
+  $('install-btn').addEventListener('click', async () => {
+    if (!confirm('Installer ZRA sur ce poste ? Le service sera arrêté, ZRA copié dans son emplacement fixe, puis relancé depuis celui-ci.')) return
+    $('install-btn').disabled = true
+    clearBanners()
+    let body = null
+    try {
+      const res = await fetch('/install', { method: 'POST', body: '{}' })
+      body = await res.json()
+    } catch { /* le processus est remplacé : connexion coupée, attendu */ }
+    if (body && !body.ok) {
+      showError(body.error || 'Échec de l\'installation.')
+      $('install-btn').disabled = false
+      return
+    }
+    if (body?.steps) {
+      const box = $('install-steps')
+      for (const s of body.steps) {
+        const row = document.createElement('div')
+        row.className = 'step ' + (s.ok ? 'ok' : 'ko')
+        row.innerHTML = s.ok ? ICONS.check : ICONS.warning
+        const txt = document.createElement('div')
+        const t = document.createElement('div')
+        t.textContent = s.label + (s.ok ? '' : ' — échec')
+        txt.append(t)
+        if (s.output) {
+          const o = document.createElement('div')
+          o.className = 'step-output'
+          o.textContent = s.output
+          txt.append(o)
+        }
+        row.append(txt)
+        box.append(row)
+      }
+    }
+    showOk('ZRA est installé et redémarre depuis son emplacement fixe. Cet onglet peut être fermé.')
   })
 
   // --- Désinstallation (5.5) ---------------------------------------------------
