@@ -360,6 +360,16 @@ conception : `reference/conception-zra-tray.md`). Son menu ouvre une
 **console de gestion** (page locale dans le navigateur) : état du service,
 bascule poste/relais, démarrage automatique, journal, versions, arrêt du tray.
 
+**Mises à jour (archive « app »)** : canal stable unique — la dernière
+release des forges (Forgejo puis GitHub en repli). Réglage « mises à jour
+automatiques » (défaut activé) + bouton « Vérifier » dans la console :
+l'archive est téléchargée en arrière-plan, puis installée au prochain arrêt
+ou redémarrage du tray (« Installer et redémarrer » pour tout de suite).
+`app/.zra` et `app/zra.config.json` sont préservés ; sous Windows l'exe
+vivant est renommé puis remplacé, l'ancien supprimé après exit. En layout
+dépôt (contributeur), les mises à jour viennent de git — le tray n'y touche
+pas.
+
 **Politique PowerShell** — le script clavier et le lanceur PowerShell de
 repli lancent PowerShell avec `-ExecutionPolicy Bypass` : choix assumé pour
 que le pilotage marche quel que soit le poste. Le contournement ne vaut que

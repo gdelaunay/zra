@@ -69,7 +69,31 @@ merge, prendre l'union des sections.
   désormais `zra-tray/test/`. Endpoints vérifiés en réel contre le daemon
   vivant (mode observateur, lecture seule).
 
-(5.4 et suivantes : à compléter au fil des lots)
+**5.4 — updates** :
+- Canal stable unique : les tags pré-release (`v0.6.0-dev`) sont rejetés —
+  vérifié en réel sur les deux forges (réponse actuelle = `v0.6.0-dev`).
+  Le flux complet (téléchargement + application) n'est donc testable qu'avec
+  une vraie release stable → « À tester ».
+- Updates seulement en layout « app » (archive grand public). En layout
+  dépôt, le code vient de git : la console l'affiche, le tray ne touche à
+  rien (écraser un repo cloné serait une surprise).
+- « Application au restart » = à l'arrêt du **tray** (Quitter menu/console,
+  Ctrl-C) ou via « Installer et redémarrer ». Le « Redémarrer » du menu
+  redémarre le *service*, pas le tray : il n'applique pas l'update (distinction
+  volontaire, documentée dans la console).
+- Windows : exe vivant renommé en `zra-tray.old.exe` (permis à chaud), neuf
+  copié à la place, script PowerShell détaché (`Wait-Process` sur notre pid)
+  qui supprime l'ancien et relance. Pas d'exe helper dédié (conception).
+  Linux : `rename` par-dessus l'exe vivant + `exec` en place (même pid —
+  l'unité systemd --user ne voit pas d'arrêt, pas de problème KillMode).
+- Merge de `app/` : `.zra` et `zra.config.json` préservés (test unitaire) ;
+  les fichiers supprimés en amont ne sont pas purgés (pas de prune — simple).
+- Nouvelle dépendance Cargo : `zip` (deflate seul) pour l'extraction ;
+  traversal ignoré (`enclosed_name`, testé).
+- État dans `.zra/updates/state.json` (autoUpdate défaut true, pending,
+  latest, lastCheck epoch secondes formaté par la page, error).
+
+(5.5 et suivantes : à compléter au fil des lots)
 
 ## À tester
 
@@ -98,7 +122,15 @@ merge, prendre l'union des sections.
   systemd --user, XDG) — testé schtasks en lecture seule ce soir.
 - Bouton « Quitter le tray » : arrêt propre + enfants tués (Job Object).
 
-(5.4 et suivantes : à compléter au fil des lots)
+**5.4** :
+- Flux update de bout en bout avec une vraie release stable (après le tag
+  `v0.6.0` propre) : check → téléchargement → pending → application au
+  restart, sur Windows **et** Linux (le swap Windows et l'exec Linux n'ont
+  pas été exécutés en réel ce soir — logique testée unitairement).
+- Auto-update en arrière-plan (thread 24 h) sur une vraie installation.
+- Repli de forge : couper Forgejo et vérifier que GitHub prend le relais.
+
+(5.5 et suivantes : à compléter au fil des lots)
 
 ## Points bloqués
 

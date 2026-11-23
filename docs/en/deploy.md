@@ -359,6 +359,15 @@ design: `reference/conception-zra-tray.md`). Its menu opens a **management
 console** (local page in the browser): service state, workstation/relay
 switch, autostart, logs, versions, tray quit.
 
+**Updates ("app" archive)**: single stable channel — the latest release from
+the forges (Forgejo, then GitHub as fallback). "Automatic updates" setting
+(enabled by default) + "Check" button in the console: the archive is
+downloaded in the background, then installed on the tray's next quit or
+restart ("Install and restart" for right now). `app/.zra` and
+`app/zra.config.json` are preserved; on Windows the running exe is renamed
+then replaced, the old one deleted after exit. In repo layout (contributor),
+updates come from git — the tray does not touch them.
+
 **PowerShell policy** — the keyboard script and the fallback PowerShell
 launcher launch PowerShell with `-ExecutionPolicy Bypass`: a deliberate
 choice so that control works whatever the machine. The bypass only applies

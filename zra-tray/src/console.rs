@@ -17,6 +17,7 @@ use crate::config::{Mode, Paths};
 use crate::orchestrate;
 use crate::status;
 use crate::supervisor::{RunState, Supervisor};
+use crate::update;
 
 const PAGE: &str = include_str!("console.html");
 const LOGO: &str = include_str!("../../zra-client/icons/icon.svg");
@@ -197,12 +198,44 @@ fn handle(mut request: tiny_http::Request, sup: &Supervisor, paths: &Paths) {
                 Err(e) => err_json(e),
             }
         }
+        (Method::Get, "/update") => ok_json(update::state_json(paths, app_version(paths))),
+        (Method::Post, "/update/check") => {
+            // Long (réseau + téléchargement) : la requête a son thread.
+            ok_json(update::check_and_fetch(paths, app_version(paths)))
+        }
+        (Method::Post, "/update/toggle") => {
+            #[derive(serde::Deserialize)]
+            struct P { enabled: bool }
+            match serde_json::from_str::<P>(&body) {
+                Ok(p) => {
+                    let mut st = update::UpdateState::load(paths);
+                    st.auto_update = p.enabled;
+                    st.save(paths);
+                    ok_json(json!({ "ok": true }))
+                }
+                Err(e) => err_json(format!("Requête invalide : {e}")),
+            }
+        }
+        (Method::Post, "/update/apply") => {
+            let st = update::UpdateState::load(paths);
+            let inner = st.pending.as_deref().and_then(|v| update::pending_inner(paths, v));
+            match inner {
+                Some(inner) => {
+                    sup.stop();
+                    let _ = request.respond(ok_json(json!({ "ok": true })));
+                    if let Err(err) = update::apply_and_relaunch(paths, &inner) {
+                        eprintln!("[zra-tray] update impossible ({err}) — arrêt.");
+                        std::process::exit(1);
+                    }
+                    return; // succès : le processus est remplacé (exit ou exec)
+                }
+                None => err_json("Aucune update prête à installer.".into()),
+            }
+        }
         (Method::Post, "/quit") => {
-            sup.stop();
             let _ = request.respond(ok_json(json!({ "ok": true })));
-            // Le processus meurt après la réponse ; les enfants meurent avec
-            // lui (Job Object / PDEATHSIG), stop() a déjà fait l'arrêt propre.
-            std::process::exit(0);
+            crate::quit_with_update(sup, paths);
+            return;
         }
         _ => err_json("Introuvable.".into()),
     };

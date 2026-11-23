@@ -17,6 +17,7 @@ mod onboarding;
 mod orchestrate;
 mod status;
 mod supervisor;
+mod update;
 
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -89,6 +90,22 @@ fn main() {
     // ouverte depuis le menu — l'UI du tray.
     let console = console::start(sup.clone(), paths.clone());
 
+    // Updates automatiques (5.4) : vérification au démarrage (+30 s, laisser
+    // le service monter) puis chaque jour ; téléchargement si activé. Le
+    // pending s'applique au prochain arrêt/redémarrage (quit_with_update).
+    {
+        let paths = paths.clone();
+        thread::spawn(move || {
+            thread::sleep(Duration::from_secs(30));
+            loop {
+                if update::UpdateState::load(&paths).auto_update {
+                    update::check_and_fetch(&paths, console::app_version(&paths));
+                }
+                thread::sleep(Duration::from_secs(24 * 3600));
+            }
+        });
+    }
+
     // Adopter un service déjà vivant plutôt que spawner un second. En mode
     // relais, un /status qui répond trahit un daemon sur le port : ce n'est
     // pas un relais, on n'adopte pas (et on ne spawn pas dans le vide).
@@ -114,9 +131,9 @@ fn main() {
     if headless {
         eprintln!("[zra-tray] console de gestion : {}", console.url);
         let sup2 = sup.clone();
+        let paths2 = paths.clone();
         ctrlc::set_handler(move || {
-            sup2.stop();
-            std::process::exit(0);
+            quit_with_update(&sup2, &paths2);
         })
         .expect("handler Ctrl-C");
         loop {
@@ -247,8 +264,7 @@ fn run_gui(sup: Arc<Supervisor>, paths: Arc<Paths>, cfg: config::TrayConfig, con
                 let _ = url;
             }
             Event::UserEvent(UserEvent::Quit) => {
-                sup.stop();
-                *control_flow = ControlFlow::Exit;
+                quit_with_update(&sup, &paths);
             }
             Event::MainEventsCleared => {
                 while let Ok(ev) = menu_rx.try_recv() {
@@ -294,8 +310,7 @@ fn run_gui(sup: Arc<Supervisor>, paths: Arc<Paths>, cfg: config::TrayConfig, con
                             mode_item.set_text(mode_switch_label(next));
                         }
                         ID_QUIT => {
-                            sup.stop();
-                            *control_flow = ControlFlow::Exit;
+                            quit_with_update(&sup, &paths);
                         }
                         _ => {}
                     }
@@ -304,6 +319,24 @@ fn run_gui(sup: Arc<Supervisor>, paths: Arc<Paths>, cfg: config::TrayConfig, con
             _ => {}
         }
     });
+}
+
+/// Arrêt du tray : service stoppé, puis update pending appliquée s'il y en
+/// a une (5.4 — « application au restart »). apply_and_relaunch ne rend pas
+/// la main en cas de succès (exit Windows + script de relance, exec unix).
+/// Sans pending : exit propre, les enfants meurent avec le tray.
+pub(crate) fn quit_with_update(sup: &Supervisor, paths: &Paths) {
+    sup.stop();
+    let st = update::UpdateState::load(paths);
+    if let Some(version) = st.pending.as_deref() {
+        if let Some(inner) = update::pending_inner(paths, version) {
+            eprintln!("[zra-tray] update {version} : application au redémarrage.");
+            if let Err(err) = update::apply_and_relaunch(paths, &inner) {
+                eprintln!("[zra-tray] update impossible ({err}) — arrêt sans update.");
+            }
+        }
+    }
+    std::process::exit(0);
 }
 
 fn mode_switch_label(current: Mode) -> &'static str {

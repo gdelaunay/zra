@@ -311,8 +311,14 @@ tue le piège « dossier déplacé → chemins absolus périmés » du portable.
      mode, démarrage automatique (via `service.mjs`), journal, à propos
      (versions, chemins, liens), quitter le tray. Updates et désinstallation
      s'y ajoutent aux étapes 5.4/5.5.
-   - **5.4** updates : canal stable unique, auto-update (défaut activé),
-     application au restart (swap différé Windows).
+   - **5.4 — Fait** updates : canal stable unique (`update.rs`), vérification
+     au démarrage + chaque jour, téléchargement de l'archive si auto activé
+     (défaut) ou sur « Vérifier », application au prochain arrêt/redémarrage
+     du tray — merge de `app/` en préservant `.zra` et `zra.config.json`,
+     exe renommé puis remplacé sous Windows (script détaché : suppression de
+     l'ancien après exit + relance), `exec` en place sous Linux (même pid,
+     systemd ne voit rien). Layout dépôt : pas d'update par le tray (git).
+     Réglage + boutons dans la console ; état dans `.zra/updates/state.json`.
    - **5.5** désinstallation « machine comme on l'a trouvée » + clé HKCU.
    - **5.6** unité systemd du relais générée par le binaire (homelab).
    - **5.7** self-install par le tray (conception figée, section dédiée) :
@@ -323,11 +329,13 @@ tue le piège « dossier déplacé → chemins absolus périmés » du portable.
 
 ## Reprise (handoff)
 
-**État** : 5.1 + 5.2 + 5.3 faits (archive « app », onboarding grand public,
-TLS poste, pare-feu best-effort, console de gestion) ; CI + release vérifiées
-sur les deux forges (tag `v0.6.0-dev`, 4 assets). Restent 5.4 (updates),
-5.5 (désinstallation + HKCU), 5.6 (unité systemd relais), 5.7 (self-install,
-conception figée). Prochaine étape par défaut : **5.4**.
+**État** : 5.1 + 5.2 + 5.3 + 5.4 faits (archive « app », onboarding grand
+public, TLS poste, pare-feu best-effort, console de gestion, updates) ;
+CI + release vérifiées sur les deux forges (tag `v0.6.0-dev`, 4 assets).
+Restent 5.5 (désinstallation + HKCU), 5.6 (unité systemd relais),
+5.7 (self-install, conception figée). Prochaine étape par défaut : **5.5**.
+Le flux update n'est testable de bout en qu'avec une vraie release stable
+(`v0.6.0-dev` est une pré-release, rejetée à dessein par le canal stable).
 
 **À vérifier sur les postes Linux** (fait sur Windows seulement) : warning
 XWayland affiché sous Wayland, sonde pare-feu ufw/firewalld (`listen-test.mjs`).

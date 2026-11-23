@@ -19,6 +19,8 @@ open = "5"
 fd-lock = "4"
 ctrlc = "3"
 image = { version = "0.25", default-features = false, features = ["png"] }
+# Updates (5.4) : extraction de l'archive « app » téléchargée.
+zip = { version = "2", default-features = false, features = ["deflate"] }
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_JobObjects"] }

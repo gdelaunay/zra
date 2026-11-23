@@ -206,6 +206,39 @@
       <div id="log-view">…</div>
     </div>
 
+    <div class="ssh"><span class="ssh-label">Mises à jour</span><span class="divider-h"></span></div>
+    <div id="update-block">
+      <div class="srow">
+        <div class="srow-inner">
+          <div class="srow-text">
+            <div class="srow-title">Mises à jour automatiques</div>
+            <div class="srow-desc"><span>Canal stable unique : la dernière version est téléchargée en arrière-plan, puis installée au prochain arrêt ou redémarrage. Vos réglages et vos données sont conservés.</span></div>
+          </div>
+          <div class="srow-control"><input type="checkbox" id="auto-update" checked></div>
+        </div>
+      </div>
+      <div class="srow last">
+        <div class="srow-inner">
+          <div class="srow-text">
+            <div class="srow-title">Version <span class="mono muted" id="update-versions"></span></div>
+            <div class="srow-desc" id="update-status"><span>…</span></div>
+          </div>
+          <div class="srow-control">
+            <button class="btn" id="update-check">Vérifier</button>
+            <button class="btn primary hidden" id="update-apply">Installer et redémarrer</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="update-git" class="hidden">
+      <div class="srow last">
+        <div class="srow-text">
+          <div class="srow-title">Mises à jour</div>
+          <div class="srow-desc"><span>Installation depuis le dépôt (flux contributeur) : les mises à jour viennent de git, pas du tray.</span></div>
+        </div>
+      </div>
+    </div>
+
     <div class="ssh"><span class="ssh-label">À propos</span><span class="divider-h"></span></div>
     <div class="srow">
       <div class="srow-inner">
@@ -356,6 +389,80 @@
     }
   }
 
+  // --- Mises à jour (5.4) ----------------------------------------------------
+  let upd = null
+
+  function renderUpdate() {
+    if (!upd) return
+    $('update-block').classList.toggle('hidden', !upd.supported)
+    $('update-git').classList.toggle('hidden', upd.supported)
+    if (!upd.supported) return
+    $('auto-update').checked = upd.autoUpdate
+    $('update-versions').textContent = upd.current ? `actuelle ${upd.current}` : ''
+    $('update-apply').classList.toggle('hidden', !upd.pending)
+    const s = document.createElement('span')
+    if (upd.pending) {
+      s.textContent = `Version ${upd.pending} prête — elle sera installée au prochain arrêt ou redémarrage.`
+    } else if (upd.error) {
+      s.textContent = `Dernière vérification : ${upd.error}`
+    } else if (upd.latest && upd.current && upd.latest !== upd.current) {
+      s.textContent = `Version ${upd.latest} disponible.`
+    } else if (upd.latest) {
+      s.textContent = `À jour (${upd.latest}).`
+    } else {
+      s.textContent = 'Pas encore vérifié.'
+    }
+    if (upd.lastCheck) {
+      const d = new Date(Number(upd.lastCheck) * 1000)
+      const detail = document.createElement('span')
+      detail.textContent = `Dernière vérification : ${d.toLocaleString()}.`
+      $('update-status').innerHTML = ''
+      $('update-status').append(s, detail)
+    } else {
+      $('update-status').innerHTML = ''
+      $('update-status').append(s)
+    }
+  }
+
+  async function loadUpdate() {
+    try {
+      const res = await fetch('/update')
+      upd = await res.json()
+      renderUpdate()
+    } catch { /* silencieux : la section reste sur son dernier état */ }
+  }
+
+  $('auto-update').addEventListener('change', async () => {
+    const cb = $('auto-update')
+    clearBanners()
+    try {
+      const body = await post('/update/toggle', { enabled: cb.checked })
+      if (!body.ok) { showError(body.error); cb.checked = !cb.checked }
+    } catch { showError('Le tray ne répond plus.'); cb.checked = !cb.checked }
+  })
+
+  $('update-check').addEventListener('click', async () => {
+    const btn = $('update-check')
+    btn.disabled = true
+    clearBanners()
+    $('update-status').innerHTML = '<span>Vérification en cours… (téléchargement si une version est disponible)</span>'
+    try {
+      const res = await fetch('/update/check', { method: 'POST', body: '{}' })
+      upd = await res.json()
+      renderUpdate()
+      if (upd.error) showError(upd.error)
+      else if (upd.pending) showOk(`Version ${upd.pending} téléchargée, prête à installer.`)
+    } catch { showError('Le tray ne répond plus.') }
+    btn.disabled = false
+  })
+
+  $('update-apply').addEventListener('click', async () => {
+    if (!confirm('Installer la mise à jour et redémarrer ZRA ? Le service sera arrêté quelques secondes.')) return
+    clearBanners()
+    try { await post('/update/apply') } catch { /* le processus est remplacé : la connexion tombe, c'est attendu */ }
+    document.body.innerHTML = '<div style="padding:40px;text-align:center">Mise à jour en cours d’installation — ZRA redémarre. Cet onglet peut être fermé.</div>'
+  })
+
   $('restart').addEventListener('click', async () => {
     busy = true; render(); clearBanners()
     try {
@@ -414,6 +521,7 @@
   refresh()
   loadLogs()
   loadAutostart()
+  loadUpdate()
   setInterval(refresh, 5000)
 </script>
 </body>

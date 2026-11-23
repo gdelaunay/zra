@@ -24,6 +24,12 @@ const STATE = {
   root: 'C:/zra', logFile: 'C:/zra/.zra/logs/daemon.log',
 }
 
+// Layout dépôt par défaut : pas d'update par le tray (flux contributeur).
+let UPDATE = {
+  supported: false, autoUpdate: true, current: '0.6.0',
+  pending: null, latest: null, lastCheck: null, error: null,
+}
+
 function fakeFetch(state) {
   return async (url, opts = {}) => {
     const path = String(url).split('?')[0]
@@ -37,6 +43,10 @@ function fakeFetch(state) {
     if (path === '/mode') return json({ ok: true })
     if (path === '/open-logs') return json({ ok: true })
     if (path === '/quit') return json({ ok: true })
+    if (path === '/update') return json(UPDATE)
+    if (path === '/update/check') return json({ ...UPDATE, latest: '0.7.0', pending: '0.7.0', lastCheck: '1700000000' })
+    if (path === '/update/toggle') return json({ ok: true })
+    if (path === '/update/apply') return json({ ok: true })
     return json({ ok: false, error: 'inattendu : ' + path })
   }
 }
@@ -129,4 +139,37 @@ test('bascule de mode : confirmation puis POST /mode', async () => {
   // sinon leur activité async survit au test (window.close() dans after).
   await until(() => calls.some((c) => c.path === '/state'))
   await until(() => calls.some((c) => c.path === '/logs'))
+})
+test('updates : layout dépôt → message git, contrôles masqués', async () => {
+  UPDATE = { supported: false, autoUpdate: true, current: '0.6.0', pending: null, latest: null, lastCheck: null, error: null }
+  const win = await loadPage(STATE)
+  const $ = (id) => win.document.getElementById(id)
+  await until(() => $('about-version').textContent === '0.6.0')
+  await until(() => !$('update-git').classList.contains('hidden'))
+  assert.ok($('update-block').classList.contains('hidden'))
+  assert.match($('update-git').textContent, /git/)
+})
+
+test('updates : pending → bouton installer, statut, toggle et vérifier', async () => {
+  UPDATE = { supported: true, autoUpdate: true, current: '0.6.0', pending: null, latest: '0.6.0', lastCheck: null, error: null }
+  const win = await loadPage(STATE)
+  const $ = (id) => win.document.getElementById(id)
+  await until(() => $('about-version').textContent === '0.6.0')
+  await until(() => !$('update-block').classList.contains('hidden'))
+  assert.ok($('auto-update').checked, 'auto activé par défaut')
+  assert.ok($('update-apply').classList.contains('hidden'), 'pas de pending : pas de bouton installer')
+  assert.match($('update-status').textContent, /À jour/)
+
+  // Toggle : POST avec l'état inversé.
+  calls.length = 0
+  $('auto-update').checked = false
+  $('auto-update').dispatchEvent(new win.Event('change', { bubbles: true }))
+  await until(() => calls.some((c) => c.path === '/update/toggle'))
+  assert.deepEqual(calls.find((c) => c.path === '/update/toggle').body, { enabled: false })
+
+  // Vérifier : le fake renvoie un pending → bouton installer visible.
+  $('update-check').dispatchEvent(new win.MouseEvent('click', { bubbles: true }))
+  await until(() => !$('update-apply').classList.contains('hidden'))
+  assert.match($('update-status').textContent, /0\.7\.0 prête/)
+  assert.match($('ok-text').textContent, /téléchargée/)
 })
