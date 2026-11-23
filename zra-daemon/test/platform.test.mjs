@@ -14,9 +14,9 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { existsSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { join, resolve } from 'node:path'
 
-import { loadConfig } from '../config.js'
+import { ROOT, loadConfig } from '../config.js'
 
 import {
   KEYBOARD_BACKENDS, PATHS, configRoot, defaultZedCli, detectZedChannel, installTarget, keyboardPreference, processProbe,
@@ -196,6 +196,22 @@ test('configRoot : installé + XDG_CONFIG_HOME → dossier config surchargé', (
   assert.equal(configRoot({ platform: 'linux', env: { XDG_CONFIG_HOME: '/conf' }, home: LX_HOME,
     root: '/home/test/.local/share/zra/app' }),
     '/conf/zra')
+})
+
+test('loadConfig : installé → config + données précieuses dans le dossier config utilisateur', async () => {
+  const cfg = await loadConfig({ root: join(installTarget(), 'app') })
+  const base = PATHS.zraConfigDir
+  assert.equal(cfg.auth.file, join(base, '.zra', 'auth.json'))
+  assert.equal(cfg.threadOpsFile, join(base, '.zra', 'thread-ops.json'))
+  assert.equal(cfg.pushFile, join(base, '.zra', 'push.json'))
+  assert.equal(cfg.keepAwakeFile, join(base, '.zra', 'keep-awake.json'))
+})
+
+test('loadConfig : dépôt/portable → données précieuses à la racine (inchangé)', async () => {
+  const cfg = await loadConfig({ root: ROOT })
+  assert.equal(cfg.auth.file, join(ROOT, '.zra', 'auth.json'))
+  assert.equal(cfg.threadOpsFile, join(ROOT, '.zra', 'thread-ops.json'))
+  assert.equal(cfg.pushFile, join(ROOT, '.zra', 'push.json'))
 })
 
 test('linux : le séparateur suit la plateforme visée, pas l’OS hôte', () => {
