@@ -110,6 +110,28 @@
   input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
   input:disabled { color: var(--text); opacity: 1; background: var(--element); }
   input.short { width: 80px; }
+  /* Number : flèches natives masquées, dimensionné au contenu sauf .short.
+     .numinput : stepper vertical custom (chevrons Zed) ; .no-spin le masque. */
+  input[type=number] { appearance: textfield; -moz-appearance: textfield; field-sizing: content; }
+  input[type=number]::-webkit-inner-spin-button,
+  input[type=number]::-webkit-outer-spin-button { appearance: none; -webkit-appearance: none; margin: 0; }
+  .numinput { position: relative; display: inline-flex; }
+  .numinput input[type=number] { padding-right: 24px; }
+  .numinput .ni-spin {
+    position: absolute; top: 1px; right: 1px; bottom: 1px; width: 20px;
+    display: flex; flex-direction: column; overflow: hidden;
+    border-left: 1px solid var(--border-variant); border-radius: 0 3px 3px 0;
+  }
+  .numinput .ni-spin button {
+    flex: 1; display: flex; align-items: center; justify-content: center; padding: 0;
+    background: var(--element); border: 0; border-radius: 0; color: var(--text-muted); cursor: pointer;
+  }
+  .numinput .ni-spin button:hover { background: var(--element-hover); color: var(--text); }
+  .numinput .ni-spin button + button { border-top: 1px solid var(--border-variant); }
+  .numinput .ni-spin svg { width: 10px; height: 10px; }
+  .numinput input:disabled ~ .ni-spin { opacity: .45; pointer-events: none; }
+  .numinput.no-spin .ni-spin { display: none; }
+  .numinput.no-spin input[type=number] { padding-right: 8px; }
   /* Champ désactivé : mêmes proportions qu'activé, aucun saut de mise en page. */
   select {
     background: var(--element); color: var(--text); border: 1px solid var(--border);
@@ -357,7 +379,7 @@
             </div>
             <div class="srow-control" data-port="port">
               <button class="ibtn reset hidden" title="Rétablir la valeur par défaut" data-i18n-title></button>
-              <input type="number" class="short" min="1" max="65535" value="7777" disabled>
+              <span class="numinput"><input type="number" class="short" min="1" max="65535" value="7777" disabled><span class="ni-spin"><button type="button" class="ni-up" title="Incrémenter"><svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4.15186 9.56252L7.99258 5.86609L11.8483 9.56252" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><button type="button" class="ni-down" title="Décrémenter"><svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4.15186 6.47321L7.99258 10.1696L11.8483 6.47321" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></span></span>
               <button class="ibtn toggle" title="Modifier" data-i18n-title></button>
             </div>
           </div>
@@ -372,7 +394,7 @@
             </div>
             <div class="srow-control" data-port="relayPort">
               <button class="ibtn reset hidden" title="Rétablir la valeur par défaut" data-i18n-title></button>
-              <input type="number" class="short" min="1" max="65535" value="7777" disabled>
+              <span class="numinput"><input type="number" class="short" min="1" max="65535" value="7777" disabled><span class="ni-spin"><button type="button" class="ni-up" title="Incrémenter"><svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4.15186 9.56252L7.99258 5.86609L11.8483 9.56252" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><button type="button" class="ni-down" title="Décrémenter"><svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4.15186 6.47321L7.99258 10.1696L11.8483 6.47321" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></span></span>
               <button class="ibtn toggle" title="Modifier" data-i18n-title></button>
             </div>
           </div>
@@ -876,6 +898,23 @@
     input.addEventListener('input', syncReset)
     input.addEventListener('keydown', (e) => { if (e.key === 'Enter') toggle.click() })
     syncReset()
+  }
+
+  // --- Steppers number (.numinput) : chevrons +/− pas à pas, bornes min/max ----
+  for (const wrap of document.querySelectorAll('.numinput')) {
+    const input = wrap.querySelector('input[type=number]')
+    if (!input) continue
+    const step = (dir) => {
+      if (input.disabled) return
+      const s = Number(input.step) || 1
+      const min = input.min === '' ? -Infinity : Number(input.min)
+      const max = input.max === '' ? Infinity : Number(input.max)
+      const cur = input.value === '' ? 0 : Number(input.value)
+      input.value = String(Math.min(max, Math.max(min, cur + dir * s)))
+      input.dispatchEvent(new Event('input', { bubbles: true }))
+    }
+    wrap.querySelector('.ni-up')?.addEventListener('click', () => step(1))
+    wrap.querySelector('.ni-down')?.addEventListener('click', () => step(-1))
   }
 
   // --- Mode, hôte, TLS -------------------------------------------------------
