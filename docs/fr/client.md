@@ -7,7 +7,7 @@ Front de ZRA. **Zéro build** : HTML + CSS + ESM natifs, servis tels quels par
 ```
 zra-client/
   index.html  manifest.webmanifest  sw.js
-  icons/  logo + favicon/apple-touch/maskable/badge (générés)
+  icons/  logo + favicon/apple-touch/maskable/badge/tray (générés)
   css/   themes.css (généré)  app.css
   icon-themes/  colored-zed/ (vendored : theme.json, SVG dark/light, LICENSES)
   js/    main.js store.js link.js settings.js acp.js markdown.js diff.js
@@ -215,21 +215,24 @@ colorés). Le changement de jeu repeint le fil sans rechargement.
 
 ## Icônes de l'app
 
-Logo « Grand Z émetteur » (Z fendu bicolore + ondes dans l'angle), décliné dans
-`icons/` depuis une source unique par `scripts/gen-icons.mjs` (sharp, aucune
-dépendance runtime) :
+Logo « Z fendu bicolore », décliné dans `icons/` depuis une source unique par
+`scripts/gen-icons.mjs` (sharp, aucune dépendance runtime) :
 
 | Fichier | Usage |
 |---|---|
 | `icon.svg` | favicon moderne + source ; neutre/accent adaptés au clair/sombre (`prefers-color-scheme`) |
 | `favicon-32.png` | fallback favicon (Safari), fond sombre |
 | `apple-touch-icon.png` | écran d'accueil iOS, fond plein |
-| `icon-192.png` | icône notifications + manifest `any`, fond sombre |
+| `icon-192.png` | manifest `any` (fallback lanceur), fond sombre arrondi, mark en zone sûre |
 | `icon-maskable.png` | manifest `maskable`, mark dans la zone sûre |
-| `badge.png` / `badge.svg` | badge de notification, silhouette blanche |
+| `badge.png` / `badge.svg` | badge de notification (barre de statut mobile), silhouette blanche |
+| `tray.png` | tray système (embarqué dans `zra-tray`) : variante sombre, couleur sur transparent |
+| `tray-light.png` | tray système : variante claire, couleur sur transparent |
 
 Couleurs gruvbox : neutre `#ebdbb2`, accent `#b8bb26` (sombre) / `#98971a`
-(clair). Le logo du header (`brandLogo()`, `js/icons.js`) est inline : neutre en
+(clair). Le tray choisit sa variante selon le thème de la barre des tâches
+Windows (registre `SystemUsesLightTheme`, vérifié toutes les 5 s) ; Linux
+garde la variante sombre (pas de thème panel fiable). Le logo du header (`brandLogo()`, `js/icons.js`) est inline : neutre en
 `currentColor`, accent en `light-dark()` — il suit le thème de l'app, pas celui
 de l'OS.
 

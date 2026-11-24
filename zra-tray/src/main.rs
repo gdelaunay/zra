@@ -177,12 +177,12 @@ fn run_gui(sup: Arc<Supervisor>, paths: Arc<Paths>, cfg: config::TrayConfig, con
     let event_loop = EventLoopBuilder::<UserEvent>::with_user_event().build();
     let proxy = event_loop.create_proxy();
 
-    // Icône : celle de la PWA, embarquée dans le binaire.
-    let img = image::load_from_memory(include_bytes!("../../zra-client/icons/icon-192.png"))
-        .expect("icône PWA")
-        .to_rgba8();
-    let (w, h) = img.dimensions();
-    let icon = Icon::from_rgba(img.into_raw(), w, h).expect("icône tray");
+    // Icônes tray : mark couleur sur transparent, deux variantes embarquées.
+    // Windows : swap selon le thème de la barre des tâches ; Linux : sombre fixe.
+    let icon_dark = load_icon(include_bytes!("../../zra-client/icons/tray.png"));
+    let icon_light = load_icon(include_bytes!("../../zra-client/icons/tray-light.png"));
+    let mut light = taskbar_light();
+    let icon = if light { icon_light.clone() } else { icon_dark.clone() };
 
     let menu = Menu::new();
     let status_item = MenuItem::with_id("status", tr!("ZRA — démarrage…"), false, None);
@@ -283,6 +283,12 @@ fn run_gui(sup: Arc<Supervisor>, paths: Arc<Paths>, cfg: config::TrayConfig, con
         *control_flow = ControlFlow::WaitUntil(Instant::now() + Duration::from_millis(250));
         match event {
             Event::UserEvent(UserEvent::Status { text, url, up, adopted }) => {
+                // Thème de la barre des tâches : swap de variante si changement.
+                let now_light = taskbar_light();
+                if now_light != light {
+                    light = now_light;
+                    let _ = tray.set_icon(Some(if light { icon_light.clone() } else { icon_dark.clone() }));
+                }
                 status_item.set_text(&text);
                 let _ = tray.set_tooltip(Some(&text));
                 let (mode, _) = sup.snapshot();
@@ -373,6 +379,35 @@ fn mode_switch_label(current: Mode) -> String {
         Mode::Poste => tr!("Passer en mode relais"),
         Mode::Relais => tr!("Passer en mode poste"),
     }
+}
+
+fn load_icon(bytes: &[u8]) -> Icon {
+    let img = image::load_from_memory(bytes).expect("icône tray").to_rgba8();
+    let (w, h) = img.dimensions();
+    Icon::from_rgba(img.into_raw(), w, h).expect("icône tray")
+}
+
+/// Thème de la barre des tâches Windows : Personalize\SystemUsesLightTheme
+/// (thème système, pas apps). Absent/clé manquante → sombre. Hors Windows :
+/// pas de thème panel fiable (SNI/AppIndicator) → variante sombre fixe.
+#[cfg(windows)]
+fn taskbar_light() -> bool {
+    use windows_sys::Win32::System::Registry::{RegGetValueW, HKEY_CURRENT_USER, RRF_RT_REG_DWORD};
+    let subkey: Vec<u16> = "Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize\0"
+        .encode_utf16().collect();
+    let value: Vec<u16> = "SystemUsesLightTheme\0".encode_utf16().collect();
+    let mut data = 0u32;
+    let mut len = std::mem::size_of::<u32>() as u32;
+    let status = unsafe {
+        RegGetValueW(HKEY_CURRENT_USER, subkey.as_ptr(), value.as_ptr(), RRF_RT_REG_DWORD,
+            std::ptr::null_mut(), &mut data as *mut u32 as *mut _, &mut len)
+    };
+    status == 0 && data == 1
+}
+
+#[cfg(not(windows))]
+fn taskbar_light() -> bool {
+    false
 }
 
 /// Dernière URL connue, ou l'origine par défaut du service (pas encore up).

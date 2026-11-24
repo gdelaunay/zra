@@ -23,7 +23,7 @@ image = { version = "0.25", default-features = false, features = ["png"] }
 zip = { version = "2", default-features = false, features = ["deflate"] }
 
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_JobObjects", "Win32_Globalization"] }
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_JobObjects", "Win32_Globalization", "Win32_System_Registry"] }
 
 [target.'cfg(unix)'.dependencies]
 # killpg (arrêt du groupe de processus) et prctl PDEATHSIG (pas d'orphelin).
