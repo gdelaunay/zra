@@ -71,3 +71,9 @@ Rien n'est poussé/taggé par l'agent : les branches attendent la review.
 
 Aucun pour l'instant. Les bugs trouvés en testant seront notés ici puis
 corrigés.
+
+- **Bug (test Linux Debian/KDE) — corrigé** : `ci-package-app.mjs` n'embarquait
+  pas `i18n/` → `app/i18n/en.json` absent, crash ENOENT du daemon et des
+  scripts en environnement anglais (discover mort → bannière « Zed
+  introuvable » trompeuse à l'onboarding). Fix : copie du dossier + test de
+  régression.

@@ -1,6 +1,6 @@
 // Archive « app » (CI) : version lue dans Cargo.toml, nom de l'archive,
-// layout staging (binaire à la racine + app/ avec les quatre dossiers runtime
-// et package.json). Pas de zip ici — outil de l'OS, testé en CI.
+// layout staging (binaire à la racine + app/ avec les quatre dossiers runtime,
+// i18n et package.json). Pas de zip ici — outil de l'OS, testé en CI.
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
@@ -27,6 +27,8 @@ function fakeRoot(t, target = WIN, { binary = true } = {}) {
   }
   mkdirSync(join(root, 'zra-client', 'tools'), { recursive: true })
   writeFileSync(join(root, 'zra-client', 'tools', 'mock-server.mjs'), '// dev-only\n')
+  mkdirSync(join(root, 'i18n'), { recursive: true })
+  writeFileSync(join(root, 'i18n', 'en.json'), '{}')
   mkdirSync(join(root, 'scripts', 'lib'), { recursive: true })
   for (const f of SCRIPT_FILES) writeFileSync(join(root, 'scripts', f), '// fake\n')
   for (const d of SCRIPT_DIRS) writeFileSync(join(root, 'scripts', d, 'args.mjs'), '// fake\n')
@@ -60,6 +62,9 @@ test('stageApp : binaire à la racine, app/ avec les quatre dossiers + package.j
   }
   // Le daemon lit ROOT/package.json pour sa version : il doit être dans app/.
   assert.deepEqual(JSON.parse(readFileSync(join(staging, 'app', 'package.json'), 'utf8')).name, 'zra')
+  // Catalogue i18n (zra-daemon/i18n.js → ROOT/i18n/en.json) : sans lui, crash
+  // ENOENT du daemon et des scripts en environnement anglais.
+  assert.ok(existsSync(join(staging, 'app', 'i18n', 'en.json')), 'app/i18n/en.json')
   assert.equal(existsSync(join(staging, 'app', 'zra-tray.exe')), false, 'pas de binaire dans app/')
   // Dev-only exclu : tests, fixtures, outils.
   for (const d of APP_DIRS) assert.equal(existsSync(join(staging, 'app', d, 'test')), false, `app/${d}/test exclu`)

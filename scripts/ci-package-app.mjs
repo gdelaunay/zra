@@ -6,7 +6,7 @@
 //
 //   zra-<version>-<target>/
 //    ├── zra-tray[.exe]   ← point d'entrée (superviseur + onboarding)
-//    └── app/             ← daemon + client + shim + relay + package.json,
+//    └── app/             ← daemon + client + shim + relay + i18n + package.json,
 //                           même version que le tray (gate tag == Cargo.toml)
 //
 // `app/` est la racine vue du daemon (config.js : ROOT = parent de
@@ -75,6 +75,8 @@ export function stageApp({ root = ROOT, target, version = trayVersion(root), out
       filter: (src) => !PRUNE.has(basename(src)),
     })
   }
+  // Catalogue i18n : zra-daemon/i18n.js le lit à ROOT/i18n/en.json (app/i18n/).
+  cpSync(join(root, 'i18n'), join(staging, 'app', 'i18n'), { recursive: true })
   // Le daemon lit ROOT/package.json pour sa version ; les exemples de config
   // servent de référence à l'utilisateur (la config réelle est créée à l'onboarding).
   cpSync(join(root, 'package.json'), join(staging, 'app', 'package.json'))
