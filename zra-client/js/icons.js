@@ -132,10 +132,10 @@ export function brandLogo(cls = '') {
   svg.setAttribute('aria-hidden', 'true')
   svg.setAttribute('class', `icon ${cls}`.trim())
   const acc = 'style="fill:light-dark(#98971a,#b8bb26)"'
-  // Glyphe centré, plein cadre dans la boîte 16 (même taille/marges que
-  // l'icône d'agent) : scale = 512 / côté bbox (246.4), translate = centre bbox.
+  // Glyphe centré, marges ~8 %/côté (même échelle que le favicon, BIG de
+  // gen-icons) : scale = (512 - 2×42) / côté bbox (246.4), translate = centre bbox.
   svg.innerHTML = `
-    <g transform="translate(256 256) scale(2.0779) translate(-235 -280)">
+    <g transform="translate(256 256) scale(1.7370) translate(-235 -280)">
       <g transform="translate(235 280) scale(0.88) translate(-256 -256)">
         <path fill="currentColor" d="M148 116 L384 116 L116 384 L116 324 L252 188 L116 188 L116 148 Z"/>
         <path ${acc} d="M396 138 L396 188 L260 324 L396 324 L396 364 L364 396 L138 396 Z"/>

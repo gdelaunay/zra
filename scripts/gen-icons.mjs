@@ -26,9 +26,10 @@ const Z_BOT = 'M396 138 L396 188 L260 324 L396 324 L396 364 L364 396 L138 396 Z'
 // (235, 280). RMAX = distance du point le plus éloigné (pointes haut-droit /
 // bas-gauche du Z). Sert à recentrer et à dimensionner les variantes.
 const CX = 235, CY = 280, RMAX = 166.9
-// BIG : remplit le viewBox au max (marge ~12 px). SAFE : tient dans la zone
-// sûre maskable (cercle Ø 410, rayon 205) pour les icônes à masque arrondi.
-const BIG = (256 - 12) / 123.2 // 1.9805
+// BIG : marges ~42 px/côté (~8 %, entre le plein cadre et la moitié du
+// maskable) — favicon, header, badge, tray. SAFE : tient dans la zone sûre
+// maskable (cercle Ø 410, rayon 205) pour les icônes à masque arrondi.
+const BIG = (256 - 42) / 123.2 // 1.7370
 const SAFE = 205 / RMAX // 1.2283
 
 function markInner(topAttr, accAttr) {
