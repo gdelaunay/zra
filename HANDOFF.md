@@ -44,15 +44,19 @@ Rien n'est poussé/taggé par l'agent : les branches attendent la review.
 
 ### Manipulation user (desktop, autres machines, destructif, release, TTY)
 
-- **Self-install réel Linux** : copie, recâblage Zed/autostart, `.desktop`,
-  relance depuis la cible ; cas limite « portable relancé → l'installée se
-  lance, pas deux trays » ; bouton console masqué une fois installé ;
-  portable mémorisé (`.zra/setup.json`) si décoché à l'onboarding.
+- **Self-install réel Linux** : reste le **portable mémorisé**
+  (`.zra/setup.json`) si décoché à l'onboarding (à tester après la
+  désinstallation, pour ne pas recâbler Zed sur une portable). Le reste est
+  validé sur Debian/KDE : copie, recâblage Zed/autostart systemd, relance
+  depuis la cible, cas « portable relancée → l'installée se lance », bouton
+  « Installer sur ce poste » masqué dans la console. Le `.desktop` ne concerne
+  que le backend XDG (machines sans systemd, ex. MX).
 - **Désinstallation réelle Linux** : dé-câblage Zed, retrait autostart,
   suppression du dossier, « garder mes paramètres » / « tout désinstaller » ;
   layout dépôt : le repo reste intact.
-- **Bascule autostart depuis la console** sur les postes Linux
-  (systemd --user, XDG).
+- **Bascule autostart depuis la console** : validée sur Debian/KDE
+  (systemd --user : décoche = unité retirée, recoche = recréée enabled).
+  Reste le **backend XDG** (MX sans systemd).
 - **Flux update de bout en bout** (Windows + Linux) avec la vraie release
   stable `v0.6.0` (après tag) : check → téléchargement → pending →
   application au restart (swap Windows, exec Linux réels).
@@ -63,9 +67,11 @@ Rien n'est poussé/taggé par l'agent : les branches attendent la review.
 - **Postes Linux de référence** (Ubuntu/GNOME, Debian/KDE, MX/Xfce) :
   comportement en mode relais (MX sans systemd → XDG), `xdg-open`, **build
   Linux par la CI** (tag de test).
-- **Garde éveillé Linux** : le helper `systemd-inhibit … sleep infinity`
-  a le même risque d'orphelin que celui corrigé sous Windows (le daemon
-  tué brutalement ne le tue pas) — vérifier, corriger si besoin.
+- **Garde éveillé Linux — risque confirmé, corrigé** : le helper
+  `systemd-inhibit … sleep infinity` survivait à un kill brutal du daemon
+  (orphelin, veille bloquée). Fix : boucle `kill -0` sur le PID du daemon
+  (même rôle que `-DaemonPid` Windows) + test de régression. Reste la
+  vérification réelle sur Debian.
 
 ## Points bloqués
 

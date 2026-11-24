@@ -68,6 +68,18 @@ test('Linux : systemd-inhibit sleep block, avec le why', () => {
   ka.close()
 })
 
+test('Linux : le helper surveille le PID du daemon (pas d\'orphelin après kill brutal)', () => {
+  const { ka, calls } = setup({ platform: 'linux' })
+  ka.setBusy(true)
+  const args = calls[0].args
+  // Boucle kill -0 sur le PID passé en dernier argument, pas de sleep infinity nu.
+  assert.ok(args.includes('sh'))
+  assert.ok(args.some((a) => a.includes('kill -0')))
+  assert.equal(args[args.length - 1], String(process.pid))
+  assert.ok(!args.includes('infinity'))
+  ka.close()
+})
+
 test('bascule 1 h : inhibe, expire au TTL, retombe à off', () => {
   const { ka, clock, children } = setup()
   ka.setMode('1h')

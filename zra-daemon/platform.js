@@ -376,9 +376,10 @@ export const KEYBOARD_BACKENDS = ['powershell', 'xdotool', 'none']
  *
  * Windows : `keep-awake.ps1` appelle `SetThreadExecutionState` puis reste
  * vivant — un one-shot ne tiendrait rien, l'état meurt avec le processus.
- * Linux : `systemd-inhibit` (logind) autour d'un `sleep infinity`. La présence
- * de logind n'est pas acquise (MX Linux est sysvinit) : `keep-awake.js` la
- * constate à l'exécution, pas ici.
+ * Linux : `systemd-inhibit` (logind) autour d'une boucle qui surveille le PID
+ * du daemon — un `sleep infinity` nu survivrait à un kill brutal du daemon
+ * (orphelin, veille bloquée pour toujours). La présence de logind n'est pas
+ * acquise (MX Linux est sysvinit) : `keep-awake.js` la constate à l'exécution.
  * macOS : hors périmètre, pas de helper.
  *
  * @param {{ platform?:string, why?:string, pid?:number }} [opts]
@@ -394,9 +395,13 @@ export function keepAwakeHelper(opts = {}) {
     return { command: 'powershell.exe', args }
   }
   if (platform === 'darwin') return null
+  // Le helper sort dès que le daemon meurt, même en kill brutal : la boucle
+  // `kill -0` remplace le `sleep infinity` (même rôle que -DaemonPid Windows).
+  const pid = String(opts.pid ?? process.pid)
   return {
     command: 'systemd-inhibit',
-    args: ['--what=sleep', '--mode=block', '--who=ZRA', `--why=${opts.why ?? 'ZRA'}`, 'sleep', 'infinity'],
+    args: ['--what=sleep', '--mode=block', '--who=ZRA', `--why=${opts.why ?? 'ZRA'}`,
+      'sh', '-c', 'while kill -0 "$1" 2>/dev/null; do sleep 5; done', 'sh', pid],
   }
 }
 
