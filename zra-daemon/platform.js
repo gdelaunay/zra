@@ -381,14 +381,17 @@ export const KEYBOARD_BACKENDS = ['powershell', 'xdotool', 'none']
  * constate à l'exécution, pas ici.
  * macOS : hors périmètre, pas de helper.
  *
- * @param {{ platform?:string, why?:string }} [opts]
+ * @param {{ platform?:string, why?:string, pid?:number }} [opts]
  * @returns {{ command:string, args:string[] }|null}
  */
 export function keepAwakeHelper(opts = {}) {
   const { platform } = ctx(opts)
   if (platform === 'win32') {
     const script = fileURLToPath(new URL('./keep-awake.ps1', import.meta.url))
-    return { command: 'powershell.exe', args: ['-NoProfile', '-NonInteractive', '-File', script] }
+    const args = ['-NoProfile', '-NonInteractive', '-File', script]
+    // Le helper sort dès que le daemon meurt, même en kill brutal (job object).
+    if (opts.pid) args.push('-DaemonPid', String(opts.pid))
+    return { command: 'powershell.exe', args }
   }
   if (platform === 'darwin') return null
   return {

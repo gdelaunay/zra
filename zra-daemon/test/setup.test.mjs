@@ -12,8 +12,24 @@ import { parseJsonc } from '../jsonc.js'
 import { discoverAgents, isPreloadEntry, isShimEntry, preloadFlag, resolveAgentCommand, wrappedAgentId } from '../agent-commands.js'
 import { readAgents } from '../agents.js'
 import { buildEntry, buildPreloadEnv, lineDiff, parseArgs, zraName } from '../../scripts/setup.mjs'
+import { installTarget, zedPaths } from '../../zra-daemon/platform.js'
 
 const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), 'fixtures')
+
+test('parseJsonc : BOM UTF-8 toléré (Notepad, PowerShell 5.1)', () => {
+  assert.deepEqual(parseJsonc('\uFEFF{"a":1}'), { a: 1 })
+})
+
+test('buildEntry/buildPreloadEnv : layout installé → journaux et records dans le dossier config utilisateur', () => {
+  const root = join(installTarget(), 'app')
+  const state = join(zedPaths().zraConfigDir, '.zra')
+  const entry = buildEntry({ agent: 'x', record: true, root })
+  assert.equal(entry.env.ZRA_LOG_FILE, join(state, 'logs', 'shim.log'))
+  assert.equal(entry.env.ZRA_RECORD_DIR, join(state, 'records'))
+  const preload = buildPreloadEnv({ agent: 'x', record: true, root })
+  assert.equal(preload.ZRA_LOG_FILE, join(state, 'logs', 'shim.log'))
+  assert.equal(preload.ZRA_RECORD_DIR, join(state, 'records'))
+})
 
 /** Au plus près du settings.json de la machine cible : commentaires, virgules traînantes. */
 const ZED_SETTINGS = `// Zed settings

@@ -77,6 +77,7 @@ pub(crate) fn copy_to(paths: &Paths, target: &Path, config_dir: &Path) -> Result
     fs::copy(&exe, &new_exe).map_err(|e| tr!("copie de l'exécutable : {0}", e))?;
     // Code → target/app, sans la config ni les données.
     let app = target.join("app");
+    fs::create_dir_all(&app).map_err(|e| tr!("création de {0} : {1}", app.display(), e))?;
     for entry in fs::read_dir(&paths.root).map_err(|e| e.to_string())? {
         let entry = entry.map_err(|e| e.to_string())?;
         let name = entry.file_name();
@@ -247,6 +248,9 @@ mod tests {
         let root = dir.join("portable").join("app");
         fs::create_dir_all(root.join("zra-daemon")).unwrap();
         fs::create_dir_all(root.join(".zra/logs")).unwrap();
+        // Fichier trié avant les dossiers : la copie ne doit pas dépendre de
+        // l'ordre de read_dir (app/ créé avant la boucle).
+        fs::write(root.join("aaa.txt"), "premier").unwrap();
         fs::write(root.join("zra-daemon/index.js"), "daemon").unwrap();
         fs::write(root.join("zra.config.json"), "config").unwrap();
         fs::write(root.join(".zra/tray.json"), "tray").unwrap();
@@ -257,6 +261,7 @@ mod tests {
         let target = copy_to(&paths, &fake_local.join("zra"), &config_dir).expect("copie");
         // Code dans target/app, sans config ni données.
         assert!(target.join("app/zra-daemon/index.js").is_file());
+        assert!(target.join("app/aaa.txt").is_file());
         assert!(!target.join("app/zra.config.json").exists());
         assert!(!target.join("app/.zra").exists());
         // Config + précieux dans le dossier config, jetable exclu.

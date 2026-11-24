@@ -302,16 +302,19 @@ pub fn apply_and_relaunch(paths: &Paths, inner: &Path) -> Result<(), String> {
             return Err(tr!("copie du nouvel exe : {0}", e));
         }
         let base = paths.root.parent().unwrap_or(&paths.root);
+        // Même course que la désinstallation : le verrou de l'exe peut survivre
+        // quelques millisecondes à l'exit — retry avant de relancer.
+        let old_q = old.to_string_lossy().replace('\'', "''");
         let script = format!(
-            "Wait-Process -Id {} -ErrorAction SilentlyContinue; Remove-Item -LiteralPath '{}' -Force -ErrorAction SilentlyContinue; Start-Process -FilePath '{}' -WorkingDirectory '{}'",
+            "Wait-Process -Id {} -ErrorAction SilentlyContinue; for ($i = 0; $i -lt 30; $i++) {{ if (-not (Test-Path -LiteralPath '{old_q}')) {{ break }}; Remove-Item -LiteralPath '{old_q}' -Force -ErrorAction SilentlyContinue; Start-Sleep -Milliseconds 500 }}; Start-Process -FilePath '{}' -WorkingDirectory '{}'",
             std::process::id(),
-            old.to_string_lossy().replace('\'', "''"),
             exe.to_string_lossy().replace('\'', "''"),
             base.to_string_lossy().replace('\'', "''"),
         );
         use std::os::windows::process::CommandExt;
         Command::new("powershell.exe")
             .args(["-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", &script])
+            .current_dir(std::env::temp_dir()) // cwd neutre (cf. désinstallation)
             .creation_flags(0x0800_0000) // CREATE_NO_WINDOW
             .spawn()
             .map_err(|e| tr!("script de relance : {0}", e))?;

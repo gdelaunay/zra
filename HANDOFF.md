@@ -31,6 +31,12 @@ supprimé au merge. Français seulement.
 6. Vérifier la release sur les deux forges (4 assets : tray seul + archive
    app, Windows + Linux), puis tester le flux update de bout en bout avec
    cette vraie release stable.
+7. **Signature du binaire Windows** : constat en test réel — Defender a
+   mis en quarantaine le tray debug non signé (heuristique : powershell
+   caché + auto-suppression + tâche + registre). Pas un bug d'architecture
+   (même pattern que VS Code user-install), mais le non signé expose à
+   SmartScreen/Defender. À traiter pour la release : cert OV, Azure
+   Trusted Signing, ou SignPath (gratuit OSS, à vérifier).
 
 Rien n'est poussé/taggé par l'agent : les branches attendent la review.
 
@@ -38,33 +44,28 @@ Rien n'est poussé/taggé par l'agent : les branches attendent la review.
 
 ### Manipulation user (desktop, autres machines, destructif, release, TTY)
 
-- **Menu natif tray** : item « Console de gestion », « Copier l'URL/code »,
-  « Ouvrir le journal », bascule de mode, **langue du menu selon la locale**
-  — systray natif, pas observable via navigateur ni depuis le mobile.
-- **Bascule autostart depuis la console** (schtasks, systemd --user, XDG) :
-  modifie le système → accord user ; systemd/XDG sur les postes Linux.
-- **Self-install réel** (Windows + Linux) : copie, recâblage Zed/autostart,
-  raccourci Menu Démarrer, clé HKCU, relance depuis la cible ; cas limite
-  « portable relancé → l'installée se lance, pas deux trays » ; bouton
-  console « Installer sur ce poste » masqué une fois installé ; portable
-  mémorisé (`.zra/setup.json`) si décoché à l'onboarding.
-- **Désinstallation réelle** (Windows + Linux) : dé-câblage Zed, retrait
-  autostart, suppression du dossier (différée Windows), clé HKCU ; « garder
-  mes paramètres » (config conservée) / « tout désinstaller » (config
-  retirée) ; layout dépôt : le repo reste intact.
+- **Self-install réel Linux** : copie, recâblage Zed/autostart, `.desktop`,
+  relance depuis la cible ; cas limite « portable relancé → l'installée se
+  lance, pas deux trays » ; bouton console masqué une fois installé ;
+  portable mémorisé (`.zra/setup.json`) si décoché à l'onboarding.
+- **Désinstallation réelle Linux** : dé-câblage Zed, retrait autostart,
+  suppression du dossier, « garder mes paramètres » / « tout désinstaller » ;
+  layout dépôt : le repo reste intact.
+- **Bascule autostart depuis la console** sur les postes Linux
+  (systemd --user, XDG).
 - **Flux update de bout en bout** (Windows + Linux) avec la vraie release
   stable `v0.6.0` (après tag) : check → téléchargement → pending →
   application au restart (swap Windows, exec Linux réels).
 - **Auto-update en arrière-plan** (thread 24 h) sur une vraie installation.
-- **Repli de forge** : couper Forgejo, vérifier que GitHub prend le relais.
 - **Homelab headless** : case autostart de la console (via tunnel SSH) →
   unité générée, linger activé, relais démarré au boot, retrait propre ;
   accès à la console depuis le LAN via tunnel.
 - **Postes Linux de référence** (Ubuntu/GNOME, Debian/KDE, MX/Xfce) :
   comportement en mode relais (MX sans systemd → XDG), `xdg-open`, **build
   Linux par la CI** (tag de test).
-- **`offerTrayDownload` au setup en TTY réel** : oui/non/jamais, repli de
-  forge, `.zra/setup.json`.
+- **Garde éveillé Linux** : le helper `systemd-inhibit … sleep infinity`
+  a le même risque d'orphelin que celui corrigé sous Windows (le daemon
+  tué brutalement ne le tue pas) — vérifier, corriger si besoin.
 
 ## Points bloqués
 

@@ -115,7 +115,8 @@ impl Paths {
 
     pub fn load_config(&self) -> Option<TrayConfig> {
         let text = fs::read_to_string(self.tray_config()).ok()?;
-        serde_json::from_str(&text).ok()
+        // BOM UTF-8 (Notepad, PowerShell 5.1) : toléré, pas un JSON invalide.
+        serde_json::from_str(text.trim_start_matches('\u{feff}')).ok()
     }
 
     pub fn save_config(&self, cfg: &TrayConfig) -> std::io::Result<()> {
@@ -207,6 +208,17 @@ mod tests {
     fn racine_introuvable() {
         let dir = tmp("vide");
         assert_eq!(root_at(&dir), None);
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn load_config_tolerant_bom() {
+        let dir = tmp("bom");
+        let paths = Paths::from_root(dir.clone());
+        fs::create_dir_all(&paths.config_zra).unwrap();
+        let json = "{\"mode\":\"poste\",\"node\":\"n\",\"port\":7777,\"relay\":{\"port\":7777,\"host\":\"0.0.0.0\",\"tlsCert\":null,\"tlsKey\":null}}";
+        fs::write(paths.tray_config(), format!("\u{feff}{json}")).unwrap();
+        assert!(paths.load_config().is_some(), "le BOM ne doit pas invalider tray.json");
         fs::remove_dir_all(&dir).unwrap();
     }
 }

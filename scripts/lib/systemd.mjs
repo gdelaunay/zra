@@ -33,13 +33,14 @@ import { mkdir, writeFile } from 'node:fs/promises'
 import { daemonStatus } from './daemon-status.mjs'
 import { trayBinary } from './tray-binary.mjs'
 import { tr } from '../../zra-daemon/i18n.js'
+import { configRoot } from '../../zra-daemon/platform.js'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
 
 /** Nom de l'unité. Le daemon est le seul service de ZRA. */
 export const UNIT = 'zra-daemon.service'
 /** Journal du daemon, le même que la tâche Windows (`daemon-task.ps1 --log`). */
-export const LOG = join(ROOT, '.zra', 'logs', 'daemon.log')
+export const LOG = join(configRoot({ root: ROOT, platform: 'linux' }), '.zra', 'logs', 'daemon.log')
 
 /** `~/.config/systemd/user/zra-daemon.service`, en suivant XDG_CONFIG_HOME. */
 export function unitFile({ env = process.env, home = homedir() } = {}) {

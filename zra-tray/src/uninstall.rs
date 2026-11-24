@@ -118,8 +118,10 @@ fn remove_registry_key() -> Step {
         },
         Ok(o) => {
             let stderr = String::from_utf8_lossy(&o.stderr);
-            // Clé absente : rien à faire, c'est un succès.
+            // Clé absente : rien à faire, c'est un succès. Messages FR/EN,
+            // accents perdus en OEM : on matche des fragments ASCII.
             let absent = stderr.contains("introuvable") || stderr.contains("unable to find")
+                || stderr.contains("n'a pas trouv")
                 || String::from_utf8_lossy(&o.stdout).contains("introuvable");
             Step {
                 label: tr!("Applications installées (registre)"),
@@ -135,19 +137,42 @@ fn remove_registry_key() -> Step {
     }
 }
 
+/// Raccourci Menu Démarrer retiré (Windows) — posé à l'installation (5.7).
+/// Absent = déjà propre.
+#[cfg(windows)]
+fn remove_shortcut() -> Step {
+    let label = tr!("Raccourci Menu Démarrer");
+    let Some(lnk) = std::env::var("APPDATA").ok().map(|a| {
+        PathBuf::from(a).join("Microsoft").join("Windows").join("Start Menu").join("Programs").join("ZRA.lnk")
+    }) else {
+        return Step { label, ok: true, output: tr!("Raccourci déjà absent.") };
+    };
+    match fs::remove_file(&lnk) {
+        Ok(()) => Step { label, ok: true, output: tr!("Raccourci retiré.") },
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Step { label, ok: true, output: tr!("Raccourci déjà absent.") },
+        Err(e) => Step { label, ok: false, output: tr!("Suppression du raccourci impossible : {0}", e) },
+    }
+}
+
 /// Suppression différée du dossier (Windows) : le script attend notre exit
 /// (l'exe est verrouillé tant qu'on tourne), puis supprime tout. Détaché,
 /// fenêtre masquée ; ne rend pas la main (exit ensuite).
 #[cfg(windows)]
 fn deferred_remove(base: &Path) -> Result<(), String> {
+    // Les enfants node meurent avec le tray (job object), mais leur cwd peut
+    // verrouiller le dossier quelques millisecondes de plus : retry jusqu'à
+    // disparition (~15 s max), pas un seul passage silencieux.
+    let path = base.to_string_lossy().replace('\'', "''");
     let script = format!(
-        "Wait-Process -Id {} -ErrorAction SilentlyContinue; Remove-Item -LiteralPath '{}' -Recurse -Force -ErrorAction SilentlyContinue",
+        "Wait-Process -Id {} -ErrorAction SilentlyContinue; for ($i = 0; $i -lt 30; $i++) {{ if (-not (Test-Path -LiteralPath '{path}')) {{ break }}; Remove-Item -LiteralPath '{path}' -Recurse -Force -ErrorAction SilentlyContinue; Start-Sleep -Milliseconds 500 }}",
         std::process::id(),
-        base.to_string_lossy().replace('\'', "''"),
     );
     use std::os::windows::process::CommandExt;
     Command::new("powershell.exe")
         .args(["-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", &script])
+        // cwd neutre : hérité du tray, il pointerait dans le dossier à supprimer
+        // et le verrouillerait (un process ne peut pas supprimer son propre cwd).
+        .current_dir(std::env::temp_dir())
         .creation_flags(0x0800_0000) // CREATE_NO_WINDOW
         .spawn()
         .map_err(|e| tr!("script de suppression : {0}", e))?;
@@ -162,6 +187,9 @@ pub fn run(paths: &Paths, node: &str, keep_settings: bool) -> Value {
 
     #[cfg(windows)]
     steps.push(remove_registry_key());
+
+    #[cfg(windows)]
+    steps.push(remove_shortcut());
 
     // Config utilisateur (dossier config XDG/APPDATA, hors du dossier d'install) :
     // « garder mes paramètres » (défaut) la conserve ; « tout désinstaller » la

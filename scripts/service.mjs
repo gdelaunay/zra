@@ -36,7 +36,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { loadConfig } from '../zra-daemon/config.js'
-import { serviceBackend } from '../zra-daemon/platform.js'
+import { configRoot, serviceBackend } from '../zra-daemon/platform.js'
 import { npmSafeArgs } from './lib/args.mjs'
 import { daemonStatus } from './lib/daemon-status.mjs'
 import { commands as systemdCommands, UNIT, unitState } from './lib/systemd.mjs'
@@ -57,8 +57,8 @@ export function serviceState() {
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 export const TASK = 'ZRA daemon'
 const LAUNCHER = join(ROOT, 'scripts', 'daemon-task.ps1')
-const LOG = join(ROOT, '.zra', 'logs', 'daemon.log')
-const XML_FILE = join(ROOT, '.zra', 'service', 'zra-daemon.xml')
+const LOG = join(configRoot({ root: ROOT }), '.zra', 'logs', 'daemon.log')
+const XML_FILE = join(configRoot({ root: ROOT }), '.zra', 'service', 'zra-daemon.xml')
 
 function parseArgs(argv) {
   const out = { command: 'status', apply: false, lines: 40 }

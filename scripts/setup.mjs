@@ -38,7 +38,7 @@ import { fileURLToPath } from 'node:url'
 
 import { configFilePath, loadConfig } from '../zra-daemon/config.js'
 import { agentLabel, isZedRunning } from '../zra-daemon/agents.js'
-import { defaultZedCli, detectZedChannel } from '../zra-daemon/platform.js'
+import { configRoot, defaultZedCli, detectZedChannel } from '../zra-daemon/platform.js'
 import { parseJsonc } from '../zra-daemon/jsonc.js'
 import { discoverAgents, hasPreload, isPreloadEntry, isShimEntry, preloadFlag, registryAgentName, resolveAgentCommand, stripPreload, wrappedAgentId } from '../zra-daemon/agent-commands.js'
 import { assertParsable, removeAgentServer, removeAgentServerEnv, removeRootMember, upsertAgentServer, upsertAgentServerEnv, upsertRootMember } from '../zra-daemon/zed-settings.js'
@@ -51,7 +51,7 @@ import { isWayland, findZedDesktop, patchDesktopForXWayland, unpatchDesktop } fr
 import { tr } from '../zra-daemon/i18n.js'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const STATE = join(ROOT, '.zra')
+const STATE = join(configRoot({ root: ROOT }), '.zra')
 const SHIM = join(ROOT, 'zra-shim', 'index.js')
 
 // ---------------------------------------------------------------------------
@@ -127,13 +127,14 @@ const USAGE = tr`zra setup — brancher ZRA dans Zed
  * l'utilisateur a choisis dans Zed.
  */
 export function buildEntry({ agent, record, nodePath = process.execPath, root = ROOT, wrapped = null }) {
+  const state = join(configRoot({ root }), '.zra')
   const env = {
     ZRA_AGENT_ID: agent,
-    ZRA_LOG_FILE: join(root, '.zra', 'logs', 'shim.log'),
+    ZRA_LOG_FILE: join(state, 'logs', 'shim.log'),
   }
   if (record) {
     env.ZRA_RECORD = '1'
-    env.ZRA_RECORD_DIR = join(root, '.zra', 'records')
+    env.ZRA_RECORD_DIR = join(state, 'records')
   }
   const entry = {
     type: 'custom',
@@ -156,14 +157,15 @@ const START_SETTINGS = ['default_mode', 'default_config_options', 'favorite_conf
  * dépôt déplacé), est remplacé.
  */
 export function buildPreloadEnv({ agent, record, root = ROOT, existing = null }) {
+  const state = join(configRoot({ root }), '.zra')
   const env = {
     NODE_OPTIONS: [preloadFlag(root), stripPreload(existing)].filter(Boolean).join(' '),
     ZRA_AGENT_ID: agent,
-    ZRA_LOG_FILE: join(root, '.zra', 'logs', 'shim.log'),
+    ZRA_LOG_FILE: join(state, 'logs', 'shim.log'),
   }
   if (record) {
     env.ZRA_RECORD = '1'
-    env.ZRA_RECORD_DIR = join(root, '.zra', 'records')
+    env.ZRA_RECORD_DIR = join(state, 'records')
   }
   return env
 }

@@ -49,6 +49,7 @@ import { trayBinary } from './tray-binary.mjs'
 // deux backends doivent recopier exactement la même chose.
 import { GRAPHICS_ENV } from './systemd.mjs'
 import { tr } from '../../zra-daemon/i18n.js'
+import { configRoot } from '../../zra-daemon/platform.js'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
 
@@ -57,7 +58,7 @@ export const DESKTOP = 'zra-daemon.desktop'
 /** Délai avant le premier lancement, aligné sur la tâche Windows (15 s). */
 export const DELAY_S = 15
 /** Journal du daemon, le même fichier que les deux autres backends. */
-export const LOG = join(ROOT, '.zra', 'logs', 'daemon.log')
+export const LOG = join(configRoot({ root: ROOT, platform: 'linux' }), '.zra', 'logs', 'daemon.log')
 
 /**
  * Tous les chemins du backend, en suivant XDG_CONFIG_HOME comme l'unité systemd
@@ -67,7 +68,8 @@ export const LOG = join(ROOT, '.zra', 'logs', 'daemon.log')
  */
 export function paths({ env = process.env, home = homedir(), root = ROOT } = {}) {
   const config = env.XDG_CONFIG_HOME || join(home, '.config')
-  const service = join(root, '.zra', 'service')
+  const state = join(configRoot({ root, env, home, platform: 'linux' }), '.zra')
+  const service = join(state, 'service')
   return {
     /** `~/.config/autostart/zra-daemon.desktop` — ce que la session lit. */
     desktop: join(config, 'autostart', DESKTOP),
@@ -76,9 +78,9 @@ export function paths({ env = process.env, home = homedir(), root = ROOT } = {})
     /** `stop` n'a pas de `systemctl` : il lui faut le pid, validé avant kill. */
     pid: join(service, 'zra-daemon.pid'),
     /** Écrit par le daemon lui-même (`--log`). */
-    log: join(root, '.zra', 'logs', 'daemon.log'),
+    log: join(state, 'logs', 'daemon.log'),
     /** Ce que node écrit hors du logger : un crash au démarrage, par exemple. */
-    serviceLog: join(root, '.zra', 'logs', 'service.log'),
+    serviceLog: join(state, 'logs', 'service.log'),
     /** Le point d'entrée du daemon. */
     daemon: join(root, 'zra-daemon', 'index.js'),
     root,
