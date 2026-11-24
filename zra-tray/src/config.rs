@@ -140,6 +140,13 @@ pub fn zra_config_dir() -> Option<PathBuf> {
     }
 }
 
+/// Affichage d'un chemin : séparateurs natifs de l'OS. Sous Windows les
+/// chemins peuvent arriver avec des `/` (env, saisie, jointures) — la console
+/// les montre tous en `\`, pas de mélange.
+pub fn display_path(s: &str) -> String {
+    if cfg!(windows) { s.replace('/', "\\") } else { s.to_string() }
+}
+
 /// Racine de la config + données précieuses : dossier config utilisateur en
 /// layout installé (hors zone swappée à l'update), racine sinon (portable/dépôt).
 /// Miroir de `platform.js::configRoot`.
@@ -209,6 +216,15 @@ mod tests {
         let dir = tmp("vide");
         assert_eq!(root_at(&dir), None);
         fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn display_path_separateurs_natifs() {
+        if cfg!(windows) {
+            assert_eq!(display_path("C:/x\\y/z"), "C:\\x\\y\\z");
+        } else {
+            assert_eq!(display_path("/x/y"), "/x/y");
+        }
     }
 
     #[test]

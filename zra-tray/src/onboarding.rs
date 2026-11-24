@@ -86,7 +86,13 @@ pub fn run(paths: &Paths) -> TrayConfig {
                 };
                 let mut info = info;
                 info["appLayout"] = serde_json::json!(update::is_app_layout(paths));
-                info["installTarget"] = serde_json::json!(install::target().map(|p| p.to_string_lossy().to_string()));
+                info["installTarget"] = serde_json::json!(install::target().map(|p| crate::config::display_path(&p.to_string_lossy())));
+                // Portable mémorisé (setup.json) : la case « installer » est
+                // décochée par défaut au lieu de re-proposer l'installation.
+                info["portable"] = serde_json::json!(std::fs::read_to_string(paths.config_zra.join("setup.json"))
+                    .ok().and_then(|t| serde_json::from_str::<serde_json::Value>(&t).ok())
+                    .and_then(|v| v.get("portable").and_then(serde_json::Value::as_bool))
+                    .unwrap_or(false));
                 json_response(info.to_string())
             }
             (Method::Post, "/check") => {

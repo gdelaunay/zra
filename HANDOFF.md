@@ -12,8 +12,9 @@ supprimé au merge. Français seulement.
 - **Console tray + onboarding = loopback-only** (port aléatoire lié à
   127.0.0.1) : non joignables depuis le mobile via VPN sans tunnel. La PWA
   du daemon (7777) est joignable, pas la console.
-- **Postes Linux de référence + homelab** = autres machines, non
-  accessibles d'ici (Windows).
+- **Postes Linux de référence + homelab** : le Debian/KDE (p350) est testé
+  via l'utilisateur en RDP (l'agent n'a pas la main dessus) ; Ubuntu/GNOME
+  et MX/Xfce restent inaccessibles.
 - Rebuild impossible tray vivant (exe verrouillé, os error 5) → tuer le
   process avant `cargo build`.
 
@@ -44,42 +45,24 @@ Rien n'est poussé/taggé par l'agent : les branches attendent la review.
 
 ### Manipulation user (desktop, autres machines, destructif, release, TTY)
 
-- **Self-install réel Linux** : reste le **portable mémorisé**
-  (`.zra/setup.json`) si décoché à l'onboarding (à tester après la
-  désinstallation, pour ne pas recâbler Zed sur une portable). Le reste est
-  validé sur Debian/KDE : copie, recâblage Zed/autostart systemd, relance
-  depuis la cible, cas « portable relancée → l'installée se lance », bouton
-  « Installer sur ce poste » masqué dans la console. Le `.desktop` ne concerne
-  que le backend XDG (machines sans systemd, ex. MX).
-- **Désinstallation réelle Linux** : dé-câblage Zed, retrait autostart,
-  suppression du dossier, « garder mes paramètres » / « tout désinstaller » ;
-  layout dépôt : le repo reste intact.
 - **Bascule autostart depuis la console** : validée sur Debian/KDE
   (systemd --user : décoche = unité retirée, recoche = recréée enabled).
-  Reste le **backend XDG** (MX sans systemd).
+  Reste le **backend XDG** (MX sans systemd) et son `.desktop`
+  (`~/.config/autostart/zra-daemon.desktop`).
 - **Flux update de bout en bout** (Windows + Linux) avec la vraie release
   stable `v0.6.0` (après tag) : check → téléchargement → pending →
   application au restart (swap Windows, exec Linux réels).
 - **Auto-update en arrière-plan** (thread 24 h) sur une vraie installation.
-- **Homelab headless** : case autostart de la console (via tunnel SSH) →
-  unité générée, linger activé, relais démarré au boot, retrait propre ;
-  accès à la console depuis le LAN via tunnel.
-- **Postes Linux de référence** (Ubuntu/GNOME, Debian/KDE, MX/Xfce) :
-  comportement en mode relais (MX sans systemd → XDG), `xdg-open`, **build
-  Linux par la CI** (tag de test).
-- **Garde éveillé Linux — risque confirmé, corrigé** : le helper
-  `systemd-inhibit … sleep infinity` survivait à un kill brutal du daemon
-  (orphelin, veille bloquée). Fix : boucle `kill -0` sur le PID du daemon
-  (même rôle que `-DaemonPid` Windows) + test de régression. Reste la
-  vérification réelle sur Debian.
+- **Homelab (p350, Debian/KDE via RDP)** : unité générée/retirée et linger
+  validés (bascule autostart + désinstallation). **Reboot impossible sur la
+  machine** → « relais démarré au boot » non testable. Reste : accès console
+  via tunnel SSH, et le mode headless (`--headless` / pas de DISPLAY, ex.
+  session SSH sans X).
+- **Postes Linux de référence** : mode relais + `xdg-open` validés sur
+  Debian/KDE. Restent Ubuntu/GNOME, MX/Xfce (sans systemd → backend XDG),
+  et le **build Linux par la CI** (tag de test, assets en retard).
 
 ## Points bloqués
 
 Aucun pour l'instant. Les bugs trouvés en testant seront notés ici puis
-corrigés.
-
-- **Bug (test Linux Debian/KDE) — corrigé** : `ci-package-app.mjs` n'embarquait
-  pas `i18n/` → `app/i18n/en.json` absent, crash ENOENT du daemon et des
-  scripts en environnement anglais (discover mort → bannière « Zed
-  introuvable » trompeuse à l'onboarding). Fix : copie du dossier + test de
-  régression.
+corrigés (les bugs corrigés sont retirés, comme les tests validés).

@@ -657,6 +657,7 @@
     fetch('/info').then((r) => r.json()).then((info) => {
       state.appLayout = Boolean(info.appLayout)
       state.installTarget = info.installTarget
+      if (info.portable) { $('install').checked = false; state.install = false }
       setNode(info.node)
       if (info.node) loadDiscover(info.node.path)
     })

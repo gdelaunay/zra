@@ -77,14 +77,14 @@ fn state_json(sup: &Supervisor, paths: &Paths) -> Value {
         "adopted": run == RunState::Adopted,
         "version": app_version(paths),
         "trayVersion": env!("CARGO_PKG_VERSION"),
-        "node": cfg.node,
+        "node": crate::config::display_path(&cfg.node),
         "port": cfg.port,
         "relay": cfg.relay,
-        "root": paths.root.to_string_lossy(),
+        "root": crate::config::display_path(&paths.root.to_string_lossy()),
         "appLayout": crate::update::is_app_layout(paths),
         "installed": install::is_installed(),
-        "installTarget": install::target().map(|p| p.to_string_lossy().to_string()),
-        "logFile": paths.log_file(mode).to_string_lossy(),
+        "installTarget": install::target().map(|p| crate::config::display_path(&p.to_string_lossy())),
+        "logFile": crate::config::display_path(&paths.log_file(mode).to_string_lossy()),
     });
     match mode {
         Mode::Poste => {

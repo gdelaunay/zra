@@ -131,7 +131,9 @@
     padding: 8px 10px; margin-top: 10px; max-height: 300px; overflow: auto;
     white-space: pre-wrap; overflow-wrap: anywhere;
   }
-  .about-value { font-family: var(--font-mono); font-size: 12px; text-align: right; overflow-wrap: anywhere; max-width: 420px; }
+  .about-value { font-family: var(--font-mono); font-size: 12px; text-align: right; overflow-wrap: anywhere; flex: 1; min-width: 0; }
+  /* Les labels « À propos » sont courts : la valeur (chemins) prend la place. */
+  .srow-inner:has(.about-value) .srow-text { flex: 0 1 auto; }
 
   /* Désinstallation : panneau de confirmation + étapes (comme l'onboarding). */
   .steps { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }

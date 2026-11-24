@@ -101,6 +101,18 @@ test('payload /done : install true si coché, false si décoché', async () => {
   assert.equal(calls.find((c) => c.path === '/done').body.install, false)
 })
 
+test('portable mémorisé (setup.json) : case décochée par défaut, payload install false', async () => {
+  const win = await loadPage({ ...NODE_INFO, appLayout: true, installTarget: 'C:/local/Programs/zra', portable: true })
+  const $ = (id) => win.document.getElementById(id)
+  await until(() => !$('install-row').classList.contains('hidden'))
+  assert.ok(!$('install').checked, 'le choix portable mémorisé décoche la case')
+  await until(() => !$('start').disabled)
+  calls.length = 0
+  $('start').dispatchEvent(new win.MouseEvent('click', { bubbles: true }))
+  await until(() => calls.some((c) => c.path === '/done'))
+  assert.equal(calls.find((c) => c.path === '/done').body.install, false)
+})
+
 test('i18n : catalogue injecté (en) → texte statique traduit', async () => {
   const en = {
     'Configuration initiale': 'Initial setup',
