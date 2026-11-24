@@ -388,7 +388,9 @@ posé le raccourci Menu Démarrer et la clé « Applications installées »
 portable (choix mémorisé) ; le bouton reste disponible dans la console.
 Installé : pas de retour arrière, la sortie est la désinstallation. Une
 copie portable relancée alors qu'une instance installée existe lance
-l'installée — pas deux vies parallèles.
+l'installée — pas deux vies parallèles. Pendant l'onboarding, le process n'a
+ni tray ni fenêtre : relancer l'exécutable rouvre la page (verrou d'instance
+unique) au lieu de sortir silencieusement.
 
 **Désinstallation** : depuis la console, « Désinstaller… » rend la machine
 comme elle a été trouvée — arrêt du service, retrait du démarrage

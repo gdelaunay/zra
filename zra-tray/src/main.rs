@@ -100,7 +100,15 @@ fn main() {
     let mut lock = fd_lock::RwLock::new(lock_file);
     let _guard = match lock.try_write() {
         Ok(guard) => guard,
-        Err(_) => return, // un autre zra-tray tourne déjà
+        Err(_) => {
+            // Autre instance vivante : onboarding orphelin (page fermée, ni
+            // tray ni fenêtre) → rouvrir sa page ; tray normal → sortie
+            // silencieuse (l'icône est déjà visible).
+            if let Ok(url) = std::fs::read_to_string(paths.zra.join("onboarding.url")) {
+                let _ = open::that(url.trim());
+            }
+            return;
+        }
     };
 
     let cfg = match paths.load_config() {

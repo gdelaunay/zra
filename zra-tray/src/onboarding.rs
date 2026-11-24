@@ -62,6 +62,11 @@ pub fn run(paths: &Paths) -> TrayConfig {
     let server = Server::http("127.0.0.1:0").expect("serveur d'onboarding");
     let port = server.server_addr().to_ip().expect("adresse loopback").port();
     let url = format!("http://127.0.0.1:{port}/");
+    // Verrou d'instance unique : un second lancement pendant l'onboarding
+    // (page fermée → process orphelin, ni tray ni fenêtre) rouvre cette URL
+    // au lieu de sortir silencieusement. Fichier retiré à la complétion.
+    let url_file = paths.zra.join("onboarding.url");
+    let _ = std::fs::write(&url_file, &url);
     eprintln!("{}", tr!("[zra-tray] onboarding : {0}", url));
     if let Err(err) = open::that(&url) {
         eprintln!("{}", tr!("[zra-tray] ouverture du navigateur impossible ({0}) — ouvrir l'URL manuellement.", err));
@@ -259,8 +264,10 @@ pub fn run(paths: &Paths) -> TrayConfig {
                     if let Err(e) = install::launch(&exe, &t) {
                         eprintln!("{}", tr!("[zra-tray] {0} — ouvrir ZRA depuis {1} manuellement.", e, t.display()));
                     }
+                    let _ = std::fs::remove_file(&url_file);
                     std::process::exit(0);
                 }
+                let _ = std::fs::remove_file(&url_file);
                 let _ = tx.send(cfg);
                 break;
             }

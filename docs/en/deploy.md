@@ -385,7 +385,9 @@ shortcut and the "Installed apps" key (HKCU, no elevation), and relaunches
 ZRA from the target. Unchecking = stay portable (choice remembered); the
 button remains available in the console. Installed: no going back, the exit
 is uninstall. A portable copy relaunched while an installed instance exists
-launches the installed one — no two parallel lives.
+launches the installed one — no two parallel lives. During onboarding the
+process has no tray and no window: relaunching the executable reopens the
+page (single-instance lock) instead of exiting silently.
 
 **Uninstall**: from the console, "Uninstall…" leaves the machine as it was
 found — service stopped, autostart removed, Zed unwired (agent entries,
