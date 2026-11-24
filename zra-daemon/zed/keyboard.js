@@ -506,7 +506,7 @@ export class NoneKeyboard extends LinuxKeyboard {
  */
 async function installed(cmd) {
   return new Promise((resolve) => {
-    const child = spawn(cmd, ['--version'], { stdio: 'ignore' })
+    const child = spawn(cmd, ['--version'], { stdio: 'ignore', windowsHide: true })
     const done = (ok) => { try { child.kill() } catch { /* déjà sorti */ } resolve(ok) }
     child.on('error', () => done(false))
     child.on('close', (code) => done(code !== null))

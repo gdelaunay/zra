@@ -16,8 +16,14 @@ pub fn check(path: &str) -> Result<String, String> {
     if path.trim().is_empty() {
         return Err(tr!("Chemin vide."));
     }
-    let out = Command::new(path)
-        .arg("--version")
+    let mut cmd = Command::new(path);
+    cmd.arg("--version");
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
+    }
+    let out = cmd
         .output()
         .map_err(|e| tr!("Impossible de lancer « {0} » : {1}", path, e))?;
     if !out.status.success() {

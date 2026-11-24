@@ -107,9 +107,14 @@ pub fn unwire(paths: &Paths, node: &str) -> Vec<Step> {
 /// Absente = déjà propre : le code de sortie non nul est avalé.
 #[cfg(windows)]
 fn remove_registry_key() -> Step {
-    let out = Command::new("reg.exe")
-        .args(["delete", UNINSTALL_KEY, "/f"])
-        .output();
+    let mut cmd = Command::new("reg.exe");
+    cmd.args(["delete", UNINSTALL_KEY, "/f"]);
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
+    }
+    let out = cmd.output();
     match out {
         Ok(o) if o.status.success() => Step {
             label: tr!("Applications installées (registre)"),

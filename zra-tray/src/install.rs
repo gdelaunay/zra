@@ -142,9 +142,14 @@ pub fn shortcuts(target: &Path, version: Option<String>) -> Vec<Step> {
             exe.to_string_lossy().replace('\'', "''"),
             target.to_string_lossy().replace('\'', "''"),
         );
-        let out = Command::new("powershell.exe")
-            .args(["-NoProfile", "-NonInteractive", "-Command", &script])
-            .output();
+        let mut cmd = Command::new("powershell.exe");
+        cmd.args(["-NoProfile", "-NonInteractive", "-Command", &script]);
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            cmd.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
+        }
+        let out = cmd.output();
         let (ok, output) = match out {
             Ok(o) if o.status.success() => (true, tr!("Raccourci : {0}", lnk.display())),
             Ok(o) => (false, String::from_utf8_lossy(&o.stderr).trim().to_string()),
@@ -165,9 +170,14 @@ pub fn shortcuts(target: &Path, version: Option<String>) -> Vec<Step> {
     let mut reg_ok = true;
     let mut reg_out = String::new();
     for (name, value) in values {
-        let out = Command::new("reg.exe")
-            .args(["add", key, "/v", name, "/t", "REG_SZ", "/d", &value, "/f"])
-            .output();
+        let mut cmd = Command::new("reg.exe");
+        cmd.args(["add", key, "/v", name, "/t", "REG_SZ", "/d", &value, "/f"]);
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            cmd.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
+        }
+        let out = cmd.output();
         match out {
             Ok(o) if o.status.success() => {}
             Ok(o) => {
