@@ -1,0 +1,44 @@
+<!doctype html><meta charset="utf-8"><title>ZRA — G final v2</title>
+<style>
+body{margin:0;padding:32px;font:14px system-ui;background:#1d2021;color:#ebdbb2}
+h2{font-weight:500;margin:32px 0 12px;color:#a89984}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px}
+.card{background:#282828;border-radius:12px;padding:16px}
+.card b{display:block;margin-bottom:4px}.card p{color:#a89984;margin:4px 0 0;line-height:1.4}
+.row{display:flex;gap:12px;align-items:end;margin-top:12px}
+.d,.l{border-radius:8px;display:flex;align-items:center;justify-content:center;padding:8px}
+.d{background:#1d2021;--n:#ebdbb2;--a:#b8bb26;--bg:#1d2021}
+.l{background:#fbf1c7;--n:#282828;--a:#98971a;--bg:#fbf1c7}
+svg{display:block}
+.tag{font-size:12px;color:#a89984;margin:12px 0 -6px}
+</style>
+<svg width="0" height="0" style="position:absolute"><defs>
+<!-- G final : marge 80 (un peu plus que 68), cadre 80..432, pattes 117,
+     pointes t=136 → écart entre pointes 113 (un peu plus grand qu'avant).
+     Le trait se règle via --w sur le conteneur. -->
+<symbol id="bi" viewBox="0 0 512 512"><g fill="none" style="stroke-width:var(--w,72)" stroke-linecap="round" stroke-linejoin="round"><path stroke="var(--n)" d="M80 197 V80 H432 L296 216"/><path stroke="var(--a)" d="M432 315 V432 H80 L216 296"/></g></symbol>
+<symbol id="mo" viewBox="0 0 512 512"><g fill="none" style="stroke-width:var(--w,72)" stroke-linecap="round" stroke-linejoin="round"><path stroke="var(--n)" d="M80 197 V80 H432 L296 216"/><path stroke="var(--n)" d="M432 315 V432 H80 L216 296"/></g></symbol>
+<!-- Pattes plus courtes : 95 au lieu de 117, reste identique -->
+<symbol id="bic" viewBox="0 0 512 512"><g fill="none" style="stroke-width:var(--w,72)" stroke-linecap="round" stroke-linejoin="round"><path stroke="var(--n)" d="M80 175 V80 H432 L296 216"/><path stroke="var(--a)" d="M432 337 V432 H80 L216 296"/></g></symbol>
+<symbol id="moc" viewBox="0 0 512 512"><g fill="none" style="stroke-width:var(--w,72)" stroke-linecap="round" stroke-linejoin="round"><path stroke="var(--n)" d="M80 175 V80 H432 L296 216"/><path stroke="var(--n)" d="M432 337 V432 H80 L216 296"/></g></symbol>
+</defs></svg>
+
+<h2>G final — trait 72 / 76, marge 80, écart élargi</h2><div class="grid" id="g1"></div>
+<script>
+const L = [
+  [72,'A. Trait 72','Vide entre les moitiés ~41 : le Z respire un peu plus, trait médian entre le 68 et le 80.','bi','mo'],
+  [76,'B. Trait 76','Vide ~37 : un cran plus gras, encore net en 16 px, le plus dense des deux sans que la coupure se referme.','bi','mo'],
+  [72,'A2. Trait 72, pattes courtes','Même chose que A mais pattes 95 au lieu de 117 : les triangles sont plus ramassés, le Z plus compact.','bic','moc'],
+  [76,'B2. Trait 76, pattes courtes','Même chose que B, pattes 95 : dense et court, le cadre Zed se fait plus discret.','bic','moc'],
+];
+const u = (id, s, w) => `<svg width="${s}" height="${s}" style="--w:${w}"><use href="#${id}"/></svg>`;
+document.getElementById('g1').innerHTML = L.map(([w, t, d, ib, im]) => `<div class="card"><b>${t}</b><p>${d}</p>
+  <div class="tag">Bicolore</div>
+  <div class="row"><div class="d">${u(ib,128,w)}</div><div class="l">${u(ib,128,w)}</div></div>
+  <div class="row"><div class="d">${u(ib,48,w)}</div><div class="d">${u(ib,32,w)}</div><div class="d">${u(ib,16,w)}</div>
+  <div class="l">${u(ib,48,w)}</div><div class="l">${u(ib,32,w)}</div><div class="l">${u(ib,16,w)}</div></div>
+  <div class="tag">Monochrome (badge mobile, une seule couleur)</div>
+  <div class="row"><div class="d">${u(im,128,w)}</div><div class="l">${u(im,128,w)}</div></div>
+  <div class="row"><div class="d">${u(im,48,w)}</div><div class="d">${u(im,32,w)}</div><div class="d">${u(im,16,w)}</div>
+  <div class="l">${u(im,48,w)}</div><div class="l">${u(im,32,w)}</div><div class="l">${u(im,16,w)}</div></div></div>`).join('');
+</script>

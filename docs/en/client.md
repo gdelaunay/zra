@@ -214,7 +214,8 @@ the set repaints the thread without a reload.
 
 ## App icons
 
-"Split two-tone Z" logo, derived into `icons/` from a single source by
+"Two-triangle two-tone Z" logo (two open triangles, rounded stroke), derived
+into `icons/` from a single source by
 `scripts/gen-icons.mjs` (sharp, no runtime dependency):
 
 | File | Use |

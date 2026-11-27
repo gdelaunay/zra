@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512"><g transform="translate(256 256) scale(1.7370) translate(-235 -280)">
-  <g transform="translate(235 280) scale(0.88) translate(-256 -256)">
-    <path fill="#fff" d="M148 116 L384 116 L116 384 L116 324 L252 188 L116 188 L116 148 Z"/>
-    <path fill="#fff" d="M396 138 L396 188 L260 324 L396 324 L396 364 L364 396 L138 396 Z"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512"><g transform="translate(256 256) scale(1.0000) translate(-256 -256)">
+  <g fill="none" stroke-width="76" stroke-linecap="round" stroke-linejoin="round">
+    <path stroke="#fff" d="M80 175 V80 H432 L296 216"/>
+    <path stroke="#fff" d="M432 337 V432 H80 L216 296"/>
   </g></g></svg>

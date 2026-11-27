@@ -122,24 +122,23 @@ export function toolIcon(kind, cls = '') {
   return icon(TOOL_KIND_ICON[kind] || TOOL_KIND_ICON.other, cls)
 }
 
-// Logo ZRA (Z fendu bicolore) pour le header. Le neutre suit currentColor
-// (donc le thème clair/sombre de l'app) ; l'accent suit color-scheme via
-// light-dark() (gruvbox green sombre / light). Inline plutôt qu'<img> : un
-// fichier externe ne peut pas hériter de currentColor ni de light-dark().
+// Logo ZRA (Z deux triangles bicolore) pour le header. Le neutre suit
+// currentColor (donc le thème clair/sombre de l'app) ; l'accent suit
+// color-scheme via light-dark() (gruvbox green sombre / light). Inline plutôt
+// qu'<img> : un fichier externe ne peut pas hériter de currentColor ni de
+// light-dark().
 export function brandLogo(cls = '') {
   const svg = document.createElementNS(SVG_NS, 'svg')
   svg.setAttribute('viewBox', '0 0 512 512')
   svg.setAttribute('aria-hidden', 'true')
   svg.setAttribute('class', `icon ${cls}`.trim())
-  const acc = 'style="fill:light-dark(#98971a,#b8bb26)"'
-  // Glyphe centré, marges ~8 %/côté (même échelle que le favicon, BIG de
-  // gen-icons) : scale = (512 - 2×42) / côté bbox (246.4), translate = centre bbox.
+  const acc = 'style="stroke:light-dark(#98971a,#b8bb26)"'
+  // Mark centré, marges ~8 %/côté (même échelle que le favicon, BIG de
+  // gen-icons) : trait 76, cadre 80..432, pattes courtes (95).
   svg.innerHTML = `
-    <g transform="translate(256 256) scale(1.7370) translate(-235 -280)">
-      <g transform="translate(235 280) scale(0.88) translate(-256 -256)">
-        <path fill="currentColor" d="M148 116 L384 116 L116 384 L116 324 L252 188 L116 188 L116 148 Z"/>
-        <path ${acc} d="M396 138 L396 188 L260 324 L396 324 L396 364 L364 396 L138 396 Z"/>
-      </g>
+    <g fill="none" stroke-width="76" stroke-linecap="round" stroke-linejoin="round">
+      <path stroke="currentColor" d="M80 175 V80 H432 L296 216"/>
+      <path ${acc} d="M432 337 V432 H80 L216 296"/>
     </g>`
   return svg
 }

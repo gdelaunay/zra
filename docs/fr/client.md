@@ -215,7 +215,8 @@ colorés). Le changement de jeu repeint le fil sans rechargement.
 
 ## Icônes de l'app
 
-Logo « Z fendu bicolore », décliné dans `icons/` depuis une source unique par
+Logo « Z deux triangles bicolore » (deux triangles ouverts, trait arrondi),
+décliné dans `icons/` depuis une source unique par
 `scripts/gen-icons.mjs` (sharp, aucune dépendance runtime) :
 
 | Fichier | Usage |

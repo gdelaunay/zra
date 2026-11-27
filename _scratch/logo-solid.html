@@ -1,0 +1,55 @@
+<!doctype html><meta charset="utf-8"><title>ZRA — solid</title>
+<style>
+body{margin:0;padding:32px;font:14px system-ui;background:#1d2021;color:#ebdbb2}
+h2{font-weight:500;margin:32px 0 12px;color:#a89984}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px}
+.card{background:#282828;border-radius:12px;padding:16px}
+.card b{display:block;margin-bottom:4px}.card p{color:#a89984;margin:4px 0 0;line-height:1.4}
+.row{display:flex;gap:12px;align-items:end;margin-top:12px}
+.d,.l{border-radius:8px;display:flex;align-items:center;justify-content:center;padding:8px}
+.d{background:#1d2021;--n:#ebdbb2;--a:#b8bb26;--bg:#1d2021}
+.l{background:#fbf1c7;--n:#282828;--a:#98971a;--bg:#fbf1c7}
+svg{display:block}
+</style>
+<svg width="0" height="0" style="position:absolute"><defs>
+<!-- Fente 32 : disque et squircle -->
+<mask id="m32d" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512"><circle cx="256" cy="256" r="150" fill="#fff"/><path d="M60 206 H306 L206 306 H452" fill="none" stroke="#000" stroke-width="32" stroke-linejoin="round"/></mask>
+<mask id="m32s" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512"><rect x="110" y="110" width="292" height="292" rx="96" fill="#fff"/><path d="M60 206 H306 L206 306 H452" fill="none" stroke="#000" stroke-width="32" stroke-linejoin="round"/></mask>
+<symbol id="d32" viewBox="0 0 512 512"><g mask="url(#m32d)"><path fill="var(--n)" d="M0 0 H512 V306 H206 L306 206 H0 Z"/><path fill="var(--a)" d="M0 206 H306 L206 306 H512 V512 H0 Z"/></g></symbol>
+<symbol id="s32" viewBox="0 0 512 512"><g mask="url(#m32s)"><path fill="var(--n)" d="M0 0 H512 V306 H206 L306 206 H0 Z"/><path fill="var(--a)" d="M0 206 H306 L206 306 H512 V512 H0 Z"/></g></symbol>
+
+<!-- G. Triangles compacts (référence) -->
+<symbol id="tg" viewBox="0 0 512 512"><g fill="none" stroke-width="44" stroke-linecap="round" stroke-linejoin="round"><path stroke="var(--n)" d="M136 216 V136 H376 L279 233"/><path stroke="var(--a)" d="M376 296 V376 H136 L233 279"/></g></symbol>
+
+<!-- G réduit (.8) pour tenir dans le disque/squircle plein -->
+<mask id="kgd" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512"><circle cx="256" cy="256" r="160" fill="#fff"/><g transform="translate(256 256) scale(.8) translate(-256 -256)" fill="none" stroke="#000" stroke-width="44" stroke-linecap="round" stroke-linejoin="round"><path d="M136 216 V136 H376 L279 233"/><path d="M376 296 V376 H136 L233 279"/></g></mask>
+<mask id="kgs" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512"><rect x="110" y="110" width="292" height="292" rx="96" fill="#fff"/><g transform="translate(256 256) scale(.8) translate(-256 -256)" fill="none" stroke="#000" stroke-width="44" stroke-linecap="round" stroke-linejoin="round"><path d="M136 216 V136 H376 L279 233"/><path d="M376 296 V376 H136 L233 279"/></g></mask>
+<symbol id="cd" viewBox="0 0 512 512"><g mask="url(#kgd)"><circle cx="256" cy="256" r="160" fill="var(--n)"/></g></symbol>
+<symbol id="cs" viewBox="0 0 512 512"><g mask="url(#kgs)"><rect x="110" y="110" width="292" height="292" rx="96" fill="var(--n)"/></g></symbol>
+<symbol id="bd" viewBox="0 0 512 512"><circle cx="256" cy="256" r="160" fill="var(--n)"/><g transform="translate(256 256) scale(.8) translate(-256 -256)" fill="none" stroke-width="44" stroke-linecap="round" stroke-linejoin="round"><path stroke="var(--bg)" d="M136 216 V136 H376 L279 233"/><path stroke="var(--a)" d="M376 296 V376 H136 L233 279"/></g></symbol>
+<symbol id="bs" viewBox="0 0 512 512"><rect x="110" y="110" width="292" height="292" rx="96" fill="var(--n)"/><g transform="translate(256 256) scale(.8) translate(-256 -256)" fill="none" stroke-width="44" stroke-linecap="round" stroke-linejoin="round"><path stroke="var(--bg)" d="M136 216 V136 H376 L279 233"/><path stroke="var(--a)" d="M376 296 V376 H136 L233 279"/></g></symbol>
+</defs></svg>
+
+<h2>Fente 32 + référence</h2><div class="grid" id="g0"></div>
+<h2>Variations solid de G</h2><div class="grid" id="g1"></div>
+<script>
+const L = {
+  g0: [
+    ['d32','Disque fendu','fente 32'],
+    ['s32','Squircle fendu','fente 32'],
+    ['tg','G. Triangles compacts','référence : pattes 80, trait 44, écart ~21'],
+  ],
+  g1: [
+    ['cd','A. Disque plein, Z en réserve','Le G découpé dans un disque plein (réduit à 80 % pour tenir) : une seule couleur, le Z en négatif. Icône « badge », très solide en petit, marche en monochrome.'],
+    ['cs','B. Squircle plein, Z en réserve','Même principe dans le squircle : occupe mieux le carré (favicon, barre des tâches), toujours une seule couleur.'],
+    ['bd','C. Disque plein, Z bicolore','Le disque est plein ; la moitié haute du Z est en réserve (fond) et la moitié basse en vert. Garde les deux couleurs et l’échange, mais sur un objet plein.'],
+    ['bs','D. Squircle plein, Z bicolore','La version squircle de C : plein, bicolore, compact. Le vert ne porte que la moitié basse, l’accent reste discret.'],
+  ],
+};
+const u = (id, s) => `<svg width="${s}" height="${s}"><use href="#${id}"/></svg>`;
+for (const [g, items] of Object.entries(L))
+  document.getElementById(g).innerHTML = items.map(([id, t, d]) => `<div class="card"><b>${t}</b><p>${d}</p>
+    <div class="row"><div class="d">${u(id,128)}</div><div class="l">${u(id,128)}</div></div>
+    <div class="row"><div class="d">${u(id,48)}</div><div class="d">${u(id,32)}</div><div class="d">${u(id,16)}</div>
+    <div class="l">${u(id,48)}</div><div class="l">${u(id,32)}</div><div class="l">${u(id,16)}</div></div></div>`).join('');
+</script>

@@ -1,6 +1,7 @@
-// Génère le jeu d'icônes de la PWA depuis le mark « Z fendu bicolore ».
-// Source unique : un SVG (mark bicolore neutre gruvbox + accent), décliné en
-// PNG pour les usages qui n'acceptent pas le SVG (Safari, iOS, badge Android).
+// Génère le jeu d'icônes de la PWA depuis le mark « Z deux triangles »
+// (deux triangles ouverts, trait arrondi 76, pattes courtes). Source unique :
+// un SVG (mark bicolore neutre gruvbox + accent), décliné en PNG pour les
+// usages qui n'acceptent pas le SVG (Safari, iOS, badge Android).
 // Lancer depuis la racine du repo : node scripts/gen-icons.mjs
 // Dépendance : sharp (résolu depuis le harness pi, aucune dep runtime du projet).
 import { createRequire } from 'node:module'
@@ -16,25 +17,26 @@ const ACCENT_DARK = '#b8bb26' // gruvbox dark green (mode sombre)
 const ACCENT_LIGHT = '#98971a' // gruvbox neutral green (mode clair, plus lisible)
 const FOND = '#282828' // gruvbox dark bg
 
-// Géométrie du mark (viewBox 512) : Z fendu bicolore. Les transforms sont
-// conservés tels quels : valides en SVG, rendus à l'identique par les
-// navigateurs et par sharp.
-const Z_TOP = 'M148 116 L384 116 L116 384 L116 324 L252 188 L116 188 L116 148 Z'
-const Z_BOT = 'M396 138 L396 188 L260 324 L396 324 L396 364 L364 396 L138 396 Z'
+// Géométrie du mark (viewBox 512) : deux triangles ouverts tracés au trait
+// arrondi, cadre 80..432, pattes 95. Le mark est centré sur (256, 256).
+const Z_TOP = 'M80 175 V80 H432 L296 216'
+const Z_BOT = 'M432 337 V432 H80 L216 296'
+const TRAIT = 76
 
-// Boîte englobante du Z après transform : carré de côté 246.4 centré sur
-// (235, 280). RMAX = distance du point le plus éloigné (pointes haut-droit /
-// bas-gauche du Z). Sert à recentrer et à dimensionner les variantes.
-const CX = 235, CY = 280, RMAX = 166.9
-// BIG : marges ~42 px/côté (~8 %, entre le plein cadre et la moitié du
-// maskable) — favicon, header, badge, tray. SAFE : tient dans la zone sûre
-// maskable (cercle Ø 410, rayon 205) pour les icônes à masque arrondi.
-const BIG = (256 - 42) / 123.2 // 1.7370
-const SAFE = 205 / RMAX // 1.2283
+// Boîte englobante trait compris : carré de côté 428 (42..470), demi-côté 214.
+// RMAX = point peint le plus éloigné du centre (arrondi des coins haut-droit /
+// bas-gauche du cadre) : distance centre→coin + demi-trait. Sert à dimensionner
+// les variantes.
+const CX = 256, CY = 256, RMAX = 176 * Math.SQRT2 + TRAIT / 2 // 286.9
+// BIG : marges ~42 px/côté (~8 %) — favicon, header, badge, tray ; le mark a
+// déjà cette marge à l'échelle 1. SAFE : tient dans la zone sûre maskable
+// (cercle Ø 410, rayon 205) pour les icônes à masque arrondi.
+const BIG = (256 - 42) / 214 // 1.0
+const SAFE = 205 / RMAX // 0.7145
 
 function markInner(topAttr, accAttr) {
   return `
-  <g transform="translate(235 280) scale(0.88) translate(-256 -256)">
+  <g fill="none" stroke-width="${TRAIT}" stroke-linecap="round" stroke-linejoin="round">
     <path ${topAttr} d="${Z_TOP}"/>
     <path ${accAttr} d="${Z_BOT}"/>
   </g>`
@@ -51,13 +53,13 @@ function doc(inner, bg = null, rx = 0) {
 }
 
 // Mark couleur (accent sombre) pour les PNG sur fond sombre.
-const markColor = markInner(`fill="${NEUTRE}"`, `fill="${ACCENT_DARK}"`)
+const markColor = markInner(`stroke="${NEUTRE}"`, `stroke="${ACCENT_DARK}"`)
 // Variante claire du mark (neutre sombre + accent foncé), pour fonds clairs.
-const markLight = markInner(`fill="${FOND}"`, `fill="${ACCENT_LIGHT}"`)
-const markWhite = markInner('fill="#fff"', 'fill="#fff"')
+const markLight = markInner(`stroke="${FOND}"`, `stroke="${ACCENT_LIGHT}"`)
+const markWhite = markInner('stroke="#fff"', 'stroke="#fff"')
 // Favicon : classes .n (neutre) / .a (accent) pilotées par prefers-color-scheme.
 const markFav = markInner('class="n"', 'class="a"')
-const FAVICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512"><style>.n{fill:${NEUTRE}}.a{fill:${ACCENT_DARK}}@media (prefers-color-scheme:light){.n{fill:${FOND}}.a{fill:${ACCENT_LIGHT}}}</style>${place(markFav, BIG)}</svg>`
+const FAVICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512"><style>.n{stroke:${NEUTRE}}.a{stroke:${ACCENT_DARK}}@media (prefers-color-scheme:light){.n{stroke:${FOND}}.a{stroke:${ACCENT_LIGHT}}}</style>${place(markFav, BIG)}</svg>`
 
 async function png(svgStr, size, file) {
   await sharp(Buffer.from(svgStr)).resize(size, size).png().toFile(join(OUT, file))

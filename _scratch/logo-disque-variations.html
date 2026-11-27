@@ -1,0 +1,55 @@
+<!doctype html><meta charset="utf-8"><title>ZRA — disque</title>
+<style>
+body{margin:0;padding:32px;font:14px system-ui;background:#1d2021;color:#ebdbb2}
+h2{font-weight:500;margin:32px 0 12px;color:#a89984}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px}
+.card{background:#282828;border-radius:12px;padding:16px}
+.card b{display:block;margin-bottom:4px}.card p{color:#a89984;margin:4px 0 0;line-height:1.4}
+.row{display:flex;gap:12px;align-items:end;margin-top:12px}
+.d,.l{border-radius:8px;display:flex;align-items:center;justify-content:center;padding:8px}
+.d{background:#1d2021;--n:#ebdbb2;--a:#b8bb26;--bg:#1d2021}
+.l{background:#fbf1c7;--n:#282828;--a:#98971a;--bg:#fbf1c7}
+svg{display:block}
+</style>
+<svg width="0" height="0" style="position:absolute"><defs>
+<!-- Masques : forme blanche, fente noire -->
+<mask id="m0" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512"><circle cx="256" cy="256" r="150" fill="#fff"/><path d="M60 206 H306 L206 306 H452" fill="none" stroke="#000" stroke-width="30" stroke-linejoin="round"/></mask>
+<mask id="m1" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512"><circle cx="256" cy="256" r="150" fill="#fff"/><path d="M60 206 H306 L206 306 H452" fill="none" stroke="#000" stroke-width="18" stroke-linejoin="round"/></mask>
+<mask id="m2" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512"><rect x="110" y="110" width="292" height="292" rx="96" fill="#fff"/><path d="M60 206 H306 L206 306 H452" fill="none" stroke="#000" stroke-width="26" stroke-linejoin="round"/></mask>
+<mask id="m3" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512"><circle cx="256" cy="256" r="146" fill="#fff"/></mask>
+<mask id="m4" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512"><circle cx="256" cy="256" r="150" fill="#fff"/><path d="M60 206 H306 L206 306 H452" fill="none" stroke="#000" stroke-width="44" stroke-linejoin="round"/></mask>
+<mask id="m5" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512"><circle cx="256" cy="256" r="150" fill="#fff"/><path d="M60 176 H336 L176 336 H452" fill="none" stroke="#000" stroke-width="28" stroke-linejoin="round"/></mask>
+<clipPath id="k3"><circle cx="256" cy="256" r="150"/></clipPath>
+
+<symbol id="d0" viewBox="0 0 512 512"><g mask="url(#m0)"><path fill="var(--n)" d="M0 0 H512 V306 H206 L306 206 H0 Z"/><path fill="var(--a)" d="M0 206 H306 L206 306 H512 V512 H0 Z"/></g></symbol>
+<symbol id="o1a" viewBox="0 0 512 512"><g fill="none" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"><path stroke="var(--n)" d="M140 140 H372 L290 222"/><path stroke="var(--a)" d="M222 290 L140 372 H372"/></g></symbol>
+
+<symbol id="v1" viewBox="0 0 512 512"><g mask="url(#m1)"><path fill="var(--n)" d="M0 0 H512 V306 H206 L306 206 H0 Z"/><path fill="var(--a)" d="M0 206 H306 L206 306 H512 V512 H0 Z"/></g></symbol>
+<symbol id="v2" viewBox="0 0 512 512"><g mask="url(#m2)"><path fill="var(--n)" d="M0 0 H512 V306 H206 L306 206 H0 Z"/><path fill="var(--a)" d="M0 206 H306 L206 306 H512 V512 H0 Z"/></g></symbol>
+<symbol id="v3" viewBox="0 0 512 512"><g clip-path="url(#k3)" transform="translate(-10 -10)"><path fill="var(--n)" d="M0 0 H512 V306 H206 L306 206 H0 Z" transform="translate(-0 -0)"/></g><g clip-path="url(#k3)" transform="translate(10 10)"><path fill="var(--a)" d="M0 206 H306 L206 306 H512 V512 H0 Z"/></g></symbol>
+<symbol id="v4" viewBox="0 0 512 512"><g mask="url(#m4)"><circle cx="256" cy="256" r="150" fill="var(--n)"/></g><path d="M150 206 H306 L206 306 H362" fill="none" stroke="var(--a)" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="v5" viewBox="0 0 512 512"><g mask="url(#m5)"><path fill="var(--n)" d="M0 0 H512 V336 H176 L336 176 H0 Z"/><path fill="var(--a)" d="M0 176 H336 L176 336 H512 V512 H0 Z"/></g></symbol>
+<symbol id="v6" viewBox="0 0 512 512"><g fill="none" stroke-width="64" stroke-linecap="round" stroke-linejoin="round"><path stroke="var(--n)" d="M164 164 H348 L290 222"/><path stroke="var(--a)" d="M222 290 L164 348 H348"/></g></symbol>
+</defs></svg>
+
+<h2>Retenus</h2><div class="grid" id="g0"></div>
+<h2>Variations</h2><div class="grid" id="g1"></div>
+<script>
+const L = {
+  g0: [['d0','Disque fendu','fente 30'],['o1a','1a','trait 60']],
+  g1: [
+    ['v1','A. Fente fine','Fente de 18 au lieu de 30 : le disque domine et le Z se devine. Plus sobre et plus « objet », mais la fente se perd en dessous de 24 px.'],
+    ['v2','B. Squircle fendu','Le même principe dans un carré très arrondi. Plus compact visuellement, il occupe mieux un carré (favicon, barre des tâches) sans être un badge.'],
+    ['v3','C. Disque écarté','Pas de fente découpée : les deux moitiés sont écartées en diagonale. Le Z naît du mouvement, comme deux pièces qui se séparent ou se rejoignent. On voit l’échange.'],
+    ['v4','D. Liaison verte','Le disque est d’une seule couleur et la fente est traversée par un fil vert en Z. Un seul objet, et la connexion est l’accent. Plus calme en couleurs.'],
+    ['v5','E. Fente profonde','Une diagonale plus longue et des paliers plus courts : les deux moitiés s’emboîtent davantage, presque comme un S. Plus dynamique, le Z est plus lisible.'],
+    ['v6','F. 1a compacte','La 1a resserrée et plus grasse (trait 64, presque carrée). Même famille que le disque : simple, dense, solide en petit.'],
+  ],
+};
+const u = (id, s) => `<svg width="${s}" height="${s}"><use href="#${id}"/></svg>`;
+for (const [g, items] of Object.entries(L))
+  document.getElementById(g).innerHTML = items.map(([id, t, d]) => `<div class="card"><b>${t}</b><p>${d}</p>
+    <div class="row"><div class="d">${u(id,128)}</div><div class="l">${u(id,128)}</div></div>
+    <div class="row"><div class="d">${u(id,48)}</div><div class="d">${u(id,32)}</div><div class="d">${u(id,16)}</div>
+    <div class="l">${u(id,48)}</div><div class="l">${u(id,32)}</div><div class="l">${u(id,16)}</div></div></div>`).join('');
+</script>

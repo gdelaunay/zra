@@ -1,0 +1,72 @@
+<!doctype html><meta charset="utf-8"><title>ZRA — concepts</title>
+<style>
+body{margin:0;padding:32px;font:14px system-ui;background:#1d2021;color:#ebdbb2}
+h2{font-weight:500;margin:32px 0 12px;color:#a89984}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px}
+.card{background:#282828;border-radius:12px;padding:16px}
+.card b{display:block;margin-bottom:4px}.card p{color:#a89984;margin:4px 0 0;line-height:1.4}
+.row{display:flex;gap:12px;align-items:end;margin-top:12px}
+.d,.l{border-radius:8px;display:flex;align-items:center;justify-content:center;padding:8px}
+.d{background:#1d2021;--n:#ebdbb2;--a:#b8bb26;--bg:#1d2021}
+.l{background:#fbf1c7;--n:#282828;--a:#98971a;--bg:#fbf1c7}
+svg{display:block}
+.lock{display:flex;align-items:center;gap:20px;padding:24px 32px;border-radius:8px}
+.lock span{font:700 64px/1 "JetBrains Mono",Consolas,monospace;letter-spacing:-2px;color:var(--n)}
+.lock span i{font-style:normal;color:var(--a)}
+</style>
+<svg width="0" height="0" style="position:absolute"><defs>
+<linearGradient id="rg" x1="376" y1="136" x2="136" y2="376" gradientUnits="userSpaceOnUse"><stop offset=".3" stop-color="var(--n)"/><stop offset=".7" stop-color="var(--a)"/></linearGradient>
+<mask id="dm" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512"><circle cx="256" cy="256" r="150" fill="#fff"/><path d="M60 206 H306 L206 306 H452" fill="none" stroke="#000" stroke-width="30" stroke-linejoin="round"/></mask>
+
+<symbol id="o1" viewBox="0 0 512 512"><g fill="none" stroke-width="48" stroke-linecap="round" stroke-linejoin="round"><path stroke="var(--n)" d="M136 136 H376 L286 226"/><path stroke="var(--a)" d="M226 286 L136 376 H376"/></g></symbol>
+<symbol id="o1a" viewBox="0 0 512 512"><g fill="none" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"><path stroke="var(--n)" d="M140 140 H372 L290 222"/><path stroke="var(--a)" d="M222 290 L140 372 H372"/></g></symbol>
+
+<!-- 1. Optique : barres plus épaisses que la diagonale -->
+<symbol id="c1" viewBox="0 0 512 512"><g fill="none" stroke-linecap="round"><g stroke-width="58"><path stroke="var(--n)" d="M140 140 H372"/><path stroke="var(--a)" d="M140 372 H372"/></g><g stroke-width="46"><path stroke="var(--n)" d="M372 140 L292 220"/><path stroke="var(--a)" d="M220 292 L140 372"/></g></g></symbol>
+<!-- 2. Penché -->
+<symbol id="c2" viewBox="0 0 512 512"><g transform="translate(256 256) skewX(-14) translate(-256 -256)" fill="none" stroke-width="56" stroke-linecap="round" stroke-linejoin="round"><path stroke="var(--n)" d="M150 140 H372 L292 220"/><path stroke="var(--a)" d="M220 292 L140 372 H362"/></g></symbol>
+<!-- 3. Contour (hommage Zed) -->
+<symbol id="c3" viewBox="0 0 512 512"><g transform="translate(256 256) scale(.86) translate(-256 -256)" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="var(--n)" stroke-width="76" d="M136 136 H376 L306 206"/><path stroke="var(--a)" stroke-width="76" d="M206 306 L136 376 H376"/><g stroke="var(--bg)" stroke-width="36"><path d="M136 136 H376 L306 206"/><path d="M206 306 L136 376 H376"/></g></g></symbol>
+<!-- 4. Triangles (cadre Zed) -->
+<symbol id="c4" viewBox="0 0 512 512"><g fill="none" stroke-width="38" stroke-linecap="round" stroke-linejoin="round"><path stroke="var(--n)" d="M136 300 V136 H376 L290 222"/><path stroke="var(--a)" d="M376 212 V376 H136 L222 290"/></g></symbol>
+<!-- 5. Disque -->
+<symbol id="c5" viewBox="0 0 512 512"><g mask="url(#dm)"><path fill="var(--n)" d="M0 0 H512 V306 H206 L306 206 H0 Z"/><path fill="var(--a)" d="M0 206 H306 L206 306 H512 V512 H0 Z"/></g></symbol>
+<!-- 6. Pointillé -->
+<symbol id="c6" viewBox="0 0 512 512"><g fill="none" stroke-width="48" stroke-linecap="round"><path stroke="var(--n)" d="M136 136 H376"/><path stroke="var(--a)" d="M136 376 H376"/></g><circle cx="328" cy="184" r="17" fill="var(--n)"/><circle cx="284" cy="228" r="11" fill="var(--n)"/><circle cx="184" cy="328" r="17" fill="var(--a)"/><circle cx="228" cy="284" r="11" fill="var(--a)"/></symbol>
+<!-- 7. Flux -->
+<symbol id="c7" viewBox="0 0 512 512"><g fill="none" stroke-width="44" stroke-linecap="round" stroke-linejoin="round"><path stroke="var(--n)" d="M252 136 H376 L286 226 M180 136 H184"/><path stroke="var(--a)" d="M226 286 L136 376 H260 M328 376 H332"/></g><circle cx="122" cy="136" r="13" fill="var(--n)"/><circle cx="390" cy="376" r="13" fill="var(--a)"/></symbol>
+<!-- 8. Pixel -->
+<symbol id="c8" viewBox="0 0 512 512"><g fill="var(--n)"><rect x="116" y="116" width="52" height="52" rx="6"/><rect x="172" y="116" width="52" height="52" rx="6"/><rect x="228" y="116" width="52" height="52" rx="6"/><rect x="284" y="116" width="52" height="52" rx="6"/><rect x="340" y="116" width="52" height="52" rx="6"/><rect x="284" y="172" width="52" height="52" rx="6"/></g><g fill="var(--a)"><rect x="172" y="284" width="52" height="52" rx="6"/><rect x="116" y="340" width="52" height="52" rx="6"/><rect x="172" y="340" width="52" height="52" rx="6"/><rect x="228" y="340" width="52" height="52" rx="6"/><rect x="284" y="340" width="52" height="52" rx="6"/><rect x="340" y="340" width="52" height="52" rx="6"/></g></symbol>
+<!-- 9. Ruban -->
+<symbol id="c9" viewBox="0 0 512 512"><path fill="url(#rg)" d="M354 136 H376 V188 L188 376 H136 V354 Z"/><g stroke="var(--bg)" stroke-width="14" paint-order="stroke"><rect x="136" y="136" width="240" height="52" rx="6" fill="var(--n)"/><rect x="136" y="324" width="240" height="52" rx="6" fill="var(--a)"/></g></symbol>
+</defs></svg>
+
+<h2>En lice</h2><div class="grid" id="g0"></div>
+<h2>Concepts</h2><div class="grid" id="g1"></div>
+<h2>Lockup (logo + nom)</h2>
+<div class="grid" style="grid-template-columns:1fr 1fr">
+  <div class="lock d"><svg width="88" height="88"><use href="#o1a"/></svg><span>zr<i>a</i></span></div>
+  <div class="lock l"><svg width="88" height="88"><use href="#o1a"/></svg><span>zr<i>a</i></span></div>
+</div>
+<script>
+const L = {
+  g0: [['o1','1 — original','trait 48'],['o1a','1a','trait 60']],
+  g1: [
+    ['c1','1. Correction optique','Une diagonale tracée au même trait paraît plus grasse que les barres. Ici la diagonale est un peu plus fine (46 contre 58) : la lettre paraît homogène. C’est ce que ferait un dessinateur de caractères, et ça reste très proche de la 1a.'],
+    ['c2','2. Penché','La 1a inclinée de 14°, comme une italique : ça donne de la vitesse et du dynamisme, l’idée du temps réel. Les barres sont raccourcies pour rester dans le cadre.'],
+    ['c3','3. Contour — hommage Zed','Le logo de Zed est un Z en lignes fines. Ici chaque moitié de la 1 est dessinée en contour, comme deux tubes. Ça relie visuellement ZRA à Zed sans copier son logo.'],
+    ['c4','4. Deux triangles','On ajoute un montant à chaque moitié : deux triangles ouverts pointent vers des coins opposés, comme ↖ et ↘. On lit à la fois un Z, un carré coupé en deux (le PC et le téléphone) et un échange. C’est aussi l’écho du cadre du logo Zed.'],
+    ['c5','5. Disque fendu','On inverse le principe : le Z n’est plus dessiné, c’est la fente qui sépare un disque en deux. Les deux parties s’emboîtent comme un yin-yang. Logo plein, fort, très lisible en 16 px.'],
+    ['c6','6. Pointillé — la liaison','Seules les barres sont pleines : ce sont les deux appareils. La diagonale devient des points qui rétrécissent vers le centre, comme un signal transmis de l’un à l’autre.'],
+    ['c7','7. Flux','Des paquets de données arrivent par la gauche en crème et repartent par la droite en vert. Le Z devient un circuit avec un aller et un retour.'],
+    ['c8','8. Pixel','Le Z dessiné sur une grille 5×5, comme un caractère de terminal en bitmap. Il est pensé pour le favicon : net en 16 px sans lissage. La case centrale est vide, c’est la coupure.'],
+    ['c9','9. Ruban','Un seul ruban plié deux fois, qui passe du crème au vert dans la diagonale. C’est la continuité : un même flux qui va d’un côté à l’autre, plutôt que deux pièces séparées.'],
+  ],
+};
+const u = (id, s) => `<svg width="${s}" height="${s}"><use href="#${id}"/></svg>`;
+for (const [g, items] of Object.entries(L))
+  document.getElementById(g).innerHTML = items.map(([id, t, d]) => `<div class="card"><b>${t}</b><p>${d}</p>
+    <div class="row"><div class="d">${u(id,128)}</div><div class="l">${u(id,128)}</div></div>
+    <div class="row"><div class="d">${u(id,48)}</div><div class="d">${u(id,32)}</div><div class="d">${u(id,16)}</div>
+    <div class="l">${u(id,48)}</div><div class="l">${u(id,32)}</div><div class="l">${u(id,16)}</div></div></div>`).join('');
+</script>
