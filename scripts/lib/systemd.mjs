@@ -268,10 +268,16 @@ function uninstall(opts) {
   const s = unitState()
   if (!s.installed) return console.log(tr`Unité « ${UNIT} » : déjà absente.`)
   if (!opts.apply) return console.log(tr`Simulation : l’unité « ${UNIT} » serait arrêtée, désactivée puis supprimée (${s.file}). Relancer avec --apply.`)
-  systemctl(['disable', '--now', UNIT])
+  // --keep-running (migration de mode par le tray) : disable seul, le
+  // processus courant survit jusqu'à la bascule suivante.
+  systemctl(opts.keepRunning ? ['disable', UNIT] : ['disable', '--now', UNIT])
   rmSync(s.file, { force: true })
   const reload = systemctl(['daemon-reload'])
-  console.log(reload.ok ? tr`✓ unité supprimée (le journal reste dans .zra/logs/ et dans journalctl).` : `systemctl --user daemon-reload : ${reload.out}`)
+  console.log(reload.ok
+    ? (opts.keepRunning
+      ? tr`✓ unité désactivée et supprimée (processus courant laissé vivant).`
+      : tr`✓ unité supprimée (le journal reste dans .zra/logs/ et dans journalctl).`)
+    : `systemctl --user daemon-reload : ${reload.out}`)
 }
 
 async function start(opts, config) {

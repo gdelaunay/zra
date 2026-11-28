@@ -111,6 +111,18 @@ fn main() {
         }
     };
 
+    // Marqueur de session : l'entrée XDG de reprise graphique (unité relais)
+    // compare ces valeurs à la session courante pour décider de relancer le
+    // tray au login (headless au boot, ou session périmée après déconnexion).
+    let session = format!(
+        "{}\n{}\n{}\n{}",
+        std::env::var("DISPLAY").unwrap_or_default(),
+        std::env::var("WAYLAND_DISPLAY").unwrap_or_default(),
+        std::env::var("DBUS_SESSION_BUS_ADDRESS").unwrap_or_default(),
+        std::env::var("XDG_SESSION_ID").unwrap_or_default(),
+    );
+    let _ = std::fs::write(paths.zra.join("tray.session"), session);
+
     let cfg = match paths.load_config() {
         Some(cfg) => cfg,
         None if headless => {
@@ -349,7 +361,11 @@ fn run_gui(sup: Arc<Supervisor>, paths: Arc<Paths>, cfg: config::TrayConfig, con
                                 Mode::Poste => Mode::Relais,
                                 Mode::Relais => Mode::Poste,
                             };
-                            sup.switch_mode(next);
+                            match orchestrate::switch_mode(&sup, &paths, next) {
+                                Ok(out) if !out.is_empty() => eprintln!("{}", out),
+                                Err(e) => eprintln!("{}", tr!("[zra-tray] bascule de mode : {0}", e)),
+                                _ => {}
+                            }
                             mode_item.set_text(mode_switch_label(next));
                         }
                         ID_QUIT => {

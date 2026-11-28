@@ -595,11 +595,12 @@
       busy = true; render(); clearBanners()
       try {
         const body = await post('/mode', { mode: btn.dataset.v })
-        if (body.ok) showOk(tr`Mode ${label} activé.`)
+        if (body.ok) showOk(body.output ? tr`Mode ${label} activé.` + '\n' + body.output : tr`Mode ${label} activé.`)
         else showError(body.error)
       } catch { showError(tr`Le tray ne répond plus.`) }
       busy = false
       await refresh()
+      loadAutostart()
       loadLogs()
     })
   }

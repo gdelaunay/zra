@@ -7,8 +7,10 @@
 
 use std::process::{Command, Stdio};
 
-use crate::config::Paths;
+use crate::config::{Mode, Paths};
 use crate::i18n::tr;
+use crate::relay_unit;
+use crate::supervisor::Supervisor;
 
 /// Résultat d'une étape d'orchestration, renvoyé à la page.
 pub struct Step {
@@ -64,6 +66,62 @@ pub fn discover(paths: &Paths, node: &str) -> serde_json::Value {
         return serde_json::Value::Null;
     }
     serde_json::from_str(&step.output).unwrap_or(serde_json::Value::Null)
+}
+
+/// Bascule de mode avec migration de l'autostart : l'intention « lancer au
+/// démarrage » suit le mode. Deux supports distincts uniquement sous
+/// Linux/systemd (unité poste `zra-daemon` ↔ unité relais `zra-relay`) ;
+/// ailleurs (Windows, MX/XDG) le même support lance le tray, qui suit le
+/// mode — rien à migrer. L'ancien support est retiré sans tuer le tray
+/// courant (`--keep-running` / disable seul).
+pub fn switch_mode(sup: &Supervisor, paths: &Paths, next: Mode) -> Result<String, String> {
+    let (old, _) = sup.snapshot();
+    if old == next {
+        return Ok(String::new());
+    }
+    let relay_side = |m: Mode| m == Mode::Relais && relay_unit::is_systemd_user();
+    if relay_side(old) == relay_side(next) {
+        sup.switch_mode(next);
+        return Ok(String::new());
+    }
+    let cfg = sup.config();
+    let enabled = if relay_side(old) {
+        relay_unit::state().get("enabled").and_then(|v| v.as_bool()).unwrap_or(false)
+    } else {
+        discover(paths, &cfg.node)
+            .get("autostart")
+            .and_then(|a| a.get("installed"))
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false)
+    };
+    sup.switch_mode(next);
+    if !enabled {
+        return Ok(String::new());
+    }
+    let mut out = String::new();
+    if relay_side(old) {
+        out.push_str(&relay_unit::uninstall_keep_running(&paths.root)?);
+    } else {
+        let step = run_script(paths, &cfg.node, &tr!("Démarrage automatique"), "service.mjs",
+            &["uninstall".into(), "--apply".into(), "--keep-running".into()]);
+        if !step.ok {
+            return Err(step.output);
+        }
+        out.push_str(&step.output);
+    }
+    out.push('\n');
+    if relay_side(next) {
+        let exe = std::env::current_exe().map_err(|e| e.to_string())?;
+        out.push_str(&relay_unit::install(&exe, &paths.root)?);
+    } else {
+        let step = run_script(paths, &cfg.node, &tr!("Démarrage automatique"), "service.mjs",
+            &["install".into(), "--apply".into()]);
+        if !step.ok {
+            return Err(step.output);
+        }
+        out.push_str(&step.output);
+    }
+    Ok(out)
 }
 
 #[cfg(test)]

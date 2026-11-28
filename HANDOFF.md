@@ -21,14 +21,24 @@ Français seulement.
 
 ## À tester
 
+- **Ubuntu/GNOME — re-test avec le nouveau build** (fix ci-dessous) :
+  migration autostart à la bascule dans les deux sens ; relais au boot
+  (validé sur l'ancien build) puis **icône au login** via l'entrée XDG de
+  reprise graphique ; désinstallation (retire unité + entrée de reprise).
 - **MX/Xfce (sans systemd)** : backend autostart XDG depuis la console
   (décoche/recoche) et son `.desktop`
   (`~/.config/autostart/zra-daemon.desktop`) ; mode relais.
-- **Ubuntu/GNOME (Wayland)** : comportement général, XWayland.
-- **Homelab (p350)** : « relais démarré au boot » **non testable** (la
-  machine ne reboot pas) — à vérifier si l'occasion se présente.
+- **Homelab (p350)** : reprise graphique au login (KDE a une session) ;
+  « relais démarré au boot » à vérifier si l'occasion se présente.
 
-## Points bloqués
+## Fix en attente de re-test
 
-Aucun pour l'instant. Les bugs trouvés en testant seront notés ici puis
-corrigés (les bugs corrigés sont retirés, comme les tests validés).
+- **Bascule de mode : l'autostart ne migre pas** (confirmé en réel
+  Ubuntu/GNOME, dans les deux sens ; unité orpheline inatteignable depuis
+  l'UI). Corrigé : `orchestrate::switch_mode` migre le support (unité poste
+  ↔ unité relais sous systemd ; ailleurs un seul support, rien à migrer),
+  retrait sans tuer le tray courant (`--keep-running`).
+- **Tray headless après boot + login** (pas d'icône, console via le journal).
+  Corrigé : unité sans `--headless` forcé + entrée XDG `zra-relay-login.desktop`
+  qui relance le tray avec la session au login (marqueur `.zra/tray.session`).
+- Rebuild CI nécessaire (re-tag `v0.6.0-dev`) avant le re-test.

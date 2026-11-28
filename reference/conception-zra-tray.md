@@ -340,9 +340,16 @@ tue le piège « dossier déplacé → chemins absolus périmés » du portable.
      « Désinstallation » de la console (panneau de confirmation, étapes).
    - **5.6 — Fait** unité systemd du relais générée par le binaire
      (`relay_unit.rs`) : `zra-relay.service` (--user), ExecStart = tray
-     `--headless` (il lit le mode relais de tray.json), linger vérifié/activé
-     sans sudo. Pilotée depuis la console (case autostart en mode relais sous
-     Linux/systemd) ; retirée à la désinstallation. Sans systemd en init
+     (headless automatique sans session ; il lit le mode relais de
+     tray.json), linger vérifié/activé sans sudo. Entrée XDG autostart
+     compagnon (`zra-relay-login.desktop` + lanceur `.zra/service/`) :
+     au login, si le marqueur `.zra/tray.session` ne correspond pas à la
+     session (tray headless du boot, ou session périmée), import de
+     l'environnement graphique dans le manager user + restart de l'unité →
+     icône. Pilotée depuis la console (case autostart en mode relais sous
+     Linux/systemd) ; retirée à la désinstallation. La bascule de mode migre
+     l'autostart (unité poste ↔ unité relais, retrait sans tuer le tray
+     courant — `service.mjs uninstall --keep-running`). Sans systemd en init
      (MX/sysvinit) : l'autostart XDG existant lance le tray, qui suit le mode.
      La doc deploy garde l'unité système manuelle pour le flux sans tray.
    - **5.7 — Fait** self-install par le tray (`install.rs`) : option

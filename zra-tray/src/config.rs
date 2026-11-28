@@ -161,7 +161,7 @@ pub fn config_root(root: &Path) -> PathBuf {
 
 /// Entrées `.zra` jetables (régénérées au runtime, dans le dossier d'install) :
 /// tout le reste de `.zra` est précieux et vit dans le dossier config.
-pub const JETABLE: &[&str] = &["logs", "bin", "records", "updates", "tray.lock", "injections.log"];
+pub const JETABLE: &[&str] = &["logs", "bin", "records", "updates", "tray.lock", "tray.session", "injections.log"];
 
 /// Racine ZRA depuis un dossier : layout dépôt (`zra-daemon/` direct) ou
 /// archive « app » (`app/zra-daemon/`). Dans l'archive la racine est `app/`,

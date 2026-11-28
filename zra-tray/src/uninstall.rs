@@ -93,8 +93,8 @@ pub fn unwire(paths: &Paths, node: &str) -> Vec<Step> {
     ];
     // Unité du relais (5.6), si elle a été générée — service.mjs ne connaît
     // que l'unité poste.
-    if cfg!(unix) && relay_unit::unit_file().is_file() {
-        let (ok, output) = match relay_unit::uninstall() {
+    if cfg!(unix) && (relay_unit::unit_file().is_file() || relay_unit::login_desktop_file().is_file()) {
+        let (ok, output) = match relay_unit::uninstall(&paths.root) {
             Ok(out) => (true, out),
             Err(e) => (false, e),
         };

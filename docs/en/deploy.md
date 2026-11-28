@@ -209,11 +209,17 @@ npm run relay               # listens http://0.0.0.0:7777 — PWA + relay
 
 - **With the tray** ("app" archive, relay mode): the management console
   generates the `systemd --user` unit `zra-relay.service` — "Launch ZRA at
-  session open" checkbox. The unit launches the binary with `--headless`; it
-  supervises the relay with the listening address and TLS from
-  `.zra/tray.json`. Linger is checked and enabled if needed
-  (`loginctl enable-linger`, no sudo): without it, no boot start on a machine
-  with no open session. No more copy-pasted unit.
+  session open" checkbox. The unit launches the binary (automatically
+  headless without a graphical session); it supervises the relay with the
+  listening address and TLS from `.zra/tray.json`. Linger is checked and
+  enabled if needed (`loginctl enable-linger`, no sudo): without it, no boot
+  start on a machine with no open session. No more copy-pasted unit.
+  At boot the tray thus starts without an icon; a companion XDG autostart
+  entry (`zra-relay-login.desktop`) restarts it with the graphical
+  environment at session login — the icon appears then.
+  Switching poste ↔ relais from the console or the menu migrates the
+  autostart: the old mode's unit is removed (without killing the running
+  tray), the new mode's unit is installed if the checkbox was checked.
 - **Without the tray** (`npm run relay`), for example a system systemd unit:
 
 ```ini

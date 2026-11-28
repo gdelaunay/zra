@@ -208,11 +208,17 @@ npm run relay               # écoute http://0.0.0.0:7777 — PWA + relais
 
 - **Avec le tray** (archive « app », mode relais) : la console de gestion
   génère l'unité `systemd --user` `zra-relay.service` — case « Lancer ZRA à
-  l'ouverture de session ». L'unité lance le binaire en `--headless` ; il
-  supervise le relais avec l'écoute et le TLS de `.zra/tray.json`. Le linger
-  est vérifié et activé si besoin (`loginctl enable-linger`, sans sudo) :
-  sans lui, pas de démarrage au boot sur une machine sans session ouverte.
-  Plus de copier-coller d'unité.
+  l'ouverture de session ». L'unité lance le binaire (headless automatique
+  sans session graphique) ; il supervise le relais avec l'écoute et le TLS
+  de `.zra/tray.json`. Le linger est vérifié et activé si besoin
+  (`loginctl enable-linger`, sans sudo) : sans lui, pas de démarrage au boot
+  sur une machine sans session ouverte. Plus de copier-coller d'unité.
+  Au boot, le tray démarre donc sans icône ; une entrée XDG autostart
+  compagnon (`zra-relay-login.desktop`) le relance avec l'environnement
+  graphique à l'ouverture de session — l'icône apparaît à ce moment-là.
+  La bascule poste ↔ relais depuis la console ou le menu migre l'autostart :
+  l'unité de l'ancien mode est retirée (sans tuer le tray courant), celle du
+  nouveau mode est posée si la case était cochée.
 - **Sans tray** (`npm run relay`), par exemple une unité systemd système :
 
 ```ini

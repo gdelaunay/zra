@@ -165,7 +165,7 @@ fn handle(mut request: tiny_http::Request, sup: &Supervisor, paths: &Paths) {
                     let out = if p.enabled {
                         relay_unit::install(&exe, &paths.root)?
                     } else {
-                        relay_unit::uninstall()?
+                        relay_unit::uninstall(&paths.root)?
                     };
                     return Ok(json!({ "ok": true, "output": out }));
                 }
@@ -212,8 +212,8 @@ fn handle(mut request: tiny_http::Request, sup: &Supervisor, paths: &Paths) {
                 if sup.snapshot().1 == RunState::Adopted {
                     return Err(tr!("Service externe : bascule impossible depuis le tray."));
                 }
-                sup.switch_mode(p.mode);
-                Ok(json!({ "ok": true }))
+                let out = orchestrate::switch_mode(sup, paths, p.mode)?;
+                Ok(json!({ "ok": true, "output": out }))
             })();
             match result {
                 Ok(v) => ok_json(v),

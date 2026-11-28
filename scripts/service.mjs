@@ -60,13 +60,14 @@ const LAUNCHER = join(ROOT, 'scripts', 'daemon-task.ps1')
 const LOG = join(configRoot({ root: ROOT }), '.zra', 'logs', 'daemon.log')
 const XML_FILE = join(configRoot({ root: ROOT }), '.zra', 'service', 'zra-daemon.xml')
 
-function parseArgs(argv) {
-  const out = { command: 'status', apply: false, lines: 40 }
-  const rest = npmSafeArgs(argv, ['apply'])
+export function parseArgs(argv) {
+  const out = { command: 'status', apply: false, keepRunning: false, lines: 40 }
+  const rest = npmSafeArgs(argv, ['apply', 'keep-running'])
   if (rest[0] && !rest[0].startsWith('-')) out.command = rest.shift()
   for (let i = 0; i < rest.length; i++) {
     const a = rest[i]
     if (a === '--apply') out.apply = true
+    else if (a === '--keep-running') out.keepRunning = true
     else if (a === '--lines') out.lines = Number(rest[++i])
     else if (a === '--help' || a === '-h') out.command = 'help'
     else throw new Error(tr`Option inconnue : ${a}`)
@@ -90,6 +91,8 @@ const USAGE = tr`zra service — le daemon lancé à l'ouverture de session
   logs                 fin du journal (.zra/logs/daemon.log, ou journalctl --user)
 
   --apply              pour install/uninstall : agir pour de vrai (sans : simulation)
+  --keep-running       pour uninstall : désactiver sans arrêter le processus
+                       courant (migration de mode par le tray)
   --lines <n>          pour logs : nombre de lignes (défaut 40)
 `
 

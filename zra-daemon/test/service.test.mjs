@@ -5,7 +5,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { JSDOM } from 'jsdom'
 
-import { TASK, buildTaskXml, parseQuery, serviceState } from '../../scripts/service.mjs'
+import { TASK, buildTaskXml, parseArgs, parseQuery, serviceState } from '../../scripts/service.mjs'
 
 const opts = {
   user: 'azuread\\gd',
@@ -95,6 +95,13 @@ test('systemd : le backend est choisi par l’OS, pas par un test dispersé', ()
   assert.equal(serviceBackend({ platform: 'linux', systemdInit: true }), 'systemd')
   // Linux sans systemd en init : l’autostart XDG (section suivante).
   assert.equal(serviceBackend({ platform: 'linux', systemdInit: false }), 'autostart')
+})
+
+test('service : --keep-running parsé (migration de mode par le tray)', () => {
+  assert.equal(parseArgs(['uninstall', '--apply', '--keep-running']).keepRunning, true)
+  assert.equal(parseArgs(['uninstall', '--apply']).keepRunning, false)
+  // Mots nus npm-safe : même effet que les options à tirets.
+  assert.equal(parseArgs(['uninstall', 'apply', 'keep-running']).keepRunning, true)
 })
 
 test('systemd : l’unité lance node en --wait-tunnel --log, comme daemon-task.ps1', () => {
