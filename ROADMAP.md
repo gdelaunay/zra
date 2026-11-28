@@ -18,7 +18,7 @@ taggé** : une ou deux phrases de description du jalon + « See CHANGELOG.md »
 - **0.5.2 — composer** (fait — commandes `/`, mentions `@`, icônes de fichiers ; voir `CHANGELOG.md`) ;
 - **0.5.3 — tous les threads par le shim** (fait — entrée d'origine shimée par preload node, threads anciens compris ; voir `CHANGELOG.md`) ;
 - **0.5.4 — relais HTTPS** (fait — la PWA servie avec un relais, plus de proxy par poste ; voir `CHANGELOG.md`) ;
-- **0.6 — `zra-tray`** : le tray natif Rust et la distribution binaire. Développement complet ; tests réels Windows + Debian/KDE (homelab p350) validés ; restent Ubuntu/GNOME et MX/Xfce (`HANDOFF.md`) et la release `v0.6.0` (checklist ci-dessous) ; icône d'état facultative, skippée pour l'instant.
+- **0.6 — `zra-tray`** : le tray natif Rust et la distribution binaire. Développement complet ; tests réels validés sur les quatre plateformes (Windows, Debian/KDE, Ubuntu/GNOME, MX/Xfce) ; reste la release `v0.6.0` (checklist ci-dessous) ; icône d'état facultative, skippée pour l'instant.
 
 ---
 
@@ -54,15 +54,10 @@ gate + tests verts, 4 assets (tray seul + archive app, Windows + Linux).
 Téléchargement au setup validé en réel Windows (oui/non/jamais, repli de
 forge, `.zra/setup.json`).
 
-**Tests réels validés** : Windows (menu natif FR/EN, offerTrayDownload TTY,
-self-install, désinstall 2 variantes, autostart schtasks, repli de forge —
-7 bugs corrigés) ; Debian/KDE p350 (self-install + cas « portable relancée
-→ l'installée se lance », désinstall 2 variantes, bascule autostart systemd,
-mode relais + xdg-open, garde éveillé — fix orphelin `systemd-inhibit`,
-portable mémorisé, headless + console via tunnel SSH). Restent Ubuntu/GNOME
-et MX/Xfce (backend XDG + `.desktop`) — `HANDOFF.md` ; « relais au boot »
-non testable (p350 ne reboot pas). Icône d'état (étape 4) : facultative,
-skippée pour l'instant.
+**Tests réels validés** : Windows, Debian/KDE (p350), Ubuntu/GNOME/Wayland,
+MX/Xfce — self-install, désinstall 2 variantes, autostart (schtasks / systemd /
+XDG `.desktop`), relais au boot sans session + reprise graphique au login.
+Icône d'état (étape 4) : facultative, skippée pour l'instant.
 
 **Release 0.6 — checklist** :
 
