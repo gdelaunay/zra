@@ -27,9 +27,10 @@ taggé** : une ou deux phrases de description du jalon + « See CHANGELOG.md »
 
 ### Signature du binaire Windows
 
-Le non signé expose à SmartScreen/Defender (quarantaine constatée en test
-réel sur le tray debug). À traiter : cert OV, Azure Trusted Signing, ou
-SignPath (gratuit OSS, à vérifier).
+Non signé : SmartScreen « éditeur inconnu » au premier lancement
+(« Informations complémentaires → Exécuter quand même »). Piste future :
+SignPath Foundation (gratuit OSS) — la candidature exige une réputation
+démontrée, à faire quand le projet aura de la visibilité.
 
 ### Distribution — exe standalone (piste, non planifié)
 
