@@ -196,7 +196,7 @@
   "Configuration": "Configuration",
   "« Par défaut » convient à la plupart des postes. « Customiser » affiche tous les réglages.": "“Default” suits most machines. “Customize” shows every setting.",
   "Réglages par défaut": "Default settings",
-  "Customiser": "Customize",
+  "Personnaliser": "Customize",
   "Agents": "Agents",
   "Agents à piloter": "Agents to drive",
   "Les agents qui passent par ZRA : leurs threads deviennent pilotables depuis le téléphone.": "The agents that go through ZRA: their threads become drivable from the phone.",
