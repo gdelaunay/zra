@@ -297,9 +297,6 @@ tue le piège « dossier déplacé → chemins absolus périmés » du portable.
    Dell, GitHub hébergés ; release + 4 assets des deux côtés). Reste : le
    téléchargement optionnel au `setup` (oui/non/jamais, repli de forge) à
    tester ;
-4. **Facultatif — skippé pour l'instant** (décision utilisateur) : sucre,
-   icône qui change d'état (thread live / réponse en attente) — les
-   événements existent déjà dans le daemon ;
 5. Option C — l'archive « app » par plateforme, relay compris (une version
    partout), cycle de vie complet (cf. Distribution). Découpé :
    - **5.1 — Fait** archive + CI : layout `app/` (daemon + client + shim +

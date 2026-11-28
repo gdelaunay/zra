@@ -2,7 +2,7 @@
 
 [English](https://forgejo.gdelaunay.fr/gdelaunay/zra/src/branch/main/CHANGELOG.en.md)
 
-## En cours
+## v0.6.0 — 2026-11-28 — Tray natif et distribution (`697a5c1`)
 
 - Lot issues PWA (`ISSUES.md`, toutes traitées) :
   - Garde éveillé : TTL + coffee masqués quand le poste n'est pas `online` (état périmé) ; TTL masqué pendant un tour (café orange seul) — le daemon ne relance pas le TTL à la fin du tour (`keep-awake.js` : `tick()` ignore `busy`), la valeur fixe « 1 h » aurait promis un comportement inexistant

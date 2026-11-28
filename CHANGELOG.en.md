@@ -2,7 +2,7 @@
 
 [Français](https://forgejo.gdelaunay.fr/gdelaunay/zra/src/branch/main/CHANGELOG.md)
 
-## In progress
+## v0.6.0 — 2026-11-28 — Native tray and distribution (`697a5c1`)
 
 - PWA issues batch (`ISSUES.md`, all addressed):
   - Keep awake: TTL + coffee hidden when the machine is not `online` (stale state); TTL hidden during a turn (orange coffee only) — the daemon does not restart the TTL at turn end (`keep-awake.js`: `tick()` ignores `busy`), the fixed "1 h" value would have promised nonexistent behavior

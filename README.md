@@ -7,7 +7,7 @@ de [Zed](https://zed.dev) : liste, streaming live, envoi, permissions, nouvelle 
 ZRA relaie tel quel ce qui passe entre Zed et l'agent, et y ajoute ce qui vient du mobile.
 Pour ouvrir ou rouvrir un thread, il tape au clavier dans Zed (voir [Sécurité](#sécurité)).
 
-**État** : version 0.5.4. Vérifié sous Windows 11 et sur trois postes Linux
+**État** : version 0.6.0. Vérifié sous Windows 11 et sur trois postes Linux
 (Ubuntu/GNOME/Wayland, Debian/KDE/X11, MX Linux/Xfce/X11), avec un téléphone Android.
 
 **Langue** : français ou anglais. La PWA suit la langue du navigateur ; le daemon,

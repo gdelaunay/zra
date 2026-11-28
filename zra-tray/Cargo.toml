@@ -1,6 +1,6 @@
 [package]
 name = "zra-tray"
-version = "0.6.0-dev"
+version = "0.6.0"
 edition = "2021"
 description = "ZRA — tray natif et superviseur (modes poste et relais), voir reference/conception-zra-tray.md"
 license = "MIT"
