@@ -170,10 +170,15 @@ HTTP éphémère dans le binaire, coupé une fois le setup fini. Pas de webview
   ```
 
   Le tray prend `app/` pour racine (`discover()` vise `app/zra-daemon/`) :
-  config et `.zra` y vivent, partagées avec le daemon (config.js : ROOT =
-  parent de zra-daemon/). `package.json` est embarqué — le daemon y lit sa
-  version. Les updates (5.4) remplacent le code en préservant `app/.zra` et
-  `app/zra.config.json`.
+  le code y vit, partagé avec le daemon (config.js : ROOT = parent de
+  zra-daemon/). `package.json` est embarqué — le daemon y lit sa version.
+  **Deux emplacements de données** (layout installé) : la config (réglages
+  `zra.config.json`/`tray.json` + données précieuses : appairage, abonnements,
+  certs, garde éveillé) vit dans le dossier config utilisateur
+  (`%APPDATA%\zra` / `~/.config/zra`), hors de `app/` ; le `.zra` jetable
+  (journaux, verrou, updates, bin) reste dans `app/`. Portable/dépôt : tout à
+  la racine. Les updates (5.4) remplacent le code ; la config est hors zone
+  swappée (préservée), le `.zra` jetable est skippé par le merge.
 
   Double-clic sur le poste, ça marche. Sur le homelab : la **même archive**,
   extraite, lancée en mode relais — l'unité systemd du relais pointe vers le
@@ -199,15 +204,17 @@ HTTP éphémère dans le binaire, coupé une fois le setup fini. Pas de webview
   service (Job Object), retrait de l'autostart (tâche planifiée /
   `.desktop` / unité systemd), dé-câblage de Zed (entrées agents, keymap,
   env — la logique chirurgicale de `setup -- uninstall`), suppression du
-  dossier (binaire, `app/`, `.zra/` : journaux, enregistrements, appairage,
-  certs). Le pare-feu n'a aucune règle à retirer (rien n'a été posé). Sous
-  Windows : retrait de la clé « Applications installées » (HKCU, posée à
-  l'installation) et, l'exe vivant étant verrouillé, suppression différée
-  après exit. Les prérequis système (Node, Zed) ne sont pas touchés. Deux choix à la
-  confirmation : « tout désinstaller » (défaut, plus aucune trace) ou
-  « garder mes réglages » (export de `zra.config.json` avant suppression,
-  pour une réinstallation). Pas de « désinstaller le tray seul » : sans
-  lui, plus rien ne gère l'app pour ce public.
+  dossier d'application (binaire, `app/`, `.zra` jetable : journaux,
+  enregistrements). Le pare-feu n'a aucune règle à retirer (rien n'a été
+  posé). Sous Windows : retrait de la clé « Applications installées » (HKCU,
+  posée à l'installation) et, l'exe vivant étant verrouillé, suppression
+  différée après exit. Les prérequis système (Node, Zed) ne sont pas touchés.
+  La config (réglages, appairage, certs) vit dans le dossier config utilisateur,
+  hors du dossier supprimé. Deux choix à la confirmation : « garder mes
+  paramètres » (défaut, conserve la config pour une réinstallation) ou
+  « tout désinstaller » (plus aucune trace, config comprise). Pas de
+  « désinstaller le tray seul » : sans lui, plus rien ne gère l'app pour ce
+  public.
 - **Runtime Node : système, en prérequis affiché.** ZRA exige déjà Node ≥ 24
   (README). Zed est natif (pas de Node requis), mais ses agents ACP
   (`claude-code-acp`, `qwen-code`…) sont très majoritairement des apps Node —
@@ -244,8 +251,9 @@ tue le piège « dossier déplacé → chemins absolus périmés » du portable.
 - **La copie** : un exe Windows vivant est verrouillé, il ne peut pas se
   déplacer lui-même. Dance : copier `zra-tray(.exe)` + `app/` vers la cible →
   lancer la copie → l'originale se ferme. Pas d'exe helper dédié (sur-ingénierie).
-  `.zra/` et `zra.config.json` voyagent dans `app/` : rien à réécrire côté
-  données.
+  Le code va dans `app/` (sans `.zra` ni `zra.config.json`) ; la config et les
+  données précieuses vont dans le dossier config utilisateur (le jetable est
+  régénéré au runtime). TLS en chemins relatifs : rien à recalibrer.
 - **Après migration, recâbler les chemins absolus** : `setup install apply`
   (preload Zed, entrées agents) + `service install --apply` (autostart) — le
   tray spawn déjà ces scripts en non interactif. Sans ça, l'app installée ne
@@ -305,25 +313,72 @@ tue le piège « dossier déplacé → chemins absolus périmés » du portable.
      `/done` câble Zed+autostart+XWayland+TLS via les scripts Node) ; pare-feu
      (5.2c : « Tester l'écoute » best-effort, aucune règle). TLS poste écrit
      dans `zra.config.json` (`setup tls`, JSONC préservé).
-   - **5.3** console de gestion : page d'onboarding en mode « installé »
-     (à propos, gestion, désinstallation) — l'UI du tray.
-   - **5.4** updates : canal stable unique, auto-update (défaut activé),
-     application au restart (swap différé Windows).
-   - **5.5** désinstallation « machine comme on l'a trouvée » + clé HKCU.
-   - **5.6** unité systemd du relais générée par le binaire (homelab).
-   - **5.7** self-install par le tray (conception figée, section dédiée) :
-     option d'onboarding, copie vers l'emplacement fixe, recâblage des
-     chemins absolus.
+   - **5.3 — Fait** console de gestion : serveur loopback persistant dans le
+     binaire (`console.rs`), page « installé » (`console.html`, mêmes tokens
+     que l'onboarding) ouverte depuis le menu — état du service, bascule de
+     mode, démarrage automatique (via `service.mjs`), journal, à propos
+     (versions, chemins, liens), quitter le tray. Updates et désinstallation
+     s'y ajoutent aux étapes 5.4/5.5.
+   - **5.4 — Fait** updates : canal stable unique (`update.rs`), vérification
+     au démarrage + chaque jour, téléchargement de l'archive si auto activé
+     (défaut) ou sur « Vérifier », application au prochain arrêt/redémarrage
+     du tray — merge de `app/` (code) ; la config est hors zone swappée
+     (dossier config utilisateur), le `.zra` jetable est skippé,
+     exe renommé puis remplacé sous Windows (script détaché : suppression de
+     l'ancien après exit + relance), `exec` en place sous Linux (même pid,
+     systemd ne voit rien). Layout dépôt : pas d'update par le tray (git).
+     Réglage + boutons dans la console ; état dans `.zra/updates/state.json`.
+   - **5.5 — Fait** désinstallation « machine comme on l'a trouvée »
+     (`uninstall.rs`) : arrêt du service, `setup.mjs uninstall` +
+     `service.mjs uninstall` (dé-câblage Zed, autostart), clé HKCU
+     `…\Uninstall\ZRA` retirée (reg.exe, idempotent), suppression du dossier
+     — différée après exit sous Windows (exe verrouillé, script détaché
+     `Wait-Process`), directe sous Linux. La config (dossier config utilisateur)
+     est hors du dossier supprimé. Deux choix : garder mes paramètres (défaut,
+     conserve la config) / tout désinstaller (retire aussi la config).
+     Layout dépôt : le dossier cloné n'est pas supprimé. UI : section
+     « Désinstallation » de la console (panneau de confirmation, étapes).
+   - **5.6 — Fait** unité systemd du relais générée par le binaire
+     (`relay_unit.rs`) : `zra-relay.service` (--user), ExecStart = tray
+     (headless automatique sans session ; il lit le mode relais de
+     tray.json), linger vérifié/activé sans sudo. Entrée XDG autostart
+     compagnon (`zra-relay-login.desktop` + lanceur `.zra/service/`) :
+     au login, si le marqueur `.zra/tray.session` ne correspond pas à la
+     session (tray headless du boot, ou session périmée), import de
+     l'environnement graphique dans le manager user + restart de l'unité →
+     icône. Pilotée depuis la console (case autostart en mode relais sous
+     Linux/systemd) ; retirée à la désinstallation. La bascule de mode migre
+     l'autostart (unité poste ↔ unité relais, retrait sans tuer le tray
+     courant — `service.mjs uninstall --keep-running`). Sans systemd en init
+     (MX/sysvinit) : l'autostart XDG existant lance le tray, qui suit le mode.
+     La doc deploy garde l'unité système manuelle pour le flux sans tray.
+   - **5.7 — Fait** self-install par le tray (`install.rs`) : option
+     d'onboarding cochée par défaut (liste principale, pas repliée), copie
+     exe + `app/` (code) vers `%LOCALAPPDATA%\Programs\zra` / `~/.local/share/zra`
+     et config + précieux vers le dossier config utilisateur,
+     orchestration depuis la cible (chemins absolus), raccourci Menu Démarrer
+     (WScript.Shell) + clé HKCU posés, lancement de la copie puis exit de
+     l'originale. Portable choisi : mémorisé (`.zra/setup.json`, fusion) ;
+     bouton « Installer sur ce poste » dans la console tant que non installé
+     (layout app seulement) ; installé : pas de bouton (pas de retour
+     arrière). Cas limite : portable relancé avec instance installée →
+     lancement de l'installée (layout app seulement, le dev dépôt n'est pas
+     détourné).
    Le test CI (étape 3) est fait via le tag `v0.6.0-dev` (même pipeline que
    l'étape 5) ; `offerTrayDownload` au setup reste à tester.
 
 ## Reprise (handoff)
 
-**État** : 5.1 + 5.2 faits (archive « app », onboarding grand public, TLS
-poste, pare-feu best-effort) ; CI + release vérifiées sur les deux forges
-(tag `v0.6.0-dev`, 4 assets). Restent 5.3 (console « installé »), 5.4 (updates),
-5.5 (désinstallation + HKCU), 5.6 (unité systemd relais), 5.7 (self-install,
-conception figée). Prochaine étape par défaut : **5.3**.
+**État** : **toutes les étapes de développement sont faites** (5.1 → 5.7 :
+archive « app », onboarding grand public, TLS poste, pare-feu best-effort,
+console de gestion, updates, désinstallation, unité systemd relais,
+self-install) ; CI + release vérifiées sur les deux forges (tag
+`v0.6.0-dev`, 4 assets). Reste pour le jalon : les tests réels sur les
+postes de référence et le homelab (HANDOFF.md « À tester »), le nettoyage
+des release/tag de test, et la vraie release `v0.6.0` (version bumpée dans
+`Cargo.toml`, CHANGELOG datés, tag soigné — procédure dans ROADMAP.md).
+Le flux update n'est testable de bout en qu'avec une vraie release stable
+(`v0.6.0-dev` est une pré-release, rejetée à dessein par le canal stable).
 
 **À vérifier sur les postes Linux** (fait sur Windows seulement) : warning
 XWayland affiché sous Wayland, sonde pare-feu ufw/firewalld (`listen-test.mjs`).
@@ -343,7 +398,8 @@ tient 7777 ; l'adoption vérifie l'identité du service).
 **Pièges** : rebuild impossible tray vivant (exe verrouillé, os error 5) →
 tuer le process avant `cargo build` ; l'arrêt du tray tue ses children (Job
 Object Windows, groupe + PDEATHSIG unix — pas d'orphelins) ; textes
-utilisateur via `tr` + `i18n/en.json` + `node scripts/i18n-test.mjs --write`
+utilisateur via `tr!` (Rust) / `tr` + `data-i18n` (pages) +
+`zra-tray/i18n/en.json` + `node scripts/i18n-test.mjs --write`
 (`reference/` et outils de dev : français only) ; doc fr/en même commit ;
 demander confirmation avant tout commit ; ne pas toucher au daemon vivant
 pour tester (mode relais sur port libre, certs dummy rejetés = crash loop

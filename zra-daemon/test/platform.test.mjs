@@ -14,12 +14,12 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { existsSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { join, resolve } from 'node:path'
 
-import { loadConfig } from '../config.js'
+import { ROOT, loadConfig } from '../config.js'
 
 import {
-  KEYBOARD_BACKENDS, PATHS, defaultZedCli, detectZedChannel, keyboardPreference, processProbe,
+  KEYBOARD_BACKENDS, PATHS, configRoot, defaultZedCli, detectZedChannel, installTarget, keyboardPreference, processProbe,
   serviceBackend, systemdIsInit, zedCliCandidates, zedPaths, zedProcessNames,
 } from '../platform.js'
 
@@ -39,12 +39,6 @@ test('windows (gelé) : les chemins de Zed sont ceux d’avant le module platefo
   assert.equal(win.registryDir, 'C:\\Users\\test\\AppData\\Local\\Zed\\external_agents\\registry')
   assert.equal(win.dataDir, 'C:\\Users\\test\\AppData\\Local\\Zed')
   assert.equal(win.configDir, 'C:\\Users\\test\\AppData\\Roaming\\Zed')
-})
-
-test('windows (gelé) : les fichiers de ZRA restent sous %LOCALAPPDATA%\\zra', () => {
-  assert.equal(win.appDir, 'C:\\Users\\test\\AppData\\Local\\zra')
-  assert.equal(win.injectionLog, 'C:\\Users\\test\\AppData\\Local\\zra\\injections.log')
-  assert.equal(win.recordsDir, 'C:\\Users\\test\\AppData\\Local\\zra\\records')
 })
 
 test('windows (gelé) : sans variables d’environnement, on retombe sur le home', () => {
@@ -128,23 +122,83 @@ test('linux : les chemins de Zed suivent XDG, comme sur la machine de portage', 
   assert.equal(lx.registryDir, '/home/test/.local/share/zed/external_agents/registry')
 })
 
-test('linux : XDG_DATA_HOME / XDG_CONFIG_HOME / XDG_STATE_HOME priment', () => {
+test('linux : XDG_DATA_HOME / XDG_CONFIG_HOME priment', () => {
   const p = zedPaths({
     platform: 'linux',
-    env: { XDG_DATA_HOME: '/data', XDG_CONFIG_HOME: '/conf', XDG_STATE_HOME: '/state' },
+    env: { XDG_DATA_HOME: '/data', XDG_CONFIG_HOME: '/conf' },
     home: LX_HOME,
   })
   assert.equal(p.db, '/data/zed/db/0-stable/db.sqlite')
   assert.equal(p.settings, '/conf/zed/settings.json')
   assert.equal(p.registryDir, '/data/zed/external_agents/registry')
-  assert.equal(p.injectionLog, '/state/zra/injections.log')
-  assert.equal(p.recordsDir, '/state/zra/records')
+  assert.equal(p.zraConfigDir, '/conf/zra')
 })
 
-test('linux : les fichiers de ZRA vont dans XDG_STATE_HOME, par défaut ~/.local/state/zra', () => {
-  assert.equal(lx.appDir, '/home/test/.local/state/zra')
-  assert.equal(lx.injectionLog, '/home/test/.local/state/zra/injections.log')
-  assert.equal(lx.recordsDir, '/home/test/.local/state/zra/records')
+// ---- config utilisateur ZRA : 2 emplacements (install / config) ------------
+
+test('windows : zraConfigDir = %APPDATA%\\zra ; installTarget = %LOCALAPPDATA%\\Programs\\zra', () => {
+  assert.equal(win.zraConfigDir, 'C:\\Users\\test\\AppData\\Roaming\\zra')
+  assert.equal(installTarget({ platform: 'win32', env: WIN_ENV, home: WIN_HOME }),
+    'C:\\Users\\test\\AppData\\Local\\Programs\\zra')
+})
+
+test('linux : zraConfigDir = ~/.config/zra ; installTarget = ~/.local/share/zra', () => {
+  assert.equal(lx.zraConfigDir, '/home/test/.config/zra')
+  assert.equal(installTarget({ platform: 'linux', env: {}, home: LX_HOME }),
+    '/home/test/.local/share/zra')
+})
+
+test('linux : XDG_CONFIG_HOME prime pour zraConfigDir', () => {
+  const p = zedPaths({ platform: 'linux', env: { XDG_CONFIG_HOME: '/conf' }, home: LX_HOME })
+  assert.equal(p.zraConfigDir, '/conf/zra')
+})
+
+test('configRoot : installé → dossier config utilisateur (Windows et Linux)', () => {
+  assert.equal(configRoot({ platform: 'win32', env: WIN_ENV, home: WIN_HOME,
+    root: 'C:\\Users\\test\\AppData\\Local\\Programs\\zra\\app' }),
+    'C:\\Users\\test\\AppData\\Roaming\\zra')
+  assert.equal(configRoot({ platform: 'linux', env: {}, home: LX_HOME,
+    root: '/home/test/.local/share/zra/app' }),
+    '/home/test/.config/zra')
+})
+
+test('configRoot : portable et dépôt → racine (config locale)', () => {
+  assert.equal(configRoot({ platform: 'linux', env: {}, home: LX_HOME, root: '/opt/zra/app' }),
+    '/opt/zra/app')
+  assert.equal(configRoot({ platform: 'linux', env: {}, home: LX_HOME, root: '/home/test/dev/zra' }),
+    '/home/test/dev/zra')
+})
+
+test('configRoot : Windows insensible à la casse ; pas de faux positif zra-portable', () => {
+  assert.equal(configRoot({ platform: 'win32', env: WIN_ENV, home: WIN_HOME,
+    root: 'C:\\USERS\\TEST\\APPDATA\\LOCAL\\PROGRAMS\\ZRA\\APP' }),
+    'C:\\Users\\test\\AppData\\Roaming\\zra')
+  // « zra-portable » ne doit pas être pris pour la cible « zra ».
+  assert.equal(configRoot({ platform: 'linux', env: {}, home: LX_HOME,
+    root: '/home/test/.local/share/zra-portable/app' }),
+    '/home/test/.local/share/zra-portable/app')
+})
+
+test('configRoot : installé + XDG_CONFIG_HOME → dossier config surchargé', () => {
+  assert.equal(configRoot({ platform: 'linux', env: { XDG_CONFIG_HOME: '/conf' }, home: LX_HOME,
+    root: '/home/test/.local/share/zra/app' }),
+    '/conf/zra')
+})
+
+test('loadConfig : installé → config + données précieuses dans le dossier config utilisateur', async () => {
+  const cfg = await loadConfig({ root: join(installTarget(), 'app') })
+  const base = PATHS.zraConfigDir
+  assert.equal(cfg.auth.file, join(base, '.zra', 'auth.json'))
+  assert.equal(cfg.threadOpsFile, join(base, '.zra', 'thread-ops.json'))
+  assert.equal(cfg.pushFile, join(base, '.zra', 'push.json'))
+  assert.equal(cfg.keepAwakeFile, join(base, '.zra', 'keep-awake.json'))
+})
+
+test('loadConfig : dépôt/portable → données précieuses à la racine (inchangé)', async () => {
+  const cfg = await loadConfig({ root: ROOT })
+  assert.equal(cfg.auth.file, join(ROOT, '.zra', 'auth.json'))
+  assert.equal(cfg.threadOpsFile, join(ROOT, '.zra', 'thread-ops.json'))
+  assert.equal(cfg.pushFile, join(ROOT, '.zra', 'push.json'))
 })
 
 test('linux : le séparateur suit la plateforme visée, pas l’OS hôte', () => {

@@ -205,8 +205,22 @@ npm run relay               # listens http://0.0.0.0:7777 — PWA + relay
    the log. `ZRA_RELAY_PORT` and `ZRA_RELAY_HOST` change the listening address
    (7777, all interfaces by default).
 
-**Automatic startup** (Linux homelab): like any Node service, for example a
-system systemd unit:
+**Automatic startup** (Linux homelab):
+
+- **With the tray** ("app" archive, relay mode): the management console
+  generates the `systemd --user` unit `zra-relay.service` — "Launch ZRA at
+  session open" checkbox. The unit launches the binary (automatically
+  headless without a graphical session); it supervises the relay with the
+  listening address and TLS from `.zra/tray.json`. Linger is checked and
+  enabled if needed (`loginctl enable-linger`, no sudo): without it, no boot
+  start on a machine with no open session. No more copy-pasted unit.
+  At boot the tray thus starts without an icon; a companion XDG autostart
+  entry (`zra-relay-login.desktop`) restarts it with the graphical
+  environment at session login — the icon appears then.
+  Switching poste ↔ relais from the console or the menu migrates the
+  autostart: the old mode's unit is removed (without killing the running
+  tray), the new mode's unit is installed if the checkbox was checked.
+- **Without the tray** (`npm run relay`), for example a system systemd unit:
 
 ```ini
 [Unit]
@@ -355,7 +369,42 @@ running holds the port: the task retries until it stops.
 supervises the daemon (restart on crash, logs, single instance) and shows the
 notification icon. Without the binary, fallback to the PowerShell launcher
 `scripts/daemon-task.ps1`. Develop the tray with `npm run tray` (Rust,
-design: `reference/conception-zra-tray.md`).
+design: `reference/conception-zra-tray.md`). Its menu opens a **management
+console** (local page in the browser): service state, workstation/relay
+switch, autostart, logs, versions, tray quit.
+
+**Updates ("app" archive)**: single stable channel — the latest release from
+the forges (Forgejo, then GitHub as fallback). "Automatic updates" setting
+(enabled by default) + "Check" button in the console: the archive is
+downloaded in the background, then installed on the tray's next quit or
+restart ("Install and restart" for right now). `app/.zra` and
+`app/zra.config.json` are preserved; on Windows the running exe is renamed
+then replaced, the old one deleted after exit. In repo layout (contributor),
+updates come from git — the tray does not touch them.
+
+**Install on the machine (self-install)**: the "app" archive launched as-is
+runs **portable**. At onboarding, the "Install on this machine" option
+(checked by default) copies the binary and `app/` to a fixed location —
+`%LOCALAPPDATA%\Programs\zra` (Windows) or `~/.local/share/zra` (Linux) —
+then rewires the absolute paths (Zed, autostart), adds the Start Menu
+shortcut and the "Installed apps" key (HKCU, no elevation), and relaunches
+ZRA from the target. Unchecking = stay portable (choice remembered); the
+button remains available in the console. Installed: no going back, the exit
+is uninstall. A portable copy relaunched while an installed instance exists
+launches the installed one — no two parallel lives. During onboarding the
+process has no tray and no window: relaunching the executable reopens the
+page (single-instance lock) instead of exiting silently.
+
+**Uninstall**: from the console, "Uninstall…" leaves the machine as it was
+found — service stopped, autostart removed, Zed unwired (agent entries,
+keymap, env), the application folder deleted (code, disposable) and the
+Windows "Installed apps" key removed. Two choices: uninstall everything (the
+user config is removed too), or keep your settings (the config — settings,
+pairing, certificates — stays in the user config folder, outside the deleted
+folder). Node and Zed are not touched; no firewall rule was ever added,
+nothing to remove.
+On Windows the running exe is locked: folder deletion is deferred until after
+exit. In repo layout, the cloned folder is not deleted.
 
 **PowerShell policy** — the keyboard script and the fallback PowerShell
 launcher launch PowerShell with `-ExecutionPolicy Bypass`: a deliberate

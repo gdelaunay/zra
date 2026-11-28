@@ -115,7 +115,7 @@ async function direnv(dir, env, timeoutMs) {
  */
 function run(command, args, { cwd, env, timeoutMs }) {
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, { cwd, env, detached: true, stdio: ['ignore', 'pipe', 'pipe'] })
+    const child = spawn(command, args, { cwd, env, detached: true, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true })
     let stdout = ''
     let stderr = ''
     child.stdout.on('data', (c) => { stdout += c })

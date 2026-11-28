@@ -1,0 +1,730 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ZRA — Console</title>
+<!--i18n-->
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<style>
+  /* Même fenêtre que l'onboarding (reference/zed-ui/settings-window.html) :
+     sections + lignes srow + filets, tokens Gruvbox Dark de la PWA. */
+  :root {
+    color-scheme: light dark;
+    --background: #4c4642;
+    --editor-background: #282828;
+    --surface: #3a3735;
+    --title-bar: #4c4642;
+    --element: #3a3735;
+    --element-hover: #494340;
+    --element-active: #5b524c;
+    --border: #5b534d;
+    --border-variant: #494340;
+    --text: #fbf1c7;
+    --text-muted: #c5b597;
+    --text-placeholder: #998b78;
+    --accent: #b7bb26;
+    --error: #fb4a35;
+    --error-background: #590a0f;
+    --error-border: #771617;
+    --success: #b7bb26;
+    --success-background: #322b11;
+    --success-border: #4a4516;
+    --font-ui: "IBM Plex Sans", ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+    --font-mono: "Lilex", ui-monospace, "Cascadia Mono", Consolas, monospace;
+    --scrollbar-thumb-background: #a899844c;
+    --scrollbar-thumb-hover-background: #fbf1c74c;
+  }
+  * { box-sizing: border-box; }
+  /* Scrollbar fine comme la PWA (thumb 6 px), révélée au scroll, masquée au
+     repos (cf. zra-client/css/app.css). */
+  @property --sb-alpha { syntax: '<number>'; inherits: true; initial-value: 0; }
+  * { transition: --sb-alpha 400ms; scrollbar-width: thin; scrollbar-color: var(--scrollbar-thumb-background) transparent; }
+  .is-scrolling { --sb-alpha: 1; transition-duration: 50ms; }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--scrollbar-thumb-background) calc(var(--sb-alpha) * 100%), transparent); border-radius: 6px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover-background); }
+  ::-webkit-scrollbar-track { background: transparent; }
+  body {
+    margin: 0; background: var(--background); color: var(--text);
+    font: 13px/1.5 var(--font-ui);
+    display: flex; justify-content: center; padding: 40px 16px;
+  }
+  .swindow {
+    width: 100%; max-width: 880px; background: var(--editor-background);
+    border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .35);
+  }
+  .sw-titlebar {
+    height: 32px; background: var(--title-bar); border-bottom: 1px solid var(--border-variant);
+    display: flex; align-items: center; gap: 8px; padding: 0 12px;
+    font-size: 12px; color: var(--text-muted);
+  }
+  .sw-titlebar svg { width: 16px; height: 16px; }
+  .sw-content { padding: 24px 28px 28px; }
+  .sw-pagetitle { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+  .sw-intro { color: var(--text-muted); font-size: 12.5px; margin: 0 0 20px; }
+  .ssh { display: flex; align-items: center; gap: 12px; margin: 22px 0 4px; }
+  .ssh-label { font: 12px var(--font-mono); color: var(--text-muted); white-space: nowrap; }
+  .divider-h { flex: 1; height: 1px; background: var(--border); opacity: .6; }
+  .srow { padding: 12px 0; border-bottom: 1px solid var(--border-variant); }
+  .srow.last { border-bottom: 0; padding-bottom: 16px; }
+  .srow-inner { display: flex; align-items: center; gap: 16px; }
+  .srow-text { flex: 1; min-width: 0; }
+  .srow-title { font-size: 13px; display: flex; align-items: center; gap: 8px; }
+  .srow-desc { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+  .srow-desc span { display: block; }
+  .srow-control { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+  .mono { font-family: var(--font-mono); font-size: 12px; }
+  .muted { color: var(--text-muted); }
+  a { color: var(--accent); }
+  code { font-family: var(--font-mono); font-size: 11px; background: var(--element); padding: 1px 4px; border-radius: 3px; }
+
+  button { font: 12px var(--font-ui); cursor: pointer; border-radius: 4px; }
+  .btn {
+    background: var(--element); color: var(--text); border: 1px solid var(--border);
+    padding: 5px 12px; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+  }
+  .btn:hover { background: var(--element-hover); }
+  .btn svg { width: 14px; height: 14px; }
+  .btn.primary {
+    background: color-mix(in srgb, var(--success) 22%, var(--editor-background));
+    border-color: var(--success); color: var(--text);
+    font-weight: 600; padding: 8px 18px;
+  }
+  .btn.primary:hover { background: color-mix(in srgb, var(--success) 32%, var(--editor-background)); }
+  .btn.danger { border-color: var(--error-border); color: var(--error); }
+  .btn.danger:hover { background: var(--error-background); }
+  .btn:disabled { opacity: .45; cursor: default; }
+
+  input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; flex-shrink: 0; }
+
+  .segmented { display: inline-flex; border: 1px solid var(--border); border-radius: 4px; overflow: hidden; }
+  .segmented button {
+    background: var(--element); color: var(--text-muted); border: 0; border-radius: 0;
+    padding: 5px 14px;
+  }
+  .segmented button + button { border-left: 1px solid var(--border); }
+  .segmented button:hover { background: var(--element-hover); }
+  .segmented button.selected { background: var(--element-active); color: var(--text); font-weight: 600; }
+  .segmented button:disabled { opacity: .45; cursor: default; }
+
+  .badge { font-size: 11px; padding: 1px 8px; border-radius: 3px; border: 1px solid var(--border); white-space: nowrap; }
+  .badge.up { color: var(--success); border-color: var(--success-border); background: var(--success-background); }
+  .badge.down { color: var(--error); border-color: var(--error-border); background: var(--error-background); }
+  .badge.wait { color: var(--text-muted); }
+
+  .banner { display: flex; align-items: flex-start; gap: 8px; border-radius: 4px;
+    padding: 8px 12px; font-size: 12px; margin-top: 12px; border: 1px solid; }
+  .banner svg { width: 14px; height: 14px; flex-shrink: 0; margin-top: 1px; }
+  .banner.error { background: var(--error-background); border-color: var(--error-border); }
+  .banner.error svg { color: var(--error); }
+  .banner.success { background: var(--success-background); border-color: var(--success-border); }
+  .banner.success svg { color: var(--success); }
+  .banner .detail { color: var(--text-muted); display: block; }
+  .footer { display: flex; justify-content: flex-end; align-items: center; gap: 14px; margin-top: 24px; }
+  .hidden { display: none !important; }
+
+  #log-view {
+    background: var(--element); border: 1px solid var(--border-variant); border-radius: 4px;
+    font: 11px/1.6 var(--font-mono); color: var(--text-muted);
+    padding: 8px 10px; margin-top: 10px; max-height: 300px; overflow: auto;
+    white-space: pre-wrap; overflow-wrap: anywhere;
+  }
+  .about-value { font-family: var(--font-mono); font-size: 12px; text-align: right; overflow-wrap: anywhere; flex: 1; min-width: 0; }
+  /* Les labels « À propos » sont courts : la valeur (chemins) prend la place. */
+  .srow-inner:has(.about-value) .srow-text { flex: 0 1 auto; }
+
+  /* Désinstallation : panneau de confirmation + étapes (comme l'onboarding). */
+  .steps { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
+  .step { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; }
+  .step svg { width: 14px; height: 14px; flex-shrink: 0; margin-top: 1px; }
+  .step.ok svg { color: var(--success); }
+  .step.ko svg { color: var(--error); }
+  .step-output { color: var(--text-muted); font-family: var(--font-mono); font-size: 11px; white-space: pre-wrap; overflow-wrap: anywhere; margin-top: 2px; }
+  #uninstall-panel { margin-top: 12px; padding: 12px; border: 1px solid var(--error-border); border-radius: 4px; background: var(--error-background); }
+  #uninstall-panel .panel-text { font-size: 12px; margin-bottom: 10px; }
+  #uninstall-panel .panel-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  @media (prefers-color-scheme: light) {
+    :root {
+      --background: #dcdcdd;
+      --editor-background: #fafafa;
+      --surface: #ebebec;
+      --title-bar: #dcdcdd;
+      --element: #ebebec;
+      --element-hover: #dfdfe0;
+      --element-active: #cacaca;
+      --border: #c9c9ca;
+      --border-variant: #dfdfe0;
+      --text: #242529;
+      --text-muted: #58585a;
+      --text-placeholder: #7e8086;
+      --accent: #98971a;
+      --error: #de3e35;
+      --error-background: #fbe9e7;
+      --error-border: #f3c1bd;
+      --success: #98971a;
+      --success-background: #eef2d3;
+      --success-border: #d8e0a3;
+      --scrollbar-thumb-background: #7c6f644c;
+      --scrollbar-thumb-hover-background: #2828284c;
+    }
+    .swindow { box-shadow: 0 8px 24px rgba(0, 0, 0, .12); }
+  }
+</style>
+</head>
+<body>
+<div class="swindow">
+  <div class="sw-titlebar"><!--logo--><span>ZRA — Console</span></div>
+  <div class="sw-content">
+    <div class="sw-pagetitle" data-i18n>Console de gestion</div>
+    <p class="sw-intro" data-i18n>ZRA tourne en arrière-plan, supervisé par l'icône de la zone de notification. Cette page montre son état et permet de le gérer.</p>
+
+    <div class="ssh"><span class="ssh-label" data-i18n>État</span><span class="divider-h"></span></div>
+    <div class="srow">
+      <div class="srow-inner">
+        <div class="srow-text">
+          <div class="srow-title"><span data-i18n>Service</span> <span class="badge wait" id="svc-badge">…</span></div>
+          <div class="srow-desc" id="svc-desc"><span data-i18n>Interrogation du service…</span></div>
+        </div>
+        <div class="srow-control">
+          <a class="btn" id="open-zra" href="#" target="_blank" rel="noopener" data-i18n>Ouvrir ZRA</a>
+          <button class="btn" id="restart" data-i18n>Redémarrer</button>
+        </div>
+      </div>
+    </div>
+    <div class="srow">
+      <div class="srow-inner">
+        <div class="srow-text">
+          <div class="srow-title" data-i18n>Mode de service</div>
+          <div class="srow-desc"><span data-i18n>Poste : ce PC fait tourner ses propres agents Zed.</span><span data-i18n>Relais : ce PC héberge l'application web et relaie les connexions vers d'autres postes.</span></div>
+        </div>
+        <div class="srow-control">
+          <div class="segmented" id="mode">
+            <button data-v="poste" data-i18n>Poste</button>
+            <button data-v="relais" data-i18n>Relais</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="srow last">
+      <div class="srow-inner">
+        <div class="srow-text">
+          <div class="srow-title" data-i18n>Lancer ZRA à l'ouverture de session</div>
+          <div class="srow-desc" id="autostart-desc"><span data-i18n>État du démarrage automatique…</span></div>
+        </div>
+        <div class="srow-control"><input type="checkbox" id="autostart" disabled></div>
+      </div>
+    </div>
+
+    <div class="ssh"><span class="ssh-label" data-i18n>Journal</span><span class="divider-h"></span></div>
+    <div class="srow last">
+      <div class="srow-inner">
+        <div class="srow-text">
+          <div class="srow-title" data-i18n>Dernières lignes</div>
+          <div class="srow-desc"><span class="mono" id="log-path"></span></div>
+        </div>
+        <div class="srow-control">
+          <button class="btn" id="log-refresh" data-i18n>Actualiser</button>
+          <button class="btn" id="log-open" data-i18n>Ouvrir le fichier</button>
+        </div>
+      </div>
+      <div id="log-view">…</div>
+    </div>
+
+    <div class="ssh"><span class="ssh-label" data-i18n>Mises à jour</span><span class="divider-h"></span></div>
+    <div id="update-block">
+      <div class="srow">
+        <div class="srow-inner">
+          <div class="srow-text">
+            <div class="srow-title" data-i18n>Mises à jour automatiques</div>
+            <div class="srow-desc"><span data-i18n>Canal stable unique : la dernière version est téléchargée en arrière-plan, puis installée au prochain arrêt ou redémarrage. Vos réglages et vos données sont conservés.</span></div>
+          </div>
+          <div class="srow-control"><input type="checkbox" id="auto-update" checked></div>
+        </div>
+      </div>
+      <div class="srow last">
+        <div class="srow-inner">
+          <div class="srow-text">
+            <div class="srow-title"><span data-i18n>Version</span> <span class="mono muted" id="update-versions"></span></div>
+            <div class="srow-desc" id="update-status"><span>…</span></div>
+          </div>
+          <div class="srow-control">
+            <button class="btn" id="update-check" data-i18n>Vérifier</button>
+            <button class="btn primary hidden" id="update-apply" data-i18n>Installer et redémarrer</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="update-git" class="hidden">
+      <div class="srow last">
+        <div class="srow-text">
+          <div class="srow-title" data-i18n>Mises à jour</div>
+          <div class="srow-desc"><span data-i18n>Installation depuis le dépôt (flux contributeur) : les mises à jour viennent de git, pas du tray.</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ssh"><span class="ssh-label" data-i18n>À propos</span><span class="divider-h"></span></div>
+    <div class="srow">
+      <div class="srow-inner">
+        <div class="srow-text"><div class="srow-title" data-i18n>Version de ZRA</div></div>
+        <div class="about-value" id="about-version">…</div>
+      </div>
+    </div>
+    <div class="srow">
+      <div class="srow-inner">
+        <div class="srow-text"><div class="srow-title" data-i18n>Version du tray</div></div>
+        <div class="about-value" id="about-tray">…</div>
+      </div>
+    </div>
+    <div class="srow">
+      <div class="srow-inner">
+        <div class="srow-text"><div class="srow-title" data-i18n>Dossier de l'application</div></div>
+        <div class="about-value" id="about-root">…</div>
+      </div>
+    </div>
+    <div class="srow">
+      <div class="srow-inner">
+        <div class="srow-text"><div class="srow-title" data-i18n>Exécutable Node</div></div>
+        <div class="about-value" id="about-node">…</div>
+      </div>
+    </div>
+    <div class="srow last">
+      <div class="srow-inner">
+        <div class="srow-text"><div class="srow-title" data-i18n>Liens</div></div>
+        <div class="srow-control">
+          <a class="btn" href="https://forgejo.gdelaunay.fr/gdelaunay/zra" target="_blank" rel="noopener" data-i18n>Dépôt</a>
+          <a class="btn" href="https://forgejo.gdelaunay.fr/gdelaunay/zra/src/branch/main/docs/fr" target="_blank" rel="noopener" data-i18n>Documentation</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="ssh" id="install-ssh"><span class="ssh-label" data-i18n>Installation</span><span class="divider-h"></span></div>
+    <div class="srow last" id="install-row">
+      <div class="srow-inner">
+        <div class="srow-text">
+          <div class="srow-title" id="install-title" data-i18n>Installer sur ce poste</div>
+          <div class="srow-desc" id="install-desc"><span data-i18n>ZRA sera copié dans un emplacement fixe, avec un raccourci Menu Démarrer ; les chemins absolus (Zed, démarrage automatique) seront recâblés. Désinstallable proprement. Pas de retour arrière : la sortie est la désinstallation.</span></div>
+        </div>
+        <div class="srow-control"><button class="btn" id="install-btn" data-i18n>Installer sur ce poste</button></div>
+      </div>
+      <div class="steps" id="install-steps"></div>
+    </div>
+
+    <div class="ssh"><span class="ssh-label" data-i18n>Désinstallation</span><span class="divider-h"></span></div>
+    <div class="srow last">
+      <div class="srow-inner">
+        <div class="srow-text">
+          <div class="srow-title" data-i18n>Désinstaller ZRA</div>
+          <div class="srow-desc" id="uninstall-desc"><span data-i18n>Arrête le service, retire le démarrage automatique, débranche Zed et supprime le dossier de l'application (code, journaux). La config (réglages, appairage, certificats) est conservée, sauf « tout désinstaller ». Node et Zed ne sont pas touchés.</span></div>
+        </div>
+        <div class="srow-control"><button class="btn danger" id="uninstall" data-i18n>Désinstaller…</button></div>
+      </div>
+      <div id="uninstall-panel" class="hidden">
+        <div class="panel-text"><span data-i18n>Deux choix :</span> <strong data-i18n>tout désinstaller</strong> <span data-i18n>(plus aucune trace, config comprise), ou</span> <strong data-i18n>garder mes paramètres</strong> <span data-i18n>(config conservée dans votre dossier config, pour une réinstallation).</span></div>
+        <div class="panel-actions">
+          <button class="btn danger" id="uninstall-all" data-i18n>Tout désinstaller</button>
+          <button class="btn" id="uninstall-keep" data-i18n>Garder mes paramètres</button>
+          <button class="btn" id="uninstall-cancel" data-i18n>Annuler</button>
+        </div>
+      </div>
+      <div class="steps" id="uninstall-steps"></div>
+    </div>
+
+    <div class="banner error hidden" id="error-banner"><span id="error-icon"></span><div id="error-text"></div></div>
+    <div class="banner success hidden" id="ok-banner"><span id="ok-icon"></span><div id="ok-text"></div></div>
+    <div class="footer">
+      <button class="btn danger" id="quit" data-i18n>Quitter le tray</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // i18n : catalogue et langue injectés par le serveur dans le head ; sans
+  // injection (tests jsdom), français par défaut. La fonction tr prend un
+  // gabarit français (la clé) et ses valeurs, substituées aux {0}, {1}… ;
+  // texte absent du catalogue : français.
+  const I18N = window.ZRA_I18N || { lang: 'fr', en: {} }
+  const tr = (strings, ...values) => {
+    const key = strings.reduce((k, s, i) => k + `{${i - 1}}` + s)
+    const text = I18N.lang === 'en' ? I18N.en[key] : undefined
+    return text
+      ? text.replace(/\{(\d+)\}/g, (_, i) => String(values[i]))
+      : strings.reduce((out, s, i) => out + String(values[i - 1]) + s)
+  }
+  document.documentElement.lang = I18N.lang
+  for (const el of document.querySelectorAll('[data-i18n]')) {
+    const key = el.textContent.trim()
+    const text = tr([key])
+    if (text !== key) el.textContent = text
+  }
+  for (const el of document.querySelectorAll('[data-i18n-title]')) el.title = tr([el.title])
+  for (const el of document.querySelectorAll('[data-i18n-placeholder]')) el.placeholder = tr([el.placeholder])
+
+  // Scrollbar révélée au scroll (comme la PWA), masquée au repos après 1 s.
+  document.addEventListener('scroll', (e) => {
+    const el = e.target === document ? document.documentElement : e.target
+    if (!(el instanceof Element)) return
+    el.classList.add('is-scrolling')
+    clearTimeout(el._sbT)
+    el._sbT = setTimeout(() => el.classList.remove('is-scrolling'), 1000)
+  }, true)
+
+  const $ = (id) => document.getElementById(id)
+  const ICONS = {
+    check: '<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4.625 8.98121L7.03402 10.7714L11.3437 4.75989" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    warning: '<svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" fill="none"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.2" d="M13.84 11.6 9.037 3.199a1.2 1.2 0 0 0-2.089 0l-4.802 8.403a1.2 1.2 0 0 0 1.05 1.8h9.604a1.201 1.201 0 0 0 1.038-1.8ZM8 6v2.667M8 11.333h.007"/></svg>',
+  }
+  $('error-icon').innerHTML = ICONS.warning
+  $('ok-icon').innerHTML = ICONS.check
+
+  let state = null
+  let busy = false
+
+  function showError(msg) {
+    $('ok-banner').classList.add('hidden')
+    $('error-text').textContent = msg
+    $('error-banner').classList.remove('hidden')
+  }
+  function showOk(msg) {
+    $('error-banner').classList.add('hidden')
+    $('ok-text').textContent = msg
+    $('ok-banner').classList.remove('hidden')
+  }
+  function clearBanners() {
+    $('error-banner').classList.add('hidden')
+    $('ok-banner').classList.add('hidden')
+  }
+
+  async function post(path, payload) {
+    const res = await fetch(path, { method: 'POST', body: JSON.stringify(payload ?? {}) })
+    return res.json()
+  }
+
+  function render() {
+    if (!state) return
+    const badge = $('svc-badge')
+    const modeLabel = state.mode === 'poste' ? tr`Poste` : tr`Relais`
+    if (state.up) {
+      badge.className = 'badge up'
+      badge.textContent = tr`✓ en ligne`
+      const live = state.mode === 'poste' ? tr` — ${state.live ?? 0} thread(s) en cours, ${state.clients ?? 0} client(s)` : ''
+      $('svc-desc').innerHTML = ''
+      const s = document.createElement('span')
+      s.textContent = modeLabel + ' : ' + state.url + live + (state.adopted ? tr` (service externe, observé par le tray)` : '')
+      $('svc-desc').append(s)
+      $('open-zra').href = state.url
+      $('open-zra').classList.remove('hidden')
+    } else {
+      badge.className = 'badge ' + (state.run === 'running' ? 'wait' : 'down')
+      badge.textContent = state.run === 'running' ? tr`… démarrage` : tr`✗ arrêté`
+      $('svc-desc').innerHTML = ''
+      const s = document.createElement('span')
+      s.textContent = state.adopted
+        ? modeLabel + ' : ' + tr`service externe injoignable.`
+        : modeLabel + ' : ' + (state.run === 'running' ? tr`le service ne répond pas (démarrage en cours).` : tr`le service ne répond pas.`)
+      $('svc-desc').append(s)
+      $('open-zra').classList.add('hidden')
+    }
+    $('restart').disabled = state.adopted || busy
+    for (const btn of document.querySelectorAll('#mode button')) {
+      btn.classList.toggle('selected', btn.dataset.v === state.mode)
+      btn.disabled = state.adopted || busy
+    }
+    $('about-version').textContent = state.version ?? tr`inconnue`
+    $('about-tray').textContent = state.trayVersion
+    $('about-root').textContent = state.root
+    $('about-node').textContent = state.node
+    $('log-path').textContent = state.logFile
+    if (state.appLayout === false) {
+      $('uninstall-desc').innerHTML = ''
+      const s = document.createElement('span')
+      s.textContent = tr`Installation depuis le dépôt (flux contributeur) : le dé-câblage de Zed et le démarrage automatique seront retirés ; le dossier cloné n'est pas supprimé.`
+      $('uninstall-desc').append(s)
+    }
+    // Installation (5.7) : layout app seulement ; installé = pas de bouton.
+    $('install-ssh').classList.toggle('hidden', !state.appLayout)
+    $('install-row').classList.toggle('hidden', !state.appLayout)
+    if (state.appLayout) {
+      if (state.installed) {
+        $('install-title').textContent = tr`Installé sur ce poste`
+        $('install-btn').classList.add('hidden')
+        $('install-desc').innerHTML = ''
+        const s = document.createElement('span')
+        s.textContent = tr`Emplacement : ${state.installTarget}. Pour sortir : la désinstallation ci-dessous.`
+        $('install-desc').append(s)
+      } else if (state.installTarget) {
+        $('install-desc').innerHTML = ''
+        const s = document.createElement('span')
+        s.textContent = tr`ZRA sera copié dans ${state.installTarget}, avec un raccourci Menu Démarrer ; les chemins absolus (Zed, démarrage automatique) seront recâblés. Désinstallable proprement. Pas de retour arrière : la sortie est la désinstallation.`
+        $('install-desc').append(s)
+      }
+    }
+  }
+
+  async function refresh() {
+    try {
+      const res = await fetch('/state')
+      state = await res.json()
+      render()
+    } catch { /* le tray ne répond plus : la page le dira à la prochaine action */ }
+  }
+
+  async function loadLogs() {
+    try {
+      const res = await fetch('/logs?lines=200')
+      const body = await res.json()
+      $('log-view').textContent = body.lines?.length ? body.lines.join('\n') : tr`(journal vide)`
+      $('log-view').scrollTop = $('log-view').scrollHeight
+    } catch {
+      $('log-view').textContent = tr`(lecture impossible)`
+    }
+  }
+
+  async function loadAutostart() {
+    const cb = $('autostart')
+    try {
+      const res = await fetch('/autostart')
+      const body = await res.json()
+      const a = body.autostart
+      cb.disabled = false
+      cb.checked = Boolean(a?.installed)
+      $('autostart-desc').innerHTML = ''
+      const s = document.createElement('span')
+      s.textContent = a
+        ? tr`Backend : ${a.backend}. ${a.installed ? tr`Installé` : tr`Non installé`} — sans élévation, à l'ouverture de session.`
+        : tr`État indisponible — vérifiez Node.`
+      $('autostart-desc').append(s)
+    } catch {
+      $('autostart-desc').textContent = tr`État indisponible.`
+    }
+  }
+
+  // --- Mises à jour (5.4) ----------------------------------------------------
+  let upd = null
+
+  function renderUpdate() {
+    if (!upd) return
+    $('update-block').classList.toggle('hidden', !upd.supported)
+    $('update-git').classList.toggle('hidden', upd.supported)
+    if (!upd.supported) return
+    $('auto-update').checked = upd.autoUpdate
+    $('update-versions').textContent = upd.current ? tr`actuelle ${upd.current}` : ''
+    $('update-apply').classList.toggle('hidden', !upd.pending)
+    const s = document.createElement('span')
+    if (upd.pending) {
+      s.textContent = tr`Version ${upd.pending} prête — elle sera installée au prochain arrêt ou redémarrage.`
+    } else if (upd.error) {
+      s.textContent = tr`Dernière vérification : ${upd.error}`
+    } else if (upd.latest && upd.current && upd.latest !== upd.current) {
+      s.textContent = tr`Version ${upd.latest} disponible.`
+    } else if (upd.latest) {
+      s.textContent = tr`À jour (${upd.latest}).`
+    } else {
+      s.textContent = tr`Pas encore vérifié.`
+    }
+    if (upd.lastCheck) {
+      const d = new Date(Number(upd.lastCheck) * 1000)
+      const detail = document.createElement('span')
+      detail.textContent = tr`Dernière vérification : ${d.toLocaleString()}.`
+      $('update-status').innerHTML = ''
+      $('update-status').append(s, detail)
+    } else {
+      $('update-status').innerHTML = ''
+      $('update-status').append(s)
+    }
+  }
+
+  async function loadUpdate() {
+    try {
+      const res = await fetch('/update')
+      upd = await res.json()
+      renderUpdate()
+    } catch { /* silencieux : la section reste sur son dernier état */ }
+  }
+
+  $('auto-update').addEventListener('change', async () => {
+    const cb = $('auto-update')
+    clearBanners()
+    try {
+      const body = await post('/update/toggle', { enabled: cb.checked })
+      if (!body.ok) { showError(body.error); cb.checked = !cb.checked }
+    } catch { showError(tr`Le tray ne répond plus.`); cb.checked = !cb.checked }
+  })
+
+  $('update-check').addEventListener('click', async () => {
+    const btn = $('update-check')
+    btn.disabled = true
+    clearBanners()
+    $('update-status').innerHTML = '<span>' + tr`Vérification en cours… (téléchargement si une version est disponible)` + '</span>'
+    try {
+      const res = await fetch('/update/check', { method: 'POST', body: '{}' })
+      upd = await res.json()
+      renderUpdate()
+      if (upd.error) showError(upd.error)
+      else if (upd.pending) showOk(tr`Version ${upd.pending} téléchargée, prête à installer.`)
+    } catch { showError(tr`Le tray ne répond plus.`) }
+    btn.disabled = false
+  })
+
+  $('update-apply').addEventListener('click', async () => {
+    if (!confirm(tr`Installer la mise à jour et redémarrer ZRA ? Le service sera arrêté quelques secondes.`)) return
+    clearBanners()
+    try { await post('/update/apply') } catch { /* le processus est remplacé : la connexion tombe, c'est attendu */ }
+    document.body.innerHTML = '<div style="padding:40px;text-align:center">' + tr`Mise à jour en cours d’installation — ZRA redémarre. Cet onglet peut être fermé.` + '</div>'
+  })
+
+  $('restart').addEventListener('click', async () => {
+    busy = true; render(); clearBanners()
+    try {
+      const body = await post('/restart')
+      if (body.ok) showOk(tr`Service redémarré.`)
+      else showError(body.error)
+    } catch { showError(tr`Le tray ne répond plus.`) }
+    busy = false
+    await refresh()
+  })
+
+  for (const btn of document.querySelectorAll('#mode button')) {
+    btn.addEventListener('click', async () => {
+      if (btn.dataset.v === state?.mode) return
+      const label = btn.dataset.v === 'poste' ? tr`poste` : tr`relais`
+      if (!confirm(tr`Passer en mode ${label} ? Le service courant sera arrêté et l'autre lancé.`)) return
+      busy = true; render(); clearBanners()
+      try {
+        const body = await post('/mode', { mode: btn.dataset.v })
+        if (body.ok) showOk(body.output ? tr`Mode ${label} activé.` + '\n' + body.output : tr`Mode ${label} activé.`)
+        else showError(body.error)
+      } catch { showError(tr`Le tray ne répond plus.`) }
+      busy = false
+      await refresh()
+      loadAutostart()
+      loadLogs()
+    })
+  }
+
+  $('autostart').addEventListener('change', async () => {
+    const cb = $('autostart')
+    cb.disabled = true
+    clearBanners()
+    try {
+      const body = await post('/autostart', { enabled: cb.checked })
+      if (body.ok) showOk(cb.checked ? tr`Démarrage automatique installé.` : tr`Démarrage automatique retiré.`)
+      else { showError(body.error || body.output || tr`Échec.`); cb.checked = !cb.checked }
+    } catch { showError(tr`Le tray ne répond plus.`); cb.checked = !cb.checked }
+    cb.disabled = false
+  })
+
+  $('log-refresh').addEventListener('click', loadLogs)
+  $('log-open').addEventListener('click', async () => {
+    clearBanners()
+    try {
+      const body = await post('/open-logs')
+      if (!body.ok) showError(body.error)
+    } catch { showError(tr`Le tray ne répond plus.`) }
+  })
+
+  // --- Self-install (5.7) ------------------------------------------------------
+  $('install-btn').addEventListener('click', async () => {
+    if (!confirm(tr`Installer ZRA sur ce poste ? Le service sera arrêté, ZRA copié dans son emplacement fixe, puis relancé depuis celui-ci.`)) return
+    $('install-btn').disabled = true
+    clearBanners()
+    let body = null
+    try {
+      const res = await fetch('/install', { method: 'POST', body: '{}' })
+      body = await res.json()
+    } catch { /* le processus est remplacé : connexion coupée, attendu */ }
+    if (body && !body.ok) {
+      showError(body.error || tr`Échec de l'installation.`)
+      $('install-btn').disabled = false
+      return
+    }
+    if (body?.steps) {
+      const box = $('install-steps')
+      for (const s of body.steps) {
+        const row = document.createElement('div')
+        row.className = 'step ' + (s.ok ? 'ok' : 'ko')
+        row.innerHTML = s.ok ? ICONS.check : ICONS.warning
+        const txt = document.createElement('div')
+        const t = document.createElement('div')
+        t.textContent = s.label + (s.ok ? '' : tr` — échec`)
+        txt.append(t)
+        if (s.output) {
+          const o = document.createElement('div')
+          o.className = 'step-output'
+          o.textContent = s.output
+          txt.append(o)
+        }
+        row.append(txt)
+        box.append(row)
+      }
+    }
+    showOk(tr`ZRA est installé et redémarre depuis son emplacement fixe. Cet onglet peut être fermé.`)
+  })
+
+  // --- Désinstallation (5.5) ---------------------------------------------------
+  $('uninstall').addEventListener('click', () => {
+    clearBanners()
+    $('uninstall-panel').classList.remove('hidden')
+    $('uninstall').disabled = true
+  })
+  $('uninstall-cancel').addEventListener('click', () => {
+    $('uninstall-panel').classList.add('hidden')
+    $('uninstall').disabled = false
+  })
+  for (const [id, keep] of [['uninstall-all', false], ['uninstall-keep', true]]) {
+    $(id).addEventListener('click', async () => {
+      $('uninstall-panel').classList.add('hidden')
+      clearBanners()
+      let body = null
+      try {
+        const res = await fetch('/uninstall', { method: 'POST', body: JSON.stringify({ keepSettings: keep }) })
+        body = await res.json()
+      } catch { /* le processus meurt après la réponse : connexion coupée, attendu */ }
+      if (body && !body.ok) {
+        showError(body.error || tr`Échec de la désinstallation.`)
+        $('uninstall').disabled = false
+        return
+      }
+      if (body?.steps) {
+        const box = $('uninstall-steps')
+        for (const s of body.steps) {
+          const row = document.createElement('div')
+          row.className = 'step ' + (s.ok ? 'ok' : 'ko')
+          row.innerHTML = s.ok ? ICONS.check : ICONS.warning
+          const txt = document.createElement('div')
+          const t = document.createElement('div')
+          t.textContent = s.label + (s.ok ? '' : tr` — échec`)
+          txt.append(t)
+          if (s.output) {
+            const o = document.createElement('div')
+            o.className = 'step-output'
+            o.textContent = s.output
+            txt.append(o)
+          }
+          row.append(txt)
+          box.append(row)
+        }
+      }
+      showOk(tr`Désinstallation terminée. Cet onglet peut être fermé.`)
+      $('uninstall').disabled = true
+      $('quit').disabled = true
+    })
+  }
+
+  $('quit').addEventListener('click', async () => {
+    if (!confirm(tr`Quitter le tray ? Le service supervisé sera arrêté. Le démarrage automatique le relancera à la prochaine ouverture de session.`)) return
+    try { await post('/quit') } catch { /* le processus meurt : la connexion tombe, c'est attendu */ }
+    document.body.innerHTML = '<div style="padding:40px;text-align:center">' + tr`ZRA arrêté. Cet onglet peut être fermé.` + '</div>'
+  })
+
+  refresh()
+  loadLogs()
+  loadAutostart()
+  loadUpdate()
+  setInterval(refresh, 5000)
+</script>
+</body>
+</html>

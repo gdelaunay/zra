@@ -33,13 +33,14 @@ import { mkdir, writeFile } from 'node:fs/promises'
 import { daemonStatus } from './daemon-status.mjs'
 import { trayBinary } from './tray-binary.mjs'
 import { tr } from '../../zra-daemon/i18n.js'
+import { configRoot } from '../../zra-daemon/platform.js'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
 
 /** Nom de l'unité. Le daemon est le seul service de ZRA. */
 export const UNIT = 'zra-daemon.service'
 /** Journal du daemon, le même que la tâche Windows (`daemon-task.ps1 --log`). */
-export const LOG = join(ROOT, '.zra', 'logs', 'daemon.log')
+export const LOG = join(configRoot({ root: ROOT, platform: 'linux' }), '.zra', 'logs', 'daemon.log')
 
 /** `~/.config/systemd/user/zra-daemon.service`, en suivant XDG_CONFIG_HOME. */
 export function unitFile({ env = process.env, home = homedir() } = {}) {
@@ -267,10 +268,16 @@ function uninstall(opts) {
   const s = unitState()
   if (!s.installed) return console.log(tr`Unité « ${UNIT} » : déjà absente.`)
   if (!opts.apply) return console.log(tr`Simulation : l’unité « ${UNIT} » serait arrêtée, désactivée puis supprimée (${s.file}). Relancer avec --apply.`)
-  systemctl(['disable', '--now', UNIT])
+  // --keep-running (migration de mode par le tray) : disable seul, le
+  // processus courant survit jusqu'à la bascule suivante.
+  systemctl(opts.keepRunning ? ['disable', UNIT] : ['disable', '--now', UNIT])
   rmSync(s.file, { force: true })
   const reload = systemctl(['daemon-reload'])
-  console.log(reload.ok ? tr`✓ unité supprimée (le journal reste dans .zra/logs/ et dans journalctl).` : `systemctl --user daemon-reload : ${reload.out}`)
+  console.log(reload.ok
+    ? (opts.keepRunning
+      ? tr`✓ unité désactivée et supprimée (processus courant laissé vivant).`
+      : tr`✓ unité supprimée (le journal reste dans .zra/logs/ et dans journalctl).`)
+    : `systemctl --user daemon-reload : ${reload.out}`)
 }
 
 async function start(opts, config) {

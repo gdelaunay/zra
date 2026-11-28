@@ -6,10 +6,11 @@ import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { tr } from '../../zra-daemon/i18n.js'
+import { configRoot } from '../../zra-daemon/platform.js'
 
 // La racine du dépôt, comme ailleurs — pas le répertoire courant.
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
-const STATE = join(ROOT, '.zra')
+const STATE = join(configRoot({ root: ROOT, platform: 'linux' }), '.zra')
 
 /** Message clair quand le .desktop est système et non inscriptible. */
 function unwritable(file, err) {

@@ -14,6 +14,7 @@
 import { spawn as nodeSpawn } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
+import { tmpdir } from 'node:os'
 import { EventEmitter } from 'node:events'
 
 import { keepAwakeHelper } from './platform.js'
@@ -138,6 +139,7 @@ export class KeepAwake extends EventEmitter {
     const spec = keepAwakeHelper({
       platform: this.platform,
       why: this.busy ? tr`Agent en cours` : tr`Garde éveillé (réglage du poste)`,
+      pid: process.pid,
     })
     if (!spec) {
       this.supported = false
@@ -147,7 +149,9 @@ export class KeepAwake extends EventEmitter {
     this.helperSince = this.now()
     let child
     try {
-      child = this.spawn(spec.command, spec.args, { stdio: 'ignore', windowsHide: true })
+      // cwd hors de l'app : un helper survivant ne verrouille pas le dossier
+      // d'installation (suppression différée de la désinstallation/update).
+      child = this.spawn(spec.command, spec.args, { stdio: 'ignore', windowsHide: true, cwd: tmpdir() })
     } catch (err) {
       log.warn(tr`Garde éveillé indisponible :`, err.message)
       this.supported = false

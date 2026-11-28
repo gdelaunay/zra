@@ -1,6 +1,7 @@
-// Génère le jeu d'icônes de la PWA depuis le mark « Grand Z émetteur » (logo 09).
-// Source unique : un SVG (mark bicolore neutre gruvbox + accent), décliné en
-// PNG pour les usages qui n'acceptent pas le SVG (Safari, iOS, badge Android).
+// Génère le jeu d'icônes de la PWA depuis le mark « Z deux triangles »
+// (deux triangles ouverts, trait arrondi 76, pattes courtes). Source unique :
+// un SVG (mark bicolore neutre gruvbox + accent), décliné en PNG pour les
+// usages qui n'acceptent pas le SVG (Safari, iOS, badge Android).
 // Lancer depuis la racine du repo : node scripts/gen-icons.mjs
 // Dépendance : sharp (résolu depuis le harness pi, aucune dep runtime du projet).
 import { createRequire } from 'node:module'
@@ -16,32 +17,28 @@ const ACCENT_DARK = '#b8bb26' // gruvbox dark green (mode sombre)
 const ACCENT_LIGHT = '#98971a' // gruvbox neutral green (mode clair, plus lisible)
 const FOND = '#282828' // gruvbox dark bg
 
-// Géométrie du mark (viewBox 512). Z fendu bicolore + deux ondes pivotées
-// -45° dans l'angle haut-droit. Les transforms sont conservés tels quels :
-// valides en SVG, rendus à l'identique par les navigateurs et par sharp.
-const Z_TOP = 'M148 116 L384 116 L116 384 L116 324 L252 188 L116 188 L116 148 Z'
-const Z_BOT = 'M396 138 L396 188 L260 324 L396 324 L396 364 L364 396 L138 396 Z'
-const ARC1 = 'M336.8 152.6 A135 135 0 0 1 336.8 359.4 L304.6 321.1 A85 85 0 0 0 304.6 190.9 Z'
-const ARC2 = 'M378.6 102.8 A200 200 0 0 1 378.6 409.2 L352.9 378.6 A160 160 0 0 0 352.9 133.4 Z'
+// Géométrie du mark (viewBox 512) : deux triangles ouverts tracés au trait
+// arrondi, cadre 80..432, pattes 95. Le mark est centré sur (256, 256).
+const Z_TOP = 'M80 175 V80 H432 L296 216'
+const Z_BOT = 'M432 337 V432 H80 L216 296'
+const TRAIT = 76
 
-// Boîte englobante du mark (coords naturelles) : centre et rayon du point le
-// plus éloigné (coin bas-gauche du Z / pointe des ondes). Sert à recentrer et
-// à dimensionner les variantes.
-const CX = 281.7, CY = 225.8, RMAX = 245.6
-// BIG : remplit le viewBox au max (marge ~12 px). SAFE : tient dans la zone
-// sûre maskable (cercle Ø 410, rayon 205) pour les icônes à masque arrondi.
-const BIG = (256 - 12) / 177.4 // 1.375
-const SAFE = 205 / RMAX // 0.835
+// Boîte englobante trait compris : carré de côté 428 (42..470), demi-côté 214.
+// RMAX = point peint le plus éloigné du centre (arrondi des coins haut-droit /
+// bas-gauche du cadre) : distance centre→coin + demi-trait. Sert à dimensionner
+// les variantes.
+const CX = 256, CY = 256, RMAX = 176 * Math.SQRT2 + TRAIT / 2 // 286.9
+// BIG : marges ~42 px/côté (~8 %) — favicon, header, badge, tray ; le mark a
+// déjà cette marge à l'échelle 1. SAFE : tient dans la zone sûre maskable
+// (cercle Ø 410, rayon 205) pour les icônes à masque arrondi.
+const BIG = (256 - 42) / 214 // 1.0
+const SAFE = 205 / RMAX // 0.7145
 
 function markInner(topAttr, accAttr) {
   return `
-  <g transform="translate(235 280) scale(0.88) translate(-256 -256)">
+  <g fill="none" stroke-width="${TRAIT}" stroke-linecap="round" stroke-linejoin="round">
     <path ${topAttr} d="${Z_TOP}"/>
     <path ${accAttr} d="${Z_BOT}"/>
-  </g>
-  <g transform="translate(352 148) rotate(-45) scale(0.5) translate(-250 -256)">
-    <path ${accAttr} d="${ARC1}"/>
-    <path ${accAttr} d="${ARC2}"/>
   </g>`
 }
 
@@ -50,17 +47,19 @@ function place(inner, scale) {
   return `<g transform="translate(256 256) scale(${scale.toFixed(4)}) translate(${-CX} ${-CY})">${inner}</g>`
 }
 
-function doc(inner, bg = null) {
-  const rect = bg ? `<rect width="512" height="512" fill="${bg}"/>` : ''
+function doc(inner, bg = null, rx = 0) {
+  const rect = bg ? `<rect width="512" height="512" rx="${rx}" fill="${bg}"/>` : ''
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">${rect}${inner}</svg>`
 }
 
 // Mark couleur (accent sombre) pour les PNG sur fond sombre.
-const markColor = markInner(`fill="${NEUTRE}"`, `fill="${ACCENT_DARK}"`)
-const markWhite = markInner('fill="#fff"', 'fill="#fff"')
+const markColor = markInner(`stroke="${NEUTRE}"`, `stroke="${ACCENT_DARK}"`)
+// Variante claire du mark (neutre sombre + accent foncé), pour fonds clairs.
+const markLight = markInner(`stroke="${FOND}"`, `stroke="${ACCENT_LIGHT}"`)
+const markWhite = markInner('stroke="#fff"', 'stroke="#fff"')
 // Favicon : classes .n (neutre) / .a (accent) pilotées par prefers-color-scheme.
 const markFav = markInner('class="n"', 'class="a"')
-const FAVICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512"><style>.n{fill:${NEUTRE}}.a{fill:${ACCENT_DARK}}@media (prefers-color-scheme:light){.n{fill:${FOND}}.a{fill:${ACCENT_LIGHT}}}</style>${place(markFav, BIG)}</svg>`
+const FAVICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512"><style>.n{stroke:${NEUTRE}}.a{stroke:${ACCENT_DARK}}@media (prefers-color-scheme:light){.n{stroke:${FOND}}.a{stroke:${ACCENT_LIGHT}}}</style>${place(markFav, BIG)}</svg>`
 
 async function png(svgStr, size, file) {
   await sharp(Buffer.from(svgStr)).resize(size, size).png().toFile(join(OUT, file))
@@ -74,13 +73,20 @@ console.log('Génération des icônes ZRA →', OUT)
 await writeFile(join(OUT, 'icon.svg'), FAVICON)
 console.log('  icon.svg (favicon adaptatif)')
 
-// Badge de notification : silhouette monochrome blanche sur transparent.
+// Badge de notification (barre de statut mobile) : silhouette monochrome
+// blanche sur transparent.
 await writeFile(join(OUT, 'badge.svg'), doc(place(markWhite, BIG)))
 await png(doc(place(markWhite, BIG)), 96, 'badge.png')
 
-// Icône « any » PNG (notifications + manifest) et fallback favicon Safari :
-// fond sombre + accent sombre, mark au max (visibles sur fond clair).
-await png(doc(place(markColor, BIG), FOND), 192, 'icon-192.png')
+// Tray système : mark couleur sur transparent, embarqué dans zra-tray (pas
+// servi par la PWA). Variante sombre : Linux (fixe) + Windows barre sombre ;
+// variante claire : Windows barre claire (swap selon le thème système).
+await png(doc(place(markColor, BIG)), 64, 'tray.png')
+await png(doc(place(markLight, BIG)), 64, 'tray-light.png')
+
+// Icône « any » PNG (fallback lanceur) : fond sombre arrondi, mark en zone
+// sûre (visible sur fond clair, pas de pointes rognées par un masque).
+await png(doc(place(markColor, SAFE), FOND, 96), 192, 'icon-192.png')
 await png(doc(place(markColor, BIG), FOND), 32, 'favicon-32.png')
 
 // Écran d'accueil iOS + maskable Android : fond plein, mark dans la zone sûre

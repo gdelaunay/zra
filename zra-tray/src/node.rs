@@ -4,6 +4,8 @@
 use std::path::PathBuf;
 use std::process::Command;
 
+use crate::i18n::tr;
+
 /// Version majeure de « v24.1.0 » → 24.
 fn major(version: &str) -> Option<u32> {
     version.trim().trim_start_matches('v').split('.').next()?.parse().ok()
@@ -12,20 +14,26 @@ fn major(version: &str) -> Option<u32> {
 /// `node --version` sur un chemin précis : Ok(version) ou Err(message lisible).
 pub fn check(path: &str) -> Result<String, String> {
     if path.trim().is_empty() {
-        return Err("Chemin vide.".into());
+        return Err(tr!("Chemin vide."));
     }
-    let out = Command::new(path)
-        .arg("--version")
+    let mut cmd = Command::new(path);
+    cmd.arg("--version");
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
+    }
+    let out = cmd
         .output()
-        .map_err(|e| format!("Impossible de lancer « {path} » : {e}"))?;
+        .map_err(|e| tr!("Impossible de lancer « {0} » : {1}", path, e))?;
     if !out.status.success() {
-        return Err(format!("« {path} » ne répond pas correctement à --version."));
+        return Err(tr!("« {0} » ne répond pas correctement à --version.", path));
     }
     let version = String::from_utf8_lossy(&out.stdout).trim().to_string();
     match major(&version) {
         Some(m) if m >= 24 => Ok(version),
-        Some(_) => Err(format!("Node ≥ 24 requis — trouvé {version}.")),
-        None => Err(format!("Version illisible : « {version} ».")),
+        Some(_) => Err(tr!("Node ≥ 24 requis — trouvé {0}.", version)),
+        None => Err(tr!("Version illisible : « {0} ».", version)),
     }
 }
 

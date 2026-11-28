@@ -272,7 +272,7 @@ button { cursor: pointer; }
 .header__agent { color: var(--icon-muted); flex: none; padding: 0 var(--sp-1); display: flex; }
 /* Logo ZRA : glyphe 18 px (taille d'origine) ; padding réduit pour garder
  * l'encombrement total de 20 px de l'icône d'agent. */
-.header__agent--brand { padding: 0; margin: 0 1px 0 3px; margin-bottom: 5px; }
+.header__agent--brand { padding: 0; margin: 0 1px 0 3px; }
 .header__right { display: flex; align-items: center; gap: var(--sp-3); flex: none; }
 /* Un peu d'air entre la pastille live et le filet qui suit. */
 .header__right .dot, .header__right .lock-dot { margin-right: var(--sp-3); }

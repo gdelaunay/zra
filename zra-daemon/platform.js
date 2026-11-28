@@ -68,8 +68,7 @@ function ctx(opts) {
  * @param {{ platform?:string, env?:object, home?:string, channel?:string }} [opts]
  * @returns {{
  *   platform:string, channel:string, dataDir:string, configDir:string, db:string, settings:string,
- *   keymap:string, registryDir:string, appDir:string, injectionLog:string,
- *   recordsDir:string,
+ *   keymap:string, registryDir:string, zraConfigDir:string,
  * }}
  */
 export function zedPaths(opts = {}) {
@@ -84,7 +83,7 @@ export function zedPaths(opts = {}) {
     return finish(platform, join, channel, {
       dataDir,
       configDir,
-      appDir: join(local, 'zra'),
+      zraConfigDir: join(roaming, 'zra'),
       registryDir: join(dataDir, 'external_agents', 'registry'),
     })
   }
@@ -94,21 +93,20 @@ export function zedPaths(opts = {}) {
   // défaut `~/.local/share`, `~/.config`, `~/.local/state`.
   const data = env.XDG_DATA_HOME || join(home, '.local', 'share')
   const config = env.XDG_CONFIG_HOME || join(home, '.config')
-  const state = env.XDG_STATE_HOME || join(home, '.local', 'state')
   const dataDir = join(data, 'zed')
   const configDir = join(config, 'zed')
   return finish(platform, join, channel, {
     dataDir,
     configDir,
-    // Journaux et enregistrements de ZRA : `XDG_STATE_HOME` est le rôle prévu
-    // par la spec XDG pour ce qui s'écrit en continu (Windows : `%LOCALAPPDATA%\zra`).
-    appDir: join(state, 'zra'),
+    // Config utilisateur ZRA (layout installé) : réglages + données précieuses.
+    // Le jetable (journaux, enregistrements) vit dans le `.zra` de l'installation.
+    zraConfigDir: join(config, 'zra'),
     registryDir: join(dataDir, 'external_agents', 'registry'),
   })
 }
 
 /** Les chemins qui se déduisent des deux dossiers racine, et ceux de ZRA. */
-function finish(platform, join, channel, { dataDir, configDir, appDir, registryDir }) {
+function finish(platform, join, channel, { dataDir, configDir, zraConfigDir, registryDir }) {
   return {
     platform,
     channel,
@@ -120,10 +118,46 @@ function finish(platform, join, channel, { dataDir, configDir, appDir, registryD
     // Zed fonctionne sans, le chemin reste le bon.
     keymap: join(configDir, 'keymap.json'),
     registryDir,
-    appDir,
-    injectionLog: join(appDir, 'injections.log'),
-    recordsDir: join(appDir, 'records'),
+    zraConfigDir,
   }
+}
+
+/**
+ * Cible d'installation du tray (miroir de `zra-tray/src/install.rs::target`) :
+ * `%LOCALAPPDATA%\Programs\zra` (Windows) / `~/.local/share/zra` (Linux).
+ * Sert à détecter le layout « installé ».
+ */
+export function installTarget(opts = {}) {
+  const { platform, env, home, join } = ctx(opts)
+  if (platform === 'win32') {
+    const local = env.LOCALAPPDATA || join(home, 'AppData', 'Local')
+    return join(local, 'Programs', 'zra')
+  }
+  return join(home, '.local', 'share', 'zra')
+}
+
+/**
+ * Où vivent la config et les données précieuses de ZRA (`zra.config.json`,
+ * `tray.json`, appairage, abonnements, certs…) :
+ * - layout **installé** (racine sous la cible d'installation) → dossier config
+ *   utilisateur (`zraConfigDir`, XDG/APPDATA), hors du dossier swappé à l'update ;
+ * - **portable** ou **dépôt** → racine (`root`), config locale à côté de l'exe.
+ *
+ * `root` : racine résolue par l'appelant (ROOT du daemon). La détection
+ * « installé » miroite `install.rs::is_installed` (racine sous la cible), en
+ * plus strict : séparateur exigé après la cible (pas de faux positif
+ * `zra-portable`), comparaison insensible à la casse sous Windows.
+ */
+export function configRoot(opts = {}) {
+  const { platform } = ctx(opts)
+  const root = opts.root
+  if (!root) return root
+  const target = installTarget(opts)
+  const sep = platform === 'win32' ? '\\' : '/'
+  const norm = (p) => (platform === 'win32' ? p.toLowerCase() : p)
+  const r = norm(root), t = norm(target)
+  if (r === t || r.startsWith(t + sep)) return zedPaths(opts).zraConfigDir
+  return root
 }
 
 /**
@@ -342,24 +376,32 @@ export const KEYBOARD_BACKENDS = ['powershell', 'xdotool', 'none']
  *
  * Windows : `keep-awake.ps1` appelle `SetThreadExecutionState` puis reste
  * vivant — un one-shot ne tiendrait rien, l'état meurt avec le processus.
- * Linux : `systemd-inhibit` (logind) autour d'un `sleep infinity`. La présence
- * de logind n'est pas acquise (MX Linux est sysvinit) : `keep-awake.js` la
- * constate à l'exécution, pas ici.
+ * Linux : `systemd-inhibit` (logind) autour d'une boucle qui surveille le PID
+ * du daemon — un `sleep infinity` nu survivrait à un kill brutal du daemon
+ * (orphelin, veille bloquée pour toujours). La présence de logind n'est pas
+ * acquise (MX Linux est sysvinit) : `keep-awake.js` la constate à l'exécution.
  * macOS : hors périmètre, pas de helper.
  *
- * @param {{ platform?:string, why?:string }} [opts]
+ * @param {{ platform?:string, why?:string, pid?:number }} [opts]
  * @returns {{ command:string, args:string[] }|null}
  */
 export function keepAwakeHelper(opts = {}) {
   const { platform } = ctx(opts)
   if (platform === 'win32') {
     const script = fileURLToPath(new URL('./keep-awake.ps1', import.meta.url))
-    return { command: 'powershell.exe', args: ['-NoProfile', '-NonInteractive', '-File', script] }
+    const args = ['-NoProfile', '-NonInteractive', '-File', script]
+    // Le helper sort dès que le daemon meurt, même en kill brutal (job object).
+    if (opts.pid) args.push('-DaemonPid', String(opts.pid))
+    return { command: 'powershell.exe', args }
   }
   if (platform === 'darwin') return null
+  // Le helper sort dès que le daemon meurt, même en kill brutal : la boucle
+  // `kill -0` remplace le `sleep infinity` (même rôle que -DaemonPid Windows).
+  const pid = String(opts.pid ?? process.pid)
   return {
     command: 'systemd-inhibit',
-    args: ['--what=sleep', '--mode=block', '--who=ZRA', `--why=${opts.why ?? 'ZRA'}`, 'sleep', 'infinity'],
+    args: ['--what=sleep', '--mode=block', '--who=ZRA', `--why=${opts.why ?? 'ZRA'}`,
+      'sh', '-c', 'while kill -0 "$1" 2>/dev/null; do sleep 5; done', 'sh', pid],
   }
 }
 

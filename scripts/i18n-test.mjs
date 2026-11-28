@@ -1,7 +1,8 @@
 // Chaque texte tr`…` a sa traduction anglaise dans le catalogue de sa brique, avec les mêmes {0}, {1}… ; pas de
 // traduction orpheline. Briques : Node (daemon, shim, scripts) → i18n/en.json ; PWA → zra-client/js/en.js, un
-// module ES (importable sans build par tout navigateur). --write : réécrit les catalogues dans l'ordre du code,
-// textes manquants à "" (à traduire), orphelins retirés.
+// module ES (importable sans build par tout navigateur) ; tray → zra-tray/i18n/en.json (Rust tr!"…", pages HTML
+// tr`…` et texte statique data-i18n). --write : réécrit les catalogues dans l'ordre du code, textes manquants à
+// "" (à traduire), orphelins retirés.
 import { execSync } from 'node:child_process'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -10,6 +11,7 @@ const root = join(import.meta.dirname, '..')
 const bricks = [
   { dirs: 'zra-daemon zra-shim zra-relay scripts zra-client/tools', catalog: 'i18n/en.json', prefix: '' },
   { dirs: 'zra-client/js', catalog: 'zra-client/js/en.js', prefix: 'export default ' },
+  { dirs: 'zra-tray/src', catalog: 'zra-tray/i18n/en.json', prefix: '', tray: true },
 ]
 const skip = /\/test\/|i18n(-test)?\.m?js$/
 
@@ -57,11 +59,37 @@ function keys({ dirs }) {
   return found
 }
 
+// Brique tray : clés du catalogue zra-tray/i18n/en.json. Rust : tr!("clé {0}…", …) ;
+// HTML : tr`…` dans les scripts + texte statique des éléments data-i18n (et attributs
+// data-i18n-title / data-i18n-placeholder). Le français est la clé, comme ailleurs.
+const rustUnescape = (s) => s.replace(/\\([nrt"'\\0])/g, (_, c) => ({ n: '\n', r: '\r', t: '\t', '"': '"', "'": "'", '\\': '\\', '0': '\0' })[c])
+const decodeEntities = (s) => s.replace(/&(amp|lt|gt|quot|apos|#39);/g, (_, e) => ({ amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", '#39': "'" })[e])
+
+function trayKeys() {
+  const found = new Map()
+  const files = execSync('git ls-files -co --exclude-standard zra-tray/src', { cwd: root, encoding: 'utf8' })
+    .split('\n').filter(Boolean)
+  const add = (key, f, index, src) => {
+    if (key && !found.has(key)) found.set(key, `${f}:${src.slice(0, index).split('\n').length}`)
+  }
+  for (const f of files) {
+    const src = readFileSync(join(root, f), 'utf8')
+    if (f.endsWith('.rs')) {
+      for (const m of src.matchAll(/\btr!\(\s*"((?:[^"\\]|\\.)*)"/g)) add(rustUnescape(m[1]), f, m.index, src)
+    } else if (f.endsWith('.html')) {
+      for (const m of src.matchAll(/(?<![\w$.])tr`/g)) add(keyAt(src, m.index + 3), f, m.index, src)
+      for (const m of src.matchAll(/<[^>]*\bdata-i18n(?=[\s>])[^>]*>([^<]*)</g)) add(decodeEntities(m[1]).trim(), f, m.index, src)
+      for (const m of src.matchAll(/\bdata-i18n-(?:title|placeholder)="([^"]*)"/g)) add(decodeEntities(m[1]).trim(), f, m.index, src)
+    }
+  }
+  return found
+}
+
 const write = process.argv.includes('--write')
 const problems = []
 for (const brick of bricks) {
   const file = join(root, brick.catalog)
-  const found = keys(brick)
+  const found = brick.tray ? trayKeys() : keys(brick)
   const catalog = JSON.parse(readFileSync(file, 'utf8').slice(brick.prefix.length))
   if (write) {
     const next = Object.fromEntries([...found.keys()].map((k) => [k, catalog[k] ?? '']))

@@ -1,9 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512"><style>.n{fill:#ebdbb2}.a{fill:#b8bb26}@media (prefers-color-scheme:light){.n{fill:#282828}.a{fill:#98971a}}</style><g transform="translate(256 256) scale(1.3754) translate(-281.7 -225.8)">
-  <g transform="translate(235 280) scale(0.88) translate(-256 -256)">
-    <path class="n" d="M148 116 L384 116 L116 384 L116 324 L252 188 L116 188 L116 148 Z"/>
-    <path class="a" d="M396 138 L396 188 L260 324 L396 324 L396 364 L364 396 L138 396 Z"/>
-  </g>
-  <g transform="translate(352 148) rotate(-45) scale(0.5) translate(-250 -256)">
-    <path class="a" d="M336.8 152.6 A135 135 0 0 1 336.8 359.4 L304.6 321.1 A85 85 0 0 0 304.6 190.9 Z"/>
-    <path class="a" d="M378.6 102.8 A200 200 0 0 1 378.6 409.2 L352.9 378.6 A160 160 0 0 0 352.9 133.4 Z"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512"><style>.n{stroke:#ebdbb2}.a{stroke:#b8bb26}@media (prefers-color-scheme:light){.n{stroke:#282828}.a{stroke:#98971a}}</style><g transform="translate(256 256) scale(1.0000) translate(-256 -256)">
+  <g fill="none" stroke-width="76" stroke-linecap="round" stroke-linejoin="round">
+    <path class="n" d="M80 175 V80 H432 L296 216"/>
+    <path class="a" d="M432 337 V432 H80 L216 296"/>
   </g></g></svg>

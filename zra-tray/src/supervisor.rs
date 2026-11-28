@@ -16,6 +16,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use crate::config::{Mode, Paths, TrayConfig};
+use crate::i18n::tr;
 
 const ROTATE_BYTES: u64 = 5 * 1024 * 1024;
 const MAX_BACKOFF: u64 = 30;
@@ -86,7 +87,7 @@ impl Supervisor {
                 Ok(Some(status)) => {
                     let uptime = s.started.map(|t| t.elapsed()).unwrap_or_default();
                     s.backoff = if uptime >= STABLE_AFTER { 1 } else { (s.backoff * 2).min(MAX_BACKOFF) };
-                    eprintln!("[zra-tray] {} sorti ({status}) — relance dans {} s", s.cfg.mode.label(), s.backoff);
+                    eprintln!("{}", tr!("[zra-tray] {0} sorti ({1}) — relance dans {2} s", s.cfg.mode.label(), status, s.backoff));
                     s.child = None;
                     s.started = None;
                     s.next_retry = Instant::now() + Duration::from_secs(s.backoff);
@@ -107,7 +108,7 @@ impl Supervisor {
                     s.started = Some(Instant::now());
                 }
                 Err(err) => {
-                    eprintln!("[zra-tray] spawn impossible : {err} — retry dans {} s", s.backoff);
+                    eprintln!("{}", tr!("[zra-tray] spawn impossible : {0} — retry dans {1} s", err, s.backoff));
                     s.next_retry = Instant::now() + Duration::from_secs(s.backoff);
                     s.backoff = (s.backoff * 2).min(MAX_BACKOFF);
                 }
@@ -228,7 +229,14 @@ fn spawn_child(cfg: &TrayConfig, paths: &Paths) -> std::io::Result<Child> {
                 .env("ZRA_RELAY_PORT", cfg.relay.port.to_string())
                 .env("ZRA_RELAY_HOST", &cfg.relay.host);
             if let (Some(cert), Some(key)) = (&cfg.relay.tls_cert, &cfg.relay.tls_key) {
-                cmd.env("ZRA_RELAY_TLS_CERT", cert).env("ZRA_RELAY_TLS_KEY", key);
+                // Chemins relatifs (.zra/tls/…) résolus contre la racine config
+                // (installé : dossier config utilisateur) ; le relais reçoit de l'absolu.
+                let base = crate::config::config_root(&paths.root);
+                let abs = |p: &str| {
+                    let pp = std::path::Path::new(p);
+                    if pp.is_absolute() { pp.to_path_buf() } else { base.join(pp) }
+                };
+                cmd.env("ZRA_RELAY_TLS_CERT", abs(cert)).env("ZRA_RELAY_TLS_KEY", abs(key));
             }
             paths.log_file(Mode::Relais)
         }

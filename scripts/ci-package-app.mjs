@@ -6,11 +6,14 @@
 //
 //   zra-<version>-<target>/
 //    ├── zra-tray[.exe]   ← point d'entrée (superviseur + onboarding)
-//    └── app/             ← daemon + client + shim + relay + package.json,
+//    └── app/             ← daemon + client + shim + relay + i18n + package.json,
 //                           même version que le tray (gate tag == Cargo.toml)
 //
 // `app/` est la racine vue du daemon (config.js : ROOT = parent de
-// zra-daemon/) : config et `.zra` y vivent, le tray s'aligne (config.rs).
+// zra-daemon/) : le code y vit, le `.zra` jetable y est régénéré au runtime.
+// La config utilisateur (réglages + données précieuses) est créée à l'onboarding
+// dans le dossier config (installé : XDG/APPDATA) ou la racine (portable) — voir
+// config.js/config.rs. `.zra` est exclu de l'archive (PRUNE).
 // Zéro dépendance runtime : les quatre dossiers sont 100 % stdlib Node, pas
 // de node_modules. Les scripts d'orchestration (setup/service) arriveront
 // avec l'onboarding grand public (étape 5.2).
@@ -72,6 +75,8 @@ export function stageApp({ root = ROOT, target, version = trayVersion(root), out
       filter: (src) => !PRUNE.has(basename(src)),
     })
   }
+  // Catalogue i18n : zra-daemon/i18n.js le lit à ROOT/i18n/en.json (app/i18n/).
+  cpSync(join(root, 'i18n'), join(staging, 'app', 'i18n'), { recursive: true })
   // Le daemon lit ROOT/package.json pour sa version ; les exemples de config
   // servent de référence à l'utilisateur (la config réelle est créée à l'onboarding).
   cpSync(join(root, 'package.json'), join(staging, 'app', 'package.json'))

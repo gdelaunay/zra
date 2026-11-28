@@ -5,7 +5,8 @@
 // on délègue à `JSON.parse` — pas de parseur maison, pas de surface de bug.
 
 export function parseJsonc(text) {
-  return JSON.parse(stripJsonc(text))
+  // BOM UTF-8 (Notepad, PowerShell 5.1) : toléré.
+  return JSON.parse(stripJsonc(text.replace(/^\uFEFF/, '')))
 }
 
 export function stripJsonc(text) {

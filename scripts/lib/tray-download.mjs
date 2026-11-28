@@ -13,6 +13,7 @@ import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'n
 import { join } from 'node:path'
 
 import { tr } from '../../zra-daemon/i18n.js'
+import { configRoot } from '../../zra-daemon/platform.js'
 import { trayBinary } from './tray-binary.mjs'
 
 const REPO = 'gdelaunay/zra'
@@ -30,7 +31,7 @@ export function assetFor(platform = process.platform, arch = process.arch) {
   return null
 }
 
-const choiceFile = (root) => join(root, '.zra', 'setup.json')
+const choiceFile = (root) => join(configRoot({ root }), '.zra', 'setup.json')
 
 /** « jamais » mémorisé ? (fichier absent ou illisible = non) */
 export function neverAsked(root) {
@@ -42,7 +43,7 @@ export function neverAsked(root) {
 }
 
 export function rememberNever(root) {
-  mkdirSync(join(root, '.zra'), { recursive: true })
+  mkdirSync(join(configRoot({ root }), '.zra'), { recursive: true })
   writeFileSync(choiceFile(root), JSON.stringify({ trayDownload: 'never' }, null, 2) + '\n')
 }
 
@@ -53,7 +54,7 @@ export function rememberNever(root) {
 export async function downloadTray(root, { platform = process.platform, arch = process.arch, log = console.log } = {}) {
   const asset = assetFor(platform, arch)
   if (!asset) return { error: tr`Pas de binaire prébuild pour ${platform}/${arch} — build local : cargo build dans zra-tray/.` }
-  const dest = join(root, '.zra', 'bin', platform === 'win32' ? 'zra-tray.exe' : 'zra-tray')
+  const dest = join(configRoot({ root }), '.zra', 'bin', platform === 'win32' ? 'zra-tray.exe' : 'zra-tray')
   const errors = []
   for (const forge of FORGES) {
     try {
@@ -69,7 +70,7 @@ export async function downloadTray(root, { platform = process.platform, arch = p
       if (!bin.ok) throw new Error(`${asset} : HTTP ${bin.status}`)
       const bytes = Buffer.from(await bin.arrayBuffer())
       if (!bytes.length) throw new Error('fichier vide')
-      mkdirSync(join(root, '.zra', 'bin'), { recursive: true })
+      mkdirSync(join(configRoot({ root }), '.zra', 'bin'), { recursive: true })
       writeFileSync(dest, bytes)
       if (platform !== 'win32') chmodSync(dest, 0o755)
       log(tr`✓ tray ${tag} téléchargé depuis ${forge.name} : ${dest}`)

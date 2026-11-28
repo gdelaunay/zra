@@ -204,8 +204,22 @@ npm run relay               # écoute http://0.0.0.0:7777 — PWA + relais
    annoncée au journal. `ZRA_RELAY_PORT` et `ZRA_RELAY_HOST` changent l'écoute
    (7777, toutes interfaces par défaut).
 
-**Démarrage automatique** (homelab Linux) : comme tout service Node, par
-exemple une unité systemd système :
+**Démarrage automatique** (homelab Linux) :
+
+- **Avec le tray** (archive « app », mode relais) : la console de gestion
+  génère l'unité `systemd --user` `zra-relay.service` — case « Lancer ZRA à
+  l'ouverture de session ». L'unité lance le binaire (headless automatique
+  sans session graphique) ; il supervise le relais avec l'écoute et le TLS
+  de `.zra/tray.json`. Le linger est vérifié et activé si besoin
+  (`loginctl enable-linger`, sans sudo) : sans lui, pas de démarrage au boot
+  sur une machine sans session ouverte. Plus de copier-coller d'unité.
+  Au boot, le tray démarre donc sans icône ; une entrée XDG autostart
+  compagnon (`zra-relay-login.desktop`) le relance avec l'environnement
+  graphique à l'ouverture de session — l'icône apparaît à ce moment-là.
+  La bascule poste ↔ relais depuis la console ou le menu migre l'autostart :
+  l'unité de l'ancien mode est retirée (sans tuer le tray courant), celle du
+  nouveau mode est posée si la case était cochée.
+- **Sans tray** (`npm run relay`), par exemple une unité systemd système :
 
 ```ini
 [Unit]
@@ -356,7 +370,45 @@ lancé tient le port : la tâche réessaie jusqu'à ce qu'il s'arrête.
 supervise le daemon (relance sur crash, journal, instance unique) et affiche
 l'icône de notification. Sans binaire, repli sur le lanceur PowerShell
 `scripts/daemon-task.ps1`. Le tray se développe avec `npm run tray` (Rust,
-conception : `reference/conception-zra-tray.md`).
+conception : `reference/conception-zra-tray.md`). Son menu ouvre une
+**console de gestion** (page locale dans le navigateur) : état du service,
+bascule poste/relais, démarrage automatique, journal, versions, arrêt du tray.
+
+**Mises à jour (archive « app »)** : canal stable unique — la dernière
+release des forges (Forgejo puis GitHub en repli). Réglage « mises à jour
+automatiques » (défaut activé) + bouton « Vérifier » dans la console :
+l'archive est téléchargée en arrière-plan, puis installée au prochain arrêt
+ou redémarrage du tray (« Installer et redémarrer » pour tout de suite).
+`app/.zra` et `app/zra.config.json` sont préservés ; sous Windows l'exe
+vivant est renommé puis remplacé, l'ancien supprimé après exit. En layout
+dépôt (contributeur), les mises à jour viennent de git — le tray n'y touche
+pas.
+
+**Installation sur le poste (self-install)** : l'archive « app » lancée
+telle quel tourne en **portable**. À l'onboarding, l'option « Installer sur
+ce poste » (cochée par défaut) copie le binaire et `app/` dans un emplacement
+fixe — `%LOCALAPPDATA%\Programs\zra` (Windows) ou `~/.local/share/zra`
+(Linux) — puis recâble les chemins absolus (Zed, démarrage automatique),
+posé le raccourci Menu Démarrer et la clé « Applications installées »
+(HKCU, sans élévation), et relance ZRA depuis la cible. Décocher = rester
+portable (choix mémorisé) ; le bouton reste disponible dans la console.
+Installé : pas de retour arrière, la sortie est la désinstallation. Une
+copie portable relancée alors qu'une instance installée existe lance
+l'installée — pas deux vies parallèles. Pendant l'onboarding, le process n'a
+ni tray ni fenêtre : relancer l'exécutable rouvre la page (verrou d'instance
+unique) au lieu de sortir silencieusement.
+
+**Désinstallation** : depuis la console, « Désinstaller… » rend la machine
+comme elle a été trouvée — arrêt du service, retrait du démarrage
+automatique, dé-câblage de Zed (entrées agents, keymap, env), suppression du
+dossier d'application (code, jetable) et de la clé Windows « Applications
+installées ». Deux choix : tout désinstaller (la config utilisateur est
+retirée aussi), ou garder ses paramètres (la config — réglages, appairage,
+certificats — reste dans le dossier config utilisateur, hors du dossier
+supprimé). Node et Zed ne sont pas touchés ; aucune règle de pare-feu n'a été
+posée, rien à retirer.
+Sous Windows l'exe vivant est verrouillé : la suppression du dossier est
+différée après exit. En layout dépôt, le dossier cloné n'est pas supprimé.
 
 **Politique PowerShell** — le script clavier et le lanceur PowerShell de
 repli lancent PowerShell avec `-ExecutionPolicy Bypass` : choix assumé pour

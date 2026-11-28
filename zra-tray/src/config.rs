@@ -12,6 +12,8 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
+use crate::i18n::tr;
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Mode {
@@ -20,10 +22,10 @@ pub enum Mode {
 }
 
 impl Mode {
-    pub fn label(self) -> &'static str {
+    pub fn label(self) -> String {
         match self {
-            Mode::Poste => "Poste",
-            Mode::Relais => "Relais",
+            Mode::Poste => tr!("Poste"),
+            Mode::Relais => tr!("Relais"),
         }
     }
 }
@@ -57,7 +59,11 @@ pub struct TrayConfig {
 
 pub struct Paths {
     pub root: PathBuf,
+    /// `.zra` de la racine — jetable (logs, verrou, updates, bin).
     pub zra: PathBuf,
+    /// `.zra` du dossier config — précieux (tray.json, setup.json, tls).
+    /// Installé : dossier config utilisateur ; portable/dépôt : égal à `zra`.
+    pub config_zra: PathBuf,
     pub logs: PathBuf,
 }
 
@@ -79,14 +85,15 @@ impl Paths {
         None
     }
 
-    fn from_root(root: PathBuf) -> Self {
+    pub(crate) fn from_root(root: PathBuf) -> Self {
         let zra = root.join(".zra");
         let logs = zra.join("logs");
-        Self { root, zra, logs }
+        let config_zra = config_root(&root).join(".zra");
+        Self { root, zra, config_zra, logs }
     }
 
     pub fn tray_config(&self) -> PathBuf {
-        self.zra.join("tray.json")
+        self.config_zra.join("tray.json")
     }
 
     pub fn lock_file(&self) -> PathBuf {
@@ -108,14 +115,53 @@ impl Paths {
 
     pub fn load_config(&self) -> Option<TrayConfig> {
         let text = fs::read_to_string(self.tray_config()).ok()?;
-        serde_json::from_str(&text).ok()
+        // BOM UTF-8 (Notepad, PowerShell 5.1) : toléré, pas un JSON invalide.
+        serde_json::from_str(text.trim_start_matches('\u{feff}')).ok()
     }
 
     pub fn save_config(&self, cfg: &TrayConfig) -> std::io::Result<()> {
-        fs::create_dir_all(&self.zra)?;
+        fs::create_dir_all(&self.config_zra)?;
         fs::write(self.tray_config(), serde_json::to_string_pretty(cfg).unwrap() + "\n")
     }
 }
+
+/// Dossier config utilisateur ZRA (layout installé) : `%APPDATA%\zra` (Windows)
+/// / `$XDG_CONFIG_HOME/zra` (Linux, défaut `~/.config/zra`). Miroir de
+/// `zra-daemon/platform.js::zedPaths().zraConfigDir`.
+pub fn zra_config_dir() -> Option<PathBuf> {
+    if cfg!(windows) {
+        Some(PathBuf::from(std::env::var("APPDATA").ok()?).join("zra"))
+    } else {
+        let base = match std::env::var("XDG_CONFIG_HOME") {
+            Ok(v) if !v.is_empty() => PathBuf::from(v),
+            _ => PathBuf::from(std::env::var("HOME").ok()?).join(".config"),
+        };
+        Some(base.join("zra"))
+    }
+}
+
+/// Affichage d'un chemin : séparateurs natifs de l'OS. Sous Windows les
+/// chemins peuvent arriver avec des `/` (env, saisie, jointures) — la console
+/// les montre tous en `\`, pas de mélange.
+pub fn display_path(s: &str) -> String {
+    if cfg!(windows) { s.replace('/', "\\") } else { s.to_string() }
+}
+
+/// Racine de la config + données précieuses : dossier config utilisateur en
+/// layout installé (hors zone swappée à l'update), racine sinon (portable/dépôt).
+/// Miroir de `platform.js::configRoot`.
+pub fn config_root(root: &Path) -> PathBuf {
+    if crate::install::is_installed() {
+        if let Some(dir) = zra_config_dir() {
+            return dir;
+        }
+    }
+    root.to_path_buf()
+}
+
+/// Entrées `.zra` jetables (régénérées au runtime, dans le dossier d'install) :
+/// tout le reste de `.zra` est précieux et vit dans le dossier config.
+pub const JETABLE: &[&str] = &["logs", "bin", "records", "updates", "tray.lock", "tray.session", "injections.log"];
 
 /// Racine ZRA depuis un dossier : layout dépôt (`zra-daemon/` direct) ou
 /// archive « app » (`app/zra-daemon/`). Dans l'archive la racine est `app/`,
@@ -169,6 +215,26 @@ mod tests {
     fn racine_introuvable() {
         let dir = tmp("vide");
         assert_eq!(root_at(&dir), None);
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn display_path_separateurs_natifs() {
+        if cfg!(windows) {
+            assert_eq!(display_path("C:/x\\y/z"), "C:\\x\\y\\z");
+        } else {
+            assert_eq!(display_path("/x/y"), "/x/y");
+        }
+    }
+
+    #[test]
+    fn load_config_tolerant_bom() {
+        let dir = tmp("bom");
+        let paths = Paths::from_root(dir.clone());
+        fs::create_dir_all(&paths.config_zra).unwrap();
+        let json = "{\"mode\":\"poste\",\"node\":\"n\",\"port\":7777,\"relay\":{\"port\":7777,\"host\":\"0.0.0.0\",\"tlsCert\":null,\"tlsKey\":null}}";
+        fs::write(paths.tray_config(), format!("\u{feff}{json}")).unwrap();
+        assert!(paths.load_config().is_some(), "le BOM ne doit pas invalider tray.json");
         fs::remove_dir_all(&dir).unwrap();
     }
 }

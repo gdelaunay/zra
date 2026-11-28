@@ -125,14 +125,15 @@ test('machine de portage : isZedRunning dit ce que pgrep dit', { skip: LINUX_ONL
 
 test('linux : ZRA_RECORD_DIR garde la main sur le dossier des trames', { skip: LINUX_ONLY }, async (t) => {
   // Inventaire A : `zra-shim/record.js` était déjà surchargeable par
-  // `ZRA_RECORD_DIR`, ce mécanisme ne change pas. Seul le défaut suit XDG.
+  // `ZRA_RECORD_DIR`, ce mécanisme ne change pas. Seul le défaut change : le
+  // `.zra` de l'installation (jetable).
   const dir = mkdtempSync(join(tmpdir(), 'zra-record-linux-'))
   t.after(() => rmSync(dir, { recursive: true, force: true }))
   const prev = process.env.ZRA_RECORD_DIR
   process.env.ZRA_RECORD_DIR = dir
   try {
     const rec = createRecorder({ enabled: true, agentId: 'faux-acp' })
-    assert.equal(dirname(rec.file), dir, 'la variable prime sur le défaut XDG')
+    assert.equal(dirname(rec.file), dir, 'la variable prime sur le défaut')
     rec.write('zed→agent', Buffer.from('{"id":1,"method":"initialize"}\n'))
     rec.close()
     await new Promise((r) => setTimeout(r, 50))
@@ -142,5 +143,4 @@ test('linux : ZRA_RECORD_DIR garde la main sur le dossier des trames', { skip: L
     if (prev === undefined) delete process.env.ZRA_RECORD_DIR
     else process.env.ZRA_RECORD_DIR = prev
   }
-  assert.equal(PATHS.recordsDir, join(PATHS.appDir, 'records'))
 })

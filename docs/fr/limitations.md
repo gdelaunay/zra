@@ -50,6 +50,21 @@ XEmbed n'y existe pas). La supervision marche quand même : `--headless`
 sous GNOME, greffon Status Notifier sous Xfce/Wayland) ; rien à coder côté ZRA —
 forcer SNI sans hôte n'afficherait rien non plus.
 
+## Tray : console en loopback
+
+Les textes du tray (menu natif, onboarding, console de gestion) sont
+**bilingues fr/en**, comme le reste de ZRA : catalogue `zra-tray/i18n/en.json`
+(clés = texte français), langue via `ZRA_LANG` ou la locale du système —
+côté Rust (`tr!`) comme côté pages (`tr` inline + texte statique `data-i18n`,
+catalogue injecté par le serveur).
+
+La console de gestion et l'onboarding sont servis sur **loopback uniquement**
+(port choisi par l'OS, ouvert depuis le menu). Sur un homelab headless, y
+accéder depuis une autre machine passe par un tunnel SSH
+(`ssh -L 8080:127.0.0.1:<port> …`) — l'URL est journalisée au démarrage.
+Choix assumé : les actions sensibles (restart, désinstallation) restent au
+niveau de confiance « être sur le poste », comme `/pair` du daemon.
+
 ## WSL2
 
 Jamais lancé. systemd pas toujours init, WSLg fournit X11/Wayland mais `xdotool`

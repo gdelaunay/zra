@@ -7,7 +7,7 @@ import { dirname, isAbsolute, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { parseJsonc } from './jsonc.js'
-import { KEYBOARD_BACKENDS, PATHS, ZED_CHANNELS, defaultZedCli, zedPaths } from './platform.js'
+import { KEYBOARD_BACKENDS, PATHS, ZED_CHANNELS, configRoot, defaultZedCli, zedPaths } from './platform.js'
 import { tr } from './i18n.js'
 
 export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -169,8 +169,9 @@ export const DEFAULTS = {
   /** Garde éveillé : bascule explicite et son échéance (`keep-awake.js`). */
   keepAwakeFile: '.zra/keep-awake.json',
 
-  /** Journal d'injections. Dossier de ZRA : `%LOCALAPPDATA%\zra` en Windows, `$XDG_STATE_HOME/zra` ailleurs. */
-  logFile: PATHS.injectionLog,
+  /** Journal d'injections (audit des écritures mobile) : jetable, dans le `.zra`
+   * de la racine (dossier d'installation), résolu par `abs`. */
+  logFile: '.zra/injections.log',
   /** Journal du daemon sur disque, en plus de la console (`--log`). `null` : console seule. */
   daemonLogFile: null,
   /** Nom du poste affiché dans la PWA. `null` => hostname. */
@@ -211,7 +212,19 @@ function abs(p) {
 // activé pour de vrai ferait taper les tests dans la fenêtre Zed ouverte.
 const UNDER_TEST = Boolean(process.env.NODE_TEST_CONTEXT)
 
-export async function loadConfig({ file = process.env.ZRA_CONFIG || (UNDER_TEST ? null : join(ROOT, 'zra.config.json')), overrides = {} } = {}) {
+/** Chemin du fichier de config utilisateur : `ZRA_CONFIG` sinon dossier config
+ * (installé) ou racine (portable/dépôt). Partagé par setup et le shim. */
+export function configFilePath(root = ROOT) {
+  return process.env.ZRA_CONFIG || join(configRoot({ root }), 'zra.config.json')
+}
+
+export async function loadConfig({ file, overrides = {}, root = ROOT } = {}) {
+  // Config + données précieuses : dossier config utilisateur en layout installé
+  // (XDG/APPDATA, hors zone swappée), racine sinon (portable/dépôt inchangés).
+  // Le jetable (logs, staticDir, zedDb…) reste résolu contre ROOT (`abs`).
+  const cfgRoot = configRoot({ root })
+  const absCfg = (p) => (!p ? p : isAbsolute(p) ? p : join(cfgRoot, p))
+  file ??= process.env.ZRA_CONFIG || (UNDER_TEST ? null : join(cfgRoot, 'zra.config.json'))
   let fromFile = {}
   if (file && existsSync(file)) {
     try {
@@ -230,10 +243,10 @@ export async function loadConfig({ file = process.env.ZRA_CONFIG || (UNDER_TEST 
   if (process.env.ZRA_ZED_CONTROL) cfg.zedControl.enabled = process.env.ZRA_ZED_CONTROL !== '0'
   if (process.env.ZRA_ZED_KEYBOARD) cfg.zedControl.keyboard = process.env.ZRA_ZED_KEYBOARD
   cfg.auth = { ...DEFAULTS.auth, ...fromFile.auth, ...overrides.auth }
-  cfg.auth.file = cfg.auth.file ? abs(cfg.auth.file) : null
-  cfg.threadOpsFile = cfg.threadOpsFile ? abs(cfg.threadOpsFile) : null
-  cfg.pushFile = cfg.pushFile ? abs(cfg.pushFile) : null
-  cfg.keepAwakeFile = cfg.keepAwakeFile ? abs(cfg.keepAwakeFile) : null
+  cfg.auth.file = cfg.auth.file ? absCfg(cfg.auth.file) : null
+  cfg.threadOpsFile = cfg.threadOpsFile ? absCfg(cfg.threadOpsFile) : null
+  cfg.pushFile = cfg.pushFile ? absCfg(cfg.pushFile) : null
+  cfg.keepAwakeFile = cfg.keepAwakeFile ? absCfg(cfg.keepAwakeFile) : null
 
   if (cfg.zedChannel != null && !ZED_CHANNELS.includes(cfg.zedChannel)) {
     throw new Error(tr`zedChannel inconnu : ${cfg.zedChannel} (${ZED_CHANNELS.join(', ')}).`)
@@ -247,7 +260,7 @@ export async function loadConfig({ file = process.env.ZRA_CONFIG || (UNDER_TEST 
   cfg.logFile = cfg.logFile === null ? null : abs(cfg.logFile)
   cfg.daemonLogFile = cfg.daemonLogFile ? abs(cfg.daemonLogFile) : null
   // `".zra/tls/zra.crt"` (scripts/cert.ps1) : relatif à la racine du dépôt.
-  if (cfg.tls?.cert && cfg.tls?.key) cfg.tls = { ...cfg.tls, cert: abs(cfg.tls.cert), key: abs(cfg.tls.key) }
+  if (cfg.tls?.cert && cfg.tls?.key) cfg.tls = { ...cfg.tls, cert: absCfg(cfg.tls.cert), key: absCfg(cfg.tls.key) }
   cfg.allowedOrigins = (cfg.allowedOrigins || []).map((o) => String(o).replace(/\/+$/, ''))
   cfg.configFile = existsSync(file) ? file : null
 

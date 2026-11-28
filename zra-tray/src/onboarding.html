@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ZRA — Configuration</title>
+<!--i18n-->
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <style>
   /* Fenêtre de settings de Zed (reference/zed-ui/settings-window.html), sans
@@ -32,8 +33,19 @@
     --success-border: #4a4516;
     --font-ui: "IBM Plex Sans", ui-sans-serif, system-ui, "Segoe UI", sans-serif;
     --font-mono: "Lilex", ui-monospace, "Cascadia Mono", Consolas, monospace;
+    --scrollbar-thumb-background: #a899844c;
+    --scrollbar-thumb-hover-background: #fbf1c74c;
   }
   * { box-sizing: border-box; }
+  /* Scrollbar fine comme la PWA (thumb 6 px), révélée au scroll, masquée au
+     repos (cf. zra-client/css/app.css). */
+  @property --sb-alpha { syntax: '<number>'; inherits: true; initial-value: 0; }
+  * { transition: --sb-alpha 400ms; scrollbar-width: thin; scrollbar-color: var(--scrollbar-thumb-background) transparent; }
+  .is-scrolling { --sb-alpha: 1; transition-duration: 50ms; }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--scrollbar-thumb-background) calc(var(--sb-alpha) * 100%), transparent); border-radius: 6px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover-background); }
+  ::-webkit-scrollbar-track { background: transparent; }
   body {
     margin: 0; background: var(--background); color: var(--text);
     font: 13px/1.5 var(--font-ui);
@@ -49,7 +61,7 @@
     display: flex; align-items: center; gap: 8px; padding: 0 12px;
     font-size: 12px; color: var(--text-muted);
   }
-  .sw-titlebar svg { width: 16px; height: 16px; margin-bottom: 4px; }
+  .sw-titlebar svg { width: 16px; height: 16px; }
   .sw-content { padding: 24px 28px 28px; }
   .sw-pagetitle { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
   .sw-intro { color: var(--text-muted); font-size: 12.5px; margin: 0 0 20px; }
@@ -98,6 +110,28 @@
   input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
   input:disabled { color: var(--text); opacity: 1; background: var(--element); }
   input.short { width: 80px; }
+  /* Number : flèches natives masquées, dimensionné au contenu sauf .short.
+     .numinput : stepper vertical custom (chevrons Zed) ; .no-spin le masque. */
+  input[type=number] { appearance: textfield; -moz-appearance: textfield; field-sizing: content; }
+  input[type=number]::-webkit-inner-spin-button,
+  input[type=number]::-webkit-outer-spin-button { appearance: none; -webkit-appearance: none; margin: 0; }
+  .numinput { position: relative; display: inline-flex; }
+  .numinput input[type=number] { padding-right: 24px; }
+  .numinput .ni-spin {
+    position: absolute; top: 1px; right: 1px; bottom: 1px; width: 20px;
+    display: flex; flex-direction: column; overflow: hidden;
+    border-left: 1px solid var(--border-variant); border-radius: 0 3px 3px 0;
+  }
+  .numinput .ni-spin button {
+    flex: 1; display: flex; align-items: center; justify-content: center; padding: 0;
+    background: var(--element); border: 0; border-radius: 0; color: var(--text-muted); cursor: pointer;
+  }
+  .numinput .ni-spin button:hover { background: var(--element-hover); color: var(--text); }
+  .numinput .ni-spin button + button { border-top: 1px solid var(--border-variant); }
+  .numinput .ni-spin svg { width: 10px; height: 10px; }
+  .numinput input:disabled ~ .ni-spin { opacity: .45; pointer-events: none; }
+  .numinput.no-spin .ni-spin { display: none; }
+  .numinput.no-spin input[type=number] { padding-right: 8px; }
   /* Champ désactivé : mêmes proportions qu'activé, aucun saut de mise en page. */
   select {
     background: var(--element); color: var(--text); border: 1px solid var(--border);
@@ -199,6 +233,8 @@
       --success: #98971a;
       --success-background: #eef2d3;
       --success-border: #d8e0a3;
+      --scrollbar-thumb-background: #7c6f644c;
+      --scrollbar-thumb-hover-background: #2828284c;
     }
     /* Ombre de la fenêtre adoucie en clair (le .35 du dark fait noir sur fond clair). */
     .swindow { box-shadow: 0 8px 24px rgba(0, 0, 0, .12); }
@@ -219,69 +255,69 @@
   <div class="sw-titlebar"><!--logo--><span>ZRA — Configuration</span></div>
   <div class="sw-content">
     <div id="form">
-      <div class="sw-pagetitle">Configuration initiale</div>
-      <p class="sw-intro">ZRA fait tourner un service en arrière-plan sur ce PC et le relance s'il s'arrête. Choisissez ce que ce PC doit faire, vérifiez les réglages réseau, puis enregistrez : l'icône ZRA apparaîtra dans la zone de notification, et tout se pilotera depuis son menu.</p>
+      <div class="sw-pagetitle" data-i18n>Configuration initiale</div>
+      <p class="sw-intro" data-i18n>ZRA fait tourner un service en arrière-plan sur ce PC et le relance s'il s'arrête. Choisissez ce que ce PC doit faire, vérifiez les réglages réseau, puis enregistrez : l'icône ZRA apparaîtra dans la zone de notification, et tout se pilotera depuis son menu.</p>
 
       <div class="ssh"><span class="ssh-label">Runtime</span><span class="divider-h"></span></div>
       <div class="srow" id="zed-row">
         <div class="srow-text">
           <div class="srow-title">Zed</div>
-          <div class="srow-desc"><span>L'éditeur dont ZRA pilote les agents. Détecté automatiquement.</span></div>
+          <div class="srow-desc"><span data-i18n>L'éditeur dont ZRA pilote les agents. Détecté automatiquement.</span></div>
         </div>
         <div class="node-line">
-          <span class="node-version" id="zed-status"><span class="muted">détection…</span></span>
+          <span class="node-version" id="zed-status"><span class="muted" data-i18n>détection…</span></span>
           <span class="mono muted" id="zed-path" style="margin-left:auto;max-width:400px;text-align:right;overflow-wrap:anywhere"></span>
         </div>
         <div class="banner error hidden" id="zed-banner">
           <span id="zed-banner-icon"></span>
-          <div><span>Zed introuvable sur ce PC.</span>
-            <span class="detail">Installer Zed (<a href="https://zed.dev" target="_blank" rel="noopener">zed.dev</a>) puis l'ouvrir une fois : ZRA branche ses agents à ce moment-là.</span>
-            <span class="detail">Seule l'installation native est détectée — les versions Flatpak ou Snap ne sont pas prises en charge.</span>
+          <div><span data-i18n>Zed introuvable sur ce PC.</span>
+            <span class="detail"><span data-i18n>Installer Zed (</span><a href="https://zed.dev" target="_blank" rel="noopener">zed.dev</a><span data-i18n>) puis l'ouvrir une fois : ZRA branche ses agents à ce moment-là.</span></span>
+            <span class="detail" data-i18n>Seule l'installation native est détectée — les versions Flatpak ou Snap ne sont pas prises en charge.</span>
           </div>
         </div>
       </div>
       <div class="srow last">
         <div class="srow-text">
           <div class="srow-title">Node.js</div>
-          <div class="srow-desc"><span>Exécutable Node ≥ 24 utilisé pour lancer le service. Le chemin absolu est figé à l'enregistrement.</span></div>
+          <div class="srow-desc"><span data-i18n>Exécutable Node ≥ 24 utilisé pour lancer le service. Le chemin absolu est figé à l'enregistrement.</span></div>
         </div>
         <div class="node-line">
-          <span class="node-version" id="node-version"><span class="muted">détection…</span></span>
+          <span class="node-version" id="node-version"><span class="muted" data-i18n>détection…</span></span>
           <span class="mono muted" id="node-path"></span>
-          <input type="text" id="node-input" class="hidden" spellcheck="false" placeholder="Chemin de node.exe">
-          <button class="ibtn hidden" id="node-edit" title="Modifier le chemin"></button>
+          <input type="text" id="node-input" class="hidden" spellcheck="false" placeholder="Chemin de node.exe" data-i18n-placeholder>
+          <button class="ibtn hidden" id="node-edit" title="Modifier le chemin" data-i18n-title></button>
         </div>
         <div class="banner error hidden" id="node-banner">
           <span id="node-banner-icon"></span>
-          <div><span id="node-banner-text">Aucun exécutable Node ≥ 24 trouvé.</span>
-            <span class="detail">Installer depuis <a href="https://nodejs.org" target="_blank" rel="noopener">nodejs.org</a>, ou saisir un chemin valide.</span>
+          <div><span id="node-banner-text" data-i18n>Aucun exécutable Node ≥ 24 trouvé.</span>
+            <span class="detail"><span data-i18n>Installer depuis</span> <a href="https://nodejs.org" target="_blank" rel="noopener">nodejs.org</a><span data-i18n>, ou saisir un chemin valide.</span></span>
           </div>
         </div>
       </div>
 
-      <div class="ssh"><span class="ssh-label">Mode de service</span><span class="divider-h"></span></div>
+      <div class="ssh"><span class="ssh-label" data-i18n>Mode de service</span><span class="divider-h"></span></div>
       <div class="modes">
         <button class="mode-card selected" id="mode-poste" data-mode="poste">
-          <span class="mode-head"><span id="icon-poste"></span>Poste</span>
-          <span class="mode-desc"><span>Ce PC fait tourner ses propres agents Zed.</span><span>Le téléphone s'y connecte directement, sur le même Wi-Fi, via un VPN ou via un relais.</span></span>
+          <span class="mode-head"><span id="icon-poste"></span><span data-i18n>Poste</span></span>
+          <span class="mode-desc"><span data-i18n>Ce PC fait tourner ses propres agents Zed.</span><span data-i18n>Le téléphone s'y connecte directement, sur le même Wi-Fi, via un VPN ou via un relais.</span></span>
         </button>
         <button class="mode-card" id="mode-relais" data-mode="relais">
-          <span class="mode-head"><span id="icon-relais"></span>Relais</span>
-          <span class="mode-desc"><span>Ce PC héberge l'application web et relaie les connexions vers d'autres postes.</span><span>Une seule adresse HTTPS pour tous les postes.</span></span>
+          <span class="mode-head"><span id="icon-relais"></span><span data-i18n>Relais</span></span>
+          <span class="mode-desc"><span data-i18n>Ce PC héberge l'application web et relaie les connexions vers d'autres postes.</span><span data-i18n>Une seule adresse HTTPS pour tous les postes.</span></span>
         </button>
       </div>
 
-      <div class="ssh"><span class="ssh-label">Réglages</span><span class="divider-h"></span></div>
+      <div class="ssh"><span class="ssh-label" data-i18n>Réglages</span><span class="divider-h"></span></div>
       <div class="srow last">
         <div class="srow-inner">
           <div class="srow-text">
-            <div class="srow-title">Configuration</div>
-            <div class="srow-desc"><span>« Par défaut » convient à la plupart des postes. « Customiser » affiche tous les réglages.</span></div>
+            <div class="srow-title" data-i18n>Configuration</div>
+            <div class="srow-desc"><span data-i18n>« Par défaut » convient à la plupart des postes. « Customiser » affiche tous les réglages.</span></div>
           </div>
           <div class="srow-control">
             <select id="settings-mode">
-              <option value="default">Réglages par défaut</option>
-              <option value="custom">Customiser</option>
+              <option value="default" data-i18n>Réglages par défaut</option>
+              <option value="custom" data-i18n>Customiser</option>
             </select>
           </div>
         </div>
@@ -289,29 +325,29 @@
 
       <div id="custom-settings" class="hidden">
       <div id="poste-sections">
-        <div class="ssh"><span class="ssh-label">Agents</span><span class="divider-h"></span></div>
+        <div class="ssh"><span class="ssh-label" data-i18n>Agents</span><span class="divider-h"></span></div>
         <div class="srow last">
           <div class="srow-inner">
             <div class="srow-text">
-              <div class="srow-title">Agents à piloter</div>
-              <div class="srow-desc"><span>Les agents qui passent par ZRA : leurs threads deviennent pilotables depuis le téléphone.</span></div>
+              <div class="srow-title" data-i18n>Agents à piloter</div>
+              <div class="srow-desc"><span data-i18n>Les agents qui passent par ZRA : leurs threads deviennent pilotables depuis le téléphone.</span></div>
             </div>
             <div class="srow-control">
               <select id="agent-mode">
-                <option value="all">Tous les agents</option>
-                <option value="choose">Choisir les agents</option>
+                <option value="all" data-i18n>Tous les agents</option>
+                <option value="choose" data-i18n>Choisir les agents</option>
               </select>
             </div>
           </div>
           <div id="agents-list" class="agents-list hidden"></div>
         </div>
 
-        <div class="ssh"><span class="ssh-label">Démarrage</span><span class="divider-h"></span></div>
+        <div class="ssh"><span class="ssh-label" data-i18n>Démarrage</span><span class="divider-h"></span></div>
         <div class="srow" id="autostart-row">
           <div class="srow-inner">
             <div class="srow-text">
-              <div class="srow-title">Lancer ZRA à l'ouverture de session</div>
-              <div class="srow-desc"><span>Le service démarre automatiquement à l'ouverture de votre session, sans élévation.</span></div>
+              <div class="srow-title" data-i18n>Lancer ZRA à l'ouverture de session</div>
+              <div class="srow-desc"><span data-i18n>Le service démarre automatiquement à l'ouverture de votre session, sans élévation.</span></div>
             </div>
             <div class="srow-control"><input type="checkbox" id="autostart" checked></div>
           </div>
@@ -319,32 +355,32 @@
         <div class="srow last hidden" id="xwayland-row">
           <div class="srow-inner">
             <div class="srow-text">
-              <div class="srow-title">Forcer Zed sous XWayland</div>
-              <div class="srow-desc"><span>Nécessaire pour piloter Zed au clavier sous Wayland.</span></div>
+              <div class="srow-title" data-i18n>Forcer Zed sous XWayland</div>
+              <div class="srow-desc"><span data-i18n>Nécessaire pour piloter Zed au clavier sous Wayland.</span></div>
             </div>
             <div class="srow-control"><input type="checkbox" id="xwayland" checked></div>
           </div>
           <div class="banner warning">
             <span id="xwayland-warning-icon"></span>
-            <div><span>Sans XWayland, le pilotage au clavier ne fonctionne pas sous Wayland.</span>
-              <span class="detail">Vous pourrez suivre les threads depuis le téléphone, mais pas ouvrir de session ni envoyer de commande à distance. Le rendu de Zed peut légèrement changer.</span>
+            <div><span data-i18n>Sans XWayland, le pilotage au clavier ne fonctionne pas sous Wayland.</span>
+              <span class="detail" data-i18n>Vous pourrez suivre les threads depuis le téléphone, mais pas ouvrir de session ni envoyer de commande à distance. Le rendu de Zed peut légèrement changer.</span>
             </div>
           </div>
         </div>
       </div>
 
-      <div class="ssh"><span class="ssh-label">Réseau</span><span class="divider-h"></span></div>
+      <div class="ssh"><span class="ssh-label" data-i18n>Réseau</span><span class="divider-h"></span></div>
       <div id="net-poste">
         <div class="srow last">
           <div class="srow-inner">
             <div class="srow-text">
-              <div class="srow-title">Port du daemon</div>
-              <div class="srow-desc"><span>Port sur lequel le service attend les connexions.</span><span>Doit correspondre au port de <code>zra.config.json</code>.</span></div>
+              <div class="srow-title" data-i18n>Port du daemon</div>
+              <div class="srow-desc"><span data-i18n>Port sur lequel le service attend les connexions.</span><span><span data-i18n>Doit correspondre au port de</span> <code>zra.config.json</code>.</span></div>
             </div>
             <div class="srow-control" data-port="port">
-              <button class="ibtn reset hidden" title="Rétablir la valeur par défaut"></button>
-              <input type="number" class="short" min="1" max="65535" value="7777" disabled>
-              <button class="ibtn toggle" title="Modifier"></button>
+              <button class="ibtn reset hidden" title="Rétablir la valeur par défaut" data-i18n-title></button>
+              <span class="numinput"><input type="number" class="short" min="1" max="65535" value="7777" disabled><span class="ni-spin"><button type="button" class="ni-up" title="Incrémenter"><svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4.15186 9.56252L7.99258 5.86609L11.8483 9.56252" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><button type="button" class="ni-down" title="Décrémenter"><svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4.15186 6.47321L7.99258 10.1696L11.8483 6.47321" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></span></span>
+              <button class="ibtn toggle" title="Modifier" data-i18n-title></button>
             </div>
           </div>
         </div>
@@ -353,34 +389,34 @@
         <div class="srow">
           <div class="srow-inner">
             <div class="srow-text">
-              <div class="srow-title">Port d'écoute</div>
-              <div class="srow-desc"><span>Port sur lequel le service attend les connexions.</span></div>
+              <div class="srow-title" data-i18n>Port d'écoute</div>
+              <div class="srow-desc"><span data-i18n>Port sur lequel le service attend les connexions.</span></div>
             </div>
             <div class="srow-control" data-port="relayPort">
-              <button class="ibtn reset hidden" title="Rétablir la valeur par défaut"></button>
-              <input type="number" class="short" min="1" max="65535" value="7777" disabled>
-              <button class="ibtn toggle" title="Modifier"></button>
+              <button class="ibtn reset hidden" title="Rétablir la valeur par défaut" data-i18n-title></button>
+              <span class="numinput"><input type="number" class="short" min="1" max="65535" value="7777" disabled><span class="ni-spin"><button type="button" class="ni-up" title="Incrémenter"><svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4.15186 9.56252L7.99258 5.86609L11.8483 9.56252" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><button type="button" class="ni-down" title="Décrémenter"><svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4.15186 6.47321L7.99258 10.1696L11.8483 6.47321" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></span></span>
+              <button class="ibtn toggle" title="Modifier" data-i18n-title></button>
             </div>
           </div>
         </div>
         <div class="srow last">
           <div class="srow-inner">
             <div class="srow-text">
-              <div class="srow-title">Hôte d'écoute</div>
-              <div class="srow-desc"><span>« Toutes les interfaces » (<code>0.0.0.0</code>) : joignable depuis le réseau.</span><span>« Loopback seule » (<code>127.0.0.1</code>) : uniquement depuis cette machine — le cas d'un proxy HTTPS installé ici.</span><span>« Adresse précise » : une seule interface, LAN ou VPN.</span></div>
+              <div class="srow-title" data-i18n>Hôte d'écoute</div>
+              <div class="srow-desc"><span><span data-i18n>« Toutes les interfaces » (</span><code>0.0.0.0</code><span data-i18n>) : joignable depuis le réseau.</span></span><span><span data-i18n>« Loopback seule » (</span><code>127.0.0.1</code><span data-i18n>) : uniquement depuis cette machine — le cas d'un proxy HTTPS installé ici.</span></span><span data-i18n>« Adresse précise » : une seule interface, LAN ou VPN.</span></div>
             </div>
             <div class="srow-control">
               <select id="host">
-                <option value="0.0.0.0">Toutes les interfaces</option>
-                <option value="127.0.0.1">Loopback seule</option>
-                <option value="custom">Adresse précise…</option>
+                <option value="0.0.0.0" data-i18n>Toutes les interfaces</option>
+                <option value="127.0.0.1" data-i18n>Loopback seule</option>
+                <option value="custom" data-i18n>Adresse précise…</option>
               </select>
             </div>
           </div>
           <div class="hidden" id="host-custom">
             <div class="srow-inner" style="padding-top:10px">
-              <div class="srow-text"><div class="srow-title">Adresse</div>
-                <div class="srow-desc"><span>IPv4 d'une interface de cette machine.</span></div></div>
+              <div class="srow-text"><div class="srow-title" data-i18n>Adresse</div>
+                <div class="srow-desc"><span data-i18n>IPv4 d'une interface de cette machine.</span></div></div>
               <div class="srow-control"><input type="text" id="host-input" style="width:130px" placeholder="192.168.1.10" spellcheck="false"></div>
             </div>
           </div>
@@ -391,7 +427,7 @@
           <div class="srow-inner">
             <div class="srow-text">
               <div class="srow-title">TLS</div>
-              <div class="srow-desc"><span>HTTP : le certificat est porté par un proxy placé devant ce serveur (Nginx Proxy Manager, Caddy…).</span><span>HTTPS : ce serveur porte son propre certificat (Let's Encrypt…).</span></div>
+              <div class="srow-desc"><span data-i18n>HTTP : le certificat est porté par un proxy placé devant ce serveur (Nginx Proxy Manager, Caddy…).</span><span data-i18n>HTTPS : ce serveur porte son propre certificat (Let's Encrypt…).</span></div>
             </div>
             <div class="srow-control">
               <div class="segmented" id="tls">
@@ -403,22 +439,22 @@
           <div class="hidden" id="tls-fields">
             <div class="srow" style="padding-top:10px">
               <div class="srow-inner">
-                <div class="srow-text"><div class="srow-title">Certificat</div>
-                  <div class="srow-desc"><span>Fichier <code>.crt</code> — copié dans <code>.zra/tls/</code>.</span></div></div>
+                <div class="srow-text"><div class="srow-title" data-i18n>Certificat</div>
+                  <div class="srow-desc"><span><span data-i18n>Fichier</span> <code>.crt</code> <span data-i18n>— copié dans</span> <code>.zra/tls/</code>.</span></div></div>
                 <div class="srow-control">
                   <span class="mono muted hidden" id="cert-value" style="max-width:220px;overflow-wrap:anywhere;text-align:right"></span>
-                  <button class="btn" id="cert-pick"><span id="cert-icon"></span>Choisir…</button>
+                  <button class="btn" id="cert-pick"><span id="cert-icon"></span><span data-i18n>Choisir…</span></button>
                   <input type="file" id="cert-file" accept=".crt,.pem,.cer" class="hidden">
                 </div>
               </div>
             </div>
             <div class="srow last">
               <div class="srow-inner">
-                <div class="srow-text"><div class="srow-title">Clé privée</div>
-                  <div class="srow-desc"><span>Fichier <code>.key</code> — copié dans <code>.zra/tls/</code>.</span></div></div>
+                <div class="srow-text"><div class="srow-title" data-i18n>Clé privée</div>
+                  <div class="srow-desc"><span><span data-i18n>Fichier</span> <code>.key</code> <span data-i18n>— copié dans</span> <code>.zra/tls/</code>.</span></div></div>
                 <div class="srow-control">
                   <span class="mono muted hidden" id="key-value" style="max-width:220px;overflow-wrap:anywhere;text-align:right"></span>
-                  <button class="btn" id="key-pick"><span id="key-icon"></span>Choisir…</button>
+                  <button class="btn" id="key-pick"><span id="key-icon"></span><span data-i18n>Choisir…</span></button>
                   <input type="file" id="key-file" accept=".key,.pem" class="hidden">
                 </div>
               </div>
@@ -427,14 +463,14 @@
         </div>
       </div>
 
-      <div class="ssh"><span class="ssh-label">Pare-feu</span><span class="divider-h"></span></div>
+      <div class="ssh"><span class="ssh-label" data-i18n>Pare-feu</span><span class="divider-h"></span></div>
       <div class="srow last">
         <div class="srow-inner">
           <div class="srow-text">
-            <div class="srow-title">Tester l'écoute</div>
-            <div class="srow-desc"><span>Vérifie que le port peut être ouvert sur le réseau. Aucune règle de pare-feu n'est créée.</span></div>
+            <div class="srow-title" data-i18n>Tester l'écoute</div>
+            <div class="srow-desc"><span data-i18n>Vérifie que le port peut être ouvert sur le réseau. Aucune règle de pare-feu n'est créée.</span></div>
           </div>
-          <div class="srow-control"><button class="btn" id="listen-test">Tester</button></div>
+          <div class="srow-control"><button class="btn" id="listen-test" data-i18n>Tester</button></div>
         </div>
         <div class="banner hidden" id="listen-result" style="margin-top:10px">
           <span id="listen-result-icon"></span>
@@ -443,25 +479,66 @@
       </div>
       </div>
 
+      <div class="ssh" id="install-ssh"><span class="ssh-label" data-i18n>Installation</span><span class="divider-h"></span></div>
+      <div class="srow last" id="install-row">
+        <div class="srow-inner">
+          <div class="srow-text">
+            <div class="srow-title" data-i18n>Installer sur ce poste</div>
+            <div class="srow-desc"><span id="install-desc" data-i18n>ZRA sera copié dans un emplacement fixe, avec un raccourci Menu Démarrer. Désinstallable proprement depuis la console de gestion.</span><span data-i18n>Décocher pour rester portable : ZRA tournera depuis le dossier actuel (le déplacer casserait les chemins).</span></div>
+          </div>
+          <div class="srow-control"><input type="checkbox" id="install" checked></div>
+        </div>
+      </div>
+
       <div class="banner error hidden" id="error-banner"><span id="error-icon"></span><div id="error-text"></div></div>
       <div class="footer">
-        <button class="btn primary" id="start" disabled>Enregistrer et démarrer</button>
+        <button class="btn primary" id="start" disabled data-i18n>Enregistrer et démarrer</button>
       </div>
     </div>
 
     <div id="done" class="hidden">
       <div class="banner success"><span id="done-icon"></span>
-        <div><strong>Configuration enregistrée.</strong>
-          <span class="detail">Le service est supervisé par le tray. Cet onglet peut être fermé.</span>
+        <div><strong data-i18n>Configuration enregistrée.</strong>
+          <span class="detail" data-i18n>Le service est supervisé par le tray. Cet onglet peut être fermé.</span>
         </div>
       </div>
       <div class="steps" id="steps"></div>
-      <div class="footer"><button class="btn primary" id="open-zra">Ouvrir ZRA</button></div>
+      <div class="footer"><button class="btn primary" id="open-zra" data-i18n>Ouvrir ZRA</button></div>
     </div>
   </div>
 </div>
 
 <script>
+  // i18n : catalogue et langue injectés par le serveur dans le head ; sans
+  // injection (tests jsdom), français par défaut. La fonction tr prend un
+  // gabarit français (la clé) et ses valeurs, substituées aux {0}, {1}… ;
+  // texte absent du catalogue : français.
+  const I18N = window.ZRA_I18N || { lang: 'fr', en: {} }
+  const tr = (strings, ...values) => {
+    const key = strings.reduce((k, s, i) => k + `{${i - 1}}` + s)
+    const text = I18N.lang === 'en' ? I18N.en[key] : undefined
+    return text
+      ? text.replace(/\{(\d+)\}/g, (_, i) => String(values[i]))
+      : strings.reduce((out, s, i) => out + String(values[i - 1]) + s)
+  }
+  document.documentElement.lang = I18N.lang
+  for (const el of document.querySelectorAll('[data-i18n]')) {
+    const key = el.textContent.trim()
+    const text = tr([key])
+    if (text !== key) el.textContent = text
+  }
+  for (const el of document.querySelectorAll('[data-i18n-title]')) el.title = tr([el.title])
+  for (const el of document.querySelectorAll('[data-i18n-placeholder]')) el.placeholder = tr([el.placeholder])
+
+  // Scrollbar révélée au scroll (comme la PWA), masquée au repos après 1 s.
+  document.addEventListener('scroll', (e) => {
+    const el = e.target === document ? document.documentElement : e.target
+    if (!(el instanceof Element)) return
+    el.classList.add('is-scrolling')
+    clearTimeout(el._sbT)
+    el._sbT = setTimeout(() => el.classList.remove('is-scrolling'), 1000)
+  }, true)
+
   const $ = (id) => document.getElementById(id)
   // Icônes Zed (reference/zed-ui/shared/icons.js) ; « monitor » dessiné dans le
   // même style (trait 1.2, bouts ronds) pour la carte Poste.
@@ -496,6 +573,9 @@
     wayland: false,
     autostart: true,
     xwayland: true,
+    install: true,
+    appLayout: false,
+    installTarget: null,
   }
 
   function refresh() {
@@ -517,6 +597,12 @@
     }
     for (const btn of document.querySelectorAll('#tls button')) {
       btn.classList.toggle('selected', btn.dataset.v === state.tls)
+    }
+    // Self-install : layout archive seulement, liste principale (pas repliée).
+    $('install-ssh').classList.toggle('hidden', !state.appLayout)
+    $('install-row').classList.toggle('hidden', !state.appLayout)
+    if (state.installTarget) {
+      $('install-desc').textContent = tr`ZRA sera copié dans ${state.installTarget}, avec un raccourci Menu Démarrer. Désinstallable proprement depuis la console de gestion.`
     }
   }
 
@@ -549,7 +635,7 @@
     $('node-path').classList.toggle('hidden', show)
     $('node-input').classList.toggle('hidden', !show)
     $('node-edit').innerHTML = show ? ICONS.check : ICONS.pencil
-    $('node-edit').title = show ? 'Vérifier et valider' : 'Modifier le chemin'
+    $('node-edit').title = show ? tr`Vérifier et valider` : tr`Modifier le chemin`
     if (show) {
       $('node-input').value = state.node?.path ?? ''
       $('node-input').focus()
@@ -560,14 +646,14 @@
     const path = $('node-input').value.trim()
     // Feedback immédiat : `node --version` prend quelques centaines de ms.
     $('node-edit').disabled = true
-    $('node-version').textContent = 'vérification…'
+    $('node-version').textContent = tr`vérification…`
     $('node-version').style.color = ''
     let body
     try {
       const res = await fetch('/check', { method: 'POST', body: JSON.stringify({ path }) })
       body = await res.json()
     } catch {
-      body = { ok: false, error: 'Le tray ne répond plus.' }
+      body = { ok: false, error: tr`Le tray ne répond plus.` }
     }
     $('node-edit').disabled = false
     if (body.ok) {
@@ -586,10 +672,19 @@
   if (mock === 'missing') {
     populateDiscover({ zed: { settingsExists: false, channel: 'stable', cli: 'zed' }, agents: [], wayland: true, autostart: { backend: 'systemd', installed: false } })
     setNode(null)
-    state.settingsMode = 'custom'; $('settings-mode').value = 'custom'; refresh()
+    state.settingsMode = 'custom'; $('settings-mode').value = 'custom'
+    state.appLayout = true; state.installTarget = '%LOCALAPPDATA%\\Programs\\zra'
+    refresh()
   } else {
-    fetch('/info').then((r) => r.json()).then((info) => { setNode(info.node); if (info.node) loadDiscover(info.node.path) })
+    fetch('/info').then((r) => r.json()).then((info) => {
+      state.appLayout = Boolean(info.appLayout)
+      state.installTarget = info.installTarget
+      if (info.portable) { $('install').checked = false; state.install = false }
+      setNode(info.node)
+      if (info.node) loadDiscover(info.node.path)
+    })
   }
+  $('install').addEventListener('change', () => { state.install = $('install').checked })
   $('node-edit').addEventListener('click', () => {
     if ($('node-input').classList.contains('hidden')) nodeEdit(true)
     else nodeConfirm()
@@ -619,7 +714,7 @@
     const list = $('agents-list')
     list.innerHTML = ''
     if (!state.agents.length) {
-      list.innerHTML = '<span class="muted">Aucun agent détecté. Ouvrez une fois un thread avec l\'agent voulu dans Zed, puis rechargez cette page.</span>'
+      list.innerHTML = '<span class="muted">' + tr`Aucun agent détecté. Ouvrez une fois un thread avec l'agent voulu dans Zed, puis rechargez cette page.` + '</span>'
       return
     }
     for (const a of state.agents) {
@@ -637,12 +732,12 @@
       if (a.shimmed) {
         const b = document.createElement('span')
         b.className = 'badge'
-        b.textContent = 'déjà branché'
+        b.textContent = tr`déjà branché`
         label.append(b)
       }
       const src = document.createElement('span')
       src.className = 'agent-src muted'
-      src.textContent = a.ok ? (a.source || '') : (a.reason || 'non lançable')
+      src.textContent = a.ok ? (a.source || '') : (a.reason || tr`non lançable`)
       label.append(src)
       list.append(label)
     }
@@ -653,7 +748,7 @@
       setZed(null)
       state.agents = []
       state.wayland = false
-      $('agents-list').innerHTML = '<span class="muted">Détection indisponible — vérifiez Node ci-dessus.</span>'
+      $('agents-list').innerHTML = '<span class="muted">' + tr`Détection indisponible — vérifiez Node ci-dessus.` + '</span>'
       refresh()
       return
     }
@@ -670,7 +765,7 @@
 
   async function loadDiscover(node) {
     if (!node) return populateDiscover(null)
-    $('agents-list').innerHTML = '<span class="muted">détection…</span>'
+    $('agents-list').innerHTML = '<span class="muted">' + tr`détection…` + '</span>'
     try {
       const res = await fetch('/discover', { method: 'POST', body: JSON.stringify({ node }) })
       const body = await res.json()
@@ -689,7 +784,7 @@
       row.innerHTML = s.ok ? ICONS.check : ICONS.warning
       const txt = document.createElement('div')
       const t = document.createElement('div')
-      t.textContent = s.label + (s.ok ? '' : ' — échec')
+      t.textContent = s.label + (s.ok ? '' : tr` — échec`)
       txt.append(t)
       if (!s.ok && s.output) {
         const o = document.createElement('div')
@@ -720,27 +815,27 @@
     const text = $('listen-result-text')
     if (!body.ok) {
       res.classList.add('error'); icon.innerHTML = ICONS.warning
-      text.textContent = body.error || 'Test impossible.'
+      text.textContent = body.error || tr`Test impossible.`
       return
     }
     const r = body.result
     const fw = r.firewall || {}
     let cls, msg
     if (r.error && !r.bound && !r.inUse) {
-      cls = 'error'; msg = `Le port ${r.port} ne peut pas être ouvert (${r.error}).`
+      cls = 'error'; msg = tr`Le port ${r.port} ne peut pas être ouvert (${r.error}).`
     } else if (r.inUse) {
-      cls = 'success'; msg = `Le service écoute déjà sur le port ${r.port}.`
+      cls = 'success'; msg = tr`Le service écoute déjà sur le port ${r.port}.`
     } else if (!fw.active || !fw.type) {
-      cls = 'success'; msg = 'Aucun pare-feu actif détecté — le port devrait être joignable depuis le réseau.'
+      cls = 'success'; msg = tr`Aucun pare-feu actif détecté — le port devrait être joignable depuis le réseau.`
     } else if (fw.portAllowed === true) {
-      cls = 'success'; msg = `Port ouvert sur ${fw.type} — devrait être joignable depuis le réseau.`
+      cls = 'success'; msg = tr`Port ouvert sur ${fw.type} — devrait être joignable depuis le réseau.`
     } else if (fw.portAllowed === false) {
-      cls = 'warning'; msg = `Pare-feu ${fw.type} actif : le port ${r.port} n'est pas ouvert. Ouvrez-le manuellement dans les réglages du pare-feu.`
+      cls = 'warning'; msg = tr`Pare-feu ${fw.type} actif : le port ${r.port} n'est pas ouvert. Ouvrez-le manuellement dans les réglages du pare-feu.`
     } else {
       cls = 'warning'
       msg = r.platform === 'win32'
-        ? 'Pare-feu Windows : une invite « autoriser l\'accès » a pu apparaître. Si le port reste fermé, ouvrez-le manuellement.'
-        : `Pare-feu ${fw.type} actif : règles illisibles sans droits. Vérifiez que le port ${r.port} est ouvert.`
+        ? tr`Pare-feu Windows : une invite « autoriser l'accès » a pu apparaître. Si le port reste fermé, ouvrez-le manuellement.`
+        : tr`Pare-feu ${fw.type} actif : règles illisibles sans droits. Vérifiez que le port ${r.port} est ouvert.`
     }
     res.classList.add(cls)
     icon.innerHTML = cls === 'success' ? ICONS.check : ICONS.warning
@@ -767,7 +862,7 @@
     try {
       const r = await fetch('/listen-test', { method: 'POST', body: JSON.stringify({ port, host, node: state.node.path }) })
       body = await r.json()
-    } catch { body = { ok: false, error: 'Le tray ne répond plus.' } }
+    } catch { body = { ok: false, error: tr`Le tray ne répond plus.` } }
     btn.disabled = false
     renderListenResult(body)
   })
@@ -783,13 +878,13 @@
     const setEditing = (on) => {
       input.disabled = !on
       toggle.innerHTML = on ? ICONS.check : ICONS.pencil
-      toggle.title = on ? 'Valider' : 'Modifier'
+      toggle.title = on ? tr`Valider` : tr`Modifier`
       if (on) input.focus()
     }
     toggle.addEventListener('click', () => {
       if (input.disabled) return setEditing(true)
       const n = Number(input.value)
-      if (!Number.isInteger(n) || n < 1 || n > 65535) return showError('Port invalide : entier entre 1 et 65535.')
+      if (!Number.isInteger(n) || n < 1 || n > 65535) return showError(tr`Port invalide : entier entre 1 et 65535.`)
       state[key] = n
       $('error-banner').classList.add('hidden')
       setEditing(false)
@@ -803,6 +898,23 @@
     input.addEventListener('input', syncReset)
     input.addEventListener('keydown', (e) => { if (e.key === 'Enter') toggle.click() })
     syncReset()
+  }
+
+  // --- Steppers number (.numinput) : chevrons +/− pas à pas, bornes min/max ----
+  for (const wrap of document.querySelectorAll('.numinput')) {
+    const input = wrap.querySelector('input[type=number]')
+    if (!input) continue
+    const step = (dir) => {
+      if (input.disabled) return
+      const s = Number(input.step) || 1
+      const min = input.min === '' ? -Infinity : Number(input.min)
+      const max = input.max === '' ? Infinity : Number(input.max)
+      const cur = input.value === '' ? 0 : Number(input.value)
+      input.value = String(Math.min(max, Math.max(min, cur + dir * s)))
+      input.dispatchEvent(new Event('input', { bubbles: true }))
+    }
+    wrap.querySelector('.ni-up')?.addEventListener('click', () => step(1))
+    wrap.querySelector('.ni-down')?.addEventListener('click', () => step(-1))
   }
 
   // --- Mode, hôte, TLS -------------------------------------------------------
@@ -833,7 +945,7 @@
         const v = $(kind + '-value')
         v.textContent = body.path
         v.classList.remove('hidden')
-        $(kind + '-pick').lastChild.textContent = 'Remplacer…'
+        $(kind + '-pick').lastChild.textContent = tr`Remplacer…`
         $('error-banner').classList.add('hidden')
         refresh()
       } else {
@@ -865,6 +977,7 @@
       xwayland: state.mode === 'poste' && state.wayland && eff.xwayland,
       tlsCert: state.mode === 'poste' && https ? eff.certPath : null,
       tlsKey: state.mode === 'poste' && https ? eff.keyPath : null,
+      install: state.appLayout && state.install,
     }
     try {
       const res = await fetch('/done', { method: 'POST', body: JSON.stringify(payload) })
@@ -873,12 +986,18 @@
         $('form').classList.add('hidden')
         $('done').classList.remove('hidden')
         renderSteps(body.steps || [])
+        if (body.installed) {
+          const d = document.createElement('span')
+          d.className = 'detail'
+          d.textContent = tr`ZRA est installé dans ${body.installed} et redémarre depuis cet emplacement. Cet onglet peut être fermé.`
+          $('done').querySelector('.banner.success div').append(d)
+        }
       } else {
         showError(body.error)
         refresh()
       }
     } catch {
-      showError('Le tray ne répond plus.')
+      showError(tr`Le tray ne répond plus.`)
       refresh()
     }
   })

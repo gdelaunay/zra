@@ -38,6 +38,8 @@ flowchart LR
 
 `scripts/` holds installation (`setup`), the service (`service`), pairing (`pair`) and keyboard tuning (`zed`).
 
+i18n: the tray (`zra-tray/`, native menu + console/onboarding pages) shares the daemon's and PWA's mechanism — French reference in the code, English catalog `zra-tray/i18n/en.json` (keys = French text, values `{0}`, `{1}…`), language via `ZRA_LANG` or the system locale. Rust side: `tr!` macro; page side: inline `tr` + `data-i18n` static text, catalog and language injected by the server. `scripts/i18n-test.mjs` (the “tray” brick) checks completeness, as for the other bricks.
+
 ## The exchanges
 
 ### Zed ↔ shim ↔ agent: stdio ACP
@@ -124,7 +126,11 @@ No npm dependency in production. In development: `jsdom` (tests).
 
 The entries written into Zed and into the service contain the absolute path of the repository and of Node.
 
-Local state: `.zra/` in the repository (hashed tokens, logs, backups, frames recorded with `--record`) and the application folder (`%LOCALAPPDATA%\zra` or `$XDG_STATE_HOME/zra`) for the injection log.
+Data locations — two, depending on the layout:
+- **Config**: settings (`zra.config.json`, `tray.json`) and precious data (`.zra/`: pairing `auth.json`, subscriptions `push.json`, certs `tls/`, keep-awake, `thread-ops.json`, `setup.json`). In the **installed** layout: the user config folder (`%APPDATA%\zra` / `$XDG_CONFIG_HOME/zra`, default `~/.config/zra`), outside the application folder — survives updates and uninstall. In **portable/repository**: at the root, next to the exe. Resolved by `configRoot` (`platform.js`, `config.rs`).
+- **Install**: the code (`app/`) and the disposable `.zra` (logs, `injections.log`, recorded frames `records/`, lock `tray.lock`, `updates/`, `bin/`), regenerated at runtime. Installed: `%LOCALAPPDATA%\Programs\zra` / `~/.local/share/zra` — swapped on update, removed on uninstall.
+
+Assumed XDG gap: precious data (data, not settings) lives in the config folder rather than `XDG_DATA_HOME`, a compromise for two locations. Uninstall: "keep my settings" preserves the config; "uninstall everything" removes it too.
 
 ## Weak spots
 
