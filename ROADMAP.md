@@ -34,3 +34,14 @@ taggé** : une ou deux phrases de description du jalon + « See CHANGELOG.md »
   SmartScreen/Defender (quarantaine constatée en test réel sur le tray
   debug). À traiter : cert OV, Azure Trusted Signing, ou SignPath
   (gratuit OSS, à vérifier).
+
+### Distribution — exe standalone (piste, non planifié)
+
+Un seul fichier par plateforme : le tray avec l'archive app embarquée.
+Lancé tel quel → portable (extraction en cache/temp) ; « Installer sur ce
+poste » → self-install comme aujourd'hui. Supprime l'étape « extraire le
+zip » pour l'utilisateur moyen, et le piège de l'asset tray seul : un exe
+nu téléchargé depuis la release ne trouve pas `app/` et sort en erreur
+(« Racine ZRA introuvable ») — l'asset existe pour le flux `setup`, pas
+pour le grand public. Piste technique : stub auto-extracteur Rust (crate
+`zip` déjà au projet).
